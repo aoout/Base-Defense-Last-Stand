@@ -23,7 +23,8 @@ import {
   GameMode,
   Planet,
   PersistentPlayerState,
-  SaveFile
+  SaveFile,
+  BiomeType
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -43,7 +44,8 @@ import {
   BOSS_STATS,
   TOXIC_ZONE_STATS,
   MAX_SAVE_SLOTS,
-  MAX_PINNED_SLOTS
+  MAX_PINNED_SLOTS,
+  BIOME_STYLES
 } from '../constants';
 import { AudioService } from './audioService';
 
@@ -232,7 +234,8 @@ export class GameEngine {
   private generatePlanets(): Planet[] {
       const planets: Planet[] = [];
       const prefixes = ["PX", "KE", "SOL", "VE", "TR", "GZ"];
-      const colors = ["#EF4444", "#3B82F6", "#10B981", "#F59E0B", "#8B5CF6", "#EC4899"];
+      
+      const biomes = Object.values(BiomeType);
 
       for (let i = 0; i < 15; i++) {
           const id = `p-${i}`;
@@ -244,8 +247,6 @@ export class GameEngine {
           const geneStrength = parseFloat((0.8 + Math.random() * 2.4).toFixed(2));
           
           // Waves: Weighted Distribution
-          // 70% chance for 8-20 waves
-          // 30% chance for 21-40 waves
           let totalWaves;
           const roll = Math.random();
           if (roll < 0.7) {
@@ -254,16 +255,21 @@ export class GameEngine {
               totalWaves = 21 + Math.floor(Math.random() * 20); // 21 to 40
           }
 
+          // Assign Random Biome
+          const biome = biomes[Math.floor(Math.random() * biomes.length)];
+          const biomeStyle = BIOME_STYLES[biome];
+
           planets.push({
               id,
               name,
               x: Math.random() * (CANVAS_WIDTH - 100) + 50,
               y: Math.random() * (CANVAS_HEIGHT - 100) + 50,
               radius: 15 + Math.random() * 25,
-              color: colors[Math.floor(Math.random() * colors.length)],
+              color: biomeStyle.planetColor,
               totalWaves,
               geneStrength,
-              completed: false
+              completed: false,
+              biome: biome
           });
       }
       return planets;
@@ -667,6 +673,63 @@ export class GameEngine {
           this.closeTurretUpgrade();
       } else {
           this.addMessage("Insufficient Scraps", p.x, p.y - 50, 'red');
+      }
+  }
+
+  public purchaseItem(item: string) {
+      const p = this.state.player;
+      
+      if (item.startsWith('WEAPON_')) {
+          let type: WeaponType | null = null;
+          let cost = 0;
+          if (item === 'WEAPON_PULSE') { type = WeaponType.PULSE_RIFLE; cost = SHOP_PRICES.WEAPON_PULSE; }
+          if (item === 'WEAPON_FLAME') { type = WeaponType.FLAMETHROWER; cost = SHOP_PRICES.WEAPON_FLAME; }
+          if (item === 'WEAPON_GL') { type = WeaponType.GRENADE_LAUNCHER; cost = SHOP_PRICES.WEAPON_GL; }
+
+          if (type && p.score >= cost) {
+              const emptyIdx = p.inventory.findIndex(s => s === null);
+              if (emptyIdx !== -1) {
+                  p.score -= cost;
+                  p.inventory[emptyIdx] = { id: Math.random().toString(), type: type };
+                  this.addMessage("Weapon Acquired", p.x, p.y - 50, 'cyan');
+              } else {
+                  this.addMessage("Inventory Full!", p.x, p.y - 50, 'red');
+              }
+          } else if (p.score < cost) {
+               this.addMessage("Need Scraps!", p.x, p.y - 50, 'red');
+          }
+          return;
+      }
+
+      if (item === 'AR_AMMO' && p.score >= SHOP_PRICES.AR_AMMO) {
+          p.score -= SHOP_PRICES.AR_AMMO;
+          p.weapons[WeaponType.AR].ammoReserve += 60;
+      }
+      else if (item === 'SG_AMMO' && p.score >= SHOP_PRICES.SG_AMMO) {
+          p.score -= SHOP_PRICES.SG_AMMO;
+          p.weapons[WeaponType.SG].ammoReserve += 16;
+      }
+      else if (item === 'SR_AMMO' && p.score >= SHOP_PRICES.SR_AMMO) {
+          p.score -= SHOP_PRICES.SR_AMMO;
+          p.weapons[WeaponType.SR].ammoReserve += 10;
+      }
+      else if (item === 'PULSE_AMMO' && p.score >= SHOP_PRICES.PULSE_AMMO) {
+          p.score -= SHOP_PRICES.PULSE_AMMO;
+          p.weapons[WeaponType.PULSE_RIFLE].ammoReserve += 90;
+      }
+      else if (item === 'FLAME_AMMO' && p.score >= SHOP_PRICES.FLAME_AMMO) {
+          p.score -= SHOP_PRICES.FLAME_AMMO;
+          p.weapons[WeaponType.FLAMETHROWER].ammoReserve += 200;
+      }
+      else if (item === 'GL_AMMO' && p.score >= SHOP_PRICES.GL_AMMO) {
+          p.score -= SHOP_PRICES.GL_AMMO;
+          p.weapons[WeaponType.GRENADE_LAUNCHER].ammoReserve += 12;
+      }
+      else if (item === 'GRENADE' && p.score >= SHOP_PRICES.GRENADE) {
+          if (p.grenades < PLAYER_STATS.maxGrenades) {
+             p.score -= SHOP_PRICES.GRENADE;
+             p.grenades++;
+          }
       }
   }
 
@@ -1740,62 +1803,5 @@ export class GameEngine {
         this.state.isPaused = true; 
       }
     }
-  }
-
-  public purchaseItem(item: string) {
-      const p = this.state.player;
-      
-      if (item.startsWith('WEAPON_')) {
-          let type: WeaponType | null = null;
-          let cost = 0;
-          if (item === 'WEAPON_PULSE') { type = WeaponType.PULSE_RIFLE; cost = SHOP_PRICES.WEAPON_PULSE; }
-          if (item === 'WEAPON_FLAME') { type = WeaponType.FLAMETHROWER; cost = SHOP_PRICES.WEAPON_FLAME; }
-          if (item === 'WEAPON_GL') { type = WeaponType.GRENADE_LAUNCHER; cost = SHOP_PRICES.WEAPON_GL; }
-
-          if (type && p.score >= cost) {
-              const emptyIdx = p.inventory.findIndex(s => s === null);
-              if (emptyIdx !== -1) {
-                  p.score -= cost;
-                  p.inventory[emptyIdx] = { id: Math.random().toString(), type: type };
-                  this.addMessage("Weapon Acquired", p.x, p.y - 50, 'cyan');
-              } else {
-                  this.addMessage("Inventory Full!", p.x, p.y - 50, 'red');
-              }
-          } else if (p.score < cost) {
-               this.addMessage("Need Scraps!", p.x, p.y - 50, 'red');
-          }
-          return;
-      }
-
-      if (item === 'AR_AMMO' && p.score >= SHOP_PRICES.AR_AMMO) {
-          p.score -= SHOP_PRICES.AR_AMMO;
-          p.weapons[WeaponType.AR].ammoReserve += 60;
-      }
-      else if (item === 'SG_AMMO' && p.score >= SHOP_PRICES.SG_AMMO) {
-          p.score -= SHOP_PRICES.SG_AMMO;
-          p.weapons[WeaponType.SG].ammoReserve += 16;
-      }
-      else if (item === 'SR_AMMO' && p.score >= SHOP_PRICES.SR_AMMO) {
-          p.score -= SHOP_PRICES.SR_AMMO;
-          p.weapons[WeaponType.SR].ammoReserve += 10;
-      }
-      else if (item === 'PULSE_AMMO' && p.score >= SHOP_PRICES.PULSE_AMMO) {
-          p.score -= SHOP_PRICES.PULSE_AMMO;
-          p.weapons[WeaponType.PULSE_RIFLE].ammoReserve += 90;
-      }
-      else if (item === 'FLAME_AMMO' && p.score >= SHOP_PRICES.FLAME_AMMO) {
-          p.score -= SHOP_PRICES.FLAME_AMMO;
-          p.weapons[WeaponType.FLAMETHROWER].ammoReserve += 200;
-      }
-      else if (item === 'GL_AMMO' && p.score >= SHOP_PRICES.GL_AMMO) {
-          p.score -= SHOP_PRICES.GL_AMMO;
-          p.weapons[WeaponType.GRENADE_LAUNCHER].ammoReserve += 12;
-      }
-      else if (item === 'GRENADE' && p.score >= SHOP_PRICES.GRENADE) {
-          if (p.grenades < PLAYER_STATS.maxGrenades) {
-             p.score -= SHOP_PRICES.GRENADE;
-             p.grenades++;
-          }
-      }
   }
 }

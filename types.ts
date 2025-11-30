@@ -228,6 +228,14 @@ export enum GameMode {
     EXPLORATION = 'EXPLORATION'
 }
 
+export enum BiomeType {
+    BARREN = 'BARREN',
+    ICE = 'ICE',
+    VOLCANIC = 'VOLCANIC',
+    DESERT = 'DESERT',
+    TOXIC = 'TOXIC'
+}
+
 export interface Planet {
     id: string;
     name: string;
@@ -238,6 +246,7 @@ export interface Planet {
     totalWaves: number;
     geneStrength: number;
     completed: boolean;
+    biome: BiomeType;
 }
 
 export interface PersistentPlayerState {

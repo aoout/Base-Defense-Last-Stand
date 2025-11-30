@@ -2,8 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
-import { EnemyType, GameState, WeaponType, Enemy, Player, TerrainFeature, BloodStain, Turret, Ally, TurretType, BossType, ToxicZone, AppMode, Planet } from '../types';
-import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
+import { EnemyType, GameState, WeaponType, Enemy, Player, TerrainFeature, BloodStain, Turret, Ally, TurretType, BossType, ToxicZone, AppMode, Planet, GameMode, BiomeType } from '../types';
+import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH, BIOME_STYLES } from '../constants';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -47,7 +47,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     ctx.translate(-camera.x, -camera.y);
 
     // 1. Draw Space Terrain (Background)
-    drawTerrain(ctx, state.terrain);
+    drawTerrain(ctx, state.terrain, state.gameMode, state.currentPlanet);
     
     // 2. Draw Blood Stains (Under everything else)
     if (state.settings.showBlood) {
@@ -375,15 +375,16 @@ const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, tim
         const isSelected = state.selectedPlanetId === p.id;
         // Deterministic random for texture based on planet ID
         const seed = parseInt(p.id.split('-')[1]) || 0;
-        const planetType = seed % 3; // 0: Terrestrial, 1: Gas, 2: Exotic
+        const biome = p.biome || BiomeType.BARREN;
+        const biomeConfig = BIOME_STYLES[biome];
 
         // Atmosphere Glow
-        ctx.shadowColor = p.color;
+        ctx.shadowColor = biomeConfig.planetColor;
         ctx.shadowBlur = isSelected ? 30 : 15;
 
         // 1. Planet Base Body
         // Use solid fill first to ensure opacity
-        ctx.fillStyle = p.color;
+        ctx.fillStyle = biomeConfig.planetColor;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
         ctx.fill();
@@ -412,24 +413,54 @@ const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, tim
         ctx.rotate(time * rotationSpeed + seed);
         ctx.translate(-p.x, -p.y);
 
-        if (planetType === 1) { 
-            // Gas Giant - Bands
-            ctx.fillStyle = 'rgba(255,255,255,0.1)';
-            for(let i=0; i<3; i++) {
-                const yOff = ((seed * 11 + i * 20) % (p.radius * 2)) - p.radius;
-                const h = 4 + (seed * i) % 8;
-                ctx.fillRect(p.x - p.radius, p.y + yOff, p.radius*2, h);
+        if (biome === BiomeType.ICE) { 
+            // ICE: White caps
+             ctx.fillStyle = 'rgba(255,255,255,0.6)';
+             // North Cap
+             ctx.beginPath();
+             ctx.arc(p.x, p.y - p.radius*0.7, p.radius*0.5, 0, Math.PI*2);
+             ctx.fill();
+             // South Cap
+             ctx.beginPath();
+             ctx.arc(p.x, p.y + p.radius*0.7, p.radius*0.5, 0, Math.PI*2);
+             ctx.fill();
+        } 
+        else if (biome === BiomeType.VOLCANIC) {
+            // VOLCANIC: Cracks
+            ctx.strokeStyle = '#fca5a5'; // lighter red
+            ctx.lineWidth = 1;
+            for(let i=0; i<6; i++) {
+                ctx.beginPath();
+                const offX = Math.sin(i*23) * p.radius * 0.6;
+                const offY = Math.cos(i*17) * p.radius * 0.6;
+                ctx.moveTo(p.x + offX, p.y + offY);
+                ctx.lineTo(p.x + offX + 10, p.y + offY + 10);
+                ctx.stroke();
             }
+        }
+        else if (biome === BiomeType.DESERT) {
+            // DESERT: Bands
+             ctx.fillStyle = 'rgba(0,0,0,0.1)';
+             ctx.fillRect(p.x - p.radius, p.y - p.radius*0.2, p.radius*2, p.radius*0.4);
+             ctx.fillStyle = 'rgba(255,255,255,0.1)';
+             ctx.fillRect(p.x - p.radius, p.y + p.radius*0.3, p.radius*2, p.radius*0.2);
+        }
+        else if (biome === BiomeType.TOXIC) {
+            // TOXIC: Clouds
+             ctx.fillStyle = 'rgba(255,255,255,0.2)';
+             for(let i=0; i<4; i++) {
+                 const angle = i * Math.PI / 2;
+                 const dx = Math.cos(angle) * p.radius * 0.4;
+                 const dy = Math.sin(angle) * p.radius * 0.4;
+                 ctx.beginPath();
+                 ctx.arc(p.x + dx, p.y + dy, p.radius * 0.3, 0, Math.PI*2);
+                 ctx.fill();
+             }
+        }
+        else {
+            // BARREN: Craters
             ctx.fillStyle = 'rgba(0,0,0,0.2)';
             for(let i=0; i<3; i++) {
-                const yOff = ((seed * 17 + i * 25) % (p.radius * 2)) - p.radius;
-                const h = 2 + (seed * i) % 6;
-                ctx.fillRect(p.x - p.radius, p.y + yOff, p.radius*2, h);
-            }
-        } else if (planetType === 0) {
-            // Terrestrial - Craters/Patches
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            for(let i=0; i<4; i++) {
                 const cx = ((seed * 23 + i * 41) % (p.radius * 1.2)) - p.radius * 0.6;
                 const cy = ((seed * 29 + i * 37) % (p.radius * 1.2)) - p.radius * 0.6;
                 const r = 2 + (seed * i) % 6;
@@ -437,24 +468,6 @@ const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, tim
                 ctx.arc(p.x + cx, p.y + cy, r, 0, Math.PI*2);
                 ctx.fill();
             }
-             ctx.fillStyle = 'rgba(255,255,255,0.1)';
-             for(let i=0; i<3; i++) {
-                const cx = ((seed * 7 + i * 13) % (p.radius * 1.4)) - p.radius * 0.7;
-                const cy = ((seed * 3 + i * 19) % (p.radius * 1.4)) - p.radius * 0.7;
-                const r = 4 + (seed * i) % 8;
-                ctx.beginPath();
-                ctx.arc(p.x + cx, p.y + cy, r, 0, Math.PI*2);
-                ctx.fill();
-            }
-        } else {
-            // Exotic - Swirls
-             ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-             ctx.lineWidth = 2;
-             for(let i=1; i<=3; i++) {
-                 ctx.beginPath();
-                 ctx.ellipse(p.x, p.y, p.radius*(i*0.3), p.radius*(i*0.2), i, 0, Math.PI*2);
-                 ctx.stroke();
-             }
         }
         
         // Reset transform from rotation
@@ -498,9 +511,15 @@ const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, tim
 }
 
 // --- Terrain Drawing ---
-export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[]) => {
+export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null) => {
+    // Determine Biome Style
+    let style = BIOME_STYLES[BiomeType.BARREN];
+    if (gameMode === GameMode.EXPLORATION && planet) {
+        style = BIOME_STYLES[planet.biome] || BIOME_STYLES[BiomeType.BARREN];
+    }
+
     // Fill Background
-    ctx.fillStyle = '#111827'; // Dark Gray Base
+    ctx.fillStyle = style.groundColor; 
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
     terrain.forEach(t => {
@@ -509,10 +528,12 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
         if (t.rotation) ctx.rotate(t.rotation);
 
         if (t.type === 'DUST') {
-            ctx.fillStyle = 'rgba(156, 163, 175, ' + (t.opacity || 0.2) + ')';
+            ctx.fillStyle = style.dustColor;
+            ctx.globalAlpha = t.opacity || 0.2;
             ctx.beginPath();
             ctx.arc(0, 0, t.radius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.globalAlpha = 1.0;
         } 
         else if (t.type === 'ROCK') {
             // Shadow
@@ -527,7 +548,7 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             ctx.fill();
 
             // Rock Body
-            ctx.fillStyle = '#4B5563'; // Gray 600
+            ctx.fillStyle = style.rockColor; 
             ctx.beginPath();
             if (t.points) {
                 ctx.moveTo(t.points[0].x, t.points[0].y);
@@ -537,11 +558,10 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             }
             ctx.fill();
             
-            // Highlight
-            ctx.fillStyle = '#6B7280'; // Gray 500
+            // Highlight (slightly lighter version of rock color)
+            ctx.fillStyle = 'rgba(255,255,255,0.1)'; 
             ctx.beginPath();
              if (t.points) {
-                // Simple highlight on one side
                 ctx.arc(0, 0, t.radius * 0.5, 0, Math.PI*2);
             } else {
                 ctx.arc(-t.radius*0.3, -t.radius*0.3, t.radius*0.4, 0, Math.PI*2);
@@ -549,29 +569,30 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             ctx.fill();
         } 
         else if (t.type === 'CRATER') {
-            // Crater Body (Dark)
-            ctx.fillStyle = 'rgba(17, 24, 39, ' + (t.opacity || 0.5) + ')'; // Darker than bg
+            // Crater Body
+            ctx.fillStyle = style.craterColor; 
+            ctx.globalAlpha = t.opacity || 0.5;
             ctx.beginPath();
             ctx.arc(0, 0, t.radius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner Shadow (Top Left)
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, t.radius, Math.PI, Math.PI * 2.5); // Bottom Right Highlight logic inverted?
-            // Actually let's just draw an inner circle slightly offset
-            
-            // Rim Highlight (Bottom Right)
+            // Rim Highlight 
             ctx.strokeStyle = 'rgba(255,255,255,0.05)';
             ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.arc(0, 0, t.radius + 2, 0, Math.PI * 2);
             ctx.stroke();
+            ctx.globalAlpha = 1.0;
         }
 
         ctx.restore();
     });
+
+    // Draw Atmosphere Tint
+    if (style.atmosphereColor !== 'rgba(0,0,0,0)') {
+        ctx.fillStyle = style.atmosphereColor;
+        ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    }
 }
 
 export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time: number) => {
