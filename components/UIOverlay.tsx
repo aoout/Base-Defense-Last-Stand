@@ -2,30 +2,167 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType } from '../types';
-import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS } from '../constants';
+import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet } from '../types';
+import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../constants';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple } from './GameCanvas';
 
 interface UIOverlayProps {
   state: GameState;
   onPurchase: (item: string) => void;
   onCloseShop: () => void;
+  onCloseInventory: () => void;
+  onCloseTacticalMenu: () => void;
+  onClosePause: () => void;
   onRestart: () => void;
   onToggleSetting: (key: keyof GameSettings) => void;
   onIssueOrder: (order: AllyOrder) => void;
   onSwapItems: (loadoutIdx: number, inventoryIdx: number) => void;
   onConfirmUpgrade: (type: TurretType) => void;
+  // New handlers
+  onStartSurvival: () => void;
+  onStartExploration: () => void;
+  onDeployPlanet: (id: string) => void;
+  onReturnToMap: () => void;
 }
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, onRestart, onToggleSetting, onIssueOrder, onSwapItems, onConfirmUpgrade }) => {
+const UIOverlay: React.FC<UIOverlayProps> = ({ 
+    state, 
+    onPurchase, 
+    onCloseShop, 
+    onCloseInventory,
+    onCloseTacticalMenu,
+    onClosePause,
+    onRestart, 
+    onToggleSetting, 
+    onIssueOrder, 
+    onSwapItems, 
+    onConfirmUpgrade,
+    onStartSurvival,
+    onStartExploration,
+    onDeployPlanet,
+    onReturnToMap
+}) => {
   const p = state.player;
   const currentWeaponType = p.loadout[p.currentWeaponIndex];
   const currentWep = p.weapons[currentWeaponType];
   const wepStats = WEAPONS[currentWeaponType];
   const t = (key: keyof typeof TRANSLATIONS.EN) => TRANSLATIONS[state.settings.language][key];
 
+  // --- MODE SPECIFIC UIs ---
+
+  if (state.appMode === AppMode.START_MENU) {
+      return (
+          <div className="absolute inset-0 flex items-center justify-end pr-24 pointer-events-auto">
+              <div className="flex flex-col items-end space-y-8">
+                  <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-lg text-right">
+                      BASE<br/><span className="text-blue-500">DEFENSE</span>
+                  </h1>
+                  <p className="text-gray-400 font-mono tracking-widest text-lg">TACTICAL SURVIVAL SIMULATION</p>
+                  
+                  <div className="h-16"></div>
+                  
+                  <button onClick={onStartSurvival} className="group relative w-96 h-24 bg-gray-900/80 border-2 border-white/20 hover:border-blue-500 hover:bg-blue-900/30 transition-all flex items-center justify-between px-8 overflow-hidden">
+                      <div className="absolute inset-0 bg-blue-500/10 translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                      <span className="relative z-10 text-3xl font-bold text-white tracking-widest group-hover:scale-105 transition-transform">SURVIVAL</span>
+                      <span className="relative z-10 text-xs text-gray-500 group-hover:text-blue-300 font-mono uppercase">Endless Waves</span>
+                  </button>
+
+                  <button onClick={onStartExploration} className="group relative w-96 h-24 bg-gray-900/80 border-2 border-white/20 hover:border-purple-500 hover:bg-purple-900/30 transition-all flex items-center justify-between px-8 overflow-hidden">
+                      <div className="absolute inset-0 bg-purple-500/10 translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
+                      <span className="relative z-10 text-3xl font-bold text-white tracking-widest group-hover:scale-105 transition-transform">EXPLORE</span>
+                      <span className="relative z-10 text-xs text-gray-500 group-hover:text-purple-300 font-mono uppercase">Campaign Mode</span>
+                  </button>
+              </div>
+          </div>
+      )
+  }
+
+  if (state.appMode === AppMode.EXPLORATION_MAP) {
+      const planet = state.planets.find(p => p.id === state.selectedPlanetId);
+      
+      return (
+          <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-8 left-8">
+                  <h1 className="text-4xl font-bold text-white tracking-widest">SECTOR MAP</h1>
+                  <p className="text-blue-400 font-mono text-sm">SELECT DESTINATION</p>
+              </div>
+
+              {planet && (
+                  <div className="absolute top-1/2 right-12 -translate-y-1/2 w-96 bg-gray-900/90 border border-blue-500 p-8 pointer-events-auto backdrop-blur-md">
+                      <div className="flex justify-between items-start mb-6">
+                          <h2 className="text-3xl font-black text-white">{planet.name}</h2>
+                          {planet.completed && <span className="bg-green-600 text-white text-xs px-2 py-1 font-bold">CLEARED</span>}
+                      </div>
+                      
+                      <div className="space-y-6 font-mono text-sm">
+                          <div>
+                              <div className="text-gray-500 mb-1">THREAT LEVEL (WAVES)</div>
+                              <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
+                                  <div className="h-full bg-blue-500" style={{ width: `${(planet.totalWaves / 40) * 100}%` }}></div>
+                              </div>
+                              <div className="text-right text-white mt-1">{planet.totalWaves} WAVES</div>
+                          </div>
+
+                          <div>
+                              <div className="text-gray-500 mb-1">GENETIC MUTATION</div>
+                              <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
+                                  <div className={`h-full ${planet.geneStrength > 2 ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: `${(planet.geneStrength / 3.2) * 100}%` }}></div>
+                              </div>
+                              <div className="text-right text-white mt-1">{planet.geneStrength.toFixed(1)}x HP</div>
+                          </div>
+
+                          <div className="border-t border-gray-700 pt-4 text-xs text-gray-400">
+                              <p>Intel suggests heavy biological activity. Recommended loadout: High capacity magazines and crowd control explosives.</p>
+                          </div>
+                      </div>
+
+                      <button 
+                        onClick={() => onDeployPlanet(planet.id)}
+                        className="w-full mt-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold tracking-[0.2em] transition-all"
+                      >
+                          INITIATE DROP
+                      </button>
+                  </div>
+              )}
+          </div>
+      )
+  }
+
+  // GAME OVER / MISSION COMPLETE
   if (state.isGameOver) {
       return <MissionFailedScreen state={state} onRestart={onRestart} />;
   }
+
+  if (state.missionComplete) {
+      return (
+        <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center pointer-events-auto font-mono text-white">
+             <div className="border-4 border-green-500 p-12 max-w-2xl w-full bg-gray-900 relative shadow-[0_0_50px_rgba(34,197,94,0.3)]">
+                 <h1 className="text-6xl font-black text-green-500 mb-2 tracking-tighter text-center">MISSION COMPLETE</h1>
+                 <p className="text-center text-green-300 tracking-[0.3em] mb-8">SECTOR SECURED</p>
+
+                 <div className="grid grid-cols-2 gap-8 mb-8 text-center">
+                     <div className="bg-black/40 p-4 border border-green-900">
+                         <div className="text-gray-500 text-xs">SCRAPS COLLECTED</div>
+                         <div className="text-3xl font-bold text-yellow-400">{Math.floor(state.player.score)}</div>
+                     </div>
+                     <div className="bg-black/40 p-4 border border-green-900">
+                         <div className="text-gray-500 text-xs">TOTAL KILLS</div>
+                         <div className="text-3xl font-bold text-red-400">{(Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0)}</div>
+                     </div>
+                 </div>
+
+                 <button 
+                    onClick={onReturnToMap}
+                    className="w-full py-4 bg-green-600 hover:bg-green-500 text-black font-bold text-xl tracking-widest uppercase transition-all"
+                 >
+                     Return to Orbit
+                 </button>
+             </div>
+        </div>
+      );
+  }
+
+  // --- GAMEPLAY HUD ---
 
   // Turret Upgrade Modal
   if (state.activeTurretId !== undefined) {
@@ -34,17 +171,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
 
   // Tactical Call Terminal (Ally Command)
   if (state.isTacticalMenuOpen) {
-      return <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} onClose={() => { /* Handled by ESC/Tab but here for completeness if we pass func */ }} t={t} />;
+      return <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} onClose={onCloseTacticalMenu} t={t} />;
   }
 
   // Tactical Backpack (Inventory)
   if (state.isInventoryOpen) {
-      return <TacticalBackpack state={state} onSwapItems={onSwapItems} t={t} />;
+      return <TacticalBackpack state={state} onSwapItems={onSwapItems} onClose={onCloseInventory} t={t} />;
   }
 
   // Pause Menu - Tactical Terminal (Stats & Settings)
   if (state.isPaused) {
-      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} t={t} />;
+      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} onClose={onClosePause} t={t} />;
   }
 
   // Format Time Remaining
@@ -73,6 +210,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
               <div className="flex items-center">
                   <span className="text-gray-400 text-xs font-bold tracking-[0.2em] mr-3">WAVE</span>
                   <span className="text-white text-3xl font-black italic">{state.wave}</span>
+                  {state.gameMode === GameMode.EXPLORATION && state.currentPlanet && (
+                      <span className="text-gray-500 text-sm ml-2 font-mono">/ {state.currentPlanet.totalWaves}</span>
+                  )}
               </div>
               <div className="text-yellow-400 font-mono text-xl font-bold tracking-widest leading-none mt-1">
                   {formattedTime}
@@ -200,6 +340,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
     </div>
   );
 };
+
+// --- Reusable Close Button ---
+const CloseButton: React.FC<{ onClick: () => void, colorClass: string }> = ({ onClick, colorClass }) => (
+    <button 
+        onClick={onClick}
+        className={`absolute top-3 right-3 z-50 p-2 border rounded transition-all duration-200 hover:scale-105 active:scale-95 ${colorClass}`}
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+);
+
 
 // --- Weapon Icons ---
 const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
@@ -347,16 +500,8 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                {/* Decorative background element */}
                <div className="absolute top-0 right-0 p-32 bg-yellow-600/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
-               {/* Close Button Top Left */}
-                <button 
-                    onClick={onClose}
-                    className="absolute top-4 left-4 p-2 text-yellow-600 hover:text-white border border-yellow-900/50 hover:bg-yellow-900/50 rounded transition-all"
-                    title={t('CLOSE_DEPOT')}
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+               {/* Close Button Top Right (Fixed) */}
+               <CloseButton onClick={onClose} colorClass="border-yellow-600 text-yellow-500 hover:bg-yellow-900/40 hover:text-yellow-300" />
 
                {/* Header */}
                <div className="flex justify-between items-end mb-6 border-b border-gray-800 pb-4 mt-8">
@@ -486,7 +631,7 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
 };
 
 // --- Tactical Backpack Component ---
-const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number, iIdx: number) => void, t: any }> = ({ state, onSwapItems, t }) => {
+const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number, iIdx: number) => void, onClose: () => void, t: any }> = ({ state, onSwapItems, onClose, t }) => {
     const p = state.player;
     const [draggedItemIdx, setDraggedItemIdx] = useState<number | null>(null);
 
@@ -506,9 +651,6 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault(); // Necessary to allow dropping
     };
-    
-    // Trigger close via keyboard handler in App.tsx mainly, but we can add a close button if needed.
-    // Assuming 'C' closes it as per App.tsx, but UI usually has a close button too.
 
     return (
         <div className="absolute inset-0 z-[100] bg-gray-900/95 pointer-events-auto flex items-center justify-center font-mono">
@@ -518,16 +660,7 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
             <div className="relative w-[900px] bg-gray-800 border-2 border-gray-600 shadow-2xl p-8 flex gap-8 rounded-lg">
                 
                 {/* Close Button */}
-                <button 
-                    onClick={() => { /* Triggered via keyboard mostly but for completeness */ 
-                        document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}));
-                    }}
-                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                <CloseButton onClick={onClose} colorClass="border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" />
 
                 {/* Left Column: Stats */}
                 <div className="w-1/4 flex flex-col gap-4">
@@ -803,14 +936,7 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
              <div className="w-[900px] h-[600px] bg-black/80 border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] flex relative overflow-hidden">
                  
                  {/* Close Button */}
-                 <button 
-                    onClick={() => { document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Tab'})); }}
-                    className="absolute top-4 right-4 z-50 p-1 text-cyan-500 hover:text-white border border-cyan-800 hover:bg-cyan-900/50 rounded transition-colors"
-                 >
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                 </button>
+                 <CloseButton onClick={onClose} colorClass="border-cyan-500 text-cyan-500 hover:text-white hover:bg-cyan-900/50" />
 
                  {/* Left Panel: Unit Status */}
                  <div className="w-1/3 border-r border-cyan-800 p-6 bg-cyan-950/20">
@@ -889,8 +1015,8 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
 }
 
 // --- Tactical Terminal Component (Green Theme - Stats) ---
-const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, t: any }> = ({ state, onToggleSetting, t }) => {
-    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES'>('DATA');
+const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, t: any }> = ({ state, onToggleSetting, onClose, t }) => {
+    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
 
     // D3 Chart for Kill Stats
@@ -954,16 +1080,10 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
             {/* Scanlines Overlay */}
             <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
             
-            <div className="w-[800px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
+            <div className="w-[900px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
+                
                 {/* Close Button */}
-                <button 
-                    onClick={() => { document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'})); }}
-                    className="absolute top-3 right-3 z-50 p-1 text-green-500 hover:text-white border border-green-800 hover:bg-green-900/50 transition-colors"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
+                <CloseButton onClick={onClose} colorClass="border-green-800 text-green-500 hover:text-white hover:bg-green-900/50" />
 
                 {/* Header */}
                 <div className="border-b border-green-800 p-4 flex justify-between items-center bg-black/50">
@@ -973,7 +1093,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
 
                 {/* Tabs */}
                 <div className="flex border-b border-green-800">
-                    {['DATA', 'CONFIG', 'NOTES'].map(tab => (
+                    {['DATA', 'CONFIG', 'NOTES', 'DATABASE'].map(tab => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -1058,11 +1178,151 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                             <p>Use [E] near base to access supply depot. Use [E] to construct automated defense turrets. Press [P] to access this terminal.</p>
                         </div>
                     )}
+
+                    {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
                 </div>
 
                 <div className="p-2 border-t border-green-900 text-center text-xs text-green-800">
                     {t('RESUME_HINT')}
                 </div>
+            </div>
+        </div>
+    );
+};
+
+const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => {
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    // List of all possible enemies (IDs)
+    const allEntities = [
+        EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER, EnemyType.TANK, EnemyType.KAMIKAZE,
+        BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID
+    ];
+
+    const isDiscovered = (id: string) => state.stats.encounteredEnemies.includes(id);
+
+    useEffect(() => {
+        if (selectedId && isDiscovered(selectedId) && canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (!ctx) return;
+            
+            // Clear
+            ctx.clearRect(0, 0, 200, 200);
+            
+            // Draw Center background
+            ctx.fillStyle = '#022c22'; // Dark green bg
+            ctx.fillRect(0,0,200,200);
+            ctx.strokeStyle = '#065f46';
+            ctx.strokeRect(0,0,200,200);
+
+            // Mock Entity for drawing
+            const mockEntity: any = {
+                x: 100,
+                y: 100,
+                radius: 30, // Default scaled up
+                angle: -Math.PI / 2, // Face up
+                hp: 100,
+                maxHp: 100,
+                color: '#fff',
+                // Add specific type props so the draw function works
+                type: selectedId,
+                bossType: selectedId, 
+                isBoss: selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID')
+            };
+
+            // Inject Radius from stats
+            if (ENEMY_STATS[selectedId as EnemyType]) mockEntity.radius = ENEMY_STATS[selectedId as EnemyType].radius * 2;
+            if (BOSS_STATS[selectedId as BossType]) mockEntity.radius = BOSS_STATS[selectedId as BossType].radius * 1.5;
+
+            ctx.save();
+            ctx.translate(100, 100);
+            ctx.scale(1.5, 1.5); // Zoom in
+            ctx.translate(-100, -100);
+
+            // Call specific draw function
+            const time = Date.now();
+            switch(selectedId) {
+                case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
+                case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
+                case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
+                case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
+                case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
+                case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
+                case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
+                case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
+            }
+            ctx.restore();
+        }
+    }, [selectedId]);
+
+    return (
+        <div className="flex h-full gap-4">
+            {/* Left List */}
+            <div className="w-1/3 border-r border-green-800 pr-2 overflow-y-auto">
+                {allEntities.map(id => {
+                    const discovered = isDiscovered(id);
+                    return (
+                        <div 
+                            key={id}
+                            onClick={() => setSelectedId(id)}
+                            className={`p-3 mb-2 cursor-pointer border transition-colors flex justify-between items-center
+                                ${selectedId === id ? 'bg-green-900 border-green-500 text-white' : 'bg-black/40 border-green-900/50 text-green-700 hover:bg-green-900/20'}
+                            `}
+                        >
+                            <span className="font-bold text-xs tracking-widest">
+                                {discovered ? (BESTIARY_DB[id]?.codeName || id) : 'UNKNOWN SIGNAL'}
+                            </span>
+                            {!discovered && <span className="text-[10px] text-green-900 bg-green-900/20 px-1">LOCKED</span>}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Right Details */}
+            <div className="flex-1 pl-2">
+                {selectedId ? (
+                    isDiscovered(selectedId) ? (
+                        <div className="h-full flex flex-col animate-fadeIn">
+                            <div className="flex gap-4 mb-4">
+                                <div className="border border-green-700 w-[200px] h-[200px] bg-black relative">
+                                    <canvas ref={canvasRef} width={200} height={200} className="w-full h-full" />
+                                    {/* Scanline overlay on canvas */}
+                                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
+                                </div>
+                                <div className="flex-1 space-y-2">
+                                    <div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{BESTIARY_DB[selectedId].codeName}</div>
+                                    <div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {BESTIARY_DB[selectedId].classification}</div>
+                                    
+                                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300">
+                                        <div className="bg-green-900/30 p-2 border border-green-800">
+                                            <span className="text-green-600 block text-[10px]">{t('DANGER_LEVEL')}</span>
+                                            <div className="flex gap-0.5 mt-1">
+                                                {Array.from({length: 10}).map((_, i) => (
+                                                    <div key={i} className={`h-1.5 w-full ${i < BESTIARY_DB[selectedId].danger ? 'bg-red-500' : 'bg-green-900'}`}></div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="flex-1 bg-green-900/10 p-4 border border-green-900/50 text-sm text-green-400 font-mono leading-relaxed overflow-y-auto">
+                                {BESTIARY_DB[selectedId].description}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-green-800 space-y-4">
+                            <div className="text-6xl opacity-20">?</div>
+                            <div className="text-xl font-bold">{t('BESTIARY_LOCKED')}</div>
+                            <p className="text-xs max-w-xs text-center">{t('BESTIARY_HINT')}</p>
+                        </div>
+                    )
+                ) : (
+                    <div className="h-full flex items-center justify-center text-green-900 italic">
+                        SELECT A TARGET FROM THE INDEX
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -1114,7 +1374,9 @@ const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disa
 );
 
 const InteractPrompt: React.FC<{ state: GameState }> = ({ state }) => {
-    // Determine if player is near interactable
+    // Only show in gameplay
+    if (state.appMode !== AppMode.GAMEPLAY) return null;
+
     const p = state.player;
     
     // Check Shop

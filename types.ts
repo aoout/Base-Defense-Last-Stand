@@ -208,6 +208,7 @@ export interface GameStats {
   shotsHit: number;
   damageDealt: number;
   killsByType: Record<EnemyType | 'BOSS', number>;
+  encounteredEnemies: string[]; // List of EnemyType or BossType IDs encountered in this run
 }
 
 export enum SpecialEventType {
@@ -216,7 +217,47 @@ export enum SpecialEventType {
   BOSS = 'BOSS'
 }
 
+export enum AppMode {
+    START_MENU = 'START_MENU',
+    EXPLORATION_MAP = 'EXPLORATION_MAP',
+    GAMEPLAY = 'GAMEPLAY'
+}
+
+export enum GameMode {
+    SURVIVAL = 'SURVIVAL',
+    EXPLORATION = 'EXPLORATION'
+}
+
+export interface Planet {
+    id: string;
+    name: string;
+    x: number;
+    y: number;
+    radius: number;
+    color: string;
+    totalWaves: number;
+    geneStrength: number;
+    completed: boolean;
+}
+
+export interface PersistentPlayerState {
+    score: number;
+    weapons: Record<WeaponType, WeaponState>;
+    loadout: [WeaponType, WeaponType, WeaponType, WeaponType];
+    inventory: (InventoryItem | null)[];
+    grenades: number;
+}
+
 export interface GameState {
+  appMode: AppMode;
+  gameMode: GameMode;
+  
+  // Exploration Data
+  planets: Planet[];
+  currentPlanet: Planet | null;
+  selectedPlanetId: string | null;
+  savedPlayerState: PersistentPlayerState | null;
+
   camera: { x: number; y: number };
   player: Player;
   base: {
@@ -227,27 +268,27 @@ export interface GameState {
     hp: number;
     maxHp: number;
   };
-  terrain: TerrainFeature[]; // Background details
-  bloodStains: BloodStain[]; // Dead enemy remains
+  terrain: TerrainFeature[]; 
+  bloodStains: BloodStain[]; 
   enemies: Enemy[];
   allies: Ally[];
   projectiles: Projectile[];
   particles: Particle[];
   turretSpots: TurretSpot[];
-  activeTurretId?: number; // ID of turret spot being upgraded
+  activeTurretId?: number; 
   activeSpecialEvent: SpecialEventType;
   toxicZones: ToxicZone[];
 
   wave: number;
-  
-  // Wave Timer Logic
-  waveTimeRemaining: number; // Time left in current wave (ms)
-  spawnTimer: number; // Time accumulation for next enemy spawn (ms)
-  
+  waveTimeRemaining: number; 
+  spawnTimer: number; 
   enemiesSpawnedInWave: number;
   totalEnemiesInWave: number;
   lastAllySpawnTime: number;
+  
   isGameOver: boolean;
+  missionComplete: boolean; // For Exploration Mode Victory
+
   isPaused: boolean;
   isTacticalMenuOpen: boolean; 
   isInventoryOpen: boolean;

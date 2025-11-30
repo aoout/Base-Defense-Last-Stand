@@ -2,6 +2,8 @@
 
 
 
+
+
 import { BossType, EnemyType, TurretType, WeaponStats, WeaponType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
@@ -210,6 +212,7 @@ export const TRANSLATIONS = {
         TAB_DATA: "DATA",
         TAB_CONFIG: "CONFIG",
         TAB_NOTES: "NOTES",
+        TAB_DATABASE: "BESTIARY",
         TOTAL_DAMAGE: "Total Damage",
         SHOTS_FIRED: "Shots Fired",
         ACCURACY: "Accuracy",
@@ -221,6 +224,12 @@ export const TRANSLATIONS = {
         LANGUAGE: "SYSTEM_LANGUAGE",
         RESUME_HINT: "PRESS [P] TO RESUME OPERATION",
         
+        // Bestiary
+        BESTIARY_LOCKED: "ENCRYPTED DATA",
+        BESTIARY_HINT: "Target must be encountered in combat to decrypt classification.",
+        DANGER_LEVEL: "THREAT LEVEL",
+        CLASSIFICATION: "CLASS",
+
         // Backpack
         STATUS_HEADER: "OPERATIVE STATUS",
         HEALTH: "HEALTH",
@@ -265,6 +274,7 @@ export const TRANSLATIONS = {
         TAB_DATA: "数据",
         TAB_CONFIG: "设置",
         TAB_NOTES: "笔记",
+        TAB_DATABASE: "图鉴",
         TOTAL_DAMAGE: "总伤害",
         SHOTS_FIRED: "射击次数",
         ACCURACY: "命中率",
@@ -276,6 +286,12 @@ export const TRANSLATIONS = {
         LANGUAGE: "系统语言 (LANGUAGE)",
         RESUME_HINT: "按 [P] 继续行动",
         
+        // Bestiary
+        BESTIARY_LOCKED: "数据加密",
+        BESTIARY_HINT: "需要在战斗中遭遇目标以解密数据。",
+        DANGER_LEVEL: "威胁等级",
+        CLASSIFICATION: "分类",
+
         // Backpack
         STATUS_HEADER: "干员状态",
         HEALTH: "生命值",
@@ -313,4 +329,55 @@ export const TRANSLATIONS = {
         TAB_WEAPONS: "武器库",
         CLOSE_DEPOT: "关闭补给站",
     }
-}
+};
+
+export const BESTIARY_DB: Record<string, { codeName: string, classification: string, danger: number, description: string }> = {
+    [EnemyType.GRUNT]: {
+        codeName: "GRUNT",
+        classification: "SWARM INFANTRY",
+        danger: 1,
+        description: "Standard biological drone. Exhibits rudimentary intelligence. Relies on overwhelming numbers to breach defenses. Vulnerable to small arms fire."
+    },
+    [EnemyType.RUSHER]: {
+        codeName: "RUSHER",
+        classification: "RAPID ASSAULT",
+        danger: 2,
+        description: "Fast-moving agile variant evolved for closing distance. Notable orange carapace and scythe-like appendages. Prioritize elimination before they reach melee range."
+    },
+    [EnemyType.TANK]: {
+        codeName: "TANK",
+        classification: "HEAVY ARMOR",
+        danger: 4,
+        description: "Heavily plated bio-form resembling a terrestrial beetle. Extremely resilient to kinetic impacts. Slow movement speed allows for kiting tactics."
+    },
+    [EnemyType.KAMIKAZE]: {
+        codeName: "KAMIKAZE",
+        classification: "VOLATILE",
+        danger: 5,
+        description: "Unstable mutation carrying a payload of volatile acid. Self-destructs upon proximity. Glowing purple sac indicates critical mass. Maintain safe distance."
+    },
+    [EnemyType.VIPER]: {
+        codeName: "VIPER",
+        classification: "RANGED SUPPORT",
+        danger: 3,
+        description: "Aerial unit capable of launching corrosive projectiles. Maintains distance while bombarding targets. Green bio-luminescence marks attack vectors."
+    },
+    [BossType.RED_SUMMONER]: {
+        codeName: "THE HIVE LORD",
+        classification: "APEX SPAWNER",
+        danger: 9,
+        description: "Massive biological anchor. Possesses a gestation sac capable of rapidly birthing Grunt drones. Must be destroyed to halt the swarm expansion."
+    },
+    [BossType.BLUE_BURST]: {
+        codeName: "COBALT REAPER",
+        classification: "APEX ARTILLERY",
+        danger: 9,
+        description: "Highly evolved ranged specialist. Fires bursts of high-velocity plasma spines. Plated in dense blue chitin. Prioritize cover during its burst cycle."
+    },
+    [BossType.PURPLE_ACID]: {
+        codeName: "PLAGUE BRINGER",
+        classification: "APEX TOXIN",
+        danger: 10,
+        description: "Walking bio-hazard. Lobs organic mortars that create persistent zones of denial. The purple acid melts durasteel in seconds. Avoid area of effect."
+    }
+};

@@ -1,16 +1,8 @@
 
 
-
-
-
-
-
-
-
-
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
-import { EnemyType, GameState, WeaponType, Enemy, Player, TerrainFeature, BloodStain, Turret, Ally, TurretType, BossType, ToxicZone } from '../types';
+import { EnemyType, GameState, WeaponType, Enemy, Player, TerrainFeature, BloodStain, Turret, Ally, TurretType, BossType, ToxicZone, AppMode, Planet } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
 
 interface GameCanvasProps {
@@ -27,13 +19,29 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Update Game Logic
     engine.update(time);
     const state = engine.state;
-    const { camera } = state;
 
     // Clear Screen (Screen coordinates)
     ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+    // MODE SWITCHING RENDER
+    if (state.appMode === AppMode.START_MENU) {
+        drawStartScreen(ctx, time);
+        requestRef.current = requestAnimationFrame(render);
+        return;
+    }
+
+    if (state.appMode === AppMode.EXPLORATION_MAP) {
+        drawExplorationMap(ctx, state, time);
+        requestRef.current = requestAnimationFrame(render);
+        return;
+    }
+
+    // GAMEPLAY RENDER
+    const { camera } = state;
 
     // Apply Camera Translate
     ctx.translate(-camera.x, -camera.y);
@@ -301,8 +309,196 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   );
 };
 
+// --- Start Screen Render ---
+const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number) => {
+    // Background: Moving Stars
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Draw grid
+    ctx.strokeStyle = 'rgba(30, 41, 59, 0.5)';
+    ctx.lineWidth = 1;
+    const offset = (time * 0.02) % 40;
+    for(let i = 0; i < CANVAS_WIDTH; i+=40) {
+        ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, CANVAS_HEIGHT); ctx.stroke();
+    }
+    for(let i = 0; i < CANVAS_HEIGHT; i+=40) {
+        ctx.beginPath(); ctx.moveTo(0, i + offset); ctx.lineTo(CANVAS_WIDTH, i + offset); ctx.stroke();
+    }
+
+    // Hero Text (Drawn by React UI mostly, but we can add effects)
+    // Particle Dust
+    for(let i = 0; i < 50; i++) {
+        const x = (Math.sin(i * 100 + time * 0.0001) * CANVAS_WIDTH + CANVAS_WIDTH) % CANVAS_WIDTH;
+        const y = (Math.cos(i * 50 + time * 0.0002) * CANVAS_HEIGHT + CANVAS_HEIGHT) % CANVAS_HEIGHT;
+        const s = (Math.sin(time * 0.001 + i) + 1) * 1.5;
+        ctx.fillStyle = `rgba(100, 200, 255, ${0.1 + Math.random()*0.3})`;
+        ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.fill();
+    }
+}
+
+// --- Exploration Map Render ---
+const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, time: number) => {
+    // Deep Space Background
+    const bgGradient = ctx.createRadialGradient(CANVAS_WIDTH/2, CANVAS_HEIGHT/2, 0, CANVAS_WIDTH/2, CANVAS_HEIGHT/2, CANVAS_WIDTH);
+    bgGradient.addColorStop(0, '#0f172a');
+    bgGradient.addColorStop(1, '#020617');
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    
+    // Starfield
+    for(let i=0; i<200; i++) {
+        const seed = i * 1337;
+        const x = (seed * 123) % CANVAS_WIDTH;
+        const y = (seed * 456) % CANVAS_HEIGHT;
+        const size = (seed % 2) + 0.5;
+        ctx.fillStyle = `rgba(255,255,255,${(Math.sin(time*0.001 + i) + 1) * 0.4})`;
+        ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Connections (Constellation lines)
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for(let i=0; i<state.planets.length - 1; i++) {
+        const p1 = state.planets[i];
+        const p2 = state.planets[i+1];
+        if (Math.abs(p1.x - p2.x) < 300 && Math.abs(p1.y - p2.y) < 300) {
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+        }
+    }
+    ctx.stroke();
+
+    // Planets
+    state.planets.forEach(p => {
+        const isSelected = state.selectedPlanetId === p.id;
+        // Deterministic random for texture based on planet ID
+        const seed = parseInt(p.id.split('-')[1]) || 0;
+        const planetType = seed % 3; // 0: Terrestrial, 1: Gas, 2: Exotic
+
+        // Atmosphere Glow
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = isSelected ? 30 : 15;
+
+        // 1. Planet Base Body
+        // Use solid fill first to ensure opacity
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+        ctx.fill();
+        ctx.shadowBlur = 0; // Reset blur for internal details
+
+        // Clip everything to the planet circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+        ctx.clip();
+
+        // 2. 3D Volume Gradient (Shadow Overlay)
+        const shading = ctx.createRadialGradient(
+            p.x - p.radius * 0.3, p.y - p.radius * 0.3, p.radius * 0.1,
+            p.x, p.y, p.radius * 1.2
+        );
+        shading.addColorStop(0, 'rgba(255, 255, 255, 0.2)'); // Highlight
+        shading.addColorStop(0.4, 'rgba(0, 0, 0, 0.0)');     // Mid
+        shading.addColorStop(0.8, 'rgba(0, 0, 0, 0.6)');     // Shadow
+        shading.addColorStop(1, 'rgba(0, 0, 0, 0.8)');       // Deep Shadow
+        
+        // 3. Surface Texture (Rotating)
+        // Rotate world based on time for living planet feel
+        const rotationSpeed = 0.0001 * (seed % 2 === 0 ? 1 : -1);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(time * rotationSpeed + seed);
+        ctx.translate(-p.x, -p.y);
+
+        if (planetType === 1) { 
+            // Gas Giant - Bands
+            ctx.fillStyle = 'rgba(255,255,255,0.1)';
+            for(let i=0; i<3; i++) {
+                const yOff = ((seed * 11 + i * 20) % (p.radius * 2)) - p.radius;
+                const h = 4 + (seed * i) % 8;
+                ctx.fillRect(p.x - p.radius, p.y + yOff, p.radius*2, h);
+            }
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            for(let i=0; i<3; i++) {
+                const yOff = ((seed * 17 + i * 25) % (p.radius * 2)) - p.radius;
+                const h = 2 + (seed * i) % 6;
+                ctx.fillRect(p.x - p.radius, p.y + yOff, p.radius*2, h);
+            }
+        } else if (planetType === 0) {
+            // Terrestrial - Craters/Patches
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            for(let i=0; i<4; i++) {
+                const cx = ((seed * 23 + i * 41) % (p.radius * 1.2)) - p.radius * 0.6;
+                const cy = ((seed * 29 + i * 37) % (p.radius * 1.2)) - p.radius * 0.6;
+                const r = 2 + (seed * i) % 6;
+                ctx.beginPath();
+                ctx.arc(p.x + cx, p.y + cy, r, 0, Math.PI*2);
+                ctx.fill();
+            }
+             ctx.fillStyle = 'rgba(255,255,255,0.1)';
+             for(let i=0; i<3; i++) {
+                const cx = ((seed * 7 + i * 13) % (p.radius * 1.4)) - p.radius * 0.7;
+                const cy = ((seed * 3 + i * 19) % (p.radius * 1.4)) - p.radius * 0.7;
+                const r = 4 + (seed * i) % 8;
+                ctx.beginPath();
+                ctx.arc(p.x + cx, p.y + cy, r, 0, Math.PI*2);
+                ctx.fill();
+            }
+        } else {
+            // Exotic - Swirls
+             ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+             ctx.lineWidth = 2;
+             for(let i=1; i<=3; i++) {
+                 ctx.beginPath();
+                 ctx.ellipse(p.x, p.y, p.radius*(i*0.3), p.radius*(i*0.2), i, 0, Math.PI*2);
+                 ctx.stroke();
+             }
+        }
+        
+        // Reset transform from rotation
+        ctx.setTransform(1, 0, 0, 1, 0, 0); 
+        
+        // Apply Shading Gradient
+        ctx.fillStyle = shading;
+        ctx.fillRect(p.x - p.radius, p.y - p.radius, p.radius*2, p.radius*2);
+
+        ctx.restore();
+
+        // Completed checkmark
+        if (p.completed) {
+            ctx.strokeStyle = '#4ade80'; // bright green
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(p.x - 6, p.y);
+            ctx.lineTo(p.x - 2, p.y + 5);
+            ctx.lineTo(p.x + 7, p.y - 6);
+            ctx.stroke();
+        }
+
+        // Selection Ring
+        if (isSelected) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([4, 4]);
+            const rot = time * 0.002;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius + 6, rot, rot + Math.PI*2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+        }
+
+        // Name Label
+        ctx.fillStyle = isSelected ? '#fff' : '#94a3b8';
+        ctx.font = isSelected ? 'bold 12px monospace' : '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, p.x, p.y + p.radius + 18);
+    });
+}
+
 // --- Terrain Drawing ---
-const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[]) => {
+export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[]) => {
     // Fill Background
     ctx.fillStyle = '#111827'; // Dark Gray Base
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -378,7 +574,7 @@ const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[]) =
     });
 }
 
-const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time: number) => {
+export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time: number) => {
     zones.forEach(zone => {
         ctx.save();
         ctx.translate(zone.x, zone.y);
@@ -420,7 +616,7 @@ const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time:
 }
 
 // --- Blood Stain Drawing ---
-const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[]) => {
+export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[]) => {
     stains.forEach(s => {
         ctx.save();
         ctx.translate(s.x, s.y);
@@ -446,7 +642,7 @@ const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[]) =>
 
 // --- Player Drawing ---
 
-const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number, isMoving: boolean) => {
+export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number, isMoving: boolean) => {
     // 1. Legs (Animate legs with sine wave if moving)
     const stride = isMoving ? Math.sin(time * 0.015) * 4 : 0;
     
@@ -529,7 +725,7 @@ const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number
     ctx.restore();
 };
 
-const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean) => {
+export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean) => {
     // Uses similar structure to player but different colors
     const stride = isMoving ? Math.sin(time * 0.015) * 4 : 0;
     
@@ -594,7 +790,7 @@ const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number,
     ctx.restore();
 };
 
-const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number) => {
+export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number) => {
     ctx.save();
     ctx.translate(t.x, t.y);
 
@@ -734,7 +930,7 @@ const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number) => {
     ctx.restore();
 };
 
-const drawAR = (ctx: CanvasRenderingContext2D) => {
+export const drawAR = (ctx: CanvasRenderingContext2D) => {
     // Stock
     ctx.fillStyle = '#374151';
     ctx.fillRect(-10, -3, 8, 6);
@@ -753,7 +949,7 @@ const drawAR = (ctx: CanvasRenderingContext2D) => {
     ctx.fillRect(24, -5, 1, 3); // Front
 };
 
-const drawSG = (ctx: CanvasRenderingContext2D) => {
+export const drawSG = (ctx: CanvasRenderingContext2D) => {
     // Stock
     ctx.fillStyle = '#374151';
     ctx.fillRect(-10, -3, 6, 6);
@@ -768,7 +964,7 @@ const drawSG = (ctx: CanvasRenderingContext2D) => {
     ctx.fillRect(14, 1, 8, 4);
 };
 
-const drawSR = (ctx: CanvasRenderingContext2D) => {
+export const drawSR = (ctx: CanvasRenderingContext2D) => {
      // Stock
     ctx.fillStyle = '#4B5563';
     ctx.fillRect(-12, -3, 10, 6);
@@ -786,7 +982,7 @@ const drawSR = (ctx: CanvasRenderingContext2D) => {
     ctx.fillRect(0, -7, 2, 3);
 };
 
-const drawPistol = (ctx: CanvasRenderingContext2D) => {
+export const drawPistol = (ctx: CanvasRenderingContext2D) => {
     // Body
     ctx.fillStyle = '#4B5563';
     ctx.fillRect(5, -3, 10, 6);
@@ -795,7 +991,7 @@ const drawPistol = (ctx: CanvasRenderingContext2D) => {
     ctx.fillRect(5, -4, 10, 2);
 };
 
-const drawFlamethrower = (ctx: CanvasRenderingContext2D) => {
+export const drawFlamethrower = (ctx: CanvasRenderingContext2D) => {
     // Tanks
     ctx.fillStyle = '#C2410C'; // Red/Orange tanks
     ctx.beginPath(); ctx.arc(-5, -6, 4, 0, Math.PI*2); ctx.fill();
@@ -811,7 +1007,7 @@ const drawFlamethrower = (ctx: CanvasRenderingContext2D) => {
     ctx.beginPath(); ctx.arc(24, 1, 2, 0, Math.PI*2); ctx.fill();
 };
 
-const drawPulseRifle = (ctx: CanvasRenderingContext2D) => {
+export const drawPulseRifle = (ctx: CanvasRenderingContext2D) => {
     // Sci-fi white/cyan aesthetic
     ctx.fillStyle = '#F3F4F6';
     ctx.fillRect(-5, -4, 20, 8);
@@ -824,7 +1020,7 @@ const drawPulseRifle = (ctx: CanvasRenderingContext2D) => {
     ctx.fillRect(15, -3, 4, 6);
 };
 
-const drawGL = (ctx: CanvasRenderingContext2D) => {
+export const drawGL = (ctx: CanvasRenderingContext2D) => {
     // Bulky revolving drum
     ctx.fillStyle = '#374151';
     ctx.beginPath(); ctx.arc(5, 0, 7, 0, Math.PI*2); ctx.fill();
@@ -838,7 +1034,7 @@ const drawGL = (ctx: CanvasRenderingContext2D) => {
     ctx.beginPath(); ctx.ellipse(22, 0, 2, 5, 0, 0, Math.PI*2); ctx.fill();
 };
 
-const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
+export const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
     ctx.fillStyle = '#FEF08A'; // Yellow light
     ctx.shadowColor = '#F59E0B';
     ctx.shadowBlur = 10;
@@ -865,99 +1061,70 @@ const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
 };
 
 // --- Enemy Drawing Functions ---
-
-// 1. GRUNT - Small, Zergling-like, agile
-const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
     const wiggle = Math.sin(time * 0.02) * 3;
-
-    // Legs
-    ctx.strokeStyle = '#7F1D1D'; // Dark Red
+    ctx.strokeStyle = '#7F1D1D';
     ctx.lineWidth = 2;
-    // Left Legs
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-r, -r + wiggle); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-r, r + wiggle); ctx.stroke();
-    // Right Legs (actually symmetrical in code but rotated by ctx)
-    // Actually, simple lines are fine
-    
-    // Body (Teardrop shape)
-    ctx.fillStyle = '#B91C1C'; // Red 700
+    ctx.fillStyle = '#B91C1C';
     ctx.beginPath();
     ctx.ellipse(0, 0, r, r * 0.6, 0, 0, Math.PI * 2);
     ctx.fill();
-    
-    // Carapace Plates
-    ctx.fillStyle = '#EF4444'; // Red 500
+    ctx.fillStyle = '#EF4444'; 
     ctx.beginPath();
     ctx.ellipse(-r*0.2, 0, r*0.6, r*0.4, 0, 0, Math.PI * 2);
     ctx.fill();
-
-    // Mandibles
     ctx.fillStyle = '#1F2937';
     ctx.beginPath();
     ctx.moveTo(r*0.5, -r*0.3); ctx.lineTo(r*1.2, -r*0.1); ctx.lineTo(r*0.8, 0);
     ctx.moveTo(r*0.5, r*0.3); ctx.lineTo(r*1.2, r*0.1); ctx.lineTo(r*0.8, 0);
     ctx.fill();
-
-    // Eyes
-    ctx.fillStyle = '#FEF08A'; // Yellow
+    ctx.fillStyle = '#FEF08A';
     ctx.beginPath();
     ctx.arc(r*0.5, -r*0.2, 2, 0, Math.PI*2);
     ctx.arc(r*0.5, r*0.2, 2, 0, Math.PI*2);
     ctx.fill();
 };
 
-// 2. RUSHER - Fast, Spiky, Mantis/Hydra-like
-const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
-    
-    // Trailing spikes/legs
-    ctx.strokeStyle = '#D97706'; // Amber 600
+    ctx.strokeStyle = '#D97706'; 
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(-r, -r*0.5); ctx.lineTo(-r*1.5, -r); ctx.stroke();
     ctx.beginPath();
     ctx.moveTo(-r, r*0.5); ctx.lineTo(-r*1.5, r); ctx.stroke();
-
-    // Body (Elongated triangle)
-    ctx.fillStyle = '#F59E0B'; // Amber 500
+    ctx.fillStyle = '#F59E0B'; 
     ctx.beginPath();
     ctx.moveTo(r, 0);
     ctx.lineTo(-r, -r*0.6);
-    ctx.lineTo(-r*0.8, 0); // Indent tail
+    ctx.lineTo(-r*0.8, 0);
     ctx.lineTo(-r, r*0.6);
     ctx.closePath();
     ctx.fill();
-
-    // Scythe Arms
-    ctx.strokeStyle = '#FEF3C7'; // Bone white
+    ctx.strokeStyle = '#FEF3C7'; 
     ctx.lineWidth = 3;
     ctx.beginPath();
-    // Left Scythe
     ctx.moveTo(0, -r*0.4);
     ctx.bezierCurveTo(r, -r, r*1.5, -r, r*1.8, 0);
     ctx.stroke();
-    // Right Scythe
     ctx.beginPath();
     ctx.moveTo(0, r*0.4);
     ctx.bezierCurveTo(r, r, r*1.5, r, r*1.8, 0);
     ctx.stroke();
 };
 
-// 3. TANK - Bulky, Roach/Ultralisk, Heavily Armored
-const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
-    
-    // Thick Legs
     ctx.fillStyle = '#111827';
     const legOffset = Math.sin(time * 0.005) * 2;
     ctx.beginPath(); ctx.arc(-r*0.5, -r+legOffset, 4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(r*0.5, -r-legOffset, 4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(-r*0.5, r+legOffset, 4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(r*0.5, r-legOffset, 4, 0, Math.PI*2); ctx.fill();
-
-    // Main Body (Broad Shield)
-    ctx.fillStyle = '#1F2937'; // Gray 800
+    ctx.fillStyle = '#1F2937';
     ctx.beginPath();
     ctx.moveTo(r*0.8, -r*0.6);
     ctx.lineTo(r*0.8, r*0.6);
@@ -966,19 +1133,14 @@ const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     ctx.lineTo(-r*0.8, -r*0.9);
     ctx.closePath();
     ctx.fill();
-
-    // Armor Plates (Overlapping)
-    ctx.fillStyle = '#374151'; // Gray 700
+    ctx.fillStyle = '#374151'; 
     ctx.beginPath();
     ctx.arc(-r*0.2, 0, r*0.6, 0, Math.PI*2);
     ctx.fill();
-    
-    ctx.fillStyle = '#4B5563'; // Gray 600
+    ctx.fillStyle = '#4B5563'; 
     ctx.beginPath();
     ctx.arc(r*0.3, 0, r*0.4, 0, Math.PI*2);
     ctx.fill();
-
-    // Tusks
     ctx.fillStyle = '#9CA3AF';
     ctx.beginPath();
     ctx.moveTo(r*0.8, -r*0.3); ctx.lineTo(r*1.2, -r*0.5); ctx.lineTo(r*0.9, -r*0.1);
@@ -986,36 +1148,25 @@ const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     ctx.fill();
 };
 
-// 4. KAMIKAZE - Baneling, Bloated Sac, Volatile
-const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
-    const pulse = Math.abs(Math.sin(time * 0.01)); // Pulse 0 to 1
-
-    // Bloated Sac (Rear)
-    // Gradient for glow
+    const pulse = Math.abs(Math.sin(time * 0.01)); 
     const grad = ctx.createRadialGradient(-r*0.5, 0, 2, -r*0.5, 0, r);
-    grad.addColorStop(0, '#E879F9'); // Light Purple
-    grad.addColorStop(1, '#6B21A8'); // Dark Purple
-    
+    grad.addColorStop(0, '#E879F9');
+    grad.addColorStop(1, '#6B21A8');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(-r*0.3, 0, r*0.9 + pulse*2, 0, Math.PI*2);
     ctx.fill();
-
-    // Spots on sac
     ctx.fillStyle = '#A855F7';
     ctx.beginPath();
     ctx.arc(-r*0.5, -r*0.4, 3, 0, Math.PI*2);
     ctx.arc(-r*0.1, r*0.3, 2, 0, Math.PI*2);
     ctx.fill();
-
-    // Small Head (Front)
-    ctx.fillStyle = '#4C1D95'; // Very Dark Purple
+    ctx.fillStyle = '#4C1D95'; 
     ctx.beginPath();
     ctx.arc(r*0.6, 0, r*0.4, 0, Math.PI*2);
     ctx.fill();
-
-    // Tiny legs scuttling
     ctx.strokeStyle = '#4C1D95';
     ctx.lineWidth = 1;
     for(let i=0; i<4; i++) {
@@ -1027,58 +1178,41 @@ const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => 
     }
 };
 
-// 5. VIPER - Flying, Snake/Mutalisk-like, Ranged
-const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
     const wingFlap = Math.sin(time * 0.015) * 0.5;
-
-    // Wings
-    ctx.fillStyle = '#065F46'; // Dark Green
+    ctx.fillStyle = '#065F46'; 
     ctx.beginPath();
-    // Top Wing
     ctx.moveTo(-r*0.5, 0);
     ctx.quadraticCurveTo(0, -r*2 + wingFlap*10, r*0.5, -r*0.5);
     ctx.lineTo(0, 0);
-    // Bottom Wing
     ctx.moveTo(-r*0.5, 0);
     ctx.quadraticCurveTo(0, r*2 - wingFlap*10, r*0.5, r*0.5);
     ctx.lineTo(0, 0);
     ctx.fill();
-
-    // Body (Snake like segments)
-    ctx.fillStyle = '#10B981'; // Emerald 500
+    ctx.fillStyle = '#10B981'; 
     ctx.beginPath();
     ctx.ellipse(0, 0, r, r*0.3, 0, 0, Math.PI*2);
     ctx.fill();
-
-    // Head (Cobra hood)
-    ctx.fillStyle = '#047857'; // Emerald 700
+    ctx.fillStyle = '#047857'; 
     ctx.beginPath();
     ctx.moveTo(r*0.5, 0);
     ctx.lineTo(r*0.2, -r*0.5);
-    ctx.lineTo(r*1.2, 0); // Snout
+    ctx.lineTo(r*1.2, 0); 
     ctx.lineTo(r*0.2, r*0.5);
     ctx.fill();
-
-    // Glowing Green Spit/Mouth
     ctx.fillStyle = '#34D399';
     ctx.beginPath();
     ctx.arc(r*1.1, 0, 2, 0, Math.PI*2);
     ctx.fill();
 };
 
-// --- BOSS DRAWING FUNCTIONS ---
-
-const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
-    
-    // Large hulking body
-    ctx.fillStyle = '#7F1D1D'; // Dark Red
+    ctx.fillStyle = '#7F1D1D'; 
     ctx.beginPath();
     ctx.arc(0, 0, r, 0, Math.PI*2);
     ctx.fill();
-
-    // Spikes around body
     ctx.fillStyle = '#B91C1C';
     for(let i=0; i<8; i++) {
         const angle = i * (Math.PI*2/8);
@@ -1091,15 +1225,11 @@ const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
         ctx.fill();
         ctx.restore();
     }
-
-    // Huge Mouth
     const bite = Math.sin(time * 0.01) * 5;
     ctx.fillStyle = '#000';
     ctx.beginPath();
     ctx.ellipse(r*0.3, 0, r*0.5, r*0.4 - Math.abs(bite), 0, 0, Math.PI*2);
     ctx.fill();
-
-    // Teeth
     ctx.fillStyle = '#FFF';
     ctx.beginPath();
     ctx.moveTo(r*0.5, -r*0.3); ctx.lineTo(r*0.6, -r*0.1); ctx.lineTo(r*0.4, -r*0.1);
@@ -1107,11 +1237,9 @@ const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     ctx.fill();
 };
 
-const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
-    
-    // Sleek, plated body
-    ctx.fillStyle = '#172554'; // Blue 900
+    ctx.fillStyle = '#172554'; 
     ctx.beginPath();
     ctx.moveTo(r, 0);
     ctx.lineTo(-r*0.5, -r);
@@ -1119,39 +1247,29 @@ const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => 
     ctx.lineTo(-r*0.5, r);
     ctx.closePath();
     ctx.fill();
-
-    // Stripes
-    ctx.strokeStyle = '#3B82F6'; // Blue 500
+    ctx.strokeStyle = '#3B82F6'; 
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(-r*0.2, -r*0.8); ctx.lineTo(r*0.5, 0); ctx.lineTo(-r*0.2, r*0.8);
     ctx.stroke();
-
-    // Multiple Gun Ports / Eyes
-    ctx.fillStyle = '#60A5FA'; // Blue 400
+    ctx.fillStyle = '#60A5FA'; 
     ctx.beginPath(); ctx.arc(r*0.6, -r*0.3, 4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(r*0.6, r*0.3, 4, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(r*0.8, 0, 5, 0, Math.PI*2); ctx.fill();
 };
 
-const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const r = e.radius;
     const wobble = Math.sin(time * 0.005) * 2;
-    
-    // Blobby shape
-    ctx.fillStyle = '#581C87'; // Purple 900
+    ctx.fillStyle = '#581C87'; 
     ctx.beginPath();
     ctx.ellipse(0, 0, r + wobble, r - wobble, 0, 0, Math.PI*2);
     ctx.fill();
-
-    // Pustules
-    ctx.fillStyle = '#A855F7'; // Purple 500
+    ctx.fillStyle = '#A855F7'; 
     ctx.beginPath(); ctx.arc(-r*0.4, -r*0.4, r*0.25, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(r*0.2, r*0.3, r*0.3, 0, Math.PI*2); ctx.fill();
     ctx.beginPath(); ctx.arc(-r*0.2, r*0.1, r*0.15, 0, Math.PI*2); ctx.fill();
-
-    // Glowing Core
-    ctx.fillStyle = '#E879F9'; // Pink/Purple glow
+    ctx.fillStyle = '#E879F9'; 
     ctx.globalAlpha = 0.6 + Math.sin(time * 0.01)*0.2;
     ctx.beginPath();
     ctx.arc(0, 0, r*0.2, 0, Math.PI*2);

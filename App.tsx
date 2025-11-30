@@ -1,11 +1,11 @@
 
 
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameEngine } from './services/gameService';
-import { GameState, AllyOrder, TurretType } from './types';
+import { GameState, AllyOrder, TurretType, AppMode } from './types';
+import { CANVAS_WIDTH, CANVAS_HEIGHT } from './constants';
 
 const App: React.FC = () => {
   // We use a ref for the engine so it persists across renders without triggering them
@@ -29,11 +29,22 @@ const App: React.FC = () => {
     window.addEventListener('keydown', handleInteraction);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Input only active in gameplay or specific menus
       engine.input.keys[e.key] = true;
       
+      // Prevent browser zoom etc
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) > -1) {
+          // e.preventDefault(); // Sometimes needed
+      }
+
+      if (engine.state.appMode !== AppMode.GAMEPLAY) {
+          // Limited input logic for Start/Map if needed via keys, usually mouse driven
+          return;
+      }
+
       // Tactical Menu (Tab)
       if (e.key === 'Tab') {
-          e.preventDefault(); // Prevent focus change
+          e.preventDefault(); 
           if (!engine.state.isPaused && !engine.state.isShopOpen && !engine.state.isInventoryOpen) {
               engine.toggleTacticalMenu();
           }
@@ -44,7 +55,7 @@ const App: React.FC = () => {
           if (e.key === 'F1') {
               e.preventDefault();
               engine.issueOrder('PATROL');
-              engine.toggleTacticalMenu(); // Auto close
+              engine.toggleTacticalMenu(); 
           }
           if (e.key === 'F2') {
               e.preventDefault();
@@ -71,7 +82,6 @@ const App: React.FC = () => {
               const p = engine.state.player;
               const dist = Math.sqrt(Math.pow(p.x - engine.state.base.x, 2) + Math.pow(p.y - engine.state.base.y, 2));
               
-              // Only open if near base, or if already open (to close it)
               if (dist < 300 || engine.state.isShopOpen) {
                   engine.state.isShopOpen = !engine.state.isShopOpen;
               }
@@ -80,7 +90,6 @@ const App: React.FC = () => {
 
       // Interact (E)
       if ((e.key === 'e' || e.key === 'E')) {
-          // Interact handles both Shop (if open? no shop is separate) and Turrets
           if (!engine.state.isPaused && !engine.state.isTacticalMenuOpen && !engine.state.isInventoryOpen && !engine.state.isShopOpen) {
               engine.interact();
           }
@@ -97,7 +106,7 @@ const App: React.FC = () => {
           engine.state.isShopOpen = false;
           if (engine.state.isTacticalMenuOpen) engine.toggleTacticalMenu();
           if (engine.state.isInventoryOpen) engine.toggleInventory();
-          if (engine.state.activeTurretId !== undefined) engine.closeTurretUpgrade(); // Close upgrade
+          if (engine.state.activeTurretId !== undefined) engine.closeTurretUpgrade(); 
           if (engine.state.isPaused && engine.state.activeTurretId === undefined) engine.togglePause();
       }
 
@@ -118,7 +127,35 @@ const App: React.FC = () => {
     };
 
     const handleMouseDown = (e: MouseEvent) => { 
-        if (e.button === 0) engine.input.mouse.down = true; 
+        if (e.button === 0) {
+            engine.input.mouse.down = true; 
+            
+            // Map Click Logic
+            if (engine.state.appMode === AppMode.EXPLORATION_MAP) {
+                const rect = document.querySelector('canvas')?.getBoundingClientRect();
+                if (rect) {
+                    const mx = e.clientX - rect.left;
+                    const my = e.clientY - rect.top;
+                    
+                    // Check planet clicks
+                    let clickedPlanetId = null;
+                    engine.state.planets.forEach(p => {
+                        const dist = Math.sqrt(Math.pow(mx - p.x, 2) + Math.pow(my - p.y, 2));
+                        if (dist < p.radius + 10) {
+                            clickedPlanetId = p.id;
+                        }
+                    });
+                    
+                    // Update selection
+                    if (clickedPlanetId) {
+                        engine.selectPlanet(clickedPlanetId);
+                    } else {
+                        // Deselect if clicking empty space? Optional.
+                        // engine.selectPlanet(null);
+                    }
+                }
+            }
+        }
         if (e.button === 2) engine.input.mouse.rightDown = true;
     };
     const handleMouseUp = (e: MouseEvent) => { 
@@ -139,9 +176,8 @@ const App: React.FC = () => {
 
     // Sync state loop
     const interval = setInterval(() => {
-        // Force update react state shallowly to trigger UI re-render
         setGameState({...engine.state}); 
-    }, 1000 / 30); // 30 FPS UI update is enough
+    }, 1000 / 30); 
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -154,30 +190,22 @@ const App: React.FC = () => {
     };
   }, []);
 
-  const handleShopPurchase = (item: string) => {
-      engineRef.current.purchaseItem(item);
-  };
+  const handleShopPurchase = (item: string) => { engineRef.current.purchaseItem(item); };
+  const handleRestart = () => { engineRef.current.reset(); };
+  const handleToggleSetting = (key: any) => { engineRef.current.toggleSetting(key); }
+  const handleIssueOrder = (order: AllyOrder) => { engineRef.current.issueOrder(order); engineRef.current.toggleTacticalMenu(); }
+  const handleSwapItems = (lIdx: number, iIdx: number) => { engineRef.current.swapLoadoutAndInventory(lIdx, iIdx); }
+  const handleConfirmUpgrade = (type: TurretType) => { engineRef.current.confirmTurretUpgrade(type); }
+  const handleCloseShop = () => { engineRef.current.state.isShopOpen = false; };
+  const handleCloseInventory = () => { engineRef.current.toggleInventory(); };
+  const handleCloseTacticalMenu = () => { engineRef.current.toggleTacticalMenu(); };
+  const handleClosePause = () => { engineRef.current.togglePause(); };
 
-  const handleRestart = () => {
-      engineRef.current.reset();
-  };
-  
-  const handleToggleSetting = (key: any) => {
-      engineRef.current.toggleSetting(key);
-  }
-
-  const handleIssueOrder = (order: AllyOrder) => {
-      engineRef.current.issueOrder(order);
-      engineRef.current.toggleTacticalMenu(); // Close after ordering
-  }
-
-  const handleSwapItems = (loadoutIdx: number, inventoryIdx: number) => {
-      engineRef.current.swapLoadoutAndInventory(loadoutIdx, inventoryIdx);
-  }
-
-  const handleConfirmUpgrade = (type: TurretType) => {
-      engineRef.current.confirmTurretUpgrade(type);
-  }
+  // New Handlers
+  const handleStartSurvival = () => { engineRef.current.enterSurvivalMode(); };
+  const handleStartExploration = () => { engineRef.current.enterExplorationMode(); };
+  const handleDeployPlanet = (id: string) => { engineRef.current.deployToPlanet(id); };
+  const handleReturnToMap = () => { engineRef.current.completeMission(); };
 
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
@@ -185,12 +213,19 @@ const App: React.FC = () => {
       <UIOverlay 
         state={gameState} 
         onPurchase={handleShopPurchase}
-        onCloseShop={() => { engineRef.current.state.isShopOpen = false; }}
+        onCloseShop={handleCloseShop}
+        onCloseInventory={handleCloseInventory}
+        onCloseTacticalMenu={handleCloseTacticalMenu}
+        onClosePause={handleClosePause}
         onRestart={handleRestart}
         onToggleSetting={handleToggleSetting}
         onIssueOrder={handleIssueOrder}
         onSwapItems={handleSwapItems}
         onConfirmUpgrade={handleConfirmUpgrade}
+        onStartSurvival={handleStartSurvival}
+        onStartExploration={handleStartExploration}
+        onDeployPlanet={handleDeployPlanet}
+        onReturnToMap={handleReturnToMap}
       />
     </div>
   );
