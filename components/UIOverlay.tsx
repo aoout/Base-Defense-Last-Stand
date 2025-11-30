@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile } from '../types';
-import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS, BIOME_STYLES } from '../constants';
+import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile, DefenseUpgradeType } from '../types';
+import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS, BIOME_STYLES, DEFENSE_UPGRADE_INFO } from '../constants';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawPlanetSprite } from './GameCanvas';
 
 interface UIOverlayProps {
@@ -398,204 +398,10 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   );
 };
 
-// --- Save Slot Item ---
-const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => (
-    <div className={`p-4 border transition-all relative overflow-hidden group mb-4 backdrop-blur-sm
-        ${save.isPinned 
-            ? 'border-yellow-500/50 bg-yellow-900/20 hover:bg-yellow-900/30' 
-            : 'border-blue-500/30 bg-blue-900/10 hover:bg-blue-900/20 hover:border-blue-400/60'}
-    `}>
-        {/* Decorative corner */}
-        <div className={`absolute top-0 right-0 w-4 h-4 border-t border-r ${save.isPinned ? 'border-yellow-500' : 'border-blue-400'}`}></div>
-        
-        <div className="flex justify-between items-start mb-2 opacity-80">
-            <span className={`text-[10px] font-bold tracking-widest ${save.isPinned ? 'text-yellow-400' : 'text-blue-400'}`}>
-                 {save.isPinned ? `★ ${t('PINNED')}` : `ARCHIVE ID: ${save.id}`}
-            </span>
-            <span className="text-[10px] text-gray-400 font-mono">
-                {new Date(save.timestamp).toLocaleDateString()}
-            </span>
-        </div>
-        
-        <h3 className="text-white font-mono font-bold text-sm mb-4 truncate drop-shadow-md">{save.label}</h3>
-
-        <div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-            <button 
-                onClick={onLoad}
-                className="flex-1 bg-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-300 text-[10px] py-1 border border-blue-500/50 uppercase font-bold tracking-wider transition-all"
-            >
-                {t('LOAD')}
-            </button>
-            <button 
-                onClick={onPin}
-                className={`w-8 flex items-center justify-center border text-[10px] hover:text-white transition-all ${save.isPinned ? 'border-yellow-500 text-yellow-500' : 'border-gray-600 text-gray-500 hover:border-yellow-500 hover:text-yellow-500'}`}
-                title={t('PIN')}
-            >
-                ★
-            </button>
-             <button 
-                onClick={onDelete}
-                className="w-8 flex items-center justify-center border border-gray-600 text-gray-500 hover:text-red-500 hover:border-red-500 transition-all"
-                title={t('DELETE')}
-            >
-                ×
-            </button>
-        </div>
-    </div>
-);
-
-// --- Reusable Close Button ---
-const CloseButton: React.FC<{ onClick: () => void, colorClass: string }> = ({ onClick, colorClass }) => (
-    <button 
-        onClick={onClick}
-        className={`absolute top-3 right-3 z-50 p-2 border rounded transition-all duration-200 hover:scale-105 active:scale-95 ${colorClass}`}
-    >
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-        </svg>
-    </button>
-);
-
-
-// --- Weapon Icons ---
-const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
-    // Simple SVG paths for weapon silhouettes
-    let path = "";
-    switch(type) {
-        case WeaponType.AR: 
-            path = "M2 12h4l2-2h10l2 2h2v4h-6v4h-4v-4H4v4H2v-8z M12 10h6v2h-6z"; 
-            break;
-        case WeaponType.SG: 
-            path = "M2 14h2v2h4v-2h12v-4H2v4z"; 
-            break;
-        case WeaponType.SR: 
-            path = "M2 12h4v-2h16v4h-2v2h-4v-2H6v2H2v-4z M10 8h8v2h-8z"; 
-            break;
-        case WeaponType.PISTOL: 
-            path = "M4 10h12v4H8v6H4v-10z"; 
-            break;
-        case WeaponType.FLAMETHROWER:
-            path = "M2 10h6v-2h2v-2h2v2h2v2h6v4H12v2H2v-6z M4 12h2v2H4z";
-            break;
-        case WeaponType.PULSE_RIFLE:
-            path = "M2 8h16l4 4v4H10v-2H6v2H2V8z M4 10h12v2H4z";
-            break;
-        case WeaponType.GRENADE_LAUNCHER:
-            path = "M2 12h4v-2h4v-2h8v8h-8v-2H6v2H2v-4z";
-            break;
-    }
-    
-    return (
-        <svg viewBox="0 0 24 24" className={className}>
-            <path d={path} />
-        </svg>
-    );
-};
-
-// --- Turret Upgrade UI ---
-const TurretUpgradeUI: React.FC<{ state: GameState, onConfirmUpgrade: (type: TurretType) => void }> = ({ state, onConfirmUpgrade }) => {
-    const p = state.player;
-
-    return (
-        <div className="absolute inset-0 z-[100] bg-gray-900/90 pointer-events-auto flex items-center justify-center font-mono">
-             <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(0,0,0,0)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
-             
-             <div className="max-w-6xl w-full p-8 relative">
-                 <h1 className="text-4xl font-black text-center text-white mb-2 tracking-[0.2em]">SYSTEM UPGRADE DETECTED</h1>
-                 <p className="text-center text-emerald-500 mb-12 tracking-widest">SELECT COMBAT CONFIGURATION</p>
-
-                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                     
-                     {/* Option A: Gauss/Machine Gun */}
-                     <UpgradeCard 
-                        title="HEAVY GAUSS"
-                        type="ASSAULT CLASS"
-                        desc="Advanced rotary cannon. High rate of fire with improved kinetic impact."
-                        stats={{ dmg: 90, range: 650, rate: '100ms' }}
-                        cost={TURRET_COSTS.upgrade_gauss}
-                        color="emerald"
-                        canAfford={p.score >= TURRET_COSTS.upgrade_gauss}
-                        onClick={() => onConfirmUpgrade(TurretType.GAUSS)}
-                     />
-
-                     {/* Option B: Sniper */}
-                     <UpgradeCard 
-                        title="RAIL CANNON"
-                        type="PRECISION CLASS"
-                        desc="Long-range hypervelocity projectile. Eliminates high-value targets."
-                        stats={{ dmg: 140, range: 1300, rate: '250ms' }}
-                        cost={TURRET_COSTS.upgrade_sniper}
-                        color="yellow"
-                        canAfford={p.score >= TURRET_COSTS.upgrade_sniper}
-                        onClick={() => onConfirmUpgrade(TurretType.SNIPER)}
-                     />
-
-                     {/* Option C: Missile */}
-                     <UpgradeCard 
-                        title="WAR COMMAND"
-                        type="SUPPORT CLASS"
-                        desc="Global range VLS system. Launches homing missiles at threats nearest to base."
-                        stats={{ dmg: 160, range: 'GLOBAL', rate: '840ms' }}
-                        cost={TURRET_COSTS.upgrade_missile}
-                        color="red"
-                        canAfford={p.score >= TURRET_COSTS.upgrade_missile}
-                        onClick={() => onConfirmUpgrade(TurretType.MISSILE)}
-                     />
-
-                 </div>
-             </div>
-        </div>
-    );
-};
-
-const UpgradeCard: React.FC<{ 
-    title: string, type: string, desc: string, stats: any, cost: number, color: 'emerald'|'yellow'|'red', canAfford: boolean, onClick: () => void 
-}> = ({ title, type, desc, stats, cost, color, canAfford, onClick }) => {
-    
-    const colorClasses = {
-        emerald: 'border-emerald-600 text-emerald-400 hover:bg-emerald-900/20',
-        yellow: 'border-yellow-600 text-yellow-400 hover:bg-yellow-900/20',
-        red: 'border-red-600 text-red-400 hover:bg-red-900/20'
-    };
-
-    const btnClasses = {
-         emerald: 'bg-emerald-600 hover:bg-emerald-500 text-black',
-         yellow: 'bg-yellow-600 hover:bg-yellow-500 text-black',
-         red: 'bg-red-600 hover:bg-red-500 text-white'
-    };
-
-    return (
-        <div className={`bg-black/80 border-2 p-6 flex flex-col relative group transition-all duration-300 ${colorClasses[color]} ${!canAfford ? 'opacity-50 grayscale' : ''}`}>
-             <div className="absolute top-0 right-0 p-2 text-xs font-bold border-l-2 border-b-2 border-inherit bg-black/50">{type}</div>
-             
-             <h2 className="text-2xl font-bold mb-4 mt-2">{title}</h2>
-             <div className="h-px w-full bg-current opacity-30 mb-4"></div>
-             
-             <p className="text-gray-300 text-sm mb-6 h-16">{desc}</p>
-             
-             <div className="space-y-2 mb-8 text-sm font-mono">
-                 <div className="flex justify-between"><span>DAMAGE OUTPUT</span><span className="text-white">{stats.dmg}</span></div>
-                 <div className="flex justify-between"><span>EFFECTIVE RNG</span><span className="text-white">{stats.range}</span></div>
-                 <div className="flex justify-between"><span>CYCLE RATE</span><span className="text-white">{stats.rate}</span></div>
-             </div>
-
-             <div className="mt-auto">
-                 <button 
-                    disabled={!canAfford}
-                    onClick={onClick}
-                    className={`w-full py-4 font-bold tracking-widest text-lg uppercase transition-all ${canAfford ? btnClasses[color] : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
-                 >
-                     {canAfford ? `INSTALL - ${cost}` : `NEED ${cost} SCRAPS`}
-                 </button>
-             </div>
-        </div>
-    );
-};
-
 // --- Shop Modal Component ---
 const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void, onClose: () => void, t: any }> = ({ state, onPurchase, onClose, t }) => {
     const p = state.player;
-    const [activeTab, setActiveTab] = useState<'AMMO' | 'WEAPONS'>('AMMO');
+    const [activeTab, setActiveTab] = useState<'AMMO' | 'WEAPONS' | 'DEFENSE'>('AMMO');
 
     return (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-40 backdrop-blur-sm">
@@ -637,6 +443,15 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                             : 'bg-gray-900 text-gray-500 border-gray-700 hover:text-gray-300'}`}
                     >
                         {t('TAB_WEAPONS')}
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('DEFENSE')}
+                        className={`flex-1 py-3 text-center font-bold tracking-wider rounded-t-lg transition-colors border-b-2 
+                            ${activeTab === 'DEFENSE' 
+                            ? 'bg-gray-800 text-yellow-400 border-yellow-500' 
+                            : 'bg-gray-900 text-gray-500 border-gray-700 hover:text-gray-300'}`}
+                    >
+                        {t('TAB_DEFENSE')}
                     </button>
                </div>
 
@@ -727,6 +542,41 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                             />
                         </div>
                    )}
+
+                   {activeTab === 'DEFENSE' && (
+                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                           <ShopItem 
+                                name={t('UPGRADE_INFECTION')}
+                                amount={t('UPGRADE_INFECTION_DESC')}
+                                cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL].cost}
+                                canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL].cost}
+                                disabled={p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)}
+                                onClick={() => onPurchase(DefenseUpgradeType.INFECTION_DISPOSAL)}
+                                label={p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL) ? t('OWNED') : undefined}
+                                highlight
+                            />
+                            <ShopItem 
+                                name={t('UPGRADE_SPORE')}
+                                amount={t('UPGRADE_SPORE_DESC')}
+                                cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.SPORE_BARRIER].cost}
+                                canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.SPORE_BARRIER].cost}
+                                disabled={p.upgrades.includes(DefenseUpgradeType.SPORE_BARRIER)}
+                                onClick={() => onPurchase(DefenseUpgradeType.SPORE_BARRIER)}
+                                label={p.upgrades.includes(DefenseUpgradeType.SPORE_BARRIER) ? t('OWNED') : undefined}
+                                highlight
+                            />
+                            <ShopItem 
+                                name={t('UPGRADE_IMPACT')}
+                                amount={t('UPGRADE_IMPACT_DESC')}
+                                cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.IMPACT_PLATE].cost}
+                                canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.IMPACT_PLATE].cost}
+                                disabled={p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)}
+                                onClick={() => onPurchase(DefenseUpgradeType.IMPACT_PLATE)}
+                                label={p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE) ? t('OWNED') : undefined}
+                                highlight
+                            />
+                       </div>
+                   )}
                </div>
            </div>
         </div>
@@ -793,6 +643,27 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
                                 <div className="text-xs text-gray-400">x{p.grenades}</div>
                             </div>
                         </div>
+
+                        {/* Defense Upgrades Display */}
+                        {p.upgrades.length > 0 && (
+                            <div className="mt-6">
+                                <h3 className="text-gray-400 font-bold mb-2 text-xs tracking-widest">{t('ACTIVE_SYSTEMS')}</h3>
+                                <div className="space-y-2">
+                                    {p.upgrades.map(u => {
+                                        let nameKey = '';
+                                        if (u === DefenseUpgradeType.INFECTION_DISPOSAL) nameKey = 'UPGRADE_INFECTION';
+                                        if (u === DefenseUpgradeType.SPORE_BARRIER) nameKey = 'UPGRADE_SPORE';
+                                        if (u === DefenseUpgradeType.IMPACT_PLATE) nameKey = 'UPGRADE_IMPACT';
+                                        
+                                        return (
+                                            <div key={u} className="bg-gray-700/50 p-2 text-xs border-l-2 border-emerald-500 text-gray-300">
+                                                {t(nameKey)}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                      </div>
                 </div>
 
@@ -1551,10 +1422,11 @@ interface ShopItemProps {
     canAfford: boolean; 
     disabled?: boolean; 
     highlight?: boolean;
-    onClick: () => void 
+    onClick: () => void;
+    label?: string; // New prop for Owned/Status
 }
 
-const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disabled, highlight, onClick }) => (
+const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disabled, highlight, onClick, label }) => (
     <button 
       onClick={onClick}
       disabled={!canAfford || disabled}
@@ -1563,13 +1435,19 @@ const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disa
           canAfford ? (highlight ? 'bg-gray-800 border-cyan-600 hover:border-cyan-400 text-white' : 'bg-gray-800 border-gray-600 hover:border-yellow-500 text-white') : 'bg-gray-800 border-red-900/30 text-gray-500 cursor-not-allowed'}
       `}
     >
-        <div className="flex flex-col items-start z-10">
-            <span className={`font-bold text-lg ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>
-            {amount && <span className="text-xs text-gray-400 group-hover:text-gray-300">{amount}</span>}
+        <div className="flex flex-col items-start z-10 max-w-[70%]">
+            <span className={`font-bold text-lg text-left leading-tight ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>
+            {amount && <span className="text-xs text-gray-400 group-hover:text-gray-300 text-left mt-1">{amount}</span>}
         </div>
         <div className="flex flex-col items-end z-10">
-             <span className={`text-xl font-mono font-bold ${canAfford && !disabled ? "text-yellow-400 group-hover:text-yellow-300" : ""}`}>{cost}</span>
-             <span className="text-[10px] uppercase tracking-wider">Scraps</span>
+             {label ? (
+                 <span className="text-green-500 font-bold tracking-widest">{label}</span>
+             ) : (
+                 <>
+                    <span className={`text-xl font-mono font-bold ${canAfford && !disabled ? "text-yellow-400 group-hover:text-yellow-300" : ""}`}>{cost}</span>
+                    <span className="text-[10px] uppercase tracking-wider">Scraps</span>
+                 </>
+             )}
         </div>
         
         {/* Hover effect bg */}
@@ -1641,6 +1519,128 @@ const InteractPrompt: React.FC<{ state: GameState }> = ({ state }) => {
     }
 
     return null;
+}
+
+// Added Missing Components
+
+const CloseButton: React.FC<{ onClick: () => void, colorClass?: string }> = ({ onClick, colorClass = "border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" }) => (
+    <button onClick={onClick} className={`absolute top-4 right-4 p-2 rounded-lg border transition-all z-10 ${colorClass}`}>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+);
+
+const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
+    let d = "";
+    // Simplified paths representing weapons
+    switch(type) {
+        case WeaponType.AR: d="M4 12h16M15 12v3M7 12v2"; break;
+        case WeaponType.SG: d="M4 11h16v2H4zM16 13v3"; break;
+        case WeaponType.SR: d="M2 12h20M14 12v3M6 12v2M18 10v2"; break;
+        case WeaponType.PISTOL: d="M6 10h8v4H6zM11 14v3"; break;
+        case WeaponType.FLAMETHROWER: d="M4 11h12v2H4zM16 10v4M18 11h2"; break;
+        case WeaponType.PULSE_RIFLE: d="M4 10h16v4H4zM10 10v4M16 10v4"; break;
+        case WeaponType.GRENADE_LAUNCHER: d="M4 10h10v4H4zM14 9v6M16 11h4"; break;
+    }
+    return (
+        <svg viewBox="0 0 24 24" className={className} fill="currentColor" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d={d} />
+        </svg>
+    )
+}
+
+const TurretUpgradeUI: React.FC<{ state: GameState, onConfirmUpgrade: (type: TurretType) => void }> = ({ state, onConfirmUpgrade }) => {
+    const p = state.player;
+    const turretId = state.activeTurretId;
+    if (turretId === undefined) return null;
+    const turret = state.turretSpots[turretId].builtTurret;
+    if (!turret) return null;
+
+    const upgrades = [
+        { type: TurretType.GAUSS, name: "GAUSS CANNON", cost: TURRET_COSTS.upgrade_gauss, desc: "High DPS, Rapid Fire" },
+        { type: TurretType.SNIPER, name: "RAILGUN SNIPER", cost: TURRET_COSTS.upgrade_sniper, desc: "Extreme Range, High Damage" },
+        { type: TurretType.MISSILE, name: "HELLFIRE MISSILE", cost: TURRET_COSTS.upgrade_missile, desc: "Global Range, Homing, AoE" },
+    ];
+
+    return (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50">
+            <div className="bg-gray-900 border-2 border-emerald-500 p-8 rounded-xl max-w-4xl w-full text-center relative">
+                 <h2 className="text-3xl font-black text-emerald-500 mb-2">SYSTEM UPGRADE</h2>
+                 <p className="text-emerald-800 mb-8">SELECT UPGRADE MODULE</p>
+                 
+                 <div className="grid grid-cols-3 gap-6">
+                     {upgrades.map(u => {
+                         const canAfford = p.score >= u.cost;
+                         const stats = TURRET_STATS[u.type];
+                         return (
+                             <button 
+                                key={u.type}
+                                disabled={!canAfford}
+                                onClick={() => onConfirmUpgrade(u.type)}
+                                className={`
+                                    border-2 p-6 rounded-lg flex flex-col items-center transition-all group
+                                    ${canAfford ? 'border-gray-700 bg-gray-800 hover:border-emerald-500 hover:bg-gray-700' : 'border-red-900/30 bg-gray-900 opacity-50 cursor-not-allowed'}
+                                `}
+                             >
+                                 <div className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300">{u.name}</div>
+                                 <div className="text-xs text-gray-400 mb-4 h-8">{u.desc}</div>
+                                 
+                                 <div className="w-full space-y-2 mb-6">
+                                     <div className="flex justify-between text-xs text-gray-500"><span>DMG</span><span className="text-white">{stats.damage}</span></div>
+                                     <div className="flex justify-between text-xs text-gray-500"><span>RNG</span><span className="text-white">{stats.range > 2000 ? 'GLOBAL' : stats.range}</span></div>
+                                     <div className="flex justify-between text-xs text-gray-500"><span>SPD</span><span className="text-white">{stats.fireRate}ms</span></div>
+                                 </div>
+
+                                 <div className={`text-2xl font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>
+                                     {u.cost} <span className="text-sm">SCRAPS</span>
+                                 </div>
+                             </button>
+                         )
+                     })}
+                 </div>
+                 
+                 <div className="mt-8 text-xs text-gray-600">PRESS [ESC] TO CANCEL</div>
+            </div>
+        </div>
+    )
+}
+
+const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => {
+    return (
+        <div className={`
+            p-4 border-l-2 flex flex-col gap-2 transition-all relative group
+            ${save.isPinned ? 'bg-blue-900/20 border-blue-400' : 'bg-gray-900/40 border-gray-700 hover:border-blue-500/50'}
+        `}>
+            <div className="flex justify-between items-start">
+                <div>
+                    <div className={`text-xs font-bold tracking-widest ${save.isPinned ? 'text-blue-300' : 'text-gray-400'}`}>
+                        {save.label}
+                    </div>
+                    <div className="text-[10px] text-gray-600 mt-0.5">
+                        {new Date(save.timestamp).toLocaleString()}
+                    </div>
+                </div>
+                {save.isPinned && (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" />
+                    </svg>
+                )}
+            </div>
+
+            <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={onLoad} className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-200 text-[10px] py-1 border border-blue-800 hover:border-blue-500">
+                    {t('LOAD')}
+                </button>
+                <button onClick={onPin} className="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] py-1 border border-gray-700">
+                    {save.isPinned ? t('UNPIN') : t('PIN')}
+                </button>
+                <button onClick={onDelete} className="px-2 bg-red-900/20 hover:bg-red-900/50 text-red-500 text-[10px] py-1 border border-red-900/30">
+                    ✕
+                </button>
+            </div>
+        </div>
+    )
 }
 
 export default UIOverlay;

@@ -24,7 +24,8 @@ import {
   Planet,
   PersistentPlayerState,
   SaveFile,
-  BiomeType
+  BiomeType,
+  DefenseUpgradeType
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -45,7 +46,8 @@ import {
   TOXIC_ZONE_STATS,
   MAX_SAVE_SLOTS,
   MAX_PINNED_SLOTS,
-  BIOME_STYLES
+  BIOME_STYLES,
+  DEFENSE_UPGRADE_INFO
 } from '../constants';
 import { AudioService } from './audioService';
 
@@ -183,6 +185,11 @@ export class GameEngine {
               }
           });
 
+          // Initialize upgrades if missing from save (backward compatibility)
+          if (!p.upgrades) {
+              p.upgrades = [];
+          }
+
           // Reset Ally timings
           this.state.allies.forEach(a => a.lastFireTime = 0);
 
@@ -283,6 +290,8 @@ export class GameEngine {
     let initialInventory: (InventoryItem | null)[];
     let initialScore: number;
     let initialGrenades: number;
+    let initialUpgrades: DefenseUpgradeType[];
+    let initialMaxArmor = PLAYER_STATS.maxArmor;
 
     // Persist logic
     if (preservePlayer && this.state?.savedPlayerState) {
@@ -300,6 +309,17 @@ export class GameEngine {
         initialInventory = JSON.parse(JSON.stringify(saved.inventory));
         initialScore = saved.score;
         initialGrenades = saved.grenades;
+        initialUpgrades = saved.upgrades || [];
+        
+        // Restore Max Armor if upgrade present
+        if (initialUpgrades.includes(DefenseUpgradeType.SPORE_BARRIER)) {
+             // Access via type check or trusting property
+             const info = DEFENSE_UPGRADE_INFO[DefenseUpgradeType.SPORE_BARRIER];
+             if ('maxArmorBonus' in info) {
+                 initialMaxArmor += (info as any).maxArmorBonus!;
+             }
+        }
+
     } else {
         // Defaults
         initialWeapons = Object.values(WeaponType).reduce((acc, type) => {
@@ -317,6 +337,7 @@ export class GameEngine {
         initialInventory = new Array(INVENTORY_SIZE).fill(null);
         initialScore = PLAYER_STATS.initialScore;
         initialGrenades = 3;
+        initialUpgrades = [];
     }
 
     const baseX = WORLD_WIDTH / 2;
@@ -415,8 +436,8 @@ export class GameEngine {
         color: '#3B82F6', // Blue 500
         hp: PLAYER_STATS.maxHp,
         maxHp: PLAYER_STATS.maxHp,
-        armor: PLAYER_STATS.maxArmor,
-        maxArmor: PLAYER_STATS.maxArmor,
+        armor: initialMaxArmor,
+        maxArmor: initialMaxArmor,
         speed: PLAYER_STATS.speed,
         lastHitTime: 0,
         weapons: initialWeapons,
@@ -426,6 +447,7 @@ export class GameEngine {
         grenades: initialGrenades,
         score: initialScore,
         isAiming: false,
+        upgrades: initialUpgrades,
       },
       base: {
         x: baseX,
@@ -514,7 +536,8 @@ export class GameEngine {
           grenades: p.grenades,
           inventory: p.inventory,
           loadout: p.loadout,
-          weapons: p.weapons
+          weapons: p.weapons,
+          upgrades: p.upgrades
       };
 
       // Mark planet complete
@@ -678,6 +701,30 @@ export class GameEngine {
 
   public purchaseItem(item: string) {
       const p = this.state.player;
+
+      // Handle Defense Upgrades
+      if (Object.values(DefenseUpgradeType).includes(item as DefenseUpgradeType)) {
+          const upgradeType = item as DefenseUpgradeType;
+          // Check if already owned
+          if (p.upgrades.includes(upgradeType)) return;
+          
+          const info = DEFENSE_UPGRADE_INFO[upgradeType];
+          if (p.score >= info.cost) {
+              p.score -= info.cost;
+              p.upgrades.push(upgradeType);
+              this.addMessage("Upgrade Installed", p.x, p.y - 50, 'cyan');
+              
+              // Apply Immediate Effects
+              if (upgradeType === DefenseUpgradeType.SPORE_BARRIER && 'maxArmorBonus' in info) {
+                  const bonus = (info as any).maxArmorBonus;
+                  p.maxArmor += bonus;
+                  p.armor += bonus; // Heal the new armor amount immediately
+              }
+          } else {
+              this.addMessage("Need Scraps!", p.x, p.y - 50, 'red');
+          }
+          return;
+      }
       
       if (item.startsWith('WEAPON_')) {
           let type: WeaponType | null = null;
@@ -834,8 +881,20 @@ export class GameEngine {
   private handleRegen(dt: number, time: number) {
     const p = this.state.player;
     const timeSinceHit = time - p.lastHitTime;
+    
+    // Check if player has Infection Rapid Disposal upgrade
+    const hasDisposalUpgrade = p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL);
+    let armorRegenRate = PLAYER_STATS.armorRegenRate;
+    
+    if (hasDisposalUpgrade) {
+         const info = DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL];
+         if ('regenRate' in info) {
+             armorRegenRate = (info as any).regenRate!;
+         }
+    }
+
     if (timeSinceHit > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
-      p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate);
+      p.armor = Math.min(p.maxArmor, p.armor + armorRegenRate);
     }
     if (timeSinceHit > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
       p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate);
@@ -1072,13 +1131,13 @@ export class GameEngine {
 
       if (this.distance(enemy, p) < enemy.radius + p.radius) {
         if (enemy.type === EnemyType.KAMIKAZE) {
-          this.damagePlayer(enemy.damage);
+          this.damagePlayer(enemy.damage, true); // true = Melee/Explosion close range treated as physical impact? Kamikaze is tricky but let's say true for impact
           this.spawnParticle(enemy.x, enemy.y, '#A855F7', 5, 20);
           this.spawnBloodStain(enemy);
           this.audio.playExplosion();
           enemy.hp = 0;
         } else if (time - enemy.lastAttackTime > 800) {
-          this.damagePlayer(enemy.damage);
+          this.damagePlayer(enemy.damage, true); // Melee
           this.audio.playMeleeHit();
           enemy.lastAttackTime = time;
         }
@@ -1216,7 +1275,7 @@ export class GameEngine {
             }
           } else {
             if (this.distance(proj, this.state.player) < this.state.player.radius + proj.radius) {
-               this.damagePlayer(proj.damage);
+               this.damagePlayer(proj.damage, false); // Projectile = false
                hit = true;
                destroyProjectile = true;
             }
@@ -1262,7 +1321,7 @@ export class GameEngine {
 
           const damageTick = (zone.damagePerSecond * dt) / 1000;
           if (this.distance(this.state.player, zone) < zone.radius) {
-              this.damagePlayer(damageTick);
+              this.damagePlayer(damageTick, false);
           }
           this.state.allies.forEach(ally => {
               if (this.distance(ally, zone) < zone.radius) {
@@ -1289,12 +1348,32 @@ export class GameEngine {
       }
   }
 
-  private damagePlayer(amount: number) {
+  private damagePlayer(amount: number, isMelee: boolean = false) {
     const p = this.state.player;
     p.lastHitTime = this.lastTime;
+    
+    // Check for "Kinetic Redistribution Plate" upgrade
+    // Reduces incoming melee damage by 20% BEFORE armor calculation
+    if (isMelee && p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)) {
+        const info = DEFENSE_UPGRADE_INFO[DefenseUpgradeType.IMPACT_PLATE];
+        if ('meleeReduction' in info) {
+            amount *= (1 - (info as any).meleeReduction!);
+        }
+    }
+
+    // Check for "Infection Rapid Disposal Structure" upgrade
+    // Armor mitigation ratio: Default 0.8 (80%), Upgraded 0.9 (90%)
+    let mitigationRatio = 0.8;
+    if (p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)) {
+        const info = DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL];
+        if ('armorMitigation' in info) {
+            mitigationRatio = (info as any).armorMitigation!;
+        }
+    }
+
     let armorDmg = 0;
     if (p.armor > 0) {
-      armorDmg = Math.min(p.armor, amount * 0.8);
+      armorDmg = Math.min(p.armor, amount * mitigationRatio);
       p.armor -= armorDmg;
     }
     const healthDmg = amount - armorDmg;
@@ -1752,7 +1831,7 @@ export class GameEngine {
       });
 
       if (this.distance(p, explosionCenter) < r) {
-        this.damagePlayer(PLAYER_STATS.grenadeDamage * 0.2);
+        this.damagePlayer(PLAYER_STATS.grenadeDamage * 0.2, true); // Treat grenade self-damage like generic/physical impact
       }
     }
   }

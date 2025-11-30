@@ -1,6 +1,6 @@
 
 
-import { BossType, EnemyType, TurretType, WeaponStats, WeaponType, BiomeType } from "./types";
+import { BossType, EnemyType, TurretType, WeaponStats, WeaponType, BiomeType, DefenseUpgradeType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 900;
@@ -29,6 +29,22 @@ export const PLAYER_STATS = {
   grenadeDamage: 500,
   maxGrenades: 3,
   initialScore: 300, // Initial Scraps
+};
+
+export const DEFENSE_UPGRADE_INFO = {
+    [DefenseUpgradeType.INFECTION_DISPOSAL]: {
+        cost: 3500,
+        armorMitigation: 0.9, // 90%
+        regenRate: 10 / 60
+    },
+    [DefenseUpgradeType.SPORE_BARRIER]: {
+        cost: 2700,
+        maxArmorBonus: 100 // Adds 100 to make it 200
+    },
+    [DefenseUpgradeType.IMPACT_PLATE]: {
+        cost: 3100,
+        meleeReduction: 0.2 // 20%
+    }
 };
 
 export const MAX_SAVE_SLOTS = 7;
@@ -312,6 +328,7 @@ export const TRANSLATIONS = {
         ARMOR: "ARMOR",
         SCRAPS: "SCRAPS",
         UTILITIES: "UTILITIES",
+        ACTIVE_SYSTEMS: "ACTIVE SYSTEMS",
         GRENADE: "GRENADE",
         LOADOUT_HEADER: "ACTIVE LOADOUT",
         LOADOUT_HINT: "Drag weapons from backpack to slots to equip.",
@@ -341,7 +358,17 @@ export const TRANSLATIONS = {
         FUNDS: "Available Funds",
         TAB_AMMO: "AMMUNITION",
         TAB_WEAPONS: "WEAPONRY",
+        TAB_DEFENSE: "DEFENSE",
         CLOSE_DEPOT: "CLOSE DEPOT",
+
+        // Upgrades
+        UPGRADE_INFECTION: "Rapid Filtration System",
+        UPGRADE_INFECTION_DESC: "Armor mitigation +10%. Regen rate increased.",
+        UPGRADE_SPORE: "Spore Barrier Coating",
+        UPGRADE_SPORE_DESC: "Max Armor capacity increased to 200.",
+        UPGRADE_IMPACT: "Kinetic Redistribution Plate",
+        UPGRADE_IMPACT_DESC: "Reduces incoming melee damage by 20%.",
+        OWNED: "OWNED"
     },
     CN: {
         // Pause
@@ -395,6 +422,7 @@ export const TRANSLATIONS = {
         ARMOR: "护甲值",
         SCRAPS: "残片",
         UTILITIES: "战术道具",
+        ACTIVE_SYSTEMS: "激活系统",
         GRENADE: "手雷",
         LOADOUT_HEADER: "当前装备",
         LOADOUT_HINT: "拖动背包武器至插槽装备。",
@@ -424,7 +452,17 @@ export const TRANSLATIONS = {
         FUNDS: "可用资金",
         TAB_AMMO: "弹药补给",
         TAB_WEAPONS: "武器库",
+        TAB_DEFENSE: "防御升级",
         CLOSE_DEPOT: "关闭补给站",
+
+        // Upgrades
+        UPGRADE_INFECTION: "感染液快速排散结构",
+        UPGRADE_INFECTION_DESC: "护甲伤害阻挡率提升至90%，脱战回复速度提升至每秒10点。",
+        UPGRADE_SPORE: "腐蚀性孢子阻隔层",
+        UPGRADE_SPORE_DESC: "护甲上限提升至200点。",
+        UPGRADE_IMPACT: "重压冲击再分布背板",
+        UPGRADE_IMPACT_DESC: "受到的所有近战类伤害降低20% (计算护甲前)。",
+        OWNED: "已拥有"
     }
 };
 

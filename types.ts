@@ -17,6 +17,12 @@ export enum TurretType {
   MISSILE = 'MISSILE',   // Lv2 Option C (Global Homing)
 }
 
+export enum DefenseUpgradeType {
+  INFECTION_DISPOSAL = 'INFECTION_DISPOSAL',
+  SPORE_BARRIER = 'SPORE_BARRIER',
+  IMPACT_PLATE = 'IMPACT_PLATE'
+}
+
 export interface WeaponStats {
   name: string;
   damage: number;
@@ -67,6 +73,9 @@ export interface Player extends Entity {
   loadout: [WeaponType, WeaponType, WeaponType, WeaponType]; // 0-2: Main, 3: Pistol
   inventory: (InventoryItem | null)[]; // Backpack slots
   
+  // Upgrades
+  upgrades: DefenseUpgradeType[];
+
   currentWeaponIndex: number; // 0-3 pointing to loadout
   grenades: number;
   score: number; // Used as currency (Scraps)
@@ -255,6 +264,7 @@ export interface PersistentPlayerState {
     loadout: [WeaponType, WeaponType, WeaponType, WeaponType];
     inventory: (InventoryItem | null)[];
     grenades: number;
+    upgrades: DefenseUpgradeType[];
 }
 
 export interface SaveFile {
