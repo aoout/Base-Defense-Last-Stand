@@ -269,6 +269,7 @@ export const TRANSLATIONS = {
         TAB_NOTES: "NOTES",
         TAB_DATABASE: "BESTIARY",
         TAB_MEMORY: "MEMORY",
+        TAB_PLANET: "PLANET INFO",
         TOTAL_DAMAGE: "Total Damage",
         SHOTS_FIRED: "Shots Fired",
         ACCURACY: "Accuracy",
@@ -279,6 +280,13 @@ export const TRANSLATIONS = {
         DMG_TEXT: "DAMAGE_FLOATING_TEXT",
         LANGUAGE: "SYSTEM_LANGUAGE",
         RESUME_HINT: "PRESS [P] TO RESUME OPERATION",
+        
+        // Planet Info
+        PLANET_ANALYSIS: "PLANETARY ANALYSIS",
+        SECTOR_NAME: "SECTOR DESIGNATION",
+        ATMOSPHERE_TYPE: "ATMOSPHERE CLASS",
+        GENE_MODIFIER: "GENE STRENGTH MODIFIER",
+        SECTOR_WAVES: "SECTOR DURATION (WAVES)",
         
         // Memory
         SAVE_STATE: "SAVE CURRENT STATE",
@@ -344,6 +352,7 @@ export const TRANSLATIONS = {
         TAB_NOTES: "笔记",
         TAB_DATABASE: "图鉴",
         TAB_MEMORY: "记忆冷藏",
+        TAB_PLANET: "星球信息",
         TOTAL_DAMAGE: "总伤害",
         SHOTS_FIRED: "射击次数",
         ACCURACY: "命中率",
@@ -355,6 +364,13 @@ export const TRANSLATIONS = {
         LANGUAGE: "系统语言 (LANGUAGE)",
         RESUME_HINT: "按 [P] 继续行动",
         
+        // Planet Info
+        PLANET_ANALYSIS: "行星分析",
+        SECTOR_NAME: "扇区代号",
+        ATMOSPHERE_TYPE: "大气类型",
+        GENE_MODIFIER: "基因强度修正",
+        SECTOR_WAVES: "扇区持续时间 (波数)",
+
         // Memory
         SAVE_STATE: "存档当前状态",
         MEMORY_STORAGE: "记忆冷藏库",

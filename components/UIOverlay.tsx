@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile } from '../types';
-import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../constants';
-import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple } from './GameCanvas';
+import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS, BIOME_STYLES } from '../constants';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawPlanetSprite } from './GameCanvas';
 
 interface UIOverlayProps {
   state: GameState;
@@ -1119,8 +1119,13 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
 
 // --- Tactical Terminal Component (Green Theme - Stats) ---
 const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, onSave: () => void, t: any }> = ({ state, onToggleSetting, onClose, onSave, t }) => {
-    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'MEMORY'>('DATA');
+    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'PLANET' | 'MEMORY'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
+
+    // Filter available tabs based on mode
+    const tabs = ['DATA', 'CONFIG', 'NOTES', 'DATABASE'];
+    if (state.gameMode === GameMode.EXPLORATION) tabs.push('PLANET');
+    tabs.push('MEMORY');
 
     // D3 Chart for Kill Stats
     useEffect(() => {
@@ -1196,7 +1201,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
 
                 {/* Tabs */}
                 <div className="flex border-b border-green-800">
-                    {['DATA', 'CONFIG', 'NOTES', 'DATABASE', 'MEMORY'].map(tab => (
+                    {tabs.map(tab => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -1284,6 +1289,8 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
 
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
 
+                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} t={t} />}
+
                     {activeTab === 'MEMORY' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-8">
                             <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
@@ -1307,6 +1314,84 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                     {t('RESUME_HINT')}
                 </div>
             </div>
+        </div>
+    );
+};
+
+// --- Planet Info Panel ---
+const PlanetInfoPanel: React.FC<{ planet: Planet, t: any }> = ({ planet, t }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const requestRef = useRef<number>(0);
+
+    useEffect(() => {
+        const renderPreview = () => {
+            if (!canvasRef.current) return;
+            const ctx = canvasRef.current.getContext('2d');
+            if (!ctx) return;
+
+            const w = canvasRef.current.width;
+            const h = canvasRef.current.height;
+            const time = Date.now();
+
+            ctx.clearRect(0, 0, w, h);
+            
+            // Draw background
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(0, 0, w, h);
+
+            // Draw Planet Center
+            // We scale up the radius for better visibility
+            drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
+
+            requestRef.current = requestAnimationFrame(renderPreview);
+        };
+        requestRef.current = requestAnimationFrame(renderPreview);
+
+        return () => cancelAnimationFrame(requestRef.current);
+    }, [planet]);
+
+    return (
+        <div className="flex h-full gap-8">
+             <div className="w-1/2 flex flex-col">
+                  <h2 className="text-2xl font-black text-green-400 mb-6 border-b border-green-800 pb-2">{t('PLANET_ANALYSIS')}</h2>
+                  
+                  <div className="space-y-6 flex-1">
+                      <div>
+                          <label className="text-green-700 text-xs uppercase tracking-widest">{t('SECTOR_NAME')}</label>
+                          <div className="text-3xl text-white font-mono">{planet.name}</div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                           <div className="bg-black/30 p-4 border border-green-900">
+                               <label className="text-green-700 text-xs block mb-1">{t('GENE_MODIFIER')}</label>
+                               <div className={`text-2xl font-bold ${planet.geneStrength > 2 ? 'text-red-400' : 'text-yellow-400'}`}>
+                                   x{planet.geneStrength.toFixed(2)}
+                               </div>
+                           </div>
+                           <div className="bg-black/30 p-4 border border-green-900">
+                               <label className="text-green-700 text-xs block mb-1">{t('SECTOR_WAVES')}</label>
+                               <div className="text-2xl font-bold text-white">
+                                   {planet.totalWaves}
+                               </div>
+                           </div>
+                      </div>
+
+                      <div className="bg-black/30 p-4 border border-green-900">
+                           <label className="text-green-700 text-xs block mb-1">{t('ATMOSPHERE_TYPE')}</label>
+                           <div className="text-xl text-green-300 font-mono uppercase">
+                               {BIOME_STYLES[planet.biome].name}
+                           </div>
+                           <div className="h-1 w-full mt-2" style={{ backgroundColor: planet.color }}></div>
+                      </div>
+                  </div>
+             </div>
+
+             <div className="w-1/2 flex flex-col justify-center items-center bg-black/40 border border-green-900/50 p-4">
+                 <canvas ref={canvasRef} width={300} height={300} className="rounded-full shadow-[0_0_50px_rgba(0,0,0,0.5)]"></canvas>
+                 <div className="mt-4 text-xs text-green-800 font-mono animate-pulse">
+                     LIVE FEED // ORBITAL SCAN
+                 </div>
+             </div>
         </div>
     );
 };

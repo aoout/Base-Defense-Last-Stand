@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
 import { EnemyType, GameState, WeaponType, Enemy, Player, TerrainFeature, BloodStain, Turret, Ally, TurretType, BossType, ToxicZone, AppMode, Planet, GameMode, BiomeType } from '../types';
@@ -337,6 +335,115 @@ const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number) => {
     }
 }
 
+// --- Planet Rendering Helper ---
+export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, p: Planet, x: number, y: number, radius: number, time: number, isSelected: boolean) => {
+    // Deterministic random for texture based on planet ID
+    const seed = parseInt(p.id.split('-')[1]) || 0;
+    const biome = p.biome || BiomeType.BARREN;
+    const biomeConfig = BIOME_STYLES[biome];
+
+    // Atmosphere Glow
+    ctx.shadowColor = biomeConfig.planetColor;
+    ctx.shadowBlur = isSelected ? 30 : 15;
+
+    // 1. Planet Base Body
+    // Use solid fill first to ensure opacity
+    ctx.fillStyle = biomeConfig.planetColor;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI*2);
+    ctx.fill();
+    ctx.shadowBlur = 0; // Reset blur for internal details
+
+    // Clip everything to the planet circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI*2);
+    ctx.clip();
+
+    // 2. 3D Volume Gradient (Shadow Overlay)
+    const shading = ctx.createRadialGradient(
+        x - radius * 0.3, y - radius * 0.3, radius * 0.1,
+        x, y, radius * 1.2
+    );
+    shading.addColorStop(0, 'rgba(255, 255, 255, 0.2)'); // Highlight
+    shading.addColorStop(0.4, 'rgba(0, 0, 0, 0.0)');     // Mid
+    shading.addColorStop(0.8, 'rgba(0, 0, 0, 0.6)');     // Shadow
+    shading.addColorStop(1, 'rgba(0, 0, 0, 0.8)');       // Deep Shadow
+    
+    // 3. Surface Texture (Rotating)
+    // Rotate world based on time for living planet feel
+    const rotationSpeed = 0.0001 * (seed % 2 === 0 ? 1 : -1);
+    ctx.translate(x, y);
+    ctx.rotate(time * rotationSpeed + seed);
+    ctx.translate(-x, -y);
+
+    if (biome === BiomeType.ICE) { 
+        // ICE: White caps
+         ctx.fillStyle = 'rgba(255,255,255,0.6)';
+         // North Cap
+         ctx.beginPath();
+         ctx.arc(x, y - radius*0.7, radius*0.5, 0, Math.PI*2);
+         ctx.fill();
+         // South Cap
+         ctx.beginPath();
+         ctx.arc(x, y + radius*0.7, radius*0.5, 0, Math.PI*2);
+         ctx.fill();
+    } 
+    else if (biome === BiomeType.VOLCANIC) {
+        // VOLCANIC: Cracks
+        ctx.strokeStyle = '#fca5a5'; // lighter red
+        ctx.lineWidth = 1;
+        for(let i=0; i<6; i++) {
+            ctx.beginPath();
+            const offX = Math.sin(i*23) * radius * 0.6;
+            const offY = Math.cos(i*17) * radius * 0.6;
+            ctx.moveTo(x + offX, y + offY);
+            ctx.lineTo(x + offX + 10, y + offY + 10);
+            ctx.stroke();
+        }
+    }
+    else if (biome === BiomeType.DESERT) {
+        // DESERT: Bands
+         ctx.fillStyle = 'rgba(0,0,0,0.1)';
+         ctx.fillRect(x - radius, y - radius*0.2, radius*2, radius*0.4);
+         ctx.fillStyle = 'rgba(255,255,255,0.1)';
+         ctx.fillRect(x - radius, y + radius*0.3, radius*2, radius*0.2);
+    }
+    else if (biome === BiomeType.TOXIC) {
+        // TOXIC: Clouds
+         ctx.fillStyle = 'rgba(255,255,255,0.2)';
+         for(let i=0; i<4; i++) {
+             const angle = i * Math.PI / 2;
+             const dx = Math.cos(angle) * radius * 0.4;
+             const dy = Math.sin(angle) * radius * 0.4;
+             ctx.beginPath();
+             ctx.arc(x + dx, y + dy, radius * 0.3, 0, Math.PI*2);
+             ctx.fill();
+         }
+    }
+    else {
+        // BARREN: Craters
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        for(let i=0; i<3; i++) {
+            const cx = ((seed * 23 + i * 41) % (radius * 1.2)) - radius * 0.6;
+            const cy = ((seed * 29 + i * 37) % (radius * 1.2)) - radius * 0.6;
+            const r = 2 + (seed * i) % 6;
+            ctx.beginPath();
+            ctx.arc(x + cx, y + cy, r, 0, Math.PI*2);
+            ctx.fill();
+        }
+    }
+    
+    // Reset transform from rotation
+    ctx.setTransform(1, 0, 0, 1, 0, 0); 
+    
+    // Apply Shading Gradient
+    ctx.fillStyle = shading;
+    ctx.fillRect(x - radius, y - radius, radius*2, radius*2);
+
+    ctx.restore();
+}
+
 // --- Exploration Map Render ---
 const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, time: number) => {
     // Deep Space Background
@@ -373,111 +480,9 @@ const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, tim
     // Planets
     state.planets.forEach(p => {
         const isSelected = state.selectedPlanetId === p.id;
-        // Deterministic random for texture based on planet ID
-        const seed = parseInt(p.id.split('-')[1]) || 0;
-        const biome = p.biome || BiomeType.BARREN;
-        const biomeConfig = BIOME_STYLES[biome];
-
-        // Atmosphere Glow
-        ctx.shadowColor = biomeConfig.planetColor;
-        ctx.shadowBlur = isSelected ? 30 : 15;
-
-        // 1. Planet Base Body
-        // Use solid fill first to ensure opacity
-        ctx.fillStyle = biomeConfig.planetColor;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
-        ctx.fill();
-        ctx.shadowBlur = 0; // Reset blur for internal details
-
-        // Clip everything to the planet circle
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
-        ctx.clip();
-
-        // 2. 3D Volume Gradient (Shadow Overlay)
-        const shading = ctx.createRadialGradient(
-            p.x - p.radius * 0.3, p.y - p.radius * 0.3, p.radius * 0.1,
-            p.x, p.y, p.radius * 1.2
-        );
-        shading.addColorStop(0, 'rgba(255, 255, 255, 0.2)'); // Highlight
-        shading.addColorStop(0.4, 'rgba(0, 0, 0, 0.0)');     // Mid
-        shading.addColorStop(0.8, 'rgba(0, 0, 0, 0.6)');     // Shadow
-        shading.addColorStop(1, 'rgba(0, 0, 0, 0.8)');       // Deep Shadow
         
-        // 3. Surface Texture (Rotating)
-        // Rotate world based on time for living planet feel
-        const rotationSpeed = 0.0001 * (seed % 2 === 0 ? 1 : -1);
-        ctx.translate(p.x, p.y);
-        ctx.rotate(time * rotationSpeed + seed);
-        ctx.translate(-p.x, -p.y);
-
-        if (biome === BiomeType.ICE) { 
-            // ICE: White caps
-             ctx.fillStyle = 'rgba(255,255,255,0.6)';
-             // North Cap
-             ctx.beginPath();
-             ctx.arc(p.x, p.y - p.radius*0.7, p.radius*0.5, 0, Math.PI*2);
-             ctx.fill();
-             // South Cap
-             ctx.beginPath();
-             ctx.arc(p.x, p.y + p.radius*0.7, p.radius*0.5, 0, Math.PI*2);
-             ctx.fill();
-        } 
-        else if (biome === BiomeType.VOLCANIC) {
-            // VOLCANIC: Cracks
-            ctx.strokeStyle = '#fca5a5'; // lighter red
-            ctx.lineWidth = 1;
-            for(let i=0; i<6; i++) {
-                ctx.beginPath();
-                const offX = Math.sin(i*23) * p.radius * 0.6;
-                const offY = Math.cos(i*17) * p.radius * 0.6;
-                ctx.moveTo(p.x + offX, p.y + offY);
-                ctx.lineTo(p.x + offX + 10, p.y + offY + 10);
-                ctx.stroke();
-            }
-        }
-        else if (biome === BiomeType.DESERT) {
-            // DESERT: Bands
-             ctx.fillStyle = 'rgba(0,0,0,0.1)';
-             ctx.fillRect(p.x - p.radius, p.y - p.radius*0.2, p.radius*2, p.radius*0.4);
-             ctx.fillStyle = 'rgba(255,255,255,0.1)';
-             ctx.fillRect(p.x - p.radius, p.y + p.radius*0.3, p.radius*2, p.radius*0.2);
-        }
-        else if (biome === BiomeType.TOXIC) {
-            // TOXIC: Clouds
-             ctx.fillStyle = 'rgba(255,255,255,0.2)';
-             for(let i=0; i<4; i++) {
-                 const angle = i * Math.PI / 2;
-                 const dx = Math.cos(angle) * p.radius * 0.4;
-                 const dy = Math.sin(angle) * p.radius * 0.4;
-                 ctx.beginPath();
-                 ctx.arc(p.x + dx, p.y + dy, p.radius * 0.3, 0, Math.PI*2);
-                 ctx.fill();
-             }
-        }
-        else {
-            // BARREN: Craters
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            for(let i=0; i<3; i++) {
-                const cx = ((seed * 23 + i * 41) % (p.radius * 1.2)) - p.radius * 0.6;
-                const cy = ((seed * 29 + i * 37) % (p.radius * 1.2)) - p.radius * 0.6;
-                const r = 2 + (seed * i) % 6;
-                ctx.beginPath();
-                ctx.arc(p.x + cx, p.y + cy, r, 0, Math.PI*2);
-                ctx.fill();
-            }
-        }
-        
-        // Reset transform from rotation
-        ctx.setTransform(1, 0, 0, 1, 0, 0); 
-        
-        // Apply Shading Gradient
-        ctx.fillStyle = shading;
-        ctx.fillRect(p.x - p.radius, p.y - p.radius, p.radius*2, p.radius*2);
-
-        ctx.restore();
+        // Draw Planet using helper
+        drawPlanetSprite(ctx, p, p.x, p.y, p.radius, time, isSelected);
 
         // Completed checkmark
         if (p.completed) {
