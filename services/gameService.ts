@@ -165,13 +165,41 @@ export class GameEngine {
               settings: { ...loadedState.settings, language: currentSettings.language } // Keep language preference? Or load? Let's keep preference
           };
           
-          // Reset timers to avoid delta jump
-          this.lastTime = 0;
-          this.state.isPaused = false; // Unpause on load?
-          this.state.appMode = AppMode.GAMEPLAY; // Ensure we go to game
+          // --- FIX TIME DELTA AND INFINITY SERIALIZATION ISSUES ---
+          const p = this.state.player;
           
-          // Audio resume might be needed
+          // Reset weapon timings because 'time' in engine starts from 0 on a new session/load
+          // but the saved state has 'lastFireTime' from the old session (e.g., 50000ms).
+          // This causes (time - lastFireTime) to be negative, locking the weapon.
+          Object.values(p.weapons).forEach(w => {
+              w.lastFireTime = 0;
+              w.reloadStartTime = 0;
+              w.reloading = false;
+              // JSON.stringify converts Infinity to null. Restore it for Pistol.
+              if (w.type === WeaponType.PISTOL && (w.ammoReserve === null || w.ammoReserve === undefined)) {
+                  w.ammoReserve = Infinity;
+              }
+          });
+
+          // Reset Ally timings
+          this.state.allies.forEach(a => a.lastFireTime = 0);
+
+          // Reset Turret timings
+          this.state.turretSpots.forEach(s => {
+              if (s.builtTurret) s.builtTurret.lastFireTime = 0;
+          });
+
+          // Reset Global Timers
+          this.state.spawnTimer = 0;
+          this.state.lastAllySpawnTime = 0;
+          this.state.waveTimeRemaining = Math.max(0, this.state.waveTimeRemaining); // Keep remaining but safe
+          
+          this.lastTime = 0; // Reset engine clock
+          this.state.isPaused = false; 
+          this.state.appMode = AppMode.GAMEPLAY; 
+          
           this.audio.resume();
+          this.addMessage("MEMORY EXTRACTED", p.x, p.y - 50, 'cyan');
 
       } catch (e) {
           console.error("Failed to load save", e);
@@ -254,6 +282,14 @@ export class GameEngine {
     if (preservePlayer && this.state?.savedPlayerState) {
         const saved = this.state.savedPlayerState;
         initialWeapons = JSON.parse(JSON.stringify(saved.weapons)); // Deep copy to detach refs
+        
+        // Restore Infinity if lost in JSON
+        Object.values(initialWeapons).forEach(w => {
+            if (w.type === WeaponType.PISTOL && (w.ammoReserve === null || w.ammoReserve === undefined)) {
+                w.ammoReserve = Infinity;
+            }
+        });
+
         initialLoadout = [...saved.loadout];
         initialInventory = JSON.parse(JSON.stringify(saved.inventory));
         initialScore = saved.score;

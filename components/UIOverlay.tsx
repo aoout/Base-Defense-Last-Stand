@@ -64,13 +64,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
   if (state.appMode === AppMode.START_MENU) {
       return (
-          <div className="absolute inset-0 flex pointer-events-auto">
-              {/* Left Sidebar: Save Slots */}
-              <div className="w-80 h-full bg-black/80 border-r border-gray-800 p-6 backdrop-blur-sm overflow-y-auto">
-                  <h2 className="text-gray-400 font-mono text-sm tracking-widest mb-6 border-b border-gray-800 pb-2">{t('EXTRACTABLE_MEMORIES')}</h2>
-                  <div className="space-y-4">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+              {/* Floating Cryo Storage (Left) */}
+              <div className="absolute top-12 bottom-12 left-12 w-96 flex flex-col justify-center">
+                  <div className="mb-6 border-b border-blue-500/30 pb-2">
+                       <h2 className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase drop-shadow-[0_0_5px_rgba(59,130,246,0.8)] animate-pulse">{t('EXTRACTABLE_MEMORIES')}</h2>
+                  </div>
+                  <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-4 scrollbar-thin scrollbar-thumb-blue-900/50 scrollbar-track-transparent">
                       {state.saveSlots.length === 0 && (
-                          <div className="text-gray-600 italic text-xs text-center py-10">{t('NO_UNITS')}</div>
+                          <div className="text-blue-500/30 italic text-xs py-10 border border-blue-900/20 bg-blue-900/5 p-4 text-center tracking-widest">
+                              NO DATA ARCHIVED
+                          </div>
                       )}
                       {state.saveSlots.map(save => (
                           <SaveSlotItem 
@@ -85,26 +89,31 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                   </div>
               </div>
 
-              {/* Right Side: Menu */}
-              <div className="flex-1 flex flex-col items-end justify-center pr-24 space-y-8">
-                  <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-lg text-right">
-                      BASE<br/><span className="text-blue-500">DEFENSE</span>
-                  </h1>
-                  <p className="text-gray-400 font-mono tracking-widest text-lg">TACTICAL SURVIVAL SIMULATION</p>
+              {/* Main Menu (Right Side) */}
+              <div className="absolute right-24 flex flex-col items-end space-y-12">
+                  <div className="text-right">
+                      <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                          BASE<br/><span className="text-blue-500 text-9xl">DEFENSE</span>
+                      </h1>
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                          <div className="h-px w-24 bg-blue-500"></div>
+                          <p className="text-blue-300 font-mono tracking-[0.4em] text-sm">TACTICAL SURVIVAL SIMULATION</p>
+                      </div>
+                  </div>
                   
-                  <div className="h-16"></div>
-                  
-                  <button onClick={onStartSurvival} className="group relative w-96 h-24 bg-gray-900/80 border-2 border-white/20 hover:border-blue-500 hover:bg-blue-900/30 transition-all flex items-center justify-between px-8 overflow-hidden">
-                      <div className="absolute inset-0 bg-blue-500/10 translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                      <span className="relative z-10 text-3xl font-bold text-white tracking-widest group-hover:scale-105 transition-transform">SURVIVAL</span>
-                      <span className="relative z-10 text-xs text-gray-500 group-hover:text-blue-300 font-mono uppercase">Endless Waves</span>
-                  </button>
+                  <div className="flex flex-col gap-6">
+                      <button onClick={onStartSurvival} className="group relative w-[420px] h-24 bg-gray-900/40 border-l-4 border-white/20 hover:border-blue-500 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-sm">
+                          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+                          <span className="relative z-10 text-4xl font-black text-white tracking-widest group-hover:text-blue-100 transition-colors">SURVIVAL</span>
+                          <span className="relative z-10 text-xs text-gray-500 group-hover:text-blue-300 font-mono uppercase tracking-wider">Endless Waves</span>
+                      </button>
 
-                  <button onClick={onStartExploration} className="group relative w-96 h-24 bg-gray-900/80 border-2 border-white/20 hover:border-purple-500 hover:bg-purple-900/30 transition-all flex items-center justify-between px-8 overflow-hidden">
-                      <div className="absolute inset-0 bg-purple-500/10 translate-x-full group-hover:translate-x-0 transition-transform duration-500"></div>
-                      <span className="relative z-10 text-3xl font-bold text-white tracking-widest group-hover:scale-105 transition-transform">EXPLORE</span>
-                      <span className="relative z-10 text-xs text-gray-500 group-hover:text-purple-300 font-mono uppercase">Campaign Mode</span>
-                  </button>
+                      <button onClick={onStartExploration} className="group relative w-[420px] h-24 bg-gray-900/40 border-l-4 border-white/20 hover:border-purple-500 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-sm">
+                          <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+                          <span className="relative z-10 text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">EXPLORE</span>
+                          <span className="relative z-10 text-xs text-gray-500 group-hover:text-purple-300 font-mono uppercase tracking-wider">Campaign Mode</span>
+                      </button>
+                  </div>
               </div>
           </div>
       )
@@ -391,35 +400,42 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
 // --- Save Slot Item ---
 const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => (
-    <div className={`p-4 border group relative transition-all ${save.isPinned ? 'border-yellow-500 bg-yellow-900/10' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-800'}`}>
-        <div className="flex justify-between items-start mb-2">
-            <span className={`text-xs font-bold tracking-widest ${save.isPinned ? 'text-yellow-500' : 'text-blue-500'}`}>
-                {save.isPinned ? `★ ${t('PINNED')}` : `ID: ${save.id}`}
+    <div className={`p-4 border transition-all relative overflow-hidden group mb-4 backdrop-blur-sm
+        ${save.isPinned 
+            ? 'border-yellow-500/50 bg-yellow-900/20 hover:bg-yellow-900/30' 
+            : 'border-blue-500/30 bg-blue-900/10 hover:bg-blue-900/20 hover:border-blue-400/60'}
+    `}>
+        {/* Decorative corner */}
+        <div className={`absolute top-0 right-0 w-4 h-4 border-t border-r ${save.isPinned ? 'border-yellow-500' : 'border-blue-400'}`}></div>
+        
+        <div className="flex justify-between items-start mb-2 opacity-80">
+            <span className={`text-[10px] font-bold tracking-widest ${save.isPinned ? 'text-yellow-400' : 'text-blue-400'}`}>
+                 {save.isPinned ? `★ ${t('PINNED')}` : `ARCHIVE ID: ${save.id}`}
             </span>
-            <span className="text-[10px] text-gray-500 font-mono">
+            <span className="text-[10px] text-gray-400 font-mono">
                 {new Date(save.timestamp).toLocaleDateString()}
             </span>
         </div>
         
-        <h3 className="text-white font-mono font-bold text-sm mb-4 truncate">{save.label}</h3>
+        <h3 className="text-white font-mono font-bold text-sm mb-4 truncate drop-shadow-md">{save.label}</h3>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
             <button 
                 onClick={onLoad}
-                className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-300 hover:text-white text-xs py-2 border border-blue-800 transition-colors uppercase font-bold"
+                className="flex-1 bg-blue-500/20 hover:bg-blue-500 hover:text-white text-blue-300 text-[10px] py-1 border border-blue-500/50 uppercase font-bold tracking-wider transition-all"
             >
                 {t('LOAD')}
             </button>
             <button 
                 onClick={onPin}
-                className={`w-8 flex items-center justify-center border transition-colors ${save.isPinned ? 'border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-500 hover:text-white'}`}
+                className={`w-8 flex items-center justify-center border text-[10px] hover:text-white transition-all ${save.isPinned ? 'border-yellow-500 text-yellow-500' : 'border-gray-600 text-gray-500 hover:border-yellow-500 hover:text-yellow-500'}`}
                 title={t('PIN')}
             >
                 ★
             </button>
              <button 
                 onClick={onDelete}
-                className="w-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:text-red-500 hover:border-red-500 transition-colors"
+                className="w-8 flex items-center justify-center border border-gray-600 text-gray-500 hover:text-red-500 hover:border-red-500 transition-all"
                 title={t('DELETE')}
             >
                 ×
