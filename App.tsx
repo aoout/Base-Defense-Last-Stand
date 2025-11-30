@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -206,6 +208,12 @@ const App: React.FC = () => {
   const handleReturnToMap = () => { engineRef.current.completeMission(); };
   const handleDeselectPlanet = () => { engineRef.current.selectPlanet(null); };
 
+  // Save/Load Handlers
+  const handleSaveGame = () => { engineRef.current.saveGame(); };
+  const handleLoadGame = (id: string) => { engineRef.current.loadGame(id); };
+  const handleDeleteSave = (id: string) => { engineRef.current.deleteSave(id); };
+  const handleTogglePin = (id: string) => { engineRef.current.togglePin(id); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -226,6 +234,10 @@ const App: React.FC = () => {
         onDeployPlanet={handleDeployPlanet}
         onReturnToMap={handleReturnToMap}
         onDeselectPlanet={handleDeselectPlanet}
+        onSaveGame={handleSaveGame}
+        onLoadGame={handleLoadGame}
+        onDeleteSave={handleDeleteSave}
+        onTogglePin={handleTogglePin}
       />
     </div>
   );

@@ -4,6 +4,8 @@
 
 
 
+
+
 import { BossType, EnemyType, TurretType, WeaponStats, WeaponType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
@@ -29,11 +31,14 @@ export const PLAYER_STATS = {
   armorRegenRate: 6 / 60, // per frame (approx 60fps)
   hpRegenDelay: 10000,
   hpRegenRate: 0.5 / 60,
-  grenadeDamage: 500,
   grenadeRadius: 150,
+  grenadeDamage: 500,
   maxGrenades: 3,
   initialScore: 300, // Initial Scraps
 };
+
+export const MAX_SAVE_SLOTS = 7;
+export const MAX_PINNED_SLOTS = 3;
 
 export const WEAPONS: Record<WeaponType, WeaponStats> = {
   [WeaponType.AR]: {
@@ -213,6 +218,7 @@ export const TRANSLATIONS = {
         TAB_CONFIG: "CONFIG",
         TAB_NOTES: "NOTES",
         TAB_DATABASE: "BESTIARY",
+        TAB_MEMORY: "MEMORY",
         TOTAL_DAMAGE: "Total Damage",
         SHOTS_FIRED: "Shots Fired",
         ACCURACY: "Accuracy",
@@ -223,6 +229,18 @@ export const TRANSLATIONS = {
         DMG_TEXT: "DAMAGE_FLOATING_TEXT",
         LANGUAGE: "SYSTEM_LANGUAGE",
         RESUME_HINT: "PRESS [P] TO RESUME OPERATION",
+        
+        // Memory
+        SAVE_STATE: "SAVE CURRENT STATE",
+        MEMORY_STORAGE: "CRYO-MEMORY STORAGE",
+        EXTRACTABLE_MEMORIES: "EXTRACTABLE CRYO-MEMORIES",
+        PINNED: "PINNED",
+        PIN: "PIN",
+        UNPIN: "UNPIN",
+        LOAD: "EXTRACT",
+        DELETE: "PURGE",
+        EMPTY_SLOT: "EMPTY SLOT",
+        SAVE_SUCCESS: "STATE ARCHIVED SUCCESSFULLY",
         
         // Bestiary
         BESTIARY_LOCKED: "ENCRYPTED DATA",
@@ -275,6 +293,7 @@ export const TRANSLATIONS = {
         TAB_CONFIG: "设置",
         TAB_NOTES: "笔记",
         TAB_DATABASE: "图鉴",
+        TAB_MEMORY: "记忆冷藏",
         TOTAL_DAMAGE: "总伤害",
         SHOTS_FIRED: "射击次数",
         ACCURACY: "命中率",
@@ -286,6 +305,18 @@ export const TRANSLATIONS = {
         LANGUAGE: "系统语言 (LANGUAGE)",
         RESUME_HINT: "按 [P] 继续行动",
         
+        // Memory
+        SAVE_STATE: "存档当前状态",
+        MEMORY_STORAGE: "记忆冷藏库",
+        EXTRACTABLE_MEMORIES: "可提取的冷藏记忆",
+        PINNED: "已置顶",
+        PIN: "置顶",
+        UNPIN: "取消置顶",
+        LOAD: "提取",
+        DELETE: "删除",
+        EMPTY_SLOT: "空槽位",
+        SAVE_SUCCESS: "状态归档成功",
+
         // Bestiary
         BESTIARY_LOCKED: "数据加密",
         BESTIARY_HINT: "需要在战斗中遭遇目标以解密数据。",

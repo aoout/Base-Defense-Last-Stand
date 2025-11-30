@@ -248,6 +248,15 @@ export interface PersistentPlayerState {
     grenades: number;
 }
 
+export interface SaveFile {
+    id: string;
+    timestamp: number; // Date.now()
+    label: string; // e.g. "SURVIVAL - WAVE 10" or "EXPLORATION - PX-99"
+    isPinned: boolean;
+    data: string; // JSON string of GameState
+    mode: GameMode;
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -257,6 +266,9 @@ export interface GameState {
   currentPlanet: Planet | null;
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
+
+  // Save System
+  saveSlots: SaveFile[];
 
   camera: { x: number; y: number };
   player: Player;

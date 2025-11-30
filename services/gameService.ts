@@ -1,3 +1,5 @@
+
+
 import {
   GameState,
   InputState,
@@ -20,7 +22,8 @@ import {
   AppMode,
   GameMode,
   Planet,
-  PersistentPlayerState
+  PersistentPlayerState,
+  SaveFile
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -38,7 +41,9 @@ import {
   SHOP_PRICES,
   INVENTORY_SIZE,
   BOSS_STATS,
-  TOXIC_ZONE_STATS
+  TOXIC_ZONE_STATS,
+  MAX_SAVE_SLOTS,
+  MAX_PINNED_SLOTS
 } from '../constants';
 import { AudioService } from './audioService';
 
@@ -59,6 +64,7 @@ export class GameEngine {
   input: InputState;
   audio: AudioService;
   private lastTime: number = 0;
+  private storageKey = 'BASE_DEFENSE_SAVES_V1';
 
   constructor() {
     this.input = {
@@ -71,6 +77,128 @@ export class GameEngine {
     // Override defaults for Startup
     this.state.appMode = AppMode.START_MENU;
     this.state.planets = this.generatePlanets();
+
+    // Load saves
+    this.state.saveSlots = this.loadSavesFromStorage();
+  }
+
+  private loadSavesFromStorage(): SaveFile[] {
+      try {
+          const raw = localStorage.getItem(this.storageKey);
+          if (raw) {
+              return JSON.parse(raw);
+          }
+      } catch (e) {
+          console.error("Failed to load saves", e);
+      }
+      return [];
+  }
+
+  public saveGame() {
+      // Create a snapshot
+      // We need to exclude saveSlots from the data being saved to avoid recursion size
+      const { saveSlots, ...stateToSave } = this.state;
+      
+      const snapshot = JSON.stringify(stateToSave);
+      
+      let label = "";
+      if (this.state.gameMode === GameMode.SURVIVAL) {
+          label = `SURVIVAL - WAVE ${this.state.wave}`;
+      } else {
+          const pName = this.state.currentPlanet ? this.state.currentPlanet.name : "DEEP SPACE";
+          label = `EXP - ${pName} - W${this.state.wave}`;
+      }
+
+      const newSave: SaveFile = {
+          id: Math.random().toString(36).substr(2, 9),
+          timestamp: Date.now(),
+          label: label,
+          isPinned: false,
+          data: snapshot,
+          mode: this.state.gameMode
+      };
+
+      const saves = [...this.state.saveSlots];
+
+      // Logic: Max 7 saves.
+      // If < 7, just add.
+      // If >= 7, remove oldest UNPINNED.
+      // If all 7 are pinned (logic prevents more than 3 pinned), this shouldn't fail.
+
+      if (saves.length >= MAX_SAVE_SLOTS) {
+          // Sort by time ascending
+          saves.sort((a, b) => a.timestamp - b.timestamp);
+          
+          const unpinnedIdx = saves.findIndex(s => !s.isPinned);
+          if (unpinnedIdx !== -1) {
+              saves.splice(unpinnedIdx, 1);
+          } else {
+              // Should not happen if MAX_PINNED_SLOTS < MAX_SAVE_SLOTS
+              // But as fallback, remove the absolute oldest even if pinned
+              saves.shift();
+          }
+      }
+
+      saves.push(newSave);
+      // Sort desc for display
+      saves.sort((a, b) => b.timestamp - a.timestamp);
+      
+      this.state.saveSlots = saves;
+      localStorage.setItem(this.storageKey, JSON.stringify(saves));
+      this.addMessage("STATE ARCHIVED", this.state.player.x, this.state.player.y - 50, 'cyan');
+  }
+
+  public loadGame(id: string) {
+      const save = this.state.saveSlots.find(s => s.id === id);
+      if (!save) return;
+
+      try {
+          const loadedState: GameState = JSON.parse(save.data);
+          
+          // Restore state, but keep the current save slots and system settings
+          const currentSettings = this.state.settings;
+          const currentSaves = this.state.saveSlots;
+
+          this.state = {
+              ...loadedState,
+              saveSlots: currentSaves,
+              settings: { ...loadedState.settings, language: currentSettings.language } // Keep language preference? Or load? Let's keep preference
+          };
+          
+          // Reset timers to avoid delta jump
+          this.lastTime = 0;
+          this.state.isPaused = false; // Unpause on load?
+          this.state.appMode = AppMode.GAMEPLAY; // Ensure we go to game
+          
+          // Audio resume might be needed
+          this.audio.resume();
+
+      } catch (e) {
+          console.error("Failed to load save", e);
+      }
+  }
+
+  public deleteSave(id: string) {
+      const idx = this.state.saveSlots.findIndex(s => s.id === id);
+      if (idx !== -1) {
+          this.state.saveSlots.splice(idx, 1);
+          localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
+      }
+  }
+
+  public togglePin(id: string) {
+      const save = this.state.saveSlots.find(s => s.id === id);
+      if (!save) return;
+
+      if (save.isPinned) {
+          save.isPinned = false;
+      } else {
+          const pinnedCount = this.state.saveSlots.filter(s => s.isPinned).length;
+          if (pinnedCount < MAX_PINNED_SLOTS) {
+              save.isPinned = true;
+          }
+      }
+      localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
   }
 
   private generatePlanets(): Planet[] {
@@ -224,6 +352,7 @@ export class GameEngine {
     const prevCurrentPlanet = this.state?.currentPlanet || null;
     const prevSavedState = this.state?.savedPlayerState || null;
     const prevSelectedPlanetId = this.state?.selectedPlanetId || null;
+    const prevSaves = this.state?.saveSlots || [];
 
     this.state = {
       appMode: prevAppMode,
@@ -232,6 +361,7 @@ export class GameEngine {
       currentPlanet: prevCurrentPlanet,
       selectedPlanetId: prevSelectedPlanetId,
       savedPlayerState: prevSavedState,
+      saveSlots: prevSaves,
 
       camera: { x: 0, y: WORLD_HEIGHT - CANVAS_HEIGHT }, // Start camera at bottom
       player: {

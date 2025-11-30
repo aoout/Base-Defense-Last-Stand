@@ -1,6 +1,8 @@
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet } from '../types';
+import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile } from '../types';
 import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../constants';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple } from './GameCanvas';
 
@@ -22,6 +24,12 @@ interface UIOverlayProps {
   onDeployPlanet: (id: string) => void;
   onReturnToMap: () => void;
   onDeselectPlanet: () => void;
+  
+  // Save/Load
+  onSaveGame: () => void;
+  onLoadGame: (id: string) => void;
+  onDeleteSave: (id: string) => void;
+  onTogglePin: (id: string) => void;
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
@@ -40,7 +48,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onStartExploration,
     onDeployPlanet,
     onReturnToMap,
-    onDeselectPlanet
+    onDeselectPlanet,
+    onSaveGame,
+    onLoadGame,
+    onDeleteSave,
+    onTogglePin
 }) => {
   const p = state.player;
   const currentWeaponType = p.loadout[p.currentWeaponIndex];
@@ -52,8 +64,29 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
   if (state.appMode === AppMode.START_MENU) {
       return (
-          <div className="absolute inset-0 flex items-center justify-end pr-24 pointer-events-auto">
-              <div className="flex flex-col items-end space-y-8">
+          <div className="absolute inset-0 flex pointer-events-auto">
+              {/* Left Sidebar: Save Slots */}
+              <div className="w-80 h-full bg-black/80 border-r border-gray-800 p-6 backdrop-blur-sm overflow-y-auto">
+                  <h2 className="text-gray-400 font-mono text-sm tracking-widest mb-6 border-b border-gray-800 pb-2">{t('EXTRACTABLE_MEMORIES')}</h2>
+                  <div className="space-y-4">
+                      {state.saveSlots.length === 0 && (
+                          <div className="text-gray-600 italic text-xs text-center py-10">{t('NO_UNITS')}</div>
+                      )}
+                      {state.saveSlots.map(save => (
+                          <SaveSlotItem 
+                            key={save.id} 
+                            save={save} 
+                            onLoad={() => onLoadGame(save.id)}
+                            onDelete={() => onDeleteSave(save.id)}
+                            onPin={() => onTogglePin(save.id)}
+                            t={t}
+                          />
+                      ))}
+                  </div>
+              </div>
+
+              {/* Right Side: Menu */}
+              <div className="flex-1 flex flex-col items-end justify-center pr-24 space-y-8">
                   <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-lg text-right">
                       BASE<br/><span className="text-blue-500">DEFENSE</span>
                   </h1>
@@ -85,6 +118,19 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
               <div className="absolute top-8 left-8">
                   <h1 className="text-4xl font-bold text-white tracking-widest">SECTOR MAP</h1>
                   <p className="text-blue-400 font-mono text-sm">SELECT DESTINATION</p>
+              </div>
+
+              {/* Map Controls Top Right */}
+              <div className="absolute top-8 right-8 pointer-events-auto flex gap-4">
+                  <button 
+                    onClick={onSaveGame}
+                    className="w-12 h-12 bg-gray-900/80 border border-blue-500/50 hover:bg-blue-900/50 text-blue-400 flex items-center justify-center rounded transition-all"
+                    title={t('SAVE_STATE')}
+                  >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                      </svg>
+                  </button>
               </div>
 
               {planet && (
@@ -183,7 +229,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
   // Pause Menu - Tactical Terminal (Stats & Settings)
   if (state.isPaused) {
-      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} onClose={onClosePause} t={t} />;
+      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} onClose={onClosePause} onSave={onSaveGame} t={t} />;
   }
 
   // Format Time Remaining
@@ -342,6 +388,45 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     </div>
   );
 };
+
+// --- Save Slot Item ---
+const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => (
+    <div className={`p-4 border group relative transition-all ${save.isPinned ? 'border-yellow-500 bg-yellow-900/10' : 'border-gray-800 bg-gray-900/50 hover:bg-gray-800'}`}>
+        <div className="flex justify-between items-start mb-2">
+            <span className={`text-xs font-bold tracking-widest ${save.isPinned ? 'text-yellow-500' : 'text-blue-500'}`}>
+                {save.isPinned ? `★ ${t('PINNED')}` : `ID: ${save.id}`}
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">
+                {new Date(save.timestamp).toLocaleDateString()}
+            </span>
+        </div>
+        
+        <h3 className="text-white font-mono font-bold text-sm mb-4 truncate">{save.label}</h3>
+
+        <div className="flex gap-2">
+            <button 
+                onClick={onLoad}
+                className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-300 hover:text-white text-xs py-2 border border-blue-800 transition-colors uppercase font-bold"
+            >
+                {t('LOAD')}
+            </button>
+            <button 
+                onClick={onPin}
+                className={`w-8 flex items-center justify-center border transition-colors ${save.isPinned ? 'border-yellow-500 text-yellow-500' : 'border-gray-700 text-gray-500 hover:text-white'}`}
+                title={t('PIN')}
+            >
+                ★
+            </button>
+             <button 
+                onClick={onDelete}
+                className="w-8 flex items-center justify-center border border-gray-700 text-gray-500 hover:text-red-500 hover:border-red-500 transition-colors"
+                title={t('DELETE')}
+            >
+                ×
+            </button>
+        </div>
+    </div>
+);
 
 // --- Reusable Close Button ---
 const CloseButton: React.FC<{ onClick: () => void, colorClass: string }> = ({ onClick, colorClass }) => (
@@ -1017,8 +1102,8 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
 }
 
 // --- Tactical Terminal Component (Green Theme - Stats) ---
-const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, t: any }> = ({ state, onToggleSetting, onClose, t }) => {
-    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE'>('DATA');
+const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, onSave: () => void, t: any }> = ({ state, onToggleSetting, onClose, onSave, t }) => {
+    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'MEMORY'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
 
     // D3 Chart for Kill Stats
@@ -1095,7 +1180,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
 
                 {/* Tabs */}
                 <div className="flex border-b border-green-800">
-                    {['DATA', 'CONFIG', 'NOTES', 'DATABASE'].map(tab => (
+                    {['DATA', 'CONFIG', 'NOTES', 'DATABASE', 'MEMORY'].map(tab => (
                         <button 
                             key={tab}
                             onClick={() => setActiveTab(tab as any)}
@@ -1182,6 +1267,24 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                     )}
 
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
+
+                    {activeTab === 'MEMORY' && (
+                        <div className="flex flex-col items-center justify-center h-full space-y-8">
+                            <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
+                                <h2 className="text-2xl font-bold mb-4">{t('MEMORY_STORAGE')}</h2>
+                                <p className="text-sm text-green-600 mb-8">
+                                    Current game state can be preserved in cryo-storage for future deployment. 
+                                    Overwrites oldest non-pinned memory if storage is full.
+                                </p>
+                                <button 
+                                    onClick={onSave}
+                                    className="px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all"
+                                >
+                                    {t('SAVE_STATE')}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 <div className="p-2 border-t border-green-900 text-center text-xs text-green-800">
