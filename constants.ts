@@ -1,6 +1,5 @@
 
-
-import { BossType, EnemyType, TurretType, WeaponStats, WeaponType, BiomeType, DefenseUpgradeType } from "./types";
+import { BossType, EnemyType, TurretType, WeaponStats, WeaponType, BiomeType, DefenseUpgradeType, ModuleType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 900;
@@ -44,6 +43,33 @@ export const DEFENSE_UPGRADE_INFO = {
     [DefenseUpgradeType.IMPACT_PLATE]: {
         cost: 3100,
         meleeReduction: 0.2 // 20%
+    }
+};
+
+export const MODULE_STATS = {
+    [ModuleType.GEL_BARREL]: {
+        name: "Gel Penetration Diffuser",
+        cost: 1900,
+        desc: "Damage +40%",
+        exclude: [WeaponType.FLAMETHROWER, WeaponType.GRENADE_LAUNCHER, WeaponType.PULSE_RIFLE, 'GRENADE']
+    },
+    [ModuleType.MAG_FEED]: {
+        name: "Efficient Stack Feed",
+        cost: 1700,
+        desc: "Mag Capacity +100%",
+        exclude: [WeaponType.FLAMETHROWER, WeaponType.GRENADE_LAUNCHER, WeaponType.PULSE_RIFLE, 'GRENADE']
+    },
+    [ModuleType.MICRO_RUPTURER]: {
+        name: "Micro-Vibration Rupturer",
+        cost: 2100,
+        desc: "Damage +60%",
+        only: [WeaponType.SR, WeaponType.GRENADE_LAUNCHER, WeaponType.PULSE_RIFLE, 'GRENADE']
+    },
+    [ModuleType.PRESSURIZED_BOLT]: {
+        name: "Pressurized Bolt",
+        cost: 2300,
+        desc: "+10% Fire Rate per shot (Stacks)",
+        only: [WeaponType.AR, WeaponType.FLAMETHROWER, WeaponType.PULSE_RIFLE]
     }
 };
 
@@ -331,12 +357,14 @@ export const TRANSLATIONS = {
         ACTIVE_SYSTEMS: "ACTIVE SYSTEMS",
         GRENADE: "GRENADE",
         LOADOUT_HEADER: "ACTIVE LOADOUT",
-        LOADOUT_HINT: "Drag weapons from backpack to slots to equip.",
+        LOADOUT_HINT: "Click weapon to assemble modules. Drag to equip.",
         BACKPACK_HEADER: "BACKPACK STORAGE",
         CLOSE_BACKPACK: "PRESS [C] TO CLOSE BACKPACK",
         SLOT_SIDEARM: "(Sidearm)",
         SLOT_MAIN: "(Main)",
         SLOT: "SLOT",
+        ASSEMBLY_TITLE: "WEAPON ASSEMBLY",
+        MODULES_STORAGE: "AVAILABLE MODULES",
 
         // Tactical Call
         UNIT_STATUS: "UNIT STATUS",
@@ -359,6 +387,7 @@ export const TRANSLATIONS = {
         TAB_AMMO: "AMMUNITION",
         TAB_WEAPONS: "WEAPONRY",
         TAB_DEFENSE: "DEFENSE",
+        TAB_MODULES: "MODULES",
         CLOSE_DEPOT: "CLOSE DEPOT",
 
         // Upgrades
@@ -425,12 +454,14 @@ export const TRANSLATIONS = {
         ACTIVE_SYSTEMS: "激活系统",
         GRENADE: "手雷",
         LOADOUT_HEADER: "当前装备",
-        LOADOUT_HINT: "拖动背包武器至插槽装备。",
+        LOADOUT_HINT: "点击武器进行模块装配。拖拽装备。",
         BACKPACK_HEADER: "背包储物",
         CLOSE_BACKPACK: "按 [C] 关闭背包",
         SLOT_SIDEARM: "(副武器)",
         SLOT_MAIN: "(主武器)",
         SLOT: "插槽",
+        ASSEMBLY_TITLE: "武器装配台",
+        MODULES_STORAGE: "可用模块",
 
         // Tactical Call
         UNIT_STATUS: "单位状态",
@@ -453,6 +484,7 @@ export const TRANSLATIONS = {
         TAB_AMMO: "弹药补给",
         TAB_WEAPONS: "武器库",
         TAB_DEFENSE: "防御升级",
+        TAB_MODULES: "强化模块",
         CLOSE_DEPOT: "关闭补给站",
 
         // Upgrades

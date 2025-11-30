@@ -1,10 +1,9 @@
 
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameEngine } from './services/gameService';
-import { GameState, AllyOrder, TurretType, AppMode } from './types';
+import { GameState, AllyOrder, TurretType, AppMode, WeaponType } from './types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './constants';
 
 const App: React.FC = () => {
@@ -25,8 +24,20 @@ const App: React.FC = () => {
         window.removeEventListener('keydown', handleInteraction);
     }
 
+    // New: Handle Custom Game Actions (e.g., from UI modules)
+    const handleGameAction = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (detail.type === 'EQUIP_MODULE') {
+            engine.equipModule(detail.target, detail.modId);
+        }
+        if (detail.type === 'UNEQUIP_MODULE') {
+            engine.unequipModule(detail.target, detail.modId);
+        }
+    };
+
     window.addEventListener('click', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
+    window.addEventListener('game-action', handleGameAction);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // Input only active in gameplay or specific menus
@@ -149,9 +160,6 @@ const App: React.FC = () => {
                     // Update selection
                     if (clickedPlanetId) {
                         engine.selectPlanet(clickedPlanetId);
-                    } else {
-                        // Deselect if clicking empty space? Optional.
-                        // engine.selectPlanet(null);
                     }
                 }
             }
@@ -186,6 +194,7 @@ const App: React.FC = () => {
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('game-action', handleGameAction);
       clearInterval(interval);
     };
   }, []);

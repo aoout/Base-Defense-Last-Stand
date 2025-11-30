@@ -1,5 +1,4 @@
 
-
 export enum WeaponType {
   AR = 'AR',
   SG = 'SG',
@@ -14,13 +13,25 @@ export enum TurretType {
   STANDARD = 'STANDARD', // Lv1
   GAUSS = 'GAUSS',       // Lv2 Option A (Machine Gun)
   SNIPER = 'SNIPER',     // Lv2 Option B (Long Range)
-  MISSILE = 'MISSILE',   // Lv2 Option C (Global Homing)
+  MISSILE = 'MISSILE',   // Lv2 Option B (Global Homing)
 }
 
 export enum DefenseUpgradeType {
   INFECTION_DISPOSAL = 'INFECTION_DISPOSAL',
   SPORE_BARRIER = 'SPORE_BARRIER',
   IMPACT_PLATE = 'IMPACT_PLATE'
+}
+
+export enum ModuleType {
+  GEL_BARREL = 'GEL_BARREL', // Dmg +40%
+  MAG_FEED = 'MAG_FEED', // Mag +100%
+  MICRO_RUPTURER = 'MICRO_RUPTURER', // Dmg +60%
+  PRESSURIZED_BOLT = 'PRESSURIZED_BOLT' // Fire rate ramp
+}
+
+export interface WeaponModule {
+  id: string; // Instance ID
+  type: ModuleType;
 }
 
 export interface WeaponStats {
@@ -44,6 +55,10 @@ export interface WeaponState {
   lastFireTime: number;
   reloading: boolean;
   reloadStartTime: number;
+  
+  // Module System
+  modules: WeaponModule[]; 
+  consecutiveShots: number; // For Pressurized Bolt logic
 }
 
 export interface InventoryItem {
@@ -75,6 +90,10 @@ export interface Player extends Entity {
   
   // Upgrades
   upgrades: DefenseUpgradeType[];
+  
+  // Modules
+  freeModules: WeaponModule[]; // Modules not installed on any weapon
+  grenadeModules: WeaponModule[]; // Modules installed on grenades
 
   currentWeaponIndex: number; // 0-3 pointing to loadout
   grenades: number;
@@ -265,6 +284,8 @@ export interface PersistentPlayerState {
     inventory: (InventoryItem | null)[];
     grenades: number;
     upgrades: DefenseUpgradeType[];
+    freeModules: WeaponModule[];
+    grenadeModules: WeaponModule[];
 }
 
 export interface SaveFile {

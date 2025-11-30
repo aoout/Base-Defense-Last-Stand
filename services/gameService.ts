@@ -1,5 +1,4 @@
 
-
 import {
   GameState,
   InputState,
@@ -25,7 +24,9 @@ import {
   PersistentPlayerState,
   SaveFile,
   BiomeType,
-  DefenseUpgradeType
+  DefenseUpgradeType,
+  ModuleType,
+  WeaponModule
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -47,7 +48,8 @@ import {
   MAX_SAVE_SLOTS,
   MAX_PINNED_SLOTS,
   BIOME_STYLES,
-  DEFENSE_UPGRADE_INFO
+  DEFENSE_UPGRADE_INFO,
+  MODULE_STATS
 } from '../constants';
 import { AudioService } from './audioService';
 
@@ -179,6 +181,10 @@ export class GameEngine {
               w.lastFireTime = 0;
               w.reloadStartTime = 0;
               w.reloading = false;
+              // Initialize missing properties from old saves
+              if (!w.modules) w.modules = [];
+              if (!w.consecutiveShots) w.consecutiveShots = 0;
+
               // JSON.stringify converts Infinity to null. Restore it for Pistol.
               if (w.type === WeaponType.PISTOL && (w.ammoReserve === null || w.ammoReserve === undefined)) {
                   w.ammoReserve = Infinity;
@@ -189,6 +195,8 @@ export class GameEngine {
           if (!p.upgrades) {
               p.upgrades = [];
           }
+          if (!p.freeModules) p.freeModules = [];
+          if (!p.grenadeModules) p.grenadeModules = [];
 
           // Reset Ally timings
           this.state.allies.forEach(a => a.lastFireTime = 0);
@@ -292,6 +300,8 @@ export class GameEngine {
     let initialGrenades: number;
     let initialUpgrades: DefenseUpgradeType[];
     let initialMaxArmor = PLAYER_STATS.maxArmor;
+    let initialFreeModules: WeaponModule[] = [];
+    let initialGrenadeModules: WeaponModule[] = [];
 
     // Persist logic
     if (preservePlayer && this.state?.savedPlayerState) {
@@ -310,6 +320,8 @@ export class GameEngine {
         initialScore = saved.score;
         initialGrenades = saved.grenades;
         initialUpgrades = saved.upgrades || [];
+        initialFreeModules = saved.freeModules || [];
+        initialGrenadeModules = saved.grenadeModules || [];
         
         // Restore Max Armor if upgrade present
         if (initialUpgrades.includes(DefenseUpgradeType.SPORE_BARRIER)) {
@@ -330,6 +342,8 @@ export class GameEngine {
                 lastFireTime: 0,
                 reloading: false,
                 reloadStartTime: 0,
+                modules: [],
+                consecutiveShots: 0
             };
             return acc;
         }, {} as Record<WeaponType, WeaponState>);
@@ -338,6 +352,8 @@ export class GameEngine {
         initialScore = PLAYER_STATS.initialScore;
         initialGrenades = 3;
         initialUpgrades = [];
+        initialFreeModules = [];
+        initialGrenadeModules = [];
     }
 
     const baseX = WORLD_WIDTH / 2;
@@ -448,6 +464,8 @@ export class GameEngine {
         score: initialScore,
         isAiming: false,
         upgrades: initialUpgrades,
+        freeModules: initialFreeModules,
+        grenadeModules: initialGrenadeModules,
       },
       base: {
         x: baseX,
@@ -537,7 +555,9 @@ export class GameEngine {
           inventory: p.inventory,
           loadout: p.loadout,
           weapons: p.weapons,
-          upgrades: p.upgrades
+          upgrades: p.upgrades,
+          freeModules: p.freeModules,
+          grenadeModules: p.grenadeModules
       };
 
       // Mark planet complete
@@ -660,8 +680,15 @@ export class GameEngine {
       if (!invItem) return;
 
       const oldLoadoutType = p.loadout[loadoutIdx];
+      
+      // Before swapping, we need to reset the consecutive shots of the weapon being swapped out
+      p.weapons[oldLoadoutType].consecutiveShots = 0;
+
       p.loadout[loadoutIdx] = invItem.type;
       p.inventory[inventoryIdx] = { id: invItem.id, type: oldLoadoutType }; 
+      
+      // Reset new weapon's shots
+      p.weapons[invItem.type].consecutiveShots = 0;
   }
 
   public closeTurretUpgrade() {
@@ -699,8 +726,111 @@ export class GameEngine {
       }
   }
 
+  // --- Module System Logic ---
+  public purchaseModule(type: string) {
+      const p = this.state.player;
+      
+      // Check if it is a module
+      if (Object.values(ModuleType).includes(type as ModuleType)) {
+          const mType = type as ModuleType;
+          const stats = MODULE_STATS[mType];
+          
+          if (p.score >= stats.cost) {
+              p.score -= stats.cost;
+              p.freeModules.push({
+                  id: Math.random().toString(36).substr(2, 9),
+                  type: mType
+              });
+              this.addMessage("Module Acquired", p.x, p.y - 50, 'cyan');
+          } else {
+              this.addMessage("Need Scraps!", p.x, p.y - 50, 'red');
+          }
+          return;
+      }
+  }
+
+  public equipModule(target: WeaponType | 'GRENADE', moduleId: string) {
+      const p = this.state.player;
+      const modIndex = p.freeModules.findIndex(m => m.id === moduleId);
+      if (modIndex === -1) return;
+      const mod = p.freeModules[modIndex];
+      const config = MODULE_STATS[mod.type] as any;
+
+      // Check constraints
+      let currentModules: WeaponModule[] = [];
+      let maxSlots = 3;
+      
+      if (target === 'GRENADE') {
+          currentModules = p.grenadeModules;
+          maxSlots = 2;
+      } else {
+          currentModules = p.weapons[target].modules;
+          if (target === WeaponType.PISTOL) maxSlots = 2;
+      }
+
+      // Slot check
+      if (currentModules.length >= maxSlots) {
+          this.addMessage("No slots available", p.x, p.y - 50, 'red');
+          return;
+      }
+
+      // Unique check
+      if (currentModules.some(m => m.type === mod.type)) {
+           this.addMessage("Module already installed", p.x, p.y - 50, 'red');
+           return;
+      }
+
+      // Compatibility check
+      if (config.exclude && config.exclude.includes(target)) {
+           this.addMessage("Incompatible Weapon", p.x, p.y - 50, 'red');
+           return;
+      }
+      if (config.only && !config.only.includes(target)) {
+           this.addMessage("Incompatible Weapon", p.x, p.y - 50, 'red');
+           return;
+      }
+
+      // Install
+      p.freeModules.splice(modIndex, 1);
+      if (target === 'GRENADE') {
+          p.grenadeModules.push(mod);
+      } else {
+          p.weapons[target].modules.push(mod);
+          // Special Case: Mag Feed needs to update reserve check immediately?
+          // No, but reload logic handles it.
+      }
+  }
+
+  public unequipModule(target: WeaponType | 'GRENADE', moduleId: string) {
+      const p = this.state.player;
+      let targetList: WeaponModule[];
+
+      if (target === 'GRENADE') {
+          targetList = p.grenadeModules;
+      } else {
+          targetList = p.weapons[target].modules;
+      }
+
+      const idx = targetList.findIndex(m => m.id === moduleId);
+      if (idx !== -1) {
+          const [removed] = targetList.splice(idx, 1);
+          p.freeModules.push(removed);
+          
+          // Special Case: If Pressurized Bolt removed, reset consecutive shots
+          if (removed.type === ModuleType.PRESSURIZED_BOLT && target !== 'GRENADE') {
+              p.weapons[target as WeaponType].consecutiveShots = 0;
+          }
+      }
+  }
+
   public purchaseItem(item: string) {
       const p = this.state.player;
+
+      // Module Purchase Delegation
+      if (Object.values(ModuleType).includes(item as ModuleType)) {
+          this.purchaseModule(item);
+          return;
+      }
 
       // Handle Defense Upgrades
       if (Object.values(DefenseUpgradeType).includes(item as DefenseUpgradeType)) {
@@ -868,14 +998,20 @@ export class GameEngine {
     const worldMouseY = this.input.mouse.y + this.state.camera.y;
     p.angle = Math.atan2(worldMouseY - p.y, worldMouseX - p.x);
 
-    if (this.input.keys['1']) p.currentWeaponIndex = 0;
-    if (this.input.keys['2']) p.currentWeaponIndex = 1;
-    if (this.input.keys['3']) p.currentWeaponIndex = 2;
-    if (this.input.keys['4']) p.currentWeaponIndex = 3;
+    // Switch weapon
+    if (this.input.keys['1'] && p.currentWeaponIndex !== 0) { p.currentWeaponIndex = 0; this.resetWeaponMods(p); }
+    if (this.input.keys['2'] && p.currentWeaponIndex !== 1) { p.currentWeaponIndex = 1; this.resetWeaponMods(p); }
+    if (this.input.keys['3'] && p.currentWeaponIndex !== 2) { p.currentWeaponIndex = 2; this.resetWeaponMods(p); }
+    if (this.input.keys['4'] && p.currentWeaponIndex !== 3) { p.currentWeaponIndex = 3; this.resetWeaponMods(p); }
 
     if ((this.input.keys['r'] || this.input.keys['R'])) {
       this.reloadWeapon(time);
     }
+  }
+
+  private resetWeaponMods(p: any) {
+      // Reset consecutive shots on all weapons when switching
+      Object.values(p.weapons).forEach((w: any) => w.consecutiveShots = 0);
   }
 
   private handleRegen(dt: number, time: number) {
@@ -907,9 +1043,17 @@ export class GameEngine {
     const weapon = p.weapons[weaponType];
     const stats = WEAPONS[weaponType];
 
-    if (!weapon.reloading && weapon.ammoInMag < stats.magSize && weapon.ammoReserve > 0) {
+    // Mag Size calculation with modules
+    let maxMag = stats.magSize;
+    if (weapon.modules.some(m => m.type === ModuleType.MAG_FEED)) {
+        maxMag *= 2;
+    }
+
+    if (!weapon.reloading && weapon.ammoInMag < maxMag && weapon.ammoReserve > 0) {
       weapon.reloading = true;
       weapon.reloadStartTime = time;
+      // Reset consecutive shots on reload
+      weapon.consecutiveShots = 0;
     }
   }
 
@@ -919,9 +1063,15 @@ export class GameEngine {
     const weapon = p.weapons[weaponType];
     const stats = WEAPONS[weaponType];
 
+    // Mag Size calculation
+    let maxMag = stats.magSize;
+    if (weapon.modules.some(m => m.type === ModuleType.MAG_FEED)) {
+        maxMag *= 2;
+    }
+
     if (weapon.reloading) {
       if (time - weapon.reloadStartTime >= stats.reloadTime) {
-        const needed = stats.magSize - weapon.ammoInMag;
+        const needed = maxMag - weapon.ammoInMag;
         const toLoad = weapon.ammoReserve === Infinity ? needed : Math.min(needed, weapon.ammoReserve);
         
         weapon.ammoInMag += toLoad;
@@ -934,10 +1084,21 @@ export class GameEngine {
     }
 
     if (this.input.mouse.down && !this.state.isShopOpen && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
-      if (time - weapon.lastFireTime >= stats.fireRate) {
+      // Fire Rate Calc
+      let fireRate = stats.fireRate;
+      if (weapon.modules.some(m => m.type === ModuleType.PRESSURIZED_BOLT)) {
+          // Delay decreases as consecutive shots increase
+          // consecutiveShots 1 -> 1.1x speed -> delay / 1.1
+          // consecutiveShots 10 -> 2.0x speed -> delay / 2.0
+          fireRate = stats.fireRate / (1 + (0.1 * weapon.consecutiveShots));
+      }
+
+      if (time - weapon.lastFireTime >= fireRate) {
         if (weapon.ammoInMag > 0) {
           weapon.lastFireTime = time;
           weapon.ammoInMag--;
+          weapon.consecutiveShots++; // Increment streak
+          
           this.state.stats.shotsFired++;
           this.audio.playWeaponFire(weaponType);
 
@@ -958,6 +1119,16 @@ export class GameEngine {
              if (weaponType === WeaponType.PULSE_RIFLE) color = '#06B6D4';
              if (weaponType === WeaponType.GRENADE_LAUNCHER) color = '#4B5563';
 
+             // Damage Calc
+             let finalDamage = stats.damage;
+             // Apply Modules
+             if (weapon.modules.some(m => m.type === ModuleType.GEL_BARREL)) {
+                 finalDamage *= 1.4;
+             }
+             if (weapon.modules.some(m => m.type === ModuleType.MICRO_RUPTURER)) {
+                 finalDamage *= 1.6;
+             }
+
              this.state.projectiles.push({
                id: Math.random().toString(),
                x: p.x + Math.cos(p.angle) * 20,
@@ -967,7 +1138,7 @@ export class GameEngine {
                color,
                vx: Math.cos(finalAngle) * (stats.projectileSpeed + speedVariance),
                vy: Math.sin(finalAngle) * (stats.projectileSpeed + speedVariance),
-               damage: stats.damage,
+               damage: finalDamage,
                rangeRemaining: stats.range,
                maxRange: stats.range,
                fromPlayer: true,
@@ -985,6 +1156,10 @@ export class GameEngine {
            this.reloadWeapon(time);
         }
       }
+    } else {
+        // Reset consecutive shots if mouse not down? 
+        // Prompt said "Reload or Switch Weapon". 
+        // Some games reset on pause of fire. But prompts specific. I will stick to reload/switch.
     }
   }
 
@@ -1816,11 +1991,18 @@ export class GameEngine {
           this.audio.playExplosion(); 
       }, 200);
 
+      // Grenade Damage Logic with Modules
+      let damage = PLAYER_STATS.grenadeDamage;
+      // Note: Grenade modules are stored in p.grenadeModules
+      if (p.grenadeModules.some(m => m.type === ModuleType.MICRO_RUPTURER)) {
+          damage *= 1.6; // +60%
+      }
+
       this.state.enemies.forEach(e => {
         if (this.distance(e, explosionCenter) < r) {
-          e.hp -= PLAYER_STATS.grenadeDamage;
-          this.state.stats.damageDealt += PLAYER_STATS.grenadeDamage;
-          this.addMessage(`-${PLAYER_STATS.grenadeDamage}`, e.x, e.y, 'orange');
+          e.hp -= damage;
+          this.state.stats.damageDealt += damage;
+          this.addMessage(`-${damage}`, e.x, e.y, 'orange');
           if (e.hp <= 0) {
              p.score += e.scoreReward;
              this.state.stats.killsByType[e.type]++;
@@ -1831,7 +2013,7 @@ export class GameEngine {
       });
 
       if (this.distance(p, explosionCenter) < r) {
-        this.damagePlayer(PLAYER_STATS.grenadeDamage * 0.2, true); // Treat grenade self-damage like generic/physical impact
+        this.damagePlayer(damage * 0.2, true); // Treat grenade self-damage like generic/physical impact
       }
     }
   }
