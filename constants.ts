@@ -1,6 +1,7 @@
 
 
 
+
 import { BossType, EnemyType, TurretType, WeaponStats, WeaponType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
@@ -200,3 +201,116 @@ export const SHOP_PRICES = {
   WEAPON_FLAME: 1900,
   WEAPON_GL: 2100,
 };
+
+export const TRANSLATIONS = {
+    EN: {
+        // Pause
+        PAUSE_TITLE: "TACTICAL_TERMINAL_V1.0",
+        SYSTEM_PAUSED: "SYSTEM_PAUSED",
+        TAB_DATA: "DATA",
+        TAB_CONFIG: "CONFIG",
+        TAB_NOTES: "NOTES",
+        TOTAL_DAMAGE: "Total Damage",
+        SHOTS_FIRED: "Shots Fired",
+        ACCURACY: "Accuracy",
+        KILLS_ANALYSIS: "Confirmed Kills Analysis",
+        VISUAL_SETTINGS: "VISUAL_INTERFACE_SETTINGS",
+        HUD_OVERLAY: "HUD_OVERLAY",
+        GORE: "GORE_RENDERER (Blood Stains)",
+        DMG_TEXT: "DAMAGE_FLOATING_TEXT",
+        LANGUAGE: "SYSTEM_LANGUAGE",
+        RESUME_HINT: "PRESS [P] TO RESUME OPERATION",
+        
+        // Backpack
+        STATUS_HEADER: "OPERATIVE STATUS",
+        HEALTH: "HEALTH",
+        ARMOR: "ARMOR",
+        SCRAPS: "SCRAPS",
+        UTILITIES: "UTILITIES",
+        GRENADE: "GRENADE",
+        LOADOUT_HEADER: "ACTIVE LOADOUT",
+        LOADOUT_HINT: "Drag weapons from backpack to slots to equip.",
+        BACKPACK_HEADER: "BACKPACK STORAGE",
+        CLOSE_BACKPACK: "PRESS [C] TO CLOSE BACKPACK",
+        SLOT_SIDEARM: "(Sidearm)",
+        SLOT_MAIN: "(Main)",
+        SLOT: "SLOT",
+
+        // Tactical Call
+        UNIT_STATUS: "UNIT STATUS",
+        NO_UNITS: "NO ACTIVE UNITS DETECTED",
+        TOTAL_UNITS: "TOTAL UNITS",
+        TACTICAL_COMMAND: "TACTICAL COMMAND",
+        PRIORITY_OVERRIDE: "BROADCAST PRIORITY OVERRIDE",
+        CMD_DEFEND: "DEFEND BASE",
+        CMD_DEFEND_DESC: "UNITS PATROL PERIMETER",
+        CMD_FOLLOW: "FOLLOW ME",
+        CMD_FOLLOW_DESC: "UNITS ESCORT PLAYER",
+        CMD_ASSAULT: "ASSAULT",
+        CMD_ASSAULT_DESC: "UNITS PUSH FORWARD",
+        CLOSE_CHANNEL: "PRESS [TAB] TO CLOSE CHANNEL",
+        
+        // Shop
+        DEPOT_TITLE: "SUPPLY DEPOT",
+        DEPOT_SUBTITLE: "Acquire ammunition and explosives.",
+        FUNDS: "Available Funds",
+        TAB_AMMO: "AMMUNITION",
+        TAB_WEAPONS: "WEAPONRY",
+        CLOSE_DEPOT: "CLOSE DEPOT",
+    },
+    CN: {
+        // Pause
+        PAUSE_TITLE: "战术终端_V1.0",
+        SYSTEM_PAUSED: "系统暂停",
+        TAB_DATA: "数据",
+        TAB_CONFIG: "设置",
+        TAB_NOTES: "笔记",
+        TOTAL_DAMAGE: "总伤害",
+        SHOTS_FIRED: "射击次数",
+        ACCURACY: "命中率",
+        KILLS_ANALYSIS: "击杀分析",
+        VISUAL_SETTINGS: "视觉界面设置",
+        HUD_OVERLAY: "HUD 界面显示",
+        GORE: "血腥效果渲染",
+        DMG_TEXT: "伤害数值浮动",
+        LANGUAGE: "系统语言 (LANGUAGE)",
+        RESUME_HINT: "按 [P] 继续行动",
+        
+        // Backpack
+        STATUS_HEADER: "干员状态",
+        HEALTH: "生命值",
+        ARMOR: "护甲值",
+        SCRAPS: "残片",
+        UTILITIES: "战术道具",
+        GRENADE: "手雷",
+        LOADOUT_HEADER: "当前装备",
+        LOADOUT_HINT: "拖动背包武器至插槽装备。",
+        BACKPACK_HEADER: "背包储物",
+        CLOSE_BACKPACK: "按 [C] 关闭背包",
+        SLOT_SIDEARM: "(副武器)",
+        SLOT_MAIN: "(主武器)",
+        SLOT: "插槽",
+
+        // Tactical Call
+        UNIT_STATUS: "单位状态",
+        NO_UNITS: "未检测到活跃单位",
+        TOTAL_UNITS: "单位总数",
+        TACTICAL_COMMAND: "战术指挥",
+        PRIORITY_OVERRIDE: "广播优先级覆盖",
+        CMD_DEFEND: "基地防守",
+        CMD_DEFEND_DESC: "单位在周边巡逻",
+        CMD_FOLLOW: "跟随指令",
+        CMD_FOLLOW_DESC: "单位护送玩家",
+        CMD_ASSAULT: "全军突击",
+        CMD_ASSAULT_DESC: "单位向前推进",
+        CLOSE_CHANNEL: "按 [TAB] 关闭频道",
+
+        // Shop
+        DEPOT_TITLE: "补给站",
+        DEPOT_SUBTITLE: "获取弹药与爆炸物。",
+        FUNDS: "可用资金",
+        TAB_AMMO: "弹药补给",
+        TAB_WEAPONS: "武器库",
+        CLOSE_DEPOT: "关闭补给站",
+    }
+}

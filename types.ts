@@ -200,6 +200,7 @@ export interface GameSettings {
   showHUD: boolean;
   showBlood: boolean;
   showDamageNumbers: boolean;
+  language: 'EN' | 'CN';
 }
 
 export interface GameStats {

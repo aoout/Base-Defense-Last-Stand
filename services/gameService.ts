@@ -1,3 +1,5 @@
+
+
 import {
   GameState,
   InputState,
@@ -209,6 +211,7 @@ export class GameEngine {
         showHUD: true,
         showBlood: true,
         showDamageNumbers: true,
+        language: 'EN'
       },
       stats: initialStats,
     };
@@ -308,7 +311,15 @@ export class GameEngine {
   }
 
   public toggleSetting(key: keyof typeof this.state.settings) {
-    this.state.settings[key] = !this.state.settings[key];
+    // Need a specific handler for boolean toggles, logic slightly changed below
+    // to handle the type safety with 'language' which is a string
+    // This method assumes boolean toggles.
+    if (key === 'language') return; // Handled by cycleLanguage
+    (this.state.settings as any)[key] = !(this.state.settings as any)[key];
+  }
+
+  public cycleLanguage() {
+      this.state.settings.language = this.state.settings.language === 'EN' ? 'CN' : 'EN';
   }
 
   public swapLoadoutAndInventory(loadoutIdx: number, inventoryIdx: number) {

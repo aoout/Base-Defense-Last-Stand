@@ -1,16 +1,9 @@
 
 
-
-
-
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType } from '../types';
-import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS } from '../constants';
+import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS } from '../constants';
 
 interface UIOverlayProps {
   state: GameState;
@@ -28,6 +21,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
   const currentWeaponType = p.loadout[p.currentWeaponIndex];
   const currentWep = p.weapons[currentWeaponType];
   const wepStats = WEAPONS[currentWeaponType];
+  const t = (key: keyof typeof TRANSLATIONS.EN) => TRANSLATIONS[state.settings.language][key];
 
   if (state.isGameOver) {
       return <MissionFailedScreen state={state} onRestart={onRestart} />;
@@ -40,17 +34,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
 
   // Tactical Call Terminal (Ally Command)
   if (state.isTacticalMenuOpen) {
-      return <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} />;
+      return <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} onClose={() => { /* Handled by ESC/Tab but here for completeness if we pass func */ }} t={t} />;
   }
 
   // Tactical Backpack (Inventory)
   if (state.isInventoryOpen) {
-      return <TacticalBackpack state={state} onSwapItems={onSwapItems} />;
+      return <TacticalBackpack state={state} onSwapItems={onSwapItems} t={t} />;
   }
 
   // Pause Menu - Tactical Terminal (Stats & Settings)
   if (state.isPaused) {
-      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} />;
+      return <TacticalTerminal state={state} onToggleSetting={onToggleSetting} t={t} />;
   }
 
   // Format Time Remaining
@@ -92,7 +86,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
         <div className="absolute top-6 right-6">
           <div className="bg-black/60 px-6 py-3 rounded-xl border border-yellow-600/40 backdrop-blur-sm flex items-center gap-4 shadow-lg">
               <div className="flex flex-col items-end">
-                  <span className="text-yellow-500 text-[10px] font-bold tracking-widest uppercase">Scraps</span>
+                  <span className="text-yellow-500 text-[10px] font-bold tracking-widest uppercase">{t('SCRAPS')}</span>
                   <span className="text-3xl font-mono font-bold text-white leading-none">{Math.floor(p.score)}</span>
               </div>
               <div className="text-yellow-500">
@@ -122,7 +116,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
            
            {/* Backpack Hint */}
             <div className="mt-2 text-gray-500 text-xs font-mono">
-                PRESS [C] FOR TACTICAL BACKPACK
+                {t('CLOSE_BACKPACK').replace("CLOSE", "OPEN")}
             </div>
         </div>
       )}
@@ -163,7 +157,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
 
                   {/* Grenades */}
                   <div className="flex items-center justify-end gap-3 text-white">
-                      <span className="text-[10px] text-gray-500 font-bold tracking-wider">FRAG GRENADES [G]</span>
+                      <span className="text-[10px] text-gray-500 font-bold tracking-wider">{t('GRENADE')} [G]</span>
                       <div className="flex gap-1">
                           {Array.from({length: PLAYER_STATS.maxGrenades}).map((_, i) => (
                               <div 
@@ -198,7 +192,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({ state, onPurchase, onCloseShop, o
 
       {/* Shop Modal */}
       {state.isShopOpen && (
-        <ShopModal state={state} onPurchase={onPurchase} onClose={onCloseShop} />
+        <ShopModal state={state} onPurchase={onPurchase} onClose={onCloseShop} t={t} />
       )}
 
       {/* Interact Prompt */}
@@ -343,7 +337,7 @@ const UpgradeCard: React.FC<{
 };
 
 // --- Shop Modal Component ---
-const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void, onClose: () => void }> = ({ state, onPurchase, onClose }) => {
+const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void, onClose: () => void, t: any }> = ({ state, onPurchase, onClose, t }) => {
     const p = state.player;
     const [activeTab, setActiveTab] = useState<'AMMO' | 'WEAPONS'>('AMMO');
 
@@ -353,15 +347,26 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                {/* Decorative background element */}
                <div className="absolute top-0 right-0 p-32 bg-yellow-600/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
+               {/* Close Button Top Left */}
+                <button 
+                    onClick={onClose}
+                    className="absolute top-4 left-4 p-2 text-yellow-600 hover:text-white border border-yellow-900/50 hover:bg-yellow-900/50 rounded transition-all"
+                    title={t('CLOSE_DEPOT')}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
                {/* Header */}
-               <div className="flex justify-between items-end mb-6 border-b border-gray-800 pb-4">
+               <div className="flex justify-between items-end mb-6 border-b border-gray-800 pb-4 mt-8">
                    <div>
-                       <h2 className="text-4xl font-black text-white tracking-tight">SUPPLY <span className="text-yellow-500">DEPOT</span></h2>
-                       <p className="text-gray-500 text-sm mt-1">Acquire ammunition and explosives.</p>
+                       <h2 className="text-4xl font-black text-white tracking-tight">{t('DEPOT_TITLE').split(" ")[0]} <span className="text-yellow-500">{t('DEPOT_TITLE').split(" ")[1]}</span></h2>
+                       <p className="text-gray-500 text-sm mt-1">{t('DEPOT_SUBTITLE')}</p>
                    </div>
                    <div className="text-right">
-                       <div className="text-sm text-gray-400 uppercase tracking-widest">Available Funds</div>
-                       <div className="text-3xl font-mono text-yellow-400 font-bold">{Math.floor(p.score)} <span className="text-lg">SCRAPS</span></div>
+                       <div className="text-sm text-gray-400 uppercase tracking-widest">{t('FUNDS')}</div>
+                       <div className="text-3xl font-mono text-yellow-400 font-bold">{Math.floor(p.score)} <span className="text-lg">{t('SCRAPS')}</span></div>
                    </div>
                </div>
 
@@ -374,7 +379,7 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                             ? 'bg-gray-800 text-yellow-400 border-yellow-500' 
                             : 'bg-gray-900 text-gray-500 border-gray-700 hover:text-gray-300'}`}
                     >
-                        AMMUNITION
+                        {t('TAB_AMMO')}
                     </button>
                     <button 
                         onClick={() => setActiveTab('WEAPONS')}
@@ -383,7 +388,7 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                             ? 'bg-gray-800 text-yellow-400 border-yellow-500' 
                             : 'bg-gray-900 text-gray-500 border-gray-700 hover:text-gray-300'}`}
                     >
-                        WEAPONRY
+                        {t('TAB_WEAPONS')}
                     </button>
                </div>
 
@@ -475,22 +480,13 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
                         </div>
                    )}
                </div>
-               
-               <div className="mt-8 pt-4 border-t border-gray-800 flex justify-center">
-                   <button 
-                     onClick={onClose}
-                     className="px-8 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-full font-bold border border-gray-600 transition-colors"
-                   >
-                     CLOSE DEPOT [B]
-                   </button>
-               </div>
            </div>
         </div>
     );
 };
 
 // --- Tactical Backpack Component ---
-const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number, iIdx: number) => void }> = ({ state, onSwapItems }) => {
+const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number, iIdx: number) => void, t: any }> = ({ state, onSwapItems, t }) => {
     const p = state.player;
     const [draggedItemIdx, setDraggedItemIdx] = useState<number | null>(null);
 
@@ -510,6 +506,9 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault(); // Necessary to allow dropping
     };
+    
+    // Trigger close via keyboard handler in App.tsx mainly, but we can add a close button if needed.
+    // Assuming 'C' closes it as per App.tsx, but UI usually has a close button too.
 
     return (
         <div className="absolute inset-0 z-[100] bg-gray-900/95 pointer-events-auto flex items-center justify-center font-mono">
@@ -518,31 +517,43 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
 
             <div className="relative w-[900px] bg-gray-800 border-2 border-gray-600 shadow-2xl p-8 flex gap-8 rounded-lg">
                 
+                {/* Close Button */}
+                <button 
+                    onClick={() => { /* Triggered via keyboard mostly but for completeness */ 
+                        document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}));
+                    }}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
                 {/* Left Column: Stats */}
                 <div className="w-1/4 flex flex-col gap-4">
                     <div className="bg-black/50 p-4 border border-gray-700">
-                        <h3 className="text-gray-400 font-bold mb-2 text-xs tracking-widest">OPERATIVE STATUS</h3>
+                        <h3 className="text-gray-400 font-bold mb-2 text-xs tracking-widest">{t('STATUS_HEADER')}</h3>
                         <div className="mb-2">
-                            <div className="flex justify-between text-white text-sm"><span>HEALTH</span><span>{Math.floor(p.hp)}/{p.maxHp}</span></div>
+                            <div className="flex justify-between text-white text-sm"><span>{t('HEALTH')}</span><span>{Math.floor(p.hp)}/{p.maxHp}</span></div>
                             <div className="h-2 w-full bg-gray-900 mt-1"><div className="h-full bg-red-600" style={{width: `${(p.hp/p.maxHp)*100}%`}}></div></div>
                         </div>
                         <div className="mb-2">
-                            <div className="flex justify-between text-white text-sm"><span>ARMOR</span><span>{Math.floor(p.armor)}/{p.maxArmor}</span></div>
+                            <div className="flex justify-between text-white text-sm"><span>{t('ARMOR')}</span><span>{Math.floor(p.armor)}/{p.maxArmor}</span></div>
                             <div className="h-2 w-full bg-gray-900 mt-1"><div className="h-full bg-blue-600" style={{width: `${(p.armor/p.maxArmor)*100}%`}}></div></div>
                         </div>
                         <div>
-                             <div className="flex justify-between text-white text-sm"><span>SCRAPS</span><span className="text-yellow-400">{Math.floor(p.score)}</span></div>
+                             <div className="flex justify-between text-white text-sm"><span>{t('SCRAPS')}</span><span className="text-yellow-400">{Math.floor(p.score)}</span></div>
                         </div>
                     </div>
 
                      <div className="bg-black/50 p-4 border border-gray-700 flex-1">
-                        <h3 className="text-gray-400 font-bold mb-4 text-xs tracking-widest">UTILITIES</h3>
+                        <h3 className="text-gray-400 font-bold mb-4 text-xs tracking-widest">{t('UTILITIES')}</h3>
                         <div className="flex items-center gap-4 text-white">
                             <div className="w-12 h-12 bg-gray-700 rounded border border-gray-600 flex items-center justify-center">
                                 <div className="w-4 h-6 bg-orange-500 rounded-sm"></div>
                             </div>
                             <div>
-                                <div className="font-bold">GRENADE</div>
+                                <div className="font-bold">{t('GRENADE')}</div>
                                 <div className="text-xs text-gray-400">x{p.grenades}</div>
                             </div>
                         </div>
@@ -554,8 +565,8 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
                     
                     {/* Loadout Section */}
                     <div>
-                        <h2 className="text-xl font-bold text-white mb-2 tracking-wide border-b border-gray-600 pb-2">ACTIVE LOADOUT</h2>
-                        <p className="text-xs text-gray-500 mb-4">Drag weapons from backpack to slots to equip.</p>
+                        <h2 className="text-xl font-bold text-white mb-2 tracking-wide border-b border-gray-600 pb-2">{t('LOADOUT_HEADER')}</h2>
+                        <p className="text-xs text-gray-500 mb-4">{t('LOADOUT_HINT')}</p>
                         <div className="flex gap-4">
                             {p.loadout.map((wType, idx) => (
                                 <div 
@@ -564,10 +575,10 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
                                     onDragOver={handleDragOver}
                                     className="relative w-32 h-32 bg-black/40 border-2 border-dashed border-gray-600 rounded flex flex-col items-center justify-center group hover:border-blue-500 transition-colors"
                                 >
-                                    <div className="absolute top-1 left-2 text-xs text-gray-600 font-bold">SLOT {idx+1}</div>
+                                    <div className="absolute top-1 left-2 text-xs text-gray-600 font-bold">{t('SLOT')} {idx+1}</div>
                                     <WeaponIcon type={wType} className="w-16 h-16 fill-gray-400 group-hover:fill-blue-400" />
                                     <div className="text-xs font-bold text-white text-center px-1 mt-2">{WEAPONS[wType].name}</div>
-                                    <div className="text-[10px] text-gray-400">{idx === 3 ? '(Sidearm)' : '(Main)'}</div>
+                                    <div className="text-[10px] text-gray-400">{idx === 3 ? t('SLOT_SIDEARM') : t('SLOT_MAIN')}</div>
                                 </div>
                             ))}
                         </div>
@@ -575,7 +586,7 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
 
                     {/* Backpack Grid */}
                     <div className="flex-1">
-                        <h2 className="text-xl font-bold text-white mb-4 tracking-wide border-b border-gray-600 pb-2">BACKPACK STORAGE</h2>
+                        <h2 className="text-xl font-bold text-white mb-4 tracking-wide border-b border-gray-600 pb-2">{t('BACKPACK_HEADER')}</h2>
                         <div className="grid grid-cols-6 gap-2">
                             {Array.from({length: INVENTORY_SIZE}).map((_, idx) => {
                                 const item = p.inventory[idx];
@@ -606,7 +617,7 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
                 </div>
 
                 <div className="absolute bottom-4 right-8 text-xs text-gray-500">
-                    PRESS [C] TO CLOSE BACKPACK
+                    {t('CLOSE_BACKPACK')}
                 </div>
             </div>
         </div>
@@ -783,18 +794,29 @@ const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, v
 );
 
 // --- Tactical Call Interface (Blue Theme) ---
-const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: AllyOrder) => void }> = ({ state, onIssueOrder }) => {
+const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: AllyOrder) => void, onClose: () => void, t: any }> = ({ state, onIssueOrder, onClose, t }) => {
     return (
         <div className="absolute inset-0 z-[100] bg-cyan-900/90 pointer-events-auto font-mono flex items-center justify-center">
              {/* Grid BG */}
              <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
              
              <div className="w-[900px] h-[600px] bg-black/80 border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] flex relative overflow-hidden">
+                 
+                 {/* Close Button */}
+                 <button 
+                    onClick={() => { document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Tab'})); }}
+                    className="absolute top-4 right-4 z-50 p-1 text-cyan-500 hover:text-white border border-cyan-800 hover:bg-cyan-900/50 rounded transition-colors"
+                 >
+                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                 </button>
+
                  {/* Left Panel: Unit Status */}
                  <div className="w-1/3 border-r border-cyan-800 p-6 bg-cyan-950/20">
-                     <h2 className="text-cyan-400 font-bold text-xl mb-6 tracking-widest border-b border-cyan-800 pb-2">UNIT STATUS</h2>
+                     <h2 className="text-cyan-400 font-bold text-xl mb-6 tracking-widest border-b border-cyan-800 pb-2">{t('UNIT_STATUS')}</h2>
                      <div className="space-y-4">
-                         {state.allies.length === 0 && <div className="text-cyan-700 italic">NO ACTIVE UNITS DETECTED</div>}
+                         {state.allies.length === 0 && <div className="text-cyan-700 italic">{t('NO_UNITS')}</div>}
                          {state.allies.map((ally, i) => (
                              <div key={ally.id} className="bg-black/40 p-3 border border-cyan-900/50">
                                  <div className="flex justify-between items-center mb-1">
@@ -810,14 +832,14 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
                          ))}
                      </div>
                      <div className="mt-8 pt-4 border-t border-cyan-800 text-xs text-cyan-600">
-                         TOTAL UNITS: {state.allies.length} / 5
+                         {t('TOTAL_UNITS')}: {state.allies.length} / 5
                      </div>
                  </div>
 
                  {/* Right Panel: Commands */}
                  <div className="flex-1 p-10 flex flex-col justify-center items-center relative">
-                     <h1 className="text-3xl font-black text-white tracking-[0.2em] mb-2 text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">TACTICAL COMMAND</h1>
-                     <p className="text-cyan-500 mb-12 text-sm tracking-widest">BROADCAST PRIORITY OVERRIDE</p>
+                     <h1 className="text-3xl font-black text-white tracking-[0.2em] mb-2 text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">{t('TACTICAL_COMMAND')}</h1>
+                     <p className="text-cyan-500 mb-12 text-sm tracking-widest">{t('PRIORITY_OVERRIDE')}</p>
 
                      <div className="grid grid-cols-1 gap-6 w-full max-w-md">
                          <button 
@@ -826,8 +848,8 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
                          >
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4">
-                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">DEFEND BASE</span>
-                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">UNITS PATROL PERIMETER</span>
+                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_DEFEND')}</span>
+                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_DEFEND_DESC')}</span>
                              </div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F1</div>
                          </button>
@@ -838,8 +860,8 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
                          >
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4">
-                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">FOLLOW ME</span>
-                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">UNITS ESCORT PLAYER</span>
+                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_FOLLOW')}</span>
+                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_FOLLOW_DESC')}</span>
                              </div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F2</div>
                          </button>
@@ -850,15 +872,15 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
                          >
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4">
-                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">ASSAULT</span>
-                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">UNITS PUSH FORWARD</span>
+                                 <span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_ASSAULT')}</span>
+                                 <span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_ASSAULT_DESC')}</span>
                              </div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F3</div>
                          </button>
                      </div>
 
                      <div className="absolute bottom-4 text-cyan-700 text-xs">
-                         PRESS [TAB] TO CLOSE CHANNEL
+                         {t('CLOSE_CHANNEL')}
                      </div>
                  </div>
              </div>
@@ -867,7 +889,7 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
 }
 
 // --- Tactical Terminal Component (Green Theme - Stats) ---
-const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void }> = ({ state, onToggleSetting }) => {
+const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, t: any }> = ({ state, onToggleSetting, t }) => {
     const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
 
@@ -933,10 +955,20 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
             <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
             
             <div className="w-[800px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
+                {/* Close Button */}
+                <button 
+                    onClick={() => { document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'})); }}
+                    className="absolute top-3 right-3 z-50 p-1 text-green-500 hover:text-white border border-green-800 hover:bg-green-900/50 transition-colors"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+
                 {/* Header */}
                 <div className="border-b border-green-800 p-4 flex justify-between items-center bg-black/50">
-                    <h1 className="text-2xl font-bold tracking-widest text-green-400">TACTICAL_TERMINAL_V1.0</h1>
-                    <div className="text-xs text-green-700 animate-pulse">SYSTEM_PAUSED</div>
+                    <h1 className="text-2xl font-bold tracking-widest text-green-400">{t('PAUSE_TITLE')}</h1>
+                    <div className="text-xs text-green-700 animate-pulse mr-8">{t('SYSTEM_PAUSED')}</div>
                 </div>
 
                 {/* Tabs */}
@@ -951,7 +983,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                                     : 'text-green-800 hover:bg-green-900/10 hover:text-green-600'}
                             `}
                         >
-                            {tab}
+                            {t(`TAB_${tab}`)}
                         </button>
                     ))}
                 </div>
@@ -962,21 +994,21 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                         <div className="space-y-6">
                             <div className="grid grid-cols-3 gap-4 mb-6">
                                 <div className="border border-green-900 p-4 bg-black/40">
-                                    <div className="text-green-700 text-xs uppercase mb-1">Total Damage</div>
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('TOTAL_DAMAGE')}</div>
                                     <div className="text-2xl text-green-300">{state.stats.damageDealt.toLocaleString()}</div>
                                 </div>
                                 <div className="border border-green-900 p-4 bg-black/40">
-                                    <div className="text-green-700 text-xs uppercase mb-1">Shots Fired</div>
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('SHOTS_FIRED')}</div>
                                     <div className="text-2xl text-green-300">{state.stats.shotsFired.toLocaleString()}</div>
                                 </div>
                                 <div className="border border-green-900 p-4 bg-black/40">
-                                    <div className="text-green-700 text-xs uppercase mb-1">Accuracy</div>
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('ACCURACY')}</div>
                                     <div className="text-2xl text-green-300">{accuracy}%</div>
                                 </div>
                             </div>
                             
                             <div className="border border-green-900 p-4 bg-black/40 flex flex-col items-center">
-                                <div className="w-full text-left text-green-700 text-xs uppercase mb-4">Confirmed Kills Analysis</div>
+                                <div className="w-full text-left text-green-700 text-xs uppercase mb-4">{t('KILLS_ANALYSIS')}</div>
                                 <svg ref={chartRef} width={400} height={250}></svg>
                             </div>
                         </div>
@@ -984,22 +1016,27 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
 
                     {activeTab === 'CONFIG' && (
                         <div className="space-y-4">
-                            <h3 className="text-green-400 border-b border-green-900 pb-2 mb-4">VISUAL_INTERFACE_SETTINGS</h3>
+                            <h3 className="text-green-400 border-b border-green-900 pb-2 mb-4">{t('VISUAL_SETTINGS')}</h3>
                             
                             <ToggleRow 
-                                label="HUD_OVERLAY" 
+                                label={t('HUD_OVERLAY')} 
                                 active={state.settings.showHUD} 
                                 onClick={() => onToggleSetting('showHUD')} 
                             />
                             <ToggleRow 
-                                label="GORE_RENDERER (Blood Stains)" 
+                                label={t('GORE')} 
                                 active={state.settings.showBlood} 
                                 onClick={() => onToggleSetting('showBlood')} 
                             />
                             <ToggleRow 
-                                label="DAMAGE_FLOATING_TEXT" 
+                                label={t('DMG_TEXT')} 
                                 active={state.settings.showDamageNumbers} 
                                 onClick={() => onToggleSetting('showDamageNumbers')} 
+                            />
+                            <ToggleRow 
+                                label={`${t('LANGUAGE')} : ${state.settings.language}`}
+                                active={state.settings.language === 'EN'} // Just visual state
+                                onClick={() => onToggleSetting('language')} 
                             />
                         </div>
                     )}
@@ -1024,7 +1061,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                 </div>
 
                 <div className="p-2 border-t border-green-900 text-center text-xs text-green-800">
-                    PRESS [P] TO RESUME OPERATION
+                    {t('RESUME_HINT')}
                 </div>
             </div>
         </div>
