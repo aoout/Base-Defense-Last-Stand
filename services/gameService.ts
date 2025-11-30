@@ -1,5 +1,3 @@
-
-
 import {
   GameState,
   InputState,
@@ -88,8 +86,17 @@ export class GameEngine {
           // Difficulty Scaling
           // Gene Strength: 0.8 to 3.2
           const geneStrength = parseFloat((0.8 + Math.random() * 2.4).toFixed(2));
-          // Waves: 8 to 40
-          const totalWaves = 8 + Math.floor(Math.random() * 32);
+          
+          // Waves: Weighted Distribution
+          // 70% chance for 8-20 waves
+          // 30% chance for 21-40 waves
+          let totalWaves;
+          const roll = Math.random();
+          if (roll < 0.7) {
+              totalWaves = 8 + Math.floor(Math.random() * 13); // 8 to 20
+          } else {
+              totalWaves = 21 + Math.floor(Math.random() * 20); // 21 to 40
+          }
 
           planets.push({
               id,

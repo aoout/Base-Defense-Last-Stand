@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet } from '../types';
@@ -23,6 +21,7 @@ interface UIOverlayProps {
   onStartExploration: () => void;
   onDeployPlanet: (id: string) => void;
   onReturnToMap: () => void;
+  onDeselectPlanet: () => void;
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
@@ -40,7 +39,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onStartSurvival,
     onStartExploration,
     onDeployPlanet,
-    onReturnToMap
+    onReturnToMap,
+    onDeselectPlanet
 }) => {
   const p = state.player;
   const currentWeaponType = p.loadout[p.currentWeaponIndex];
@@ -89,7 +89,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
               {planet && (
                   <div className="absolute top-1/2 right-12 -translate-y-1/2 w-96 bg-gray-900/90 border border-blue-500 p-8 pointer-events-auto backdrop-blur-md">
-                      <div className="flex justify-between items-start mb-6">
+                      <CloseButton onClick={onDeselectPlanet} colorClass="border-blue-500 text-blue-500 hover:text-white hover:bg-blue-900/50" />
+                      
+                      <div className="flex justify-between items-start mb-6 mr-8">
                           <h2 className="text-3xl font-black text-white">{planet.name}</h2>
                           {planet.completed && <span className="bg-green-600 text-white text-xs px-2 py-1 font-bold">CLEARED</span>}
                       </div>

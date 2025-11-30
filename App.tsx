@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -206,6 +204,7 @@ const App: React.FC = () => {
   const handleStartExploration = () => { engineRef.current.enterExplorationMode(); };
   const handleDeployPlanet = (id: string) => { engineRef.current.deployToPlanet(id); };
   const handleReturnToMap = () => { engineRef.current.completeMission(); };
+  const handleDeselectPlanet = () => { engineRef.current.selectPlanet(null); };
 
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
@@ -226,6 +225,7 @@ const App: React.FC = () => {
         onStartExploration={handleStartExploration}
         onDeployPlanet={handleDeployPlanet}
         onReturnToMap={handleReturnToMap}
+        onDeselectPlanet={handleDeselectPlanet}
       />
     </div>
   );
