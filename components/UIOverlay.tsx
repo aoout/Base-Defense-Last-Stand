@@ -1,7 +1,11 @@
 
+
+
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile, DefenseUpgradeType, ModuleType, WeaponModule } from '../types';
+import { GameState, WeaponType, EnemyType, GameSettings, AllyOrder, Player, TurretType, SpecialEventType, Enemy, BossType, AppMode, GameMode, Planet, SaveFile, DefenseUpgradeType, ModuleType, WeaponModule, AtmosphereGas } from '../types';
 import { PLAYER_STATS, SHOP_PRICES, WEAPONS, TURRET_COSTS, INVENTORY_SIZE, TURRET_STATS, TRANSLATIONS, BESTIARY_DB, ENEMY_STATS, BOSS_STATS, BIOME_STYLES, DEFENSE_UPGRADE_INFO, MODULE_STATS } from '../constants';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawPlanetSprite } from './GameCanvas';
 
@@ -24,6 +28,10 @@ interface UIOverlayProps {
   onReturnToMap: () => void;
   onDeselectPlanet: () => void;
   
+  // Spaceship
+  onOpenSpaceship: () => void;
+  onCloseSpaceship: () => void;
+
   // Save/Load
   onSaveGame: () => void;
   onLoadGame: (id: string) => void;
@@ -48,6 +56,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onDeployPlanet,
     onReturnToMap,
     onDeselectPlanet,
+    onOpenSpaceship,
+    onCloseSpaceship,
     onSaveGame,
     onLoadGame,
     onDeleteSave,
@@ -58,6 +68,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   const currentWep = p.weapons[currentWeaponType];
   const wepStats = WEAPONS[currentWeaponType];
   const t = (key: keyof typeof TRANSLATIONS.EN) => TRANSLATIONS[state.settings.language][key];
+
+  const [viewingAtmosphere, setViewingAtmosphere] = useState(false);
+
+  // Reset atmosphere view when planet selection changes or mode changes
+  useEffect(() => {
+      setViewingAtmosphere(false);
+  }, [state.selectedPlanetId, state.appMode]);
 
   // --- MODE SPECIFIC UIs ---
 
@@ -118,11 +135,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       )
   }
 
-  // ... (Other mode checks like Exploration Map, Game Over, etc. retained but omitted for brevity to focus on changes, assuming original structure kept)
+  if (state.appMode === AppMode.SPACESHIP_VIEW) {
+      return (
+          <SpaceshipView state={state} onClose={onCloseSpaceship} />
+      )
+  }
+
   if (state.appMode === AppMode.EXPLORATION_MAP) {
-      // Re-implement or assume preserved from original file logic...
-      // For XML compactness, I will rely on the fact that I'm supposed to return FULL content if file is changed.
-      // So I must include everything.
       const planet = state.planets.find(p => p.id === state.selectedPlanetId);
       return (
           <div className="absolute inset-0 pointer-events-none">
@@ -143,37 +162,46 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                   </button>
               </div>
 
+              {/* Spaceship Button (Bottom Left) */}
+              <div className="absolute bottom-8 left-8 pointer-events-auto">
+                  <button 
+                    onClick={onOpenSpaceship}
+                    className="group relative flex items-center gap-4 pl-4 pr-8 py-4 bg-slate-900/90 border border-cyan-500/50 hover:border-cyan-400 hover:bg-slate-800 transition-all overflow-hidden"
+                    style={{ clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)' }}
+                  >
+                      {/* Tech decorative lines */}
+                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500"></div>
+                      <div className="absolute right-0 top-0 w-4 h-4 border-t border-r border-cyan-500/50"></div>
+                      
+                      {/* Icon Container */}
+                      <div className="relative w-12 h-12 bg-cyan-950/50 border border-cyan-500/30 flex items-center justify-center group-hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-8 h-8 text-cyan-400 group-hover:text-white transition-colors">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 2L2 22h20L12 2zm0 4v8M12 18v2" />
+                          </svg>
+                          {/* Animated scan line inside icon */}
+                          <div className="absolute inset-0 bg-cyan-400/10 animate-[scan_2s_linear_infinite] pointer-events-none"></div>
+                      </div>
+
+                      <div className="flex flex-col">
+                          <div className="text-cyan-400 text-[10px] font-mono tracking-[0.2em] leading-none mb-1 group-hover:text-cyan-200">PROJECT</div>
+                          <div className="text-white text-xl font-black tracking-widest leading-none group-hover:text-cyan-100">VANGUARD</div>
+                      </div>
+                  </button>
+              </div>
+
+              {/* Full Screen Atmosphere Modal */}
+              {viewingAtmosphere && planet && (
+                  <AtmosphereAnalysisModal planet={planet} onClose={() => setViewingAtmosphere(false)} />
+              )}
+
               {planet && (
                   <div className="absolute top-1/2 right-12 -translate-y-1/2 w-96 bg-gray-900/90 border border-blue-500 p-8 pointer-events-auto backdrop-blur-md">
                       <CloseButton onClick={onDeselectPlanet} colorClass="border-blue-500 text-blue-500 hover:text-white hover:bg-blue-900/50" />
-                      
-                      <div className="flex justify-between items-start mb-6 mr-8">
-                          <h2 className="text-3xl font-black text-white">{planet.name}</h2>
-                          {planet.completed && <span className="bg-green-600 text-white text-xs px-2 py-1 font-bold">CLEARED</span>}
-                      </div>
-                      
-                      <div className="space-y-6 font-mono text-sm">
-                          <div>
-                              <div className="text-gray-500 mb-1">THREAT LEVEL (WAVES)</div>
-                              <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
-                                  <div className="h-full bg-blue-500" style={{ width: `${(planet.totalWaves / 40) * 100}%` }}></div>
-                              </div>
-                              <div className="text-right text-white mt-1">{planet.totalWaves} WAVES</div>
-                          </div>
-
-                          <div>
-                              <div className="text-gray-500 mb-1">GENETIC MUTATION</div>
-                              <div className="h-2 w-full bg-gray-800 rounded-full overflow-hidden">
-                                  <div className={`h-full ${planet.geneStrength > 2 ? 'bg-red-500' : 'bg-yellow-500'}`} style={{ width: `${(planet.geneStrength / 3.2) * 100}%` }}></div>
-                              </div>
-                              <div className="text-right text-white mt-1">{planet.geneStrength.toFixed(1)}x HP</div>
-                          </div>
-
-                          <div className="border-t border-gray-700 pt-4 text-xs text-gray-400">
-                              <p>Intel suggests heavy biological activity. Recommended loadout: High capacity magazines and crowd control explosives.</p>
-                          </div>
-                      </div>
-
+                      <PlanetInfoPanel 
+                        planet={planet} 
+                        t={t} 
+                        onShowDetail={() => setViewingAtmosphere(true)}
+                      />
                       <button 
                         onClick={() => onDeployPlanet(planet.id)}
                         className="w-full mt-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-bold tracking-[0.2em] transition-all"
@@ -276,7 +304,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             <div className="absolute top-6 right-6">
                 <div className="bg-black/60 px-6 py-3 rounded-xl border border-yellow-600/40 backdrop-blur-sm flex items-center gap-4 shadow-lg">
                     <div className="flex flex-col items-end">
-                        <span className="text-yellow-500 text-[10px] font-bold tracking-widest uppercase">{t('SCRAPS')}</span>
+                        <span className="text-yellow-500 text-[10px] font-bold uppercase tracking-widest">{t('SCRAPS')}</span>
                         <span className="text-3xl font-mono font-bold text-white leading-none">{Math.floor(p.score)}</span>
                     </div>
                     <div className="text-yellow-500">
@@ -374,6 +402,529 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
   );
 };
 
+// ... (SpaceshipView, ShopModal, WeaponAssemblyModal, TacticalBackpack, MissionFailedScreen, StatRow, TacticalCallInterface, TacticalTerminal)
+
+const PlanetInfoPanel: React.FC<{ planet: Planet, t: any, onShowDetail: () => void }> = ({ planet, t, onShowDetail }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const requestRef = useRef<number>(0);
+    // Removed local state
+
+    useEffect(() => {
+        const renderPreview = () => {
+            if (!canvasRef.current) return;
+            const ctx = canvasRef.current.getContext('2d');
+            if (!ctx) return;
+            const w = canvasRef.current.width; const h = canvasRef.current.height; const time = Date.now();
+            ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+            drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
+            requestRef.current = requestAnimationFrame(renderPreview);
+        };
+        requestRef.current = requestAnimationFrame(renderPreview);
+        return () => cancelAnimationFrame(requestRef.current);
+    }, [planet]);
+
+    // Simplified list view for the main panel
+    const mainGases = planet.atmosphere.slice(0, 3);
+
+    return (
+        <div className="flex flex-col h-full gap-4">
+             {/* Header Section */}
+             <div className="flex justify-between items-start mb-6">
+                 <div>
+                     <h2 className="text-3xl font-black text-white leading-none">{planet.name}</h2>
+                     {planet.completed && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 font-bold tracking-widest uppercase inline-block mt-1">CLEARED</span>}
+                 </div>
+                 {/* Planet Preview Canvas */}
+                 <div className="w-24 h-24 border border-blue-900/50 rounded-full overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+                     <canvas ref={canvasRef} width={96} height={96} className="w-full h-full"></canvas>
+                     <div className="absolute inset-0 rounded-full shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] pointer-events-none"></div>
+                 </div>
+             </div>
+             
+             {/* Stats Grid */}
+             <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                 <div className="bg-blue-950/30 p-3 border border-blue-900/50">
+                     <div className="text-blue-500 mb-1">{t('THREAT LEVEL')}</div>
+                     <div className="text-white text-lg font-bold">{planet.totalWaves} WAVES</div>
+                 </div>
+                 <div className="bg-blue-950/30 p-3 border border-blue-900/50">
+                     <div className="text-blue-500 mb-1">{t('GENE_MODIFIER')}</div>
+                     <div className={`text-lg font-bold ${planet.geneStrength > 2 ? 'text-red-400' : 'text-yellow-400'}`}>x{planet.geneStrength.toFixed(1)}</div>
+                 </div>
+                 <div className="bg-blue-950/30 p-3 border border-blue-900/50 col-span-2">
+                     <div className="text-blue-500 mb-1 flex justify-between">
+                        <span>SULFUR INDEX</span>
+                        <span className="text-yellow-500 font-bold">{planet.sulfurIndex}/10</span>
+                     </div>
+                     <div className="h-2 w-full bg-gray-900 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full ${planet.sulfurIndex > 7 ? 'bg-red-500' : planet.sulfurIndex > 4 ? 'bg-yellow-500' : 'bg-green-500'}`} 
+                            style={{width: `${(planet.sulfurIndex/10)*100}%`}}
+                        ></div>
+                     </div>
+                 </div>
+             </div>
+
+             {/* Atmosphere Section */}
+             <div className="bg-blue-950/20 p-4 border border-blue-900/50 flex flex-col gap-3 mt-2 flex-1">
+                  <div className="flex justify-between items-center">
+                      <label className="text-blue-400 text-xs tracking-widest uppercase font-bold">{t('ATMOSPHERE_COMP')}</label>
+                      <button onClick={onShowDetail} className="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer">View Analysis</button>
+                  </div>
+
+                  {/* Visual Bar */}
+                  <div 
+                    onClick={onShowDetail}
+                    className="h-4 w-full flex rounded overflow-hidden bg-gray-900 cursor-pointer border border-blue-900/30 hover:border-cyan-400 transition-all shadow-sm"
+                  >
+                      {planet.atmosphere.map((gas, i) => (
+                          <div key={i} style={{ width: `${gas.percentage * 100}%`, backgroundColor: gas.color }}></div>
+                      ))}
+                  </div>
+
+                  {/* Text Breakdown */}
+                  <div className="space-y-1 mt-1">
+                      {mainGases.map(gas => (
+                          <div key={gas.id} className="flex justify-between items-center text-xs border-b border-blue-900/20 pb-1 last:border-0">
+                              <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-sm" style={{backgroundColor: gas.color}}></div>
+                                  <span className="text-gray-300 font-mono">{gas.name}</span>
+                              </div>
+                              <span className="text-white font-bold font-mono">{(gas.percentage * 100).toFixed(1)}%</span>
+                          </div>
+                      ))}
+                      {planet.atmosphere.length > 3 && (
+                          <div className="text-[10px] text-gray-500 text-center italic pt-1">+ {planet.atmosphere.length - 3} trace gases</div>
+                      )}
+                  </div>
+             </div>
+        </div>
+    );
+};
+
+// New Component: Atmosphere Pie Chart Modal
+const AtmosphereAnalysisModal: React.FC<{ planet: Planet, onClose: () => void }> = ({ planet, onClose }) => {
+    const svgRef = useRef<SVGSVGElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!svgRef.current || !containerRef.current) return;
+        
+        // Dynamic sizing based on container column
+        const width = containerRef.current.clientWidth; 
+        const height = containerRef.current.clientHeight;
+        const radius = Math.min(width, height) / 2.8; // Slightly adjusted for full screen aesthetics
+
+        const svg = d3.select(svgRef.current);
+        svg.selectAll("*").remove();
+
+        // Ensure SVG fills container
+        svg.attr("width", width).attr("height", height);
+
+        const g = svg.append("g")
+            .attr("transform", `translate(${width / 2},${height / 2})`);
+
+        const pie = d3.pie<AtmosphereGas>()
+            .value(d => d.percentage)
+            .sort(null);
+
+        const arc = d3.arc<d3.PieArcDatum<AtmosphereGas>>()
+            .innerRadius(radius * 0.6) // Donut chart
+            .outerRadius(radius * 0.9);
+        
+        // Draw Arcs
+        g.selectAll("path")
+            .data(pie(planet.atmosphere))
+            .enter()
+            .append("path")
+            .attr("d", arc)
+            .attr("fill", d => d.data.color)
+            .attr("stroke", "#0f172a") // Match bg for gap effect
+            .attr("stroke-width", "4px")
+            .style("opacity", 0.9)
+            .on("mouseover", function() {
+                d3.select(this).style("opacity", 1).attr("transform", "scale(1.05)").attr("stroke-width", "0px");
+            })
+            .on("mouseout", function() {
+                d3.select(this).style("opacity", 0.9).attr("transform", "scale(1)").attr("stroke-width", "4px");
+            });
+
+        // Add Center Text
+        g.append("text")
+            .attr("text-anchor", "middle")
+            .attr("dy", "-0.5em")
+            .text("ATMOS")
+            .attr("fill", "#64748b")
+            .attr("font-size", "24px") // Larger text
+            .attr("font-family", "monospace")
+            .attr("letter-spacing", "0.2em");
+        
+        g.append("text")
+            .attr("text-anchor", "middle")
+            .attr("dy", "1em")
+            .text("100%")
+            .attr("fill", "#ffffff")
+            .attr("font-size", "64px") // Larger text
+            .attr("font-weight", "900")
+            .attr("font-family", "monospace");
+
+    }, [planet]);
+
+    return (
+        <div className="fixed inset-0 z-[200] bg-slate-950 pointer-events-auto flex flex-col">
+             {/* Tech Background Grid */}
+             <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(16,185,129,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.1)_1px,transparent_1px)] bg-[size:60px_60px]"></div>
+             
+             {/* Main Content Container - Full Width/Height */}
+            <div className="flex w-full h-full relative z-10">
+                <CloseButton onClick={onClose} colorClass="fixed top-8 right-8 w-12 h-12 border-green-500 text-green-500 hover:bg-green-500 hover:text-black z-50 flex items-center justify-center" />
+                
+                {/* Left: Chart Area - Takes up more space now */}
+                <div ref={containerRef} className="w-2/3 h-full bg-gradient-to-br from-slate-900/50 to-slate-950/50 flex flex-col items-center justify-center border-r border-green-900/30 relative">
+                     <div className="absolute top-12 left-12">
+                        <div className="flex items-center gap-4 mb-2">
+                            <div className="w-3 h-3 bg-green-500 animate-pulse"></div>
+                            <h3 className="text-green-500 font-mono tracking-[0.5em] uppercase text-xl">Planetary Atmosphere Analysis</h3>
+                        </div>
+                        <h1 className="text-6xl text-white font-black tracking-tighter drop-shadow-2xl">{planet.name}</h1>
+                        <div className="h-1 w-full bg-gradient-to-r from-green-500 to-transparent mt-4"></div>
+                     </div>
+                    
+                    <svg ref={svgRef} className="z-10 filter drop-shadow-[0_0_30px_rgba(16,185,129,0.2)]"></svg>
+                    
+                    {/* Decorative Rings behind chart */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-[800px] h-[800px] rounded-full border border-green-500/5 animate-[spin_40s_linear_infinite]"></div>
+                        <div className="w-[1000px] h-[1000px] rounded-full border border-green-500/5 border-dashed animate-[spin_80s_linear_infinite_reverse]"></div>
+                    </div>
+
+                    {/* Scan line overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-500/5 to-transparent h-[5%] w-full animate-[scan_4s_linear_infinite] pointer-events-none"></div>
+                </div>
+
+                {/* Right: Data Table */}
+                <div className="w-1/3 h-full p-12 overflow-y-auto bg-slate-950/80 relative backdrop-blur-sm border-l border-green-500/20">
+                    <div className="mb-12 mt-4">
+                        <div className="text-xs text-green-600 font-bold uppercase tracking-[0.3em] mb-4">SPECTROSCOPIC DATA</div>
+                        <div className="text-xl text-green-400/80 font-mono leading-relaxed">
+                            Full atmospheric breakdown of sector target <span className="text-white font-bold">{planet.name}</span>. 
+                            Composition suggests <span className={planet.biome === 'TOXIC' ? 'text-purple-400' : 'text-blue-400'}>{planet.biome}</span> environmental conditions.
+                        </div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {planet.atmosphere.map((gas, i) => (
+                            <div key={i} className="group bg-slate-900/50 border border-slate-800 hover:border-green-500 hover:bg-slate-900 p-8 rounded-none transition-all duration-300 relative overflow-hidden">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-slate-800 group-hover:bg-green-500 transition-colors"></div>
+                                <div className="flex justify-between items-end mb-4 relative z-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-6 h-6 shadow-[0_0_10px_currentColor]" style={{backgroundColor: gas.color, color: gas.color}}></div>
+                                        <span className="text-green-100 font-bold font-mono text-2xl tracking-widest uppercase">{gas.name}</span>
+                                    </div>
+                                    <span className="text-4xl font-black text-white tabular-nums tracking-tighter">{(gas.percentage * 100).toFixed(2)}%</span>
+                                </div>
+                                <p className="text-base text-slate-400 leading-relaxed font-mono relative z-10 pl-12 group-hover:text-slate-300 transition-colors">
+                                    {gas.description}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="absolute bottom-12 left-12 right-12 pt-8 border-t border-slate-800 flex justify-between items-center text-green-800">
+                         <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 bg-green-500 animate-ping rounded-full"></div>
+                            <span className="font-mono text-xs tracking-[0.2em]">UPLINK ESTABLISHED</span>
+                         </div>
+                         <div className="font-mono text-xs">SECURE CONNECTION</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+};
+
+// ... (BestiaryPanel, ToggleRow, ShopItem, InteractPrompt, CloseButton, WeaponIcon, TurretUpgradeUI, SaveSlotItem)
+const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => {
+    // ... (Retained original)
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const allEntities = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER, EnemyType.TANK, EnemyType.KAMIKAZE, BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID];
+    const isDiscovered = (id: string) => state.stats.encounteredEnemies.includes(id);
+    useEffect(() => {
+        if (selectedId && isDiscovered(selectedId) && canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            if (!ctx) return;
+            ctx.clearRect(0, 0, 200, 200); ctx.fillStyle = '#022c22'; ctx.fillRect(0,0,200,200); ctx.strokeStyle = '#065f46'; ctx.strokeRect(0,0,200,200);
+            const mockEntity: any = { x: 100, y: 100, radius: 30, angle: -Math.PI / 2, hp: 100, maxHp: 100, color: '#fff', type: selectedId, bossType: selectedId, isBoss: selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') };
+            if (ENEMY_STATS[selectedId as EnemyType]) mockEntity.radius = ENEMY_STATS[selectedId as EnemyType].radius * 2;
+            if (BOSS_STATS[selectedId as BossType]) mockEntity.radius = BOSS_STATS[selectedId as BossType].radius * 1.5;
+            ctx.save(); ctx.translate(100, 100); ctx.scale(1.5, 1.5); ctx.translate(-100, -100);
+            const time = Date.now();
+            switch(selectedId) {
+                case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
+                case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
+                case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
+                case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
+                case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
+                case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
+                case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
+                case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
+            }
+            ctx.restore();
+        }
+    }, [selectedId]);
+    return (
+        <div className="flex h-full gap-4">
+            <div className="w-1/3 border-r border-green-800 pr-2 overflow-y-auto">
+                {allEntities.map(id => {
+                    const discovered = isDiscovered(id);
+                    return (<div key={id} onClick={() => setSelectedId(id)} className={`p-3 mb-2 cursor-pointer border transition-colors flex justify-between items-center ${selectedId === id ? 'bg-green-900 border-green-500 text-white' : 'bg-black/40 border-green-900/50 text-green-700 hover:bg-green-900/20'}`}><span className="font-bold text-xs tracking-widest">{discovered ? (BESTIARY_DB[id]?.codeName || id) : 'UNKNOWN SIGNAL'}</span>{!discovered && <span className="text-[10px] text-green-900 bg-green-900/20 px-1">LOCKED</span>}</div>);
+                })}
+            </div>
+            <div className="flex-1 pl-2">
+                {selectedId ? (isDiscovered(selectedId) ? (<div className="h-full flex flex-col animate-fadeIn"><div className="flex gap-4 mb-4"><div className="border border-green-700 w-[200px] h-[200px] bg-black relative"><canvas ref={canvasRef} width={200} height={200} className="w-full h-full" /><div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div></div><div className="flex-1 space-y-2"><div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{BESTIARY_DB[selectedId].codeName}</div><div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {BESTIARY_DB[selectedId].classification}</div><div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300"><div className="bg-green-900/30 p-2 border border-green-800"><span className="text-green-600 block text-[10px]">{t('DANGER_LEVEL')}</span><div className="flex gap-0.5 mt-1">{Array.from({length: 10}).map((_, i) => (<div key={i} className={`h-1.5 w-full ${i < BESTIARY_DB[selectedId].danger ? 'bg-red-500' : 'bg-green-900'}`}></div>))}</div></div></div></div></div><div className="flex-1 bg-green-900/10 p-4 border border-green-900/50 text-sm text-green-400 font-mono leading-relaxed overflow-y-auto">{BESTIARY_DB[selectedId].description}</div></div>) : (<div className="h-full flex flex-col items-center justify-center text-green-800 space-y-4"><div className="text-6xl opacity-20">?</div><div className="text-xl font-bold">{t('BESTIARY_LOCKED')}</div><p className="text-xs max-w-xs text-center">{t('BESTIARY_HINT')}</p></div>)) : (<div className="h-full flex items-center justify-center text-green-900 italic">SELECT A TARGET FROM THE INDEX</div>)}
+            </div>
+        </div>
+    );
+};
+
+// ... (ToggleRow, ShopItem, InteractPrompt, CloseButton, WeaponIcon, TurretUpgradeUI, SaveSlotItem, SpaceshipView, SpaceshipSlot, ShopModal, WeaponAssemblyModal, TacticalBackpack, MissionFailedScreen, StatRow, TacticalCallInterface, TacticalTerminal)
+const ToggleRow: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (<div className="flex items-center justify-between p-3 border border-green-900/50 hover:bg-green-900/20 cursor-pointer" onClick={onClick}><span>{label}</span><div className={`w-12 h-6 rounded-none border border-green-700 relative transition-colors ${active ? 'bg-green-900' : 'bg-black'}`}><div className={`absolute top-0.5 bottom-0.5 w-5 bg-green-500 transition-all ${active ? 'left-[calc(100%-22px)]' : 'left-0.5'}`}></div></div></div>);
+interface ShopItemProps { name: string; amount?: string; cost: number; canAfford: boolean; disabled?: boolean; highlight?: boolean; onClick: () => void; label?: string; }
+const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disabled, highlight, onClick, label }) => (
+    <button onClick={onClick} disabled={!canAfford || disabled} className={`p-5 rounded-xl border flex justify-between items-center transition-all group relative overflow-hidden ${disabled ? 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed opacity-60' : canAfford ? (highlight ? 'bg-gray-800 border-cyan-600 hover:border-cyan-400 text-white' : 'bg-gray-800 border-gray-600 hover:border-yellow-500 text-white') : 'bg-gray-800 border-red-900/30 text-gray-500 cursor-not-allowed'}`}>
+        <div className="flex flex-col items-start z-10 max-w-[70%]"><span className={`font-bold text-lg text-left leading-tight ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>{amount && <span className="text-xs text-gray-400 group-hover:text-gray-300 text-left mt-1">{amount}</span>}</div>
+        <div className="flex flex-col items-end z-10">{label ? (<span className="text-green-500 font-bold tracking-widest">{label}</span>) : (<><span className={`text-xl font-mono font-bold ${canAfford && !disabled ? "text-yellow-400 group-hover:text-yellow-300" : ""}`}>{cost}</span><span className="text-[10px] uppercase tracking-wider">Scraps</span></>)}</div>
+        {canAfford && !disabled && (<div className={`absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ${highlight ? 'bg-cyan-500/10' : 'bg-yellow-500/5'}`}></div>)}
+    </button>
+);
+const InteractPrompt: React.FC<{ state: GameState }> = ({ state }) => {
+    // ... (Retained original)
+    if (state.appMode !== AppMode.GAMEPLAY) return null;
+    const p = state.player;
+    const distToShop = Math.sqrt(Math.pow(p.x - state.base.x, 2) + Math.pow(p.y - state.base.y, 2));
+    if (distToShop < 300 && !state.isShopOpen) {
+        return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">OPEN SHOP [B]</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-yellow-500 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>)
+    }
+    let nearTurret = false; let closestSpotIdx = -1; let minDist = 60;
+    state.turretSpots.forEach((t, idx) => { const d = Math.sqrt(Math.pow(p.x - t.x, 2) + Math.pow(p.y - t.y, 2)); if (d < minDist) { nearTurret = true; closestSpotIdx = idx; } });
+    if (nearTurret && closestSpotIdx !== -1) {
+        const spot = state.turretSpots[closestSpotIdx];
+        if (spot.builtTurret) { return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-emerald-500 text-white font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">UPGRADE [E]</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-emerald-500 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>); } 
+        else { const currentCount = state.turretSpots.filter(s => s.builtTurret).length; const cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement); return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-blue-600 text-white font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">BUILD [E] - {cost}</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-blue-600 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>); }
+    }
+    return null;
+}
+
+const CloseButton: React.FC<{ onClick: () => void, colorClass?: string }> = ({ onClick, colorClass = "border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" }) => (
+    <button onClick={onClick} className={`absolute top-4 right-4 p-2 rounded-lg border transition-all z-10 ${colorClass}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+);
+const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
+    let d = "";
+    switch(type) {
+        case WeaponType.AR: d="M4 12h16M15 12v3M7 12v2"; break;
+        case WeaponType.SG: d="M4 11h16v2H4zM16 13v3"; break;
+        case WeaponType.SR: d="M2 12h20M14 12v3M6 12v2M18 10v2"; break;
+        case WeaponType.PISTOL: d="M6 10h8v4H6zM11 14v3"; break;
+        case WeaponType.FLAMETHROWER: d="M4 11h12v2H4zM16 10v4M18 11h2"; break;
+        case WeaponType.PULSE_RIFLE: d="M4 10h16v4H4zM10 10v4M16 10v4"; break;
+        case WeaponType.GRENADE_LAUNCHER: d="M4 10h10v4H4zM14 9v6M16 11h4"; break;
+    }
+    return (<svg viewBox="0 0 24 24" className={className} fill="currentColor" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d={d} /></svg>)
+}
+const TurretUpgradeUI: React.FC<{ state: GameState, onConfirmUpgrade: (type: TurretType) => void }> = ({ state, onConfirmUpgrade }) => {
+    // ... (Retained original)
+    const p = state.player; const turretId = state.activeTurretId; if (turretId === undefined) return null; const turret = state.turretSpots[turretId].builtTurret; if (!turret) return null;
+    const upgrades = [{ type: TurretType.GAUSS, name: "GAUSS CANNON", cost: TURRET_COSTS.upgrade_gauss, desc: "High DPS, Rapid Fire" }, { type: TurretType.SNIPER, name: "RAILGUN SNIPER", cost: TURRET_COSTS.upgrade_sniper, desc: "Extreme Range, High Damage" }, { type: TurretType.MISSILE, name: "HELLFIRE MISSILE", cost: TURRET_COSTS.upgrade_missile, desc: "Global Range, Homing, AoE" }];
+    return (<div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50"><div className="bg-gray-900 border-2 border-emerald-500 p-8 rounded-xl max-w-4xl w-full text-center relative"><h2 className="text-3xl font-black text-emerald-500 mb-2">SYSTEM UPGRADE</h2><p className="text-emerald-800 mb-8">SELECT UPGRADE MODULE</p><div className="grid grid-cols-3 gap-6">{upgrades.map(u => { const canAfford = p.score >= u.cost; const stats = TURRET_STATS[u.type]; return (<button key={u.type} disabled={!canAfford} onClick={() => onConfirmUpgrade(u.type)} className={`border-2 p-6 rounded-lg flex flex-col items-center transition-all group ${canAfford ? 'border-gray-700 bg-gray-800 hover:border-emerald-500 hover:bg-gray-700' : 'border-red-900/30 bg-gray-900 opacity-50 cursor-not-allowed'}`}><div className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300">{u.name}</div><div className="text-xs text-gray-400 mb-4 h-8">{u.desc}</div><div className="w-full space-y-2 mb-6"><div className="flex justify-between text-xs text-gray-500"><span>DMG</span><span className="text-white">{stats.damage}</span></div><div className="flex justify-between text-xs text-gray-500"><span>RNG</span><span className="text-white">{stats.range > 2000 ? 'GLOBAL' : stats.range}</span></div><div className="flex justify-between text-xs text-gray-500"><span>SPD</span><span className="text-white">{stats.fireRate}ms</span></div></div><div className={`text-2xl font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>{u.cost} <span className="text-sm">SCRAPS</span></div></button>) })}</div><div className="mt-8 text-xs text-gray-600">PRESS [ESC] TO CANCEL</div></div></div>)
+}
+const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => {
+    // ... (Retained original)
+    return (<div className={`p-4 border-l-2 flex flex-col gap-2 transition-all relative group ${save.isPinned ? 'bg-blue-900/20 border-blue-400' : 'bg-gray-900/40 border-gray-700 hover:border-blue-500/50'}`}><div className="flex justify-between items-start"><div><div className={`text-xs font-bold tracking-widest ${save.isPinned ? 'text-blue-300' : 'text-gray-400'}`}>{save.label}</div><div className="text-[10px] text-gray-600 mt-0.5">{new Date(save.timestamp).toLocaleString()}</div></div>{save.isPinned && (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>)}</div><div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={onLoad} className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-200 text-[10px] py-1 border border-blue-800 hover:border-blue-500">{t('LOAD')}</button><button onClick={onPin} className="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] py-1 border border-gray-700">{save.isPinned ? t('UNPIN') : t('PIN')}</button><button onClick={onDelete} className="px-2 bg-red-900/20 hover:bg-red-900/50 text-red-500 text-[10px] py-1 border border-red-900/30">✕</button></div></div>)
+}
+// Spaceship View Component
+const SpaceshipView: React.FC<{ state: GameState, onClose: () => void }> = ({ state, onClose }) => {
+    return (
+        <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col overflow-hidden pointer-events-auto select-none">
+            {/* Animated Background Grid */}
+            <div className="absolute inset-0 perspective-[1000px] overflow-hidden">
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.05)_1px,transparent_1px)] bg-[size:40px_40px] opacity-20"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-transparent to-slate-950"></div>
+                <div className="absolute inset-0 bg-gradient-to-b from-slate-950 via-transparent to-slate-950"></div>
+            </div>
+
+            {/* Top UI Bar */}
+            <div className="relative z-10 flex justify-between items-start p-8 w-full pointer-events-none">
+                {/* Left: Scraps / Fragments */}
+                <div className="flex flex-col gap-2 pointer-events-auto">
+                    <div className="flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse"></div>
+                        <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">Storage Access</span>
+                    </div>
+                    <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3">
+                         <span className="text-3xl font-black text-white font-mono tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
+                         <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">FRAGMENTS</span>
+                    </div>
+                </div>
+
+                {/* Right: Ship Class Info */}
+                 <div className="text-right pointer-events-auto opacity-80">
+                     <h1 className="text-4xl font-black italic text-slate-700 tracking-tighter uppercase">
+                         Colossus <span className="text-slate-600">Class</span>
+                     </h1>
+                     <div className="flex justify-end items-center gap-2 mt-1">
+                         <div className="h-px w-24 bg-cyan-900"></div>
+                         <span className="text-cyan-800 font-mono text-[10px] tracking-[0.3em]">HEAVY CRUISER</span>
+                     </div>
+                </div>
+            </div>
+
+            {/* Main Content: Ship Graphic */}
+            <div className="flex-1 relative flex items-center justify-center w-full overflow-visible">
+                {/* SVG Container */}
+                <div className="relative w-[1000px] h-[500px] filter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                    <svg viewBox="0 0 1000 500" className="w-full h-full">
+                        <defs>
+                            <linearGradient id="hullMetal" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#0f172a" />
+                                <stop offset="50%" stopColor="#1e293b" />
+                                <stop offset="100%" stopColor="#0f172a" />
+                            </linearGradient>
+                            <linearGradient id="engineGlow" x1="1" y1="0" x2="0" y2="0">
+                                <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
+                                <stop offset="100%" stopColor="transparent" />
+                            </linearGradient>
+                            <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
+                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" strokeWidth="0.5" strokeOpacity="0.3"/>
+                            </pattern>
+                        </defs>
+
+                        {/* --- SHIP GRAPHIC (Side View, Pointing Right) --- */}
+                        <g transform="translate(50, 100)">
+                            {/* Engine Exhausts (Rear Left) */}
+                            <path d="M 0 120 L -80 100 L -80 160 L 0 140 Z" fill="url(#engineGlow)" className="animate-pulse" />
+                            <path d="M 0 180 L -100 160 L -100 220 L 0 200 Z" fill="url(#engineGlow)" className="animate-pulse" style={{animationDelay: '0.1s'}} />
+                            
+                            {/* Main Hull Body (Rear Block) */}
+                            <path d="M 0 80 L 250 80 L 280 120 L 250 240 L 0 240 L -20 160 Z" fill="#1e293b" stroke="#334155" strokeWidth="2" />
+                            {/* Texture lines */}
+                            <path d="M 50 80 L 50 240" stroke="#0f172a" strokeWidth="2" />
+                            <path d="M 150 80 L 150 240" stroke="#0f172a" strokeWidth="2" />
+                            
+                            {/* Bridge Tower (Top Rear) */}
+                            <path d="M 180 80 L 200 40 L 260 40 L 240 80 Z" fill="#334155" stroke="#475569" strokeWidth="2" />
+                            <rect x="250" y="45" width="2" height="10" fill="#06b6d4" className="animate-pulse" />
+
+                            {/* Mid Section (Neck) */}
+                            <path d="M 280 120 L 600 130 L 600 210 L 250 240 Z" fill="url(#hullMetal)" stroke="#334155" strokeWidth="2" />
+                            {/* Piping details on neck */}
+                            <path d="M 300 140 L 580 145" stroke="#334155" strokeWidth="4" />
+                            <path d="M 300 155 L 580 160" stroke="#334155" strokeWidth="4" />
+                            <path d="M 300 200 L 500 210" stroke="#334155" strokeWidth="6" strokeDasharray="10,5" />
+
+                            {/* Front Section (Prow/Nose) */}
+                            <path d="M 600 110 L 850 140 L 900 170 L 850 200 L 600 230 Z" fill="#1e293b" stroke="#475569" strokeWidth="2" />
+                            {/* Nose Detail */}
+                            <path d="M 750 140 L 880 170 L 750 200" fill="none" stroke="#334155" strokeWidth="2" />
+                            <circle cx="820" cy="170" r="4" fill="#ef4444" className="animate-pulse" />
+
+                            {/* Ventral Fin / Cargo Bay (Bottom) */}
+                            <path d="M 350 225 L 550 220 L 520 280 L 380 280 Z" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                            
+                            {/* Dorsal Fin / Antennae (Top) */}
+                            <path d="M 400 125 L 420 80 L 500 80 L 480 125 Z" fill="#0f172a" stroke="#334155" strokeWidth="2" />
+                            <line x1="450" y1="80" x2="450" y2="20" stroke="#475569" strokeWidth="2" />
+                            <circle cx="450" cy="20" r="2" fill="#06b6d4" />
+
+                            {/* Tech Overlay Lines */}
+                            <rect x="0" y="40" width="900" height="260" fill="url(#gridPattern)" style={{mixBlendMode: 'overlay'}} />
+                        </g>
+
+                        {/* Connection Lines to Slots */}
+                        {/* Nose -> Sensor */}
+                        <path d="M 870 270 L 920 270 L 950 300" stroke="#06b6d4" strokeWidth="1" fill="none" opacity="0.5" />
+                        
+                        {/* Bridge -> Core/System */}
+                        <path d="M 230 140 L 230 50 L 150 50" stroke="#06b6d4" strokeWidth="1" fill="none" opacity="0.5" />
+
+                        {/* Weapon hardpoints */}
+                        <path d="M 500 180 L 500 50" stroke="#06b6d4" strokeWidth="1" fill="none" opacity="0.5" />
+                        <path d="M 500 350 L 500 420" stroke="#06b6d4" strokeWidth="1" fill="none" opacity="0.5" />
+
+                    </svg>
+
+                    {/* --- MODULE SLOTS --- */}
+                    
+                    {/* Slot 1: Nose (Sensor Array) */}
+                    <div className="absolute top-[55%] right-[5%]">
+                        <SpaceshipSlot label="SENSOR SUITE" active={false} icon="📡" />
+                    </div>
+
+                    {/* Slot 2: Top Hardpoint */}
+                    <div className="absolute top-[10%] left-[50%]">
+                         <SpaceshipSlot label="DORSAL MOUNT" active={false} icon="⚔️" />
+                    </div>
+
+                    {/* Slot 3: Bottom Hardpoint */}
+                    <div className="absolute bottom-[10%] left-[50%]">
+                         <SpaceshipSlot label="VENTRAL MOUNT" active={false} icon="💣" />
+                    </div>
+
+                    {/* Slot 4: Core (Rear/Bridge) */}
+                    <div className="absolute top-[10%] left-[15%]">
+                         <SpaceshipSlot label="HYPER CORE" active={false} icon="☢️" isCore />
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom Controls */}
+            <div className="absolute bottom-8 left-8 z-20 pointer-events-auto">
+                <button 
+                    onClick={onClose}
+                    className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white"
+                >
+                    <span className="text-xl">«</span>
+                    <span className="font-mono text-xs tracking-widest uppercase">Return to Sector</span>
+                </button>
+            </div>
+            
+            <div className="absolute bottom-8 right-8 z-20">
+                <div className="text-right text-[10px] text-slate-600 font-mono">
+                    <div>VESSEL STATUS: ONLINE</div>
+                    <div>HULL INTEGRITY: 100%</div>
+                </div>
+            </div>
+
+        </div>
+    )
+}
+
+// Updated Helper for Ship Slot with new styling
+const SpaceshipSlot: React.FC<{ label: string, active: boolean, isCore?: boolean, icon?: string }> = ({ label, active, isCore, icon }) => (
+    <div className="flex flex-col items-center gap-2 group cursor-pointer hover:scale-105 transition-transform duration-300">
+        <div className={`
+            relative flex items-center justify-center 
+            ${isCore ? 'w-20 h-20 border-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'w-16 h-16 border-slate-600 group-hover:border-cyan-500'}
+            bg-slate-950/90 border backdrop-blur-sm
+            transition-colors duration-300
+        `}>
+            {/* Corner Accents */}
+            <div className="absolute -top-px -left-px w-2 h-2 border-t border-l border-current opacity-50"></div>
+            <div className="absolute -bottom-px -right-px w-2 h-2 border-b border-r border-current opacity-50"></div>
+            
+            <div className="text-2xl opacity-70 group-hover:opacity-100 transition-opacity filter drop-shadow-lg">
+                {icon || "+"}
+            </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+            <div className={`h-px w-4 ${isCore ? 'bg-cyan-500' : 'bg-slate-700 group-hover:bg-cyan-500'} transition-colors`}></div>
+            <span className={`text-[9px] font-mono tracking-widest uppercase ${isCore ? 'text-cyan-400' : 'text-slate-500 group-hover:text-cyan-400'} transition-colors bg-slate-900/80 px-2 py-0.5`}>
+                {label}
+            </span>
+        </div>
+    </div>
+)
 // --- Shop Modal Component ---
 const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void, onClose: () => void, t: any }> = ({ state, onPurchase, onClose, t }) => {
     const p = state.player;
@@ -563,7 +1114,7 @@ const ShopModal: React.FC<{ state: GameState, onPurchase: (item: string) => void
     );
 };
 
-// --- Weapon Assembly Modal ---
+// ... (WeaponAssemblyModal, TacticalBackpack, MissionFailedScreen, StatRow, TacticalCallInterface, TacticalTerminal)
 const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state: GameState, onClose: () => void, t: any }> = ({ weaponType, state, onClose, t }) => {
     const p = state.player;
     
@@ -864,10 +1415,8 @@ const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number,
     );
 };
 
-// ... (Other components retained)
 const MissionFailedScreen: React.FC<{ state: GameState, onRestart: () => void }> = ({ state, onRestart }) => {
-    // ... (Retained unchanged content from previous file, abbreviated for XML limits if necessary, but returning full here)
-    // Assuming original content for MissionFailedScreen
+    // ... (Retained original)
     const handleDownloadReport = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 800;
@@ -966,9 +1515,7 @@ const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, v
         <span className="text-xl text-white font-mono">{value}</span>
     </div>
 );
-// --- Tactical Call Interface ---
 const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: AllyOrder) => void, onClose: () => void, t: any }> = ({ state, onIssueOrder, onClose, t }) => {
-    // ... (Retaining original full content)
     return (
         <div className="absolute inset-0 z-[100] bg-cyan-900/90 pointer-events-auto font-mono flex items-center justify-center">
              <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
@@ -1016,9 +1563,7 @@ const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: Ally
         </div>
     )
 }
-// ... (Tactical Terminal, Planet Info Panel, Bestiary Panel - assuming retained)
 const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, onSave: () => void, t: any }> = ({ state, onToggleSetting, onClose, onSave, t }) => {
-    // ... (Retained original structure for Tactical Terminal, using simplified version for XML length if needed, but here assuming full)
     const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'PLANET' | 'MEMORY'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
     const tabs = ['DATA', 'CONFIG', 'NOTES', 'DATABASE'];
@@ -1091,7 +1636,7 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
                         </div>
                     )}
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
-                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} t={t} />}
+                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} t={t} onShowDetail={() => {}} />}
                     {activeTab === 'MEMORY' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-8">
                             <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
@@ -1107,137 +1652,5 @@ const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof 
         </div>
     );
 };
-
-// ... (PlanetInfoPanel, BestiaryPanel, ToggleRow, ShopItem, InteractPrompt, CloseButton, WeaponIcon, TurretUpgradeUI, SaveSlotItem retained)
-const PlanetInfoPanel: React.FC<{ planet: Planet, t: any }> = ({ planet, t }) => {
-    // ... (Retained original)
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
-    useEffect(() => {
-        const renderPreview = () => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            const w = canvasRef.current.width; const h = canvasRef.current.height; const time = Date.now();
-            ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
-            drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
-            requestRef.current = requestAnimationFrame(renderPreview);
-        };
-        requestRef.current = requestAnimationFrame(renderPreview);
-        return () => cancelAnimationFrame(requestRef.current);
-    }, [planet]);
-    return (
-        <div className="flex h-full gap-8">
-             <div className="w-1/2 flex flex-col">
-                  <h2 className="text-2xl font-black text-green-400 mb-6 border-b border-green-800 pb-2">{t('PLANET_ANALYSIS')}</h2>
-                  <div className="space-y-6 flex-1">
-                      <div><label className="text-green-700 text-xs uppercase tracking-widest">{t('SECTOR_NAME')}</label><div className="text-3xl text-white font-mono">{planet.name}</div></div>
-                      <div className="grid grid-cols-2 gap-4">
-                           <div className="bg-black/30 p-4 border border-green-900"><label className="text-green-700 text-xs block mb-1">{t('GENE_MODIFIER')}</label><div className={`text-2xl font-bold ${planet.geneStrength > 2 ? 'text-red-400' : 'text-yellow-400'}`}>x{planet.geneStrength.toFixed(2)}</div></div>
-                           <div className="bg-black/30 p-4 border border-green-900"><label className="text-green-700 text-xs block mb-1">{t('SECTOR_WAVES')}</label><div className="text-2xl font-bold text-white">{planet.totalWaves}</div></div>
-                      </div>
-                      <div className="bg-black/30 p-4 border border-green-900"><label className="text-green-700 text-xs block mb-1">{t('ATMOSPHERE_TYPE')}</label><div className="text-xl text-green-300 font-mono uppercase">{BIOME_STYLES[planet.biome].name}</div><div className="h-1 w-full mt-2" style={{ backgroundColor: planet.color }}></div></div>
-                  </div>
-             </div>
-             <div className="w-1/2 flex flex-col justify-center items-center bg-black/40 border border-green-900/50 p-4"><canvas ref={canvasRef} width={300} height={300} className="rounded-full shadow-[0_0_50px_rgba(0,0,0,0.5)]"></canvas><div className="mt-4 text-xs text-green-800 font-mono animate-pulse">LIVE FEED // ORBITAL SCAN</div></div>
-        </div>
-    );
-};
-const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => {
-    // ... (Retained original)
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const allEntities = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER, EnemyType.TANK, EnemyType.KAMIKAZE, BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID];
-    const isDiscovered = (id: string) => state.stats.encounteredEnemies.includes(id);
-    useEffect(() => {
-        if (selectedId && isDiscovered(selectedId) && canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            ctx.clearRect(0, 0, 200, 200); ctx.fillStyle = '#022c22'; ctx.fillRect(0,0,200,200); ctx.strokeStyle = '#065f46'; ctx.strokeRect(0,0,200,200);
-            const mockEntity: any = { x: 100, y: 100, radius: 30, angle: -Math.PI / 2, hp: 100, maxHp: 100, color: '#fff', type: selectedId, bossType: selectedId, isBoss: selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') };
-            if (ENEMY_STATS[selectedId as EnemyType]) mockEntity.radius = ENEMY_STATS[selectedId as EnemyType].radius * 2;
-            if (BOSS_STATS[selectedId as BossType]) mockEntity.radius = BOSS_STATS[selectedId as BossType].radius * 1.5;
-            ctx.save(); ctx.translate(100, 100); ctx.scale(1.5, 1.5); ctx.translate(-100, -100);
-            const time = Date.now();
-            switch(selectedId) {
-                case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
-                case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
-                case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
-                case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
-                case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
-                case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
-                case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
-                case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
-            }
-            ctx.restore();
-        }
-    }, [selectedId]);
-    return (
-        <div className="flex h-full gap-4">
-            <div className="w-1/3 border-r border-green-800 pr-2 overflow-y-auto">
-                {allEntities.map(id => {
-                    const discovered = isDiscovered(id);
-                    return (<div key={id} onClick={() => setSelectedId(id)} className={`p-3 mb-2 cursor-pointer border transition-colors flex justify-between items-center ${selectedId === id ? 'bg-green-900 border-green-500 text-white' : 'bg-black/40 border-green-900/50 text-green-700 hover:bg-green-900/20'}`}><span className="font-bold text-xs tracking-widest">{discovered ? (BESTIARY_DB[id]?.codeName || id) : 'UNKNOWN SIGNAL'}</span>{!discovered && <span className="text-[10px] text-green-900 bg-green-900/20 px-1">LOCKED</span>}</div>);
-                })}
-            </div>
-            <div className="flex-1 pl-2">
-                {selectedId ? (isDiscovered(selectedId) ? (<div className="h-full flex flex-col animate-fadeIn"><div className="flex gap-4 mb-4"><div className="border border-green-700 w-[200px] h-[200px] bg-black relative"><canvas ref={canvasRef} width={200} height={200} className="w-full h-full" /><div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div></div><div className="flex-1 space-y-2"><div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{BESTIARY_DB[selectedId].codeName}</div><div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {BESTIARY_DB[selectedId].classification}</div><div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300"><div className="bg-green-900/30 p-2 border border-green-800"><span className="text-green-600 block text-[10px]">{t('DANGER_LEVEL')}</span><div className="flex gap-0.5 mt-1">{Array.from({length: 10}).map((_, i) => (<div key={i} className={`h-1.5 w-full ${i < BESTIARY_DB[selectedId].danger ? 'bg-red-500' : 'bg-green-900'}`}></div>))}</div></div></div></div></div><div className="flex-1 bg-green-900/10 p-4 border border-green-900/50 text-sm text-green-400 font-mono leading-relaxed overflow-y-auto">{BESTIARY_DB[selectedId].description}</div></div>) : (<div className="h-full flex flex-col items-center justify-center text-green-800 space-y-4"><div className="text-6xl opacity-20">?</div><div className="text-xl font-bold">{t('BESTIARY_LOCKED')}</div><p className="text-xs max-w-xs text-center">{t('BESTIARY_HINT')}</p></div>)) : (<div className="h-full flex items-center justify-center text-green-900 italic">SELECT A TARGET FROM THE INDEX</div>)}
-            </div>
-        </div>
-    );
-};
-const ToggleRow: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (<div className="flex items-center justify-between p-3 border border-green-900/50 hover:bg-green-900/20 cursor-pointer" onClick={onClick}><span>{label}</span><div className={`w-12 h-6 rounded-none border border-green-700 relative transition-colors ${active ? 'bg-green-900' : 'bg-black'}`}><div className={`absolute top-0.5 bottom-0.5 w-5 bg-green-500 transition-all ${active ? 'left-[calc(100%-22px)]' : 'left-0.5'}`}></div></div></div>);
-interface ShopItemProps { name: string; amount?: string; cost: number; canAfford: boolean; disabled?: boolean; highlight?: boolean; onClick: () => void; label?: string; }
-const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disabled, highlight, onClick, label }) => (
-    <button onClick={onClick} disabled={!canAfford || disabled} className={`p-5 rounded-xl border flex justify-between items-center transition-all group relative overflow-hidden ${disabled ? 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed opacity-60' : canAfford ? (highlight ? 'bg-gray-800 border-cyan-600 hover:border-cyan-400 text-white' : 'bg-gray-800 border-gray-600 hover:border-yellow-500 text-white') : 'bg-gray-800 border-red-900/30 text-gray-500 cursor-not-allowed'}`}>
-        <div className="flex flex-col items-start z-10 max-w-[70%]"><span className={`font-bold text-lg text-left leading-tight ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>{amount && <span className="text-xs text-gray-400 group-hover:text-gray-300 text-left mt-1">{amount}</span>}</div>
-        <div className="flex flex-col items-end z-10">{label ? (<span className="text-green-500 font-bold tracking-widest">{label}</span>) : (<><span className={`text-xl font-mono font-bold ${canAfford && !disabled ? "text-yellow-400 group-hover:text-yellow-300" : ""}`}>{cost}</span><span className="text-[10px] uppercase tracking-wider">Scraps</span></>)}</div>
-        {canAfford && !disabled && (<div className={`absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ${highlight ? 'bg-cyan-500/10' : 'bg-yellow-500/5'}`}></div>)}
-    </button>
-);
-const InteractPrompt: React.FC<{ state: GameState }> = ({ state }) => {
-    // ... (Retained original)
-    if (state.appMode !== AppMode.GAMEPLAY) return null;
-    const p = state.player;
-    const distToShop = Math.sqrt(Math.pow(p.x - state.base.x, 2) + Math.pow(p.y - state.base.y, 2));
-    if (distToShop < 300 && !state.isShopOpen) {
-        return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-yellow-500 text-black font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">OPEN SHOP [B]</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-yellow-500 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>)
-    }
-    let nearTurret = false; let closestSpotIdx = -1; let minDist = 60;
-    state.turretSpots.forEach((t, idx) => { const d = Math.sqrt(Math.pow(p.x - t.x, 2) + Math.pow(p.y - t.y, 2)); if (d < minDist) { nearTurret = true; closestSpotIdx = idx; } });
-    if (nearTurret && closestSpotIdx !== -1) {
-        const spot = state.turretSpots[closestSpotIdx];
-        if (spot.builtTurret) { return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-emerald-500 text-white font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">UPGRADE [E]</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-emerald-500 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>); } 
-        else { const currentCount = state.turretSpots.filter(s => s.builtTurret).length; const cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement); return (<div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce"><div className="bg-blue-600 text-white font-bold px-4 py-1 rounded-full shadow-lg border-2 border-white">BUILD [E] - {cost}</div><div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-blue-600 border-r-[8px] border-r-transparent mt-[-1px]"></div></div>); }
-    }
-    return null;
-}
-
-const CloseButton: React.FC<{ onClick: () => void, colorClass?: string }> = ({ onClick, colorClass = "border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" }) => (
-    <button onClick={onClick} className={`absolute top-4 right-4 p-2 rounded-lg border transition-all z-10 ${colorClass}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
-);
-const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
-    let d = "";
-    switch(type) {
-        case WeaponType.AR: d="M4 12h16M15 12v3M7 12v2"; break;
-        case WeaponType.SG: d="M4 11h16v2H4zM16 13v3"; break;
-        case WeaponType.SR: d="M2 12h20M14 12v3M6 12v2M18 10v2"; break;
-        case WeaponType.PISTOL: d="M6 10h8v4H6zM11 14v3"; break;
-        case WeaponType.FLAMETHROWER: d="M4 11h12v2H4zM16 10v4M18 11h2"; break;
-        case WeaponType.PULSE_RIFLE: d="M4 10h16v4H4zM10 10v4M16 10v4"; break;
-        case WeaponType.GRENADE_LAUNCHER: d="M4 10h10v4H4zM14 9v6M16 11h4"; break;
-    }
-    return (<svg viewBox="0 0 24 24" className={className} fill="currentColor" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d={d} /></svg>)
-}
-const TurretUpgradeUI: React.FC<{ state: GameState, onConfirmUpgrade: (type: TurretType) => void }> = ({ state, onConfirmUpgrade }) => {
-    // ... (Retained original)
-    const p = state.player; const turretId = state.activeTurretId; if (turretId === undefined) return null; const turret = state.turretSpots[turretId].builtTurret; if (!turret) return null;
-    const upgrades = [{ type: TurretType.GAUSS, name: "GAUSS CANNON", cost: TURRET_COSTS.upgrade_gauss, desc: "High DPS, Rapid Fire" }, { type: TurretType.SNIPER, name: "RAILGUN SNIPER", cost: TURRET_COSTS.upgrade_sniper, desc: "Extreme Range, High Damage" }, { type: TurretType.MISSILE, name: "HELLFIRE MISSILE", cost: TURRET_COSTS.upgrade_missile, desc: "Global Range, Homing, AoE" }];
-    return (<div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50"><div className="bg-gray-900 border-2 border-emerald-500 p-8 rounded-xl max-w-4xl w-full text-center relative"><h2 className="text-3xl font-black text-emerald-500 mb-2">SYSTEM UPGRADE</h2><p className="text-emerald-800 mb-8">SELECT UPGRADE MODULE</p><div className="grid grid-cols-3 gap-6">{upgrades.map(u => { const canAfford = p.score >= u.cost; const stats = TURRET_STATS[u.type]; return (<button key={u.type} disabled={!canAfford} onClick={() => onConfirmUpgrade(u.type)} className={`border-2 p-6 rounded-lg flex flex-col items-center transition-all group ${canAfford ? 'border-gray-700 bg-gray-800 hover:border-emerald-500 hover:bg-gray-700' : 'border-red-900/30 bg-gray-900 opacity-50 cursor-not-allowed'}`}><div className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300">{u.name}</div><div className="text-xs text-gray-400 mb-4 h-8">{u.desc}</div><div className="w-full space-y-2 mb-6"><div className="flex justify-between text-xs text-gray-500"><span>DMG</span><span className="text-white">{stats.damage}</span></div><div className="flex justify-between text-xs text-gray-500"><span>RNG</span><span className="text-white">{stats.range > 2000 ? 'GLOBAL' : stats.range}</span></div><div className="flex justify-between text-xs text-gray-500"><span>SPD</span><span className="text-white">{stats.fireRate}ms</span></div></div><div className={`text-2xl font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>{u.cost} <span className="text-sm">SCRAPS</span></div></button>) })}</div><div className="mt-8 text-xs text-gray-600">PRESS [ESC] TO CANCEL</div></div></div>)
-}
-const SaveSlotItem: React.FC<{ save: SaveFile, onLoad: () => void, onDelete: () => void, onPin: () => void, t: any }> = ({ save, onLoad, onDelete, onPin, t }) => {
-    // ... (Retained original)
-    return (<div className={`p-4 border-l-2 flex flex-col gap-2 transition-all relative group ${save.isPinned ? 'bg-blue-900/20 border-blue-400' : 'bg-gray-900/40 border-gray-700 hover:border-blue-500/50'}`}><div className="flex justify-between items-start"><div><div className={`text-xs font-bold tracking-widest ${save.isPinned ? 'text-blue-300' : 'text-gray-400'}`}>{save.label}</div><div className="text-[10px] text-gray-600 mt-0.5">{new Date(save.timestamp).toLocaleString()}</div></div>{save.isPinned && (<svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v14l-5-2.5L5 18V4z" /></svg>)}</div><div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity"><button onClick={onLoad} className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-200 text-[10px] py-1 border border-blue-800 hover:border-blue-500">{t('LOAD')}</button><button onClick={onPin} className="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] py-1 border border-gray-700">{save.isPinned ? t('UNPIN') : t('PIN')}</button><button onClick={onDelete} className="px-2 bg-red-900/20 hover:bg-red-900/50 text-red-500 text-[10px] py-1 border border-red-900/30">✕</button></div></div>)
-}
 
 export default UIOverlay;

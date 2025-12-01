@@ -217,6 +217,10 @@ const App: React.FC = () => {
   const handleReturnToMap = () => { engineRef.current.completeMission(); };
   const handleDeselectPlanet = () => { engineRef.current.selectPlanet(null); };
 
+  // Spaceship Handlers
+  const handleOpenSpaceship = () => { engineRef.current.enterSpaceshipView(); };
+  const handleCloseSpaceship = () => { engineRef.current.exitSpaceshipView(); };
+
   // Save/Load Handlers
   const handleSaveGame = () => { engineRef.current.saveGame(); };
   const handleLoadGame = (id: string) => { engineRef.current.loadGame(id); };
@@ -243,6 +247,8 @@ const App: React.FC = () => {
         onDeployPlanet={handleDeployPlanet}
         onReturnToMap={handleReturnToMap}
         onDeselectPlanet={handleDeselectPlanet}
+        onOpenSpaceship={handleOpenSpaceship}
+        onCloseSpaceship={handleCloseSpaceship}
         onSaveGame={handleSaveGame}
         onLoadGame={handleLoadGame}
         onDeleteSave={handleDeleteSave}

@@ -248,7 +248,8 @@ export enum SpecialEventType {
 export enum AppMode {
     START_MENU = 'START_MENU',
     EXPLORATION_MAP = 'EXPLORATION_MAP',
-    GAMEPLAY = 'GAMEPLAY'
+    GAMEPLAY = 'GAMEPLAY',
+    SPACESHIP_VIEW = 'SPACESHIP_VIEW'
 }
 
 export enum GameMode {
@@ -264,6 +265,14 @@ export enum BiomeType {
     TOXIC = 'TOXIC'
 }
 
+export interface AtmosphereGas {
+    id: string;
+    name: string;
+    color: string;
+    percentage: number; // 0.0 to 1.0
+    description: string;
+}
+
 export interface Planet {
     id: string;
     name: string;
@@ -273,8 +282,10 @@ export interface Planet {
     color: string;
     totalWaves: number;
     geneStrength: number;
+    sulfurIndex: number; // 0 - 10
     completed: boolean;
     biome: BiomeType;
+    atmosphere: AtmosphereGas[];
 }
 
 export interface PersistentPlayerState {
@@ -297,6 +308,10 @@ export interface SaveFile {
     mode: GameMode;
 }
 
+export interface SpaceshipState {
+    slots: (string | null)[]; // 4 Slots for module IDs
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -306,6 +321,9 @@ export interface GameState {
   currentPlanet: Planet | null;
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
+
+  // Spaceship
+  spaceship: SpaceshipState;
 
   // Save System
   saveSlots: SaveFile[];

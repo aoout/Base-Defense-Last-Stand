@@ -26,7 +26,8 @@ import {
   BiomeType,
   DefenseUpgradeType,
   ModuleType,
-  WeaponModule
+  WeaponModule,
+  AtmosphereGas
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -49,7 +50,8 @@ import {
   MAX_PINNED_SLOTS,
   BIOME_STYLES,
   DEFENSE_UPGRADE_INFO,
-  MODULE_STATS
+  MODULE_STATS,
+  GAS_INFO
 } from '../constants';
 import { AudioService } from './audioService';
 
@@ -197,6 +199,10 @@ export class GameEngine {
           }
           if (!p.freeModules) p.freeModules = [];
           if (!p.grenadeModules) p.grenadeModules = [];
+          // Initialize Spaceship if missing
+          if (!this.state.spaceship) {
+              this.state.spaceship = { slots: [null, null, null, null] };
+          }
 
           // Reset Ally timings
           this.state.allies.forEach(a => a.lastFireTime = 0);
@@ -246,6 +252,34 @@ export class GameEngine {
       localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
   }
 
+  private generateAtmosphere(): AtmosphereGas[] {
+      // Logic:
+      // Oxygen: 0% to 40% (0.0 - 0.4)
+      // Remainder split between Nitrogen and trace gases
+      
+      const oxygenPct = Math.random() * 0.4;
+      let remainder = 1.0 - oxygenPct;
+
+      // Nitrogen takes bulk of remainder (60-90% of remainder)
+      const nitrogenPct = remainder * (0.6 + Math.random() * 0.3);
+      remainder -= nitrogenPct;
+
+      // Pick a secondary gas for flavor (CO2, Argon, Methane, etc)
+      const gases = [GAS_INFO.CO2, GAS_INFO.ARGON, GAS_INFO.METHANE, GAS_INFO.SULFUR, GAS_INFO.HELIUM];
+      const traceGas = gases[Math.floor(Math.random() * gases.length)];
+      
+      const atmosphere: AtmosphereGas[] = [
+          { ...GAS_INFO.OXYGEN, percentage: oxygenPct, description: GAS_INFO.OXYGEN.desc },
+          { ...GAS_INFO.NITROGEN, percentage: nitrogenPct, description: GAS_INFO.NITROGEN.desc },
+          { ...traceGas, percentage: remainder, description: traceGas.desc }
+      ];
+      
+      // Sort by percentage descending
+      atmosphere.sort((a, b) => b.percentage - a.percentage);
+      
+      return atmosphere;
+  }
+
   private generatePlanets(): Planet[] {
       const planets: Planet[] = [];
       const prefixes = ["PX", "KE", "SOL", "VE", "TR", "GZ"];
@@ -261,6 +295,9 @@ export class GameEngine {
           // Gene Strength: 0.8 to 3.2
           const geneStrength = parseFloat((0.8 + Math.random() * 2.4).toFixed(2));
           
+          // Sulfur Index: 0 to 10
+          const sulfurIndex = Math.floor(Math.random() * 11);
+
           // Waves: Weighted Distribution
           let totalWaves;
           const roll = Math.random();
@@ -283,8 +320,10 @@ export class GameEngine {
               color: biomeStyle.planetColor,
               totalWaves,
               geneStrength,
+              sulfurIndex,
               completed: false,
-              biome: biome
+              biome: biome,
+              atmosphere: this.generateAtmosphere()
           });
       }
       return planets;
@@ -432,6 +471,7 @@ export class GameEngine {
     const prevSavedState = this.state?.savedPlayerState || null;
     const prevSelectedPlanetId = this.state?.selectedPlanetId || null;
     const prevSaves = this.state?.saveSlots || [];
+    const prevSpaceship = this.state?.spaceship || { slots: [null, null, null, null] };
 
     this.state = {
       appMode: prevAppMode,
@@ -441,6 +481,7 @@ export class GameEngine {
       selectedPlanetId: prevSelectedPlanetId,
       savedPlayerState: prevSavedState,
       saveSlots: prevSaves,
+      spaceship: prevSpaceship,
 
       camera: { x: 0, y: WORLD_HEIGHT - CANVAS_HEIGHT }, // Start camera at bottom
       player: {
@@ -526,6 +567,14 @@ export class GameEngine {
       if (this.state.planets.length === 0) {
           this.state.planets = this.generatePlanets();
       }
+  }
+
+  public enterSpaceshipView() {
+      this.state.appMode = AppMode.SPACESHIP_VIEW;
+  }
+
+  public exitSpaceshipView() {
+      this.state.appMode = AppMode.EXPLORATION_MAP;
   }
 
   public selectPlanet(planetId: string | null) {
@@ -1282,7 +1331,7 @@ export class GameEngine {
                color: '#10B981',
                vx: Math.cos(angle) * 10,
                vy: Math.sin(angle) * 10,
-               damage: stats.damage,
+               damage: enemy.damage, // Use calculated instance damage
                rangeRemaining: (stats.range || 400) + 100,
                fromPlayer: false,
              });
@@ -1672,7 +1721,70 @@ export class GameEngine {
         else if (wave >= 4 && rand < 0.25) type = EnemyType.VIPER;
         else if (wave >= 3 && rand < 0.35) type = EnemyType.KAMIKAZE;
         else if (wave >= 2 && rand < 0.6) type = EnemyType.RUSHER;
+        
+        // Fallback for logic below if RNG picked GRUNT
     }
+
+    let finalHp = ENEMY_STATS[type].hp;
+    let finalSpeed = ENEMY_STATS[type].speed;
+    let finalDamage = ENEMY_STATS[type].damage;
+
+    // --- EXPLORATION MODE LOGIC ---
+    if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet) {
+        const p = this.state.currentPlanet;
+        const oxygenGas = p.atmosphere.find(g => g.id === 'OXYGEN');
+        const oxygen = oxygenGas ? oxygenGas.percentage : 0;
+        const gene = p.geneStrength;
+        const sulfur = p.sulfurIndex;
+
+        // Viper Restriction: No Vipers if Sulfur Index is 0
+        if (type === EnemyType.VIPER && sulfur === 0) {
+             type = Math.random() < 0.5 ? EnemyType.GRUNT : EnemyType.RUSHER;
+             // Reset base stats for new type
+             finalHp = ENEMY_STATS[type].hp;
+             finalSpeed = ENEMY_STATS[type].speed;
+             finalDamage = ENEMY_STATS[type].damage;
+        }
+
+        // Grunt -> Rusher Transition based on Oxygen
+        if (type === EnemyType.GRUNT && oxygen < 0.20) {
+            type = EnemyType.RUSHER;
+            finalHp = ENEMY_STATS[type].hp;
+            finalSpeed = ENEMY_STATS[type].speed;
+            finalDamage = ENEMY_STATS[type].damage;
+        }
+
+        // Apply Modifiers
+        if (type === EnemyType.GRUNT) {
+             // 100 * Gene * (1 + Oxygen)
+             finalHp = ENEMY_STATS[type].hp * gene * (1 + oxygen);
+             // Base * (1 + 0.1 * Oxygen)
+             finalSpeed = ENEMY_STATS[type].speed * (1 + (0.1 * oxygen));
+        } 
+        else if (type === EnemyType.RUSHER) {
+             // 300 * Gene * (1 + 0.2 * Oxygen)
+             finalHp = ENEMY_STATS[type].hp * gene * (1 + (0.2 * oxygen));
+             // Speed fixed at base
+             finalSpeed = ENEMY_STATS[type].speed; 
+        } 
+        else if (type === EnemyType.VIPER) {
+             // Viper Damage: 40 * (1 + 0.1 * Sulfur)
+             // Base damage is 40 in stats
+             finalDamage = 40 * (1 + 0.1 * sulfur);
+             // Standard HP Scaling
+             finalHp *= gene;
+        }
+        else if (type === EnemyType.KAMIKAZE) {
+             // Kamikaze HP: 50 * Gene * (1 + 0.1 * Sulfur)
+             // Base HP is 50
+             finalHp = 50 * gene * (1 + 0.1 * sulfur);
+        }
+        else {
+             // Default scaling for others
+             finalHp *= gene;
+        }
+    }
+    // -------------------------------------
 
     if (!this.state.stats.encounteredEnemies.includes(type)) {
         this.state.stats.encounteredEnemies.push(type);
@@ -1681,12 +1793,6 @@ export class GameEngine {
     const stats = ENEMY_STATS[type];
     const x = xOverride !== undefined ? xOverride : Math.random() * (WORLD_WIDTH - 40) + 20;
     const y = yOverride !== undefined ? yOverride : 0;
-    
-    // Apply Gene Strength if in Exploration Mode
-    let finalHp = stats.hp;
-    if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet) {
-        finalHp *= this.state.currentPlanet.geneStrength;
-    }
 
     this.state.enemies.push({
       id: Math.random().toString(),
@@ -1698,8 +1804,8 @@ export class GameEngine {
       angle: Math.PI / 2, 
       hp: finalHp,
       maxHp: finalHp,
-      damage: stats.damage,
-      speed: stats.speed,
+      damage: finalDamage,
+      speed: finalSpeed,
       scoreReward: stats.score,
       lastAttackTime: 0
     });

@@ -1,4 +1,5 @@
 
+
 import { BossType, EnemyType, TurretType, WeaponStats, WeaponType, BiomeType, DefenseUpgradeType, ModuleType } from "./types";
 
 export const CANVAS_WIDTH = 1200;
@@ -245,6 +246,16 @@ export const SHOP_PRICES = {
   WEAPON_GL: 2100,
 };
 
+export const GAS_INFO = {
+    OXYGEN: { id: 'OXYGEN', name: "Oxygen", color: "#3b82f6", desc: "Essential for biological respiration. Influences local fauna metabolism." },
+    NITROGEN: { id: 'NITROGEN', name: "Nitrogen", color: "#9ca3af", desc: "Inert gas. Standard atmospheric filler." },
+    CO2: { id: 'CO2', name: "Carbon Dioxide", color: "#4b5563", desc: "Greenhouse gas. Indicates heavy respiration or combustion." },
+    ARGON: { id: 'ARGON', name: "Argon", color: "#a855f7", desc: "Noble gas. Common in radioactive decay environments." },
+    METHANE: { id: 'METHANE', name: "Methane", color: "#f59e0b", desc: "Highly flammable organic compound." },
+    SULFUR: { id: 'SULFUR', name: "Sulfur Dioxide", color: "#eab308", desc: "Toxic volcanic byproduct." },
+    HELIUM: { id: 'HELIUM', name: "Helium", color: "#fca5a5", desc: "Light noble gas." }
+};
+
 export const BIOME_STYLES: Record<BiomeType, {
     name: string;
     planetColor: string;
@@ -329,6 +340,7 @@ export const TRANSLATIONS = {
         ATMOSPHERE_TYPE: "ATMOSPHERE CLASS",
         GENE_MODIFIER: "GENE STRENGTH MODIFIER",
         SECTOR_WAVES: "SECTOR DURATION (WAVES)",
+        ATMOSPHERE_COMP: "ATMOSPHERIC COMPOSITION",
         
         // Memory
         SAVE_STATE: "SAVE CURRENT STATE",
@@ -426,6 +438,7 @@ export const TRANSLATIONS = {
         ATMOSPHERE_TYPE: "大气类型",
         GENE_MODIFIER: "基因强度修正",
         SECTOR_WAVES: "扇区持续时间 (波数)",
+        ATMOSPHERE_COMP: "大气成分分析",
 
         // Memory
         SAVE_STATE: "存档当前状态",
