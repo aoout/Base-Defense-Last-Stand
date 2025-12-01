@@ -29,6 +29,10 @@ export enum ModuleType {
   PRESSURIZED_BOLT = 'PRESSURIZED_BOLT' // Fire rate ramp
 }
 
+export enum SpaceshipModuleType {
+  BASE_REINFORCEMENT = 'BASE_REINFORCEMENT' // Base HP +3000
+}
+
 export interface WeaponModule {
   id: string; // Instance ID
   type: ModuleType;
@@ -107,7 +111,6 @@ export enum EnemyType {
   TANK = 'TANK',
   KAMIKAZE = 'KAMIKAZE',
   VIPER = 'VIPER',
-  // Boss Types are handled via isBoss flag, but we can treat them as special entities
 }
 
 export enum BossType {
@@ -141,6 +144,7 @@ export interface Ally extends Entity {
   hp: number;
   maxHp: number;
   speed: number;
+  damage: number;
   currentOrder: AllyOrder;
   state: 'PATROL' | 'COMBAT' | 'FOLLOW' | 'ATTACK';
   targetEnemyId?: string;
@@ -194,6 +198,7 @@ export interface Turret extends Entity {
   hp: number;
   maxHp: number;
   damage: number;
+  fireRate: number;
 }
 
 export interface TurretSpot {
@@ -203,15 +208,30 @@ export interface TurretSpot {
   builtTurret?: Turret;
 }
 
+export enum TerrainType {
+    CRATER = 'CRATER',
+    ROCK = 'ROCK',
+    DUST = 'DUST',
+    // New Visual Variants
+    MAGMA_POOL = 'MAGMA_POOL',
+    ICE_SPIKE = 'ICE_SPIKE',
+    ALIEN_TREE = 'ALIEN_TREE',
+    CRYSTAL = 'CRYSTAL',
+    SPORE_POD = 'SPORE_POD'
+}
+
 export interface TerrainFeature {
   id: string;
-  type: 'CRATER' | 'ROCK' | 'DUST';
+  type: TerrainType;
   x: number;
   y: number;
   radius: number;
   rotation?: number;
-  points?: {x: number, y: number}[]; // For irregular rock shapes
+  points?: {x: number, y: number}[]; // For irregular shapes
   opacity?: number;
+  // Visual specific
+  variant?: number; // 0-3 for varied sprite looks
+  color?: string; // Custom color override
 }
 
 export interface BloodStain {
@@ -265,6 +285,16 @@ export enum BiomeType {
     TOXIC = 'TOXIC'
 }
 
+// Visual Planet Types
+export enum PlanetVisualType {
+    TERRAN = 'TERRAN',
+    GAS_GIANT = 'GAS_GIANT',
+    RINGED = 'RINGED',
+    LAVA = 'LAVA',
+    ICE = 'ICE',
+    BARREN = 'BARREN'
+}
+
 export interface AtmosphereGas {
     id: string;
     name: string;
@@ -283,8 +313,10 @@ export interface Planet {
     totalWaves: number;
     geneStrength: number;
     sulfurIndex: number; // 0 - 10
+    landingDifficulty: number; // 1 - 30 (Percentage cost)
     completed: boolean;
     biome: BiomeType;
+    visualType: PlanetVisualType;
     atmosphere: AtmosphereGas[];
 }
 
@@ -309,7 +341,7 @@ export interface SaveFile {
 }
 
 export interface SpaceshipState {
-    slots: (string | null)[]; // 4 Slots for module IDs
+    installedModules: SpaceshipModuleType[];
 }
 
 export interface GameState {
@@ -351,7 +383,9 @@ export interface GameState {
 
   wave: number;
   waveTimeRemaining: number; 
+  waveDuration: number; // Total duration of the current wave
   spawnTimer: number; 
+  enemiesPendingSpawn: number; // Number of enemies queued to spawn
   enemiesSpawnedInWave: number;
   totalEnemiesInWave: number;
   lastAllySpawnTime: number;

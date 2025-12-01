@@ -40,93 +40,22 @@ const App: React.FC = () => {
     window.addEventListener('game-action', handleGameAction);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent tab from changing focus
+      if (e.key === 'Tab') {
+          e.preventDefault();
+      }
+
       // Input only active in gameplay or specific menus
-      engine.input.keys[e.key] = true;
+      engine.handleInput(e.key, true);
       
       // Prevent browser zoom etc
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) > -1) {
           // e.preventDefault(); // Sometimes needed
       }
-
-      if (engine.state.appMode !== AppMode.GAMEPLAY) {
-          // Limited input logic for Start/Map if needed via keys, usually mouse driven
-          return;
-      }
-
-      // Tactical Menu (Tab)
-      if (e.key === 'Tab') {
-          e.preventDefault(); 
-          if (!engine.state.isPaused && !engine.state.isShopOpen && !engine.state.isInventoryOpen) {
-              engine.toggleTacticalMenu();
-          }
-      }
-
-      // Tactical Commands Hotkeys (When menu is open)
-      if (engine.state.isTacticalMenuOpen) {
-          if (e.key === 'F1') {
-              e.preventDefault();
-              engine.issueOrder('PATROL');
-              engine.toggleTacticalMenu(); 
-          }
-          if (e.key === 'F2') {
-              e.preventDefault();
-              engine.issueOrder('FOLLOW');
-              engine.toggleTacticalMenu();
-          }
-          if (e.key === 'F3') {
-              e.preventDefault();
-              engine.issueOrder('ATTACK');
-              engine.toggleTacticalMenu();
-          }
-      }
-
-      // Inventory / Backpack (C)
-      if ((e.key === 'c' || e.key === 'C')) {
-          if (!engine.state.isPaused && !engine.state.isTacticalMenuOpen && !engine.state.isShopOpen) {
-              engine.toggleInventory();
-          }
-      }
-
-      // Shop (B)
-      if ((e.key === 'b' || e.key === 'B')) {
-          if (!engine.state.isPaused && !engine.state.isTacticalMenuOpen && !engine.state.isInventoryOpen) {
-              const p = engine.state.player;
-              const dist = Math.sqrt(Math.pow(p.x - engine.state.base.x, 2) + Math.pow(p.y - engine.state.base.y, 2));
-              
-              if (dist < 300 || engine.state.isShopOpen) {
-                  engine.state.isShopOpen = !engine.state.isShopOpen;
-              }
-          }
-      }
-
-      // Interact (E)
-      if ((e.key === 'e' || e.key === 'E')) {
-          if (!engine.state.isPaused && !engine.state.isTacticalMenuOpen && !engine.state.isInventoryOpen && !engine.state.isShopOpen) {
-              engine.interact();
-          }
-      }
-      
-      // Toggle Pause (Stats Terminal)
-      if (e.key === 'p' || e.key === 'P') {
-          if (!engine.state.isTacticalMenuOpen && !engine.state.isInventoryOpen && engine.state.activeTurretId === undefined) {
-              engine.togglePause();
-          }
-      }
-
-      if (e.key === 'Escape') {
-          engine.state.isShopOpen = false;
-          if (engine.state.isTacticalMenuOpen) engine.toggleTacticalMenu();
-          if (engine.state.isInventoryOpen) engine.toggleInventory();
-          if (engine.state.activeTurretId !== undefined) engine.closeTurretUpgrade(); 
-          if (engine.state.isPaused && engine.state.activeTurretId === undefined) engine.togglePause();
-      }
-
-      // Grenade
-      if ((e.key === 'g' || e.key === 'G') && !engine.state.isPaused && !engine.state.isTacticalMenuOpen && !engine.state.isInventoryOpen) engine.throwGrenade();
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      engine.input.keys[e.key] = false;
+      engine.handleInput(e.key, false);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -227,6 +156,9 @@ const App: React.FC = () => {
   const handleDeleteSave = (id: string) => { engineRef.current.deleteSave(id); };
   const handleTogglePin = (id: string) => { engineRef.current.togglePin(id); };
 
+  // Skip Wave
+  const handleSkipWave = () => { engineRef.current.skipWave(); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -253,6 +185,7 @@ const App: React.FC = () => {
         onLoadGame={handleLoadGame}
         onDeleteSave={handleDeleteSave}
         onTogglePin={handleTogglePin}
+        onSkipWave={handleSkipWave}
       />
     </div>
   );
