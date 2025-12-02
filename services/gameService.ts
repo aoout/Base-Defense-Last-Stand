@@ -1,6 +1,4 @@
 
-
-
 import {
   GameState,
   InputState,
@@ -67,6 +65,7 @@ import { PlayerManager } from './managers/PlayerManager';
 import { DefenseManager } from './managers/DefenseManager';
 import { FXManager } from './managers/FXManager';
 import { SpaceshipManager } from './managers/SpaceshipManager';
+import { TimeManager } from './managers/TimeManager';
 import { TRANSLATIONS } from '../data/locales';
 
 const TURRET_POSITIONS = [
@@ -86,6 +85,7 @@ export class GameEngine {
   audio: AudioService;
   
   // Managers
+  time: TimeManager;
   saveManager: SaveManager;
   shopManager: ShopManager;
   enemyManager: EnemyManager;
@@ -104,6 +104,9 @@ export class GameEngine {
     };
     this.audio = new AudioService();
     
+    // Initialize Core Systems
+    this.time = new TimeManager();
+
     // Initialize temporary state
     this.reset(true); 
     
@@ -216,7 +219,7 @@ export class GameEngine {
           if ((key === 'g' || key === 'G') && !this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) this.throwGrenade();
           
           // Reload
-          if ((key === 'r' || key === 'R') && !this.state.isPaused) this.reloadWeapon(performance.now());
+          if ((key === 'r' || key === 'R') && !this.state.isPaused) this.reloadWeapon(this.time.now);
       }
   }
 
@@ -395,7 +398,6 @@ export class GameEngine {
           freeModules: this.state.player.freeModules,
           grenadeModules: this.state.player.grenadeModules,
           grenades: this.state.player.grenades,
-          // Note: HP/Armor is reset to max on deployment (healing)
       };
 
       // Reset the world state
@@ -418,7 +420,7 @@ export class GameEngine {
       
       this.spaceshipManager.applyPassiveBonuses();
       
-      // Full heal the base after potential maxHp upgrade from bonuses
+      // Full heal the base
       this.state.base.hp = this.state.base.maxHp;
 
       if (targetPlanet.missionType === MissionType.OFFENSE) {
@@ -448,6 +450,9 @@ export class GameEngine {
   }
   
   public update(time: number) {
+    // Update Time Manager
+    this.time.update(time);
+
     if (this.lastTime === 0) {
       this.lastTime = time;
       return;
@@ -472,7 +477,6 @@ export class GameEngine {
             this.state.spawnTimer += dt;
             const SPAWN_INTERVAL = 500; 
 
-            // Spawn Logic: decoupled from wave timer to allow cleanup spawns
             if (this.state.spawnTimer > SPAWN_INTERVAL) {
                 if (this.state.enemiesPendingSpawn > 0) {
                     this.spawnEnemy();
@@ -482,22 +486,19 @@ export class GameEngine {
             }
 
             if (this.state.waveTimeRemaining <= 0) {
-                // Check if it's the last wave of a planet defense mission
                 const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
                                              this.state.currentPlanet?.missionType === MissionType.DEFENSE;
                 const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
 
                 if (isLastWave) {
-                    // VICTORY CONDITION: Last Wave Timer 0 AND No Spawns Left AND No Live Enemies
+                    // VICTORY CONDITION CHECK
                     const allEnemiesSpawned = this.state.enemiesPendingSpawn <= 0;
                     const allEnemiesDefeated = this.state.enemies.length === 0;
 
                     if (allEnemiesSpawned && allEnemiesDefeated) {
                         this.completeMission();
                     }
-                    // If not all defeated, we just wait. timeRemaining stays <= 0.
                 } else {
-                    // Standard Progression to next wave
                     this.nextWave();
                 }
             }
@@ -510,24 +511,23 @@ export class GameEngine {
         m.x += m.vx * timeScale;
         m.y += m.vy * timeScale;
         
-        // Physics for specific types
         if (m.type === FloatingTextType.DAMAGE || m.type === FloatingTextType.CRIT) {
-            m.vx *= 0.92; // High friction
+            m.vx *= 0.92; 
             m.vy *= 0.92;
         } else if (m.type === FloatingTextType.LOOT) {
-            m.vy -= 0.05 * timeScale; // Fly upwards faster
+            m.vy -= 0.05 * timeScale; 
         } else {
-            m.vy = -0.5 * timeScale; // Gentle float up for system messages
+            m.vy = -0.5 * timeScale; 
         }
     });
     this.state.floatingTexts = this.state.floatingTexts.filter(m => m.life > 0);
 
     // --- Managers Update ---
     this.spaceshipManager.update(dt);
-    this.playerManager.update(dt, time, timeScale);
+    this.playerManager.update(dt, this.time.now, timeScale);
     this.projectileManager.update(dt, timeScale);
     this.enemyManager.update(dt, timeScale);
-    this.defenseManager.update(dt, time, timeScale);
+    this.defenseManager.update(dt, this.time.now, timeScale);
     this.fxManager.update(dt, timeScale);
 
     // --- Camera Follow ---
@@ -538,8 +538,6 @@ export class GameEngine {
   }
   
   public nextWave() {
-      // Note: Logic for final mission completion is now handled in update loop for better control
-      
       this.state.wave++;
       this.state.activeSpecialEvent = SpecialEventType.NONE; 
 
@@ -580,7 +578,6 @@ export class GameEngine {
   }
 
   public skipWave() {
-      // Logic for checking if it's the last wave is handled here to prevent invalid wave increments
       const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
                                    this.state.currentPlanet?.missionType === MissionType.DEFENSE;
       const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
@@ -626,7 +623,6 @@ export class GameEngine {
   public issueOrder(order: AllyOrder) { this.defenseManager.issueOrder(order); }
   public confirmTurretUpgrade(type: TurretType) { this.defenseManager.confirmTurretUpgrade(type); }
   public interact() {
-      // Delegate to Defense Manager for Turrets (removed shop check)
       this.defenseManager.interact(); 
   }
   public closeTurretUpgrade() { this.defenseManager.closeTurretUpgrade(); }
@@ -656,7 +652,7 @@ export class GameEngine {
   public damageArea(x: number, y: number, radius: number, damage: number) {
       this.state.enemies.forEach(e => {
           if (Math.sqrt((e.x - x)**2 + (e.y - y)**2) < radius) {
-              this.damageEnemy(e, damage, DamageSource.PLAYER); // Assume area damage (grenades) comes from player
+              this.damageEnemy(e, damage, DamageSource.PLAYER); 
           }
       });
   }
@@ -682,7 +678,6 @@ export class GameEngine {
       let size = 12;
 
       if (type === FloatingTextType.DAMAGE) {
-          // Explode outwards horizontally
           vx = (Math.random() - 0.5) * 4;
           vy = (Math.random() * -2) - 1; 
           time = 600;
@@ -698,7 +693,6 @@ export class GameEngine {
           time = 1500;
           size = 12;
       } else {
-          // System
           vx = 0;
           vy = -0.2;
           size = 16;
@@ -758,7 +752,6 @@ export class GameEngine {
       this.state.currentPlanet = null;
       this.state.selectedPlanetId = null;
       
-      // Clear entities
       this.state.enemies = [];
       this.state.projectiles = [];
       this.state.allies = [];
@@ -768,23 +761,17 @@ export class GameEngine {
   }
 
   public emergencyEvac() {
-      // Emergency Extraction Logic for Exploration Mode Failure
       this.state.isGameOver = false;
       this.state.isPaused = false;
       this.state.appMode = AppMode.EXPLORATION_MAP;
-      this.state.currentPlanet = null; // Unset planet to allow choosing a new one
+      this.state.currentPlanet = null; 
       this.state.selectedPlanetId = null;
       
-      // Clear level specific entities to be safe
       this.state.enemies = [];
       this.state.projectiles = [];
       this.state.allies = [];
       this.state.toxicZones = [];
       this.state.bloodStains = [];
-      
-      // Note: We do NOT refund drop costs or reset player inventory state (persistence), 
-      // simulating a retreat where resources gathered mid-mission might be lost or kept depending on strictness.
-      // Current design: Player keeps what they have in state, just loses the mission progress.
   }
 
   public activateBackdoor() {
@@ -795,7 +782,6 @@ export class GameEngine {
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); }
   
-  // Carapace Delegation
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }
   public purchaseCarapaceNode(row: number, col: number) { this.spaceshipManager.purchaseCarapaceNode(row, col); }
 }

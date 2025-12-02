@@ -1,6 +1,4 @@
 
-
-
 import { GameEngine } from '../gameService';
 import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
@@ -17,13 +15,9 @@ export class EnemyManager {
 
     public spawnEnemy() {
         const state = this.engine.state;
-        // Determine Type
         const type = selectEnemyType(state.wave, state.gameMode, state.currentPlanet, state.activeSpecialEvent);
-        
-        // Determine Position (North Spawn)
         const x = Math.random() * WORLD_WIDTH;
         const y = -50; 
-
         this.spawnSpecificEnemy(type, x, y);
     }
 
@@ -72,7 +66,7 @@ export class EnemyManager {
 
         this.engine.state.enemies.push({
             id: `boss-${Date.now()}`,
-            type: EnemyType.TANK, // Fallback for type safety
+            type: EnemyType.TANK, 
             isBoss: true,
             bossType: bossType,
             x, y, angle: Math.PI/2,
@@ -153,6 +147,7 @@ export class EnemyManager {
         const state = this.engine.state;
         const base = state.base;
         const player = state.player;
+        const now = this.engine.time.now;
 
         // Hive Mother Mechanics
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE) {
@@ -162,11 +157,9 @@ export class EnemyManager {
                 if (mother.shedTimer > 30000) {
                     mother.shedTimer = 0;
                     
-                    // Shed Armor
                     mother.armorValue = Math.max(0, (mother.armorValue || 90) - 3);
                     mother.shedCount = (mother.shedCount || 0) + 1;
                     
-                    // Heal
                     const o2 = state.currentPlanet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
                     const healAmount = mother.maxHp * (0.4 * o2);
                     mother.hp = Math.min(mother.maxHp, mother.hp + healAmount);
@@ -178,21 +171,18 @@ export class EnemyManager {
         }
 
         state.enemies.forEach(e => {
-            // AI: Determine Target
             let target = { x: base.x, y: base.y };
             let closestUnit: Entity | null = null;
             let minDist = e.detectionRange || 400;
 
             const distToBase = Math.sqrt((e.x - base.x)**2 + (e.y - base.y)**2);
 
-            // Check Player
             const distPlayer = Math.sqrt((e.x - player.x)**2 + (e.y - player.y)**2);
             if (distPlayer < minDist) {
                 minDist = distPlayer;
                 closestUnit = player;
             }
 
-            // Check Allies
             state.allies.forEach(ally => {
                  const d = Math.sqrt((e.x - ally.x)**2 + (e.y - ally.y)**2);
                  if (d < minDist) {
@@ -205,16 +195,13 @@ export class EnemyManager {
                 target = { x: closestUnit.x, y: closestUnit.y };
             }
 
-            // Stationary Bosses
             if (e.isBoss && e.bossType === BossType.HIVE_MOTHER) return;
             
-            // Movement
             const angle = Math.atan2(target.y - e.y, target.x - e.x);
             e.angle = angle;
             
             const distToTarget = Math.sqrt((e.x - target.x)**2 + (e.y - target.y)**2);
             
-            // Stop Range logic
             let stopDist = e.radius + 10;
             if (e.type === EnemyType.VIPER) stopDist = 400;
             if (e.bossType === BossType.BLUE_BURST) stopDist = 600;
@@ -225,22 +212,19 @@ export class EnemyManager {
                 e.y += Math.sin(angle) * e.speed * timeScale;
             }
 
-            // Attack Logic
             const attackCooldown = e.isBoss ? (e.bossType ? 100 : 1000) : 1000;
-            if (Date.now() - e.lastAttackTime > attackCooldown) {
+            if (now - e.lastAttackTime > attackCooldown) {
                  this.handleEnemyAttack(e, target, distToTarget, closestUnit || { x: base.x, y: base.y, radius: 200 } as any);
             }
         });
     }
 
     private handleEnemyAttack(e: Enemy, targetPos: {x: number, y: number}, dist: number, targetEntity: Entity) {
-        const now = Date.now();
+        const now = this.engine.time.now;
 
-        // Boss Logic
         if (e.isBoss) {
              if (e.bossType === BossType.RED_SUMMONER) {
                  if (now - e.lastAttackTime > (BOSS_STATS[BossType.RED_SUMMONER].summonRate || 2000)) {
-                     // Summon Grunts
                      for(let i=0; i<3; i++) {
                          const a = Math.random() * Math.PI*2;
                          this.spawnSpecificEnemy(EnemyType.GRUNT, e.x + Math.cos(a)*50, e.y + Math.sin(a)*50);
@@ -250,12 +234,10 @@ export class EnemyManager {
              }
              else if (e.bossType === BossType.BLUE_BURST) {
                  if (now - e.lastAttackTime > (BOSS_STATS[BossType.BLUE_BURST].fireRate || 1000)) {
-                     // Fire Burst
                      e.bossBurstCount = 3;
                      e.bossNextShotTime = now;
                      e.lastAttackTime = now;
                  }
-                 // Handle Burst
                  if (e.bossBurstCount && e.bossBurstCount > 0 && now >= (e.bossNextShotTime || 0)) {
                      this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 10, e.damage, false, '#60a5fa', undefined, false, false, 1000, DamageSource.ENEMY);
                      e.bossBurstCount--;
@@ -264,7 +246,6 @@ export class EnemyManager {
              }
              else if (e.bossType === BossType.PURPLE_ACID) {
                  if (now - e.lastAttackTime > (BOSS_STATS[BossType.PURPLE_ACID].fireRate || 4000)) {
-                     // Lob Acid Blob
                      this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#a855f7', undefined, false, true, 1000, DamageSource.ENEMY); 
                      e.lastAttackTime = now;
                  }
@@ -272,7 +253,6 @@ export class EnemyManager {
              return;
         }
 
-        // Normal Units
         if (e.type === EnemyType.VIPER) {
             if (dist < 450 && now - e.lastAttackTime > 2000) {
                 this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#10B981', undefined, false, false, 1000, DamageSource.ENEMY);
@@ -282,23 +262,20 @@ export class EnemyManager {
         }
         else if (e.type === EnemyType.KAMIKAZE) {
             if (dist < 30) {
-                // Explode
                 this.engine.damageArea(e.x, e.y, 100, e.damage);
                 this.engine.spawnToxicZone(e.x, e.y);
                 this.engine.spawnParticle(e.x, e.y, '#a855f7', 10, 20);
-                e.hp = 0; // Suicide
+                e.hp = 0; 
                 this.engine.audio.playExplosion();
             }
         }
         else {
-            // Melee
             if (dist < e.radius + (targetEntity.radius || 20) + 10 && now - e.lastAttackTime > 1000) {
-                // Deal Damage
                 if (targetEntity.id === 'player') {
                     this.engine.damagePlayer(e.damage);
-                } else if ((targetEntity as any).maxHp && (targetEntity as any).width) { // Base
+                } else if ((targetEntity as any).maxHp && (targetEntity as any).width) { 
                     this.engine.damageBase(e.damage);
-                } else if ((targetEntity as any).hp !== undefined) { // Ally/Turret
+                } else if ((targetEntity as any).hp !== undefined) { 
                     (targetEntity as any).hp -= e.damage;
                 }
                 e.lastAttackTime = now;
@@ -310,7 +287,6 @@ export class EnemyManager {
     public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) {
         let dmg = amount;
         
-        // Hive Mother Armor Reduction
         if (enemy.bossType === BossType.HIVE_MOTHER && enemy.armorValue) {
             const mitigation = enemy.armorValue / 100;
             dmg = dmg * (1 - mitigation);
@@ -319,8 +295,7 @@ export class EnemyManager {
   
         enemy.hp -= dmg;
         if (this.engine.state.settings.showDamageNumbers) {
-            // New Floating Text Usage
-            const isCrit = Math.random() < 0.1; // Simple random crit visual for now
+            const isCrit = Math.random() < 0.1;
             const color = isCrit ? '#ef4444' : '#ffffff';
             const type = isCrit ? FloatingTextType.CRIT : FloatingTextType.DAMAGE;
             this.engine.addMessage(`${Math.ceil(dmg)}`, enemy.x, enemy.y, color, type);
@@ -347,15 +322,11 @@ export class EnemyManager {
         }
   
         this.engine.state.player.score += score;
-        
-        // Remove from list
         this.engine.state.enemies = this.engine.state.enemies.filter(en => en !== e);
         
-        // Stats
         if (e.isBoss) this.engine.state.stats.killsByType['BOSS']++;
         else this.engine.state.stats.killsByType[e.type]++;
   
-        // FX
         this.engine.spawnBloodStain(e.x, e.y, e.color, e.maxHp);
         this.engine.audio.playEnemyDeath(e.isBoss);
     }

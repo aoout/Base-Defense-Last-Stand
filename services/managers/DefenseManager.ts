@@ -1,6 +1,4 @@
 
-
-
 import { GameEngine } from '../gameService';
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
@@ -13,8 +11,10 @@ export class DefenseManager {
     }
 
     public update(dt: number, time: number, timeScale: number) {
-        this.updateAllies(dt, time, timeScale);
-        this.updateTurrets(time);
+        // Use engine time instead of generic time for consistency
+        const gameTime = this.engine.time.now;
+        this.updateAllies(dt, gameTime, timeScale);
+        this.updateTurrets(gameTime);
     }
 
     private updateAllies(dt: number, time: number, timeScale: number) {
@@ -108,7 +108,6 @@ export class DefenseManager {
 
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
-                    // Pass t.range as the final argument (maxRange) to allow infinite range missiles to travel
                     this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE, undefined, t.range, DamageSource.TURRET);
                     t.lastFireTime = time;
                     this.engine.audio.playTurretFire(t.level);
@@ -140,8 +139,8 @@ export class DefenseManager {
                     p.score -= cost;
                     spot.builtTurret = {
                         id: `t-${Date.now()}`,
-                        x: spot.x, // FIXED: Use spot coordinate, not 0
-                        y: spot.y, // FIXED: Use spot coordinate, not 0
+                        x: spot.x,
+                        y: spot.y,
                         radius: 0, angle: 0, color: '', 
                         level: 1,
                         type: TurretType.STANDARD,

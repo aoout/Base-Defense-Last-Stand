@@ -58,3 +58,9 @@ For detailed strategies, recommended loadouts, and enemy weakness analysis, plea
 - **Oxygen (O2)**: Increases HP of Grunt/Rusher.
 - **Sulfur (S)**: Increases Kamikaze HP and Viper Damage.
 - **Gene Strength**: Global multiplier.
+
+## 4. Technical Appendix: Chrono-Synchronization
+**System Integrity Note**: The game engine utilizes a high-precision `TimeManager` to maintain simulation consistency across sessions.
+
+- **Timestamp Hydration**: When saving/loading, the engine converts absolute timestamps (like reload start time) into relative durations. This ensures that pausing, saving, or reloading the browser does not "jam" weapons or break health regeneration timers.
+- **Relative Reference**: All mechanics rely on `engine.time.now` rather than system wall-clock time, preventing issues with system date changes or browser suspension.

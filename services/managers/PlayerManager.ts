@@ -1,3 +1,4 @@
+
 import { GameEngine } from '../gameService';
 import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile, DamageSource } from '../../types';
 import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
@@ -38,12 +39,11 @@ export class PlayerManager {
         this.updateWeapons(dt, time);
 
         // 4. Regeneration Logic
-        // Armor Regen
+        // Use engine time instead of Date.now() for consistency across saves/pauses
         if (time - p.lastHitTime > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
             p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
         }
         
-        // HP Regen
         if (time - p.lastHitTime > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
             p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate * dt);
         }
@@ -104,9 +104,6 @@ export class PlayerManager {
             wepState.consecutiveShots = 0;
         }
 
-        // NOTE: Spaceship Module Damage Multipliers (Carapace Analyzer etc) are applied on IMPACT by ProjectileManager
-        // This keeps the base damage stats clean and allows for specific enemy type targeting.
-
         const finalDmg = wepStats.damage * dmgMult;
         const type = wepState.type; 
 
@@ -134,7 +131,6 @@ export class PlayerManager {
         const vx = Math.cos(angle) * stats.projectileSpeed;
         const vy = Math.sin(angle) * stats.projectileSpeed;
         
-        // Determine color based on weapon type
         let color = '#FBBF24'; // Default Yellow-400 (AR/Pistol)
         if (type === WeaponType.SG) color = '#FCD34D'; // Lighter Yellow
         if (type === WeaponType.SR) color = '#FFFFFF'; // White tracer
@@ -161,7 +157,6 @@ export class PlayerManager {
             source: DamageSource.PLAYER
         };
         
-        // Direct registration avoids the race condition and manual override hack
         this.engine.projectileManager.registerProjectile(proj);
     }
 
@@ -169,9 +164,7 @@ export class PlayerManager {
         const p = this.engine.state.player;
         const w = p.weapons[p.loadout[p.currentWeaponIndex]];
         
-        // Check if reloading is possible
         if (!w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
-            // Only reload if we have reserve or infinite ammo
             if (w.ammoReserve > 0 || w.ammoReserve === Infinity) {
                 w.reloading = true;
                 w.reloadStartTime = time;
@@ -227,7 +220,7 @@ export class PlayerManager {
         }
 
         p.hp -= actualDmg;
-        p.lastHitTime = Date.now();
+        p.lastHitTime = this.engine.time.now; // FIXED: Using unified time
         
         if (p.hp <= 0) {
             this.engine.state.isGameOver = true;

@@ -32,11 +32,8 @@ export class SaveManager {
         const availableSlots = MAX_SAVE_SLOTS - pinned.length;
         
         if (availableSlots < 0) {
-            // Edge case: User pinned more than max slots (should be prevented elsewhere, but handle it)
-            // We keep all pinned, but 0 unpinned.
             this.engine.state.saveSlots = pinned;
         } else if (unpinned.length > availableSlots) {
-            // Keep the newest 'availableSlots' amount of unpinned saves
             const keptUnpinned = unpinned.slice(0, availableSlots);
             this.engine.state.saveSlots = [...pinned, ...keptUnpinned];
         }
@@ -59,20 +56,30 @@ export class SaveManager {
             grenadeModules: p.grenadeModules
         };
         
-        // Update SavedPlayerState in global state
         this.engine.state.savedPlayerState = persistent;
 
-        // Create a deep copy of state
-        const stateToSave = { ...this.engine.state };
+        // --- TIME NORMALIZATION (Hydration Prep) ---
+        // We inject a special 'savedAtGameTime' field into the data blob (using JSON magic)
+        // This helps us calculate relative offsets on load.
+        // However, a simpler, more robust approach for this codebase is to save
+        // relative durations for CRITICAL timers (Reload, Regen) directly in the objects 
+        // or ensure we handle the offset on load.
         
-        // Don't save transient/heavy things
+        // We will perform a deep copy and modify timestamps to be "relative to now" 
+        // where preserving exact timing matters.
+        const stateToSave = JSON.parse(JSON.stringify(this.engine.state));
+        
+        // Store the game time at save moment
+        (stateToSave as any).metaGameTime = this.engine.time.now;
+
+        // Clean up transient entities
         stateToSave.projectiles = [];
         stateToSave.particles = [];
         stateToSave.floatingTexts = [];
         
         const newSave: SaveFile = {
             id: `save-${Date.now()}`,
-            timestamp: Date.now(),
+            timestamp: Date.now(), // Real World Time
             label: this.engine.state.gameMode === GameMode.EXPLORATION 
                 ? `EXPLORATION - ${this.engine.state.currentPlanet?.name || 'SECTOR MAP'}` 
                 : `SURVIVAL - WAVE ${this.engine.state.wave}`,
@@ -81,12 +88,8 @@ export class SaveManager {
             mode: this.engine.state.gameMode
         };
 
-        // Add to list
         this.engine.state.saveSlots.unshift(newSave);
-        
-        // Enforce Limits
         this.enforceSlotLimit();
-
         this.persistSaves();
         this.engine.addMessage("GAME SAVED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
     }
@@ -94,13 +97,9 @@ export class SaveManager {
     public importSave(jsonString: string): boolean {
         try {
             const parsed = JSON.parse(jsonString);
-            
-            // Basic validation
             if (!parsed.label || !parsed.data || !parsed.mode) {
                 throw new Error("Invalid Save Format");
             }
-
-            // Create a new entry for this import to ensure unique ID and fresh timestamp
             const newSave: SaveFile = {
                 id: `import-${Date.now()}-${Math.floor(Math.random()*1000)}`,
                 timestamp: Date.now(),
@@ -109,7 +108,6 @@ export class SaveManager {
                 data: parsed.data,
                 mode: parsed.mode
             };
-
             this.engine.state.saveSlots.unshift(newSave);
             this.enforceSlotLimit();
             this.persistSaves();
@@ -123,9 +121,6 @@ export class SaveManager {
     public exportSaveString(id: string): string | null {
         const slot = this.engine.state.saveSlots.find(s => s.id === id);
         if (!slot) return null;
-        
-        // We export the SaveFile object structure (excluding ID/Timestamp which are regenerated on import usually, 
-        // but for simplicity we export the whole object and let import cleaner handle it)
         return JSON.stringify({
             label: slot.label,
             data: slot.data,
@@ -139,9 +134,14 @@ export class SaveManager {
             try {
                 const data = JSON.parse(slot.data);
                 
+                // Sync Time Manager to current fresh time
+                this.engine.time.sync();
+                const currentNow = this.engine.time.now;
+                const oldSaveTime = (data as any).metaGameTime || 0; // The time when save happened
+
+                // Apply State
                 if (!data.settings) data.settings = { ...this.engine.state.settings };
                 if (!data.settings.language) data.settings.language = 'EN';
-
                 Object.assign(this.engine.state, data);
                 
                 this.engine.state.isPaused = false;
@@ -152,27 +152,44 @@ export class SaveManager {
                      this.engine.state.appMode = AppMode.EXPLORATION_MAP;
                 }
 
-                // Reset Timestamps
+                // --- TIMESTAMP HYDRATION (Crucial Fix) ---
+                
+                // 1. Player Regeneration Logic
+                // We need to preserve how long ago we were hit relative to the game state.
+                // timeSinceHit = oldSaveTime - oldLastHitTime
+                // newLastHitTime = currentNow - timeSinceHit
+                const timeSinceHit = oldSaveTime - this.engine.state.player.lastHitTime;
+                this.engine.state.player.lastHitTime = currentNow - timeSinceHit;
+
+                // 2. Weapon Reloading & Cooldowns
                 Object.values(this.engine.state.player.weapons).forEach(w => {
-                    w.lastFireTime = 0;
-                    w.reloading = false;
-                });
+                    // Prevent jamming: Reset fire timer to allow shooting immediately (or after minimal delay)
+                    // It's safer to just set lastFireTime to 0 than try to calculate fire rate offsets which might be negative
+                    w.lastFireTime = 0; 
 
-                this.engine.state.enemies.forEach(e => {
-                    e.lastAttackTime = 0;
-                    if (e.bossNextShotTime) e.bossNextShotTime = 0;
-                });
-
-                this.engine.state.allies.forEach(a => {
-                    a.lastFireTime = 0;
-                });
-
-                this.engine.state.turretSpots.forEach(s => {
-                    if (s.builtTurret) {
-                        s.builtTurret.lastFireTime = 0;
+                    // Reloading is critical to preserve
+                    if (w.reloading) {
+                        const timeSinceReloadStart = oldSaveTime - w.reloadStartTime;
+                        w.reloadStartTime = currentNow - timeSinceReloadStart;
+                    } else {
+                        w.reloadStartTime = 0;
                     }
                 });
-                
+
+                // 3. Enemy Attack Cooldowns
+                // Resetting to 0 is fine, they can attack immediately or wait a full cycle. 
+                // Preventing negative overflow is key.
+                this.engine.state.enemies.forEach(e => {
+                    e.lastAttackTime = 0;
+                    if (e.bossNextShotTime) e.bossNextShotTime = currentNow + 1000; // Small delay
+                });
+
+                // 4. Allies & Turrets
+                this.engine.state.allies.forEach(a => { a.lastFireTime = 0; });
+                this.engine.state.turretSpots.forEach(s => {
+                    if (s.builtTurret) s.builtTurret.lastFireTime = 0;
+                });
+
                 this.engine.addMessage("GAME LOADED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
             } catch (e) {
                 console.error("Failed to load save", e);
