@@ -18,10 +18,11 @@
 
 
 
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 3.4.0
+**Version**: 3.4.1
 
 ## 1. Game Mechanics
 
@@ -69,7 +70,7 @@ The base is equipped with two autonomous Clone Vats located on the left and righ
 - **Interact**: `E` (Build Turrets, Upgrade)
 - **Deploy Lure**: `L` (Skip Wave - Defense Mode Only)
 - **Backpack**: `C` (Equip Modules)
-- **Shop**: `B` (Buy Ammo/Upgrades)
+- **Shop**: `B` (Buy Ammo/Upgrades). **Pauses game while open.**
 - **Tactical Menu**: `TAB` -> `F1/F2/F3` for Squad Orders
 - **Pause/Stats**: `P`
 

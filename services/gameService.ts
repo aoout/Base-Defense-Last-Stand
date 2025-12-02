@@ -433,7 +433,7 @@ export class GameEngine {
     const TARGET_MS_PER_FRAME = 1000 / 60; 
     const timeScale = dt / TARGET_MS_PER_FRAME;
 
-    if (this.state.isPaused || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
+    if (this.state.isPaused || this.state.isShopOpen || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
 
     // --- Wave Management ---
     if (!this.state.missionComplete) {
@@ -562,7 +562,16 @@ export class GameEngine {
           this.addMessage(`LURE REWARD: +${reward}`, this.state.player.x, this.state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
           this.audio.playBaseDamage(); 
           
-          this.nextWave();
+          const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
+                                       this.state.currentPlanet?.missionType === MissionType.DEFENSE;
+          const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
+
+          if (isLastWave) {
+              this.state.waveTimeRemaining = 0;
+              this.addMessage("FINAL WAVE ACCELERATED", this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
+          } else {
+              this.nextWave();
+          }
       } else {
           this.addMessage("LURE RECHARGE PENDING...", this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
       }
