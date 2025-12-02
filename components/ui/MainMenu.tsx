@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { GameState } from '../../types';
+import { GameState, GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
 
 interface MainMenuProps {
@@ -10,15 +11,23 @@ interface MainMenuProps {
     onDeleteSave: (id: string) => void;
     onTogglePin: (id: string) => void;
     t: (key: string) => string;
+    onToggleSetting?: (key: keyof GameSettings) => void; // Optional prop if not passed previously, but required now ideally
 }
 
-export const MainMenu: React.FC<MainMenuProps> = ({ 
+// NOTE: MainMenu receives onToggleSetting via UIOverlay which is passed from App. 
+// We might need to cast or update MainMenuProps in UIOverlay to ensure it's passed if it wasn't.
+// Looking at UIOverlay.tsx, MainMenu only took state, onStart..., onLoad..., t.
+// We need to ensure `onToggleSetting` is passed to MainMenu in UIOverlay.tsx first or use a method to access it.
+// Actually, UIOverlay has onToggleSetting available.
+
+export const MainMenu: React.FC<MainMenuProps & { onToggleSetting: (key: keyof GameSettings) => void }> = ({ 
     state, 
     onStartSurvival, 
     onStartExploration, 
     onLoadGame, 
     onDeleteSave, 
     onTogglePin,
+    onToggleSetting,
     t 
 }) => {
     return (
@@ -86,6 +95,21 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         </div>
                     </button>
                 </div>
+            </div>
+
+            {/* Language Toggle (Bottom Right) */}
+            <div className="absolute bottom-8 right-8">
+                <button 
+                    onClick={() => onToggleSetting('language')}
+                    className="flex items-center gap-3 px-4 py-2 bg-slate-900/80 border border-slate-600 hover:border-cyan-500 hover:text-cyan-400 text-slate-400 transition-all rounded group"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-mono font-bold text-xs tracking-widest">
+                        {state.settings.language === 'EN' ? 'ENGLISH' : '中文 (CHINESE)'}
+                    </span>
+                </button>
             </div>
         </div>
     )

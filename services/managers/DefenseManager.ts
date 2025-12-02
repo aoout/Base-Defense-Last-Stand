@@ -106,7 +106,8 @@ export class DefenseManager {
 
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
-                    this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE);
+                    // Pass t.range as the final argument (maxRange) to allow infinite range missiles to travel
+                    this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE, undefined, t.range);
                     t.lastFireTime = time;
                     this.engine.audio.playTurretFire(t.level);
                 }
@@ -137,7 +138,9 @@ export class DefenseManager {
                     p.score -= cost;
                     spot.builtTurret = {
                         id: `t-${Date.now()}`,
-                        x: 0, y: 0, radius: 0, angle: 0, color: '', 
+                        x: spot.x, // FIXED: Use spot coordinate, not 0
+                        y: spot.y, // FIXED: Use spot coordinate, not 0
+                        radius: 0, angle: 0, color: '', 
                         level: 1,
                         type: TurretType.STANDARD,
                         lastFireTime: 0,

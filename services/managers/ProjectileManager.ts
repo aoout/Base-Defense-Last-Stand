@@ -1,5 +1,4 @@
 
-
 import { GameEngine } from '../gameService';
 import { Projectile, WeaponType, Entity } from '../../types';
 
@@ -14,7 +13,7 @@ export class ProjectileManager {
         this.engine.state.projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000) {
         const angle = Math.atan2(ty - y, tx - x);
         this.engine.state.projectiles.push({
             id: `proj-${Date.now()}-${Math.random()}`,
@@ -24,12 +23,13 @@ export class ProjectileManager {
             damage: dmg,
             color,
             radius: 4,
-            rangeRemaining: 1000,
+            rangeRemaining: maxRange,
             fromPlayer,
             angle,
             targetId: homingTarget,
             isHoming,
-            createsToxicZone
+            createsToxicZone,
+            maxRange: maxRange // Store initial range for potential visual effects (fade out etc)
         });
     }
 

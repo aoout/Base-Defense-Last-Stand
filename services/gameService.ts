@@ -34,7 +34,8 @@ import {
   SpaceshipState,
   MissionType,
   FloatingText,
-  FloatingTextType
+  FloatingTextType,
+  GameSettings
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -356,11 +357,32 @@ export class GameEngine {
       }
 
       const dropCost = Math.floor(currentScraps * dropCostPercent);
+      const remainingScraps = Math.max(0, currentScraps - dropCost);
 
+      // Preserve persistent state BEFORE reset
+      const persistentState = {
+          weapons: this.state.player.weapons,
+          loadout: this.state.player.loadout,
+          inventory: this.state.player.inventory,
+          upgrades: this.state.player.upgrades,
+          freeModules: this.state.player.freeModules,
+          grenadeModules: this.state.player.grenadeModules,
+          grenades: this.state.player.grenades,
+          // Note: HP/Armor is reset to max on deployment (healing)
+      };
+
+      // Reset the world state
       this.reset(false);
       
-      this.state.player.score -= dropCost;
-      this.state.player.score = Math.max(0, this.state.player.score);
+      // Restore player state & set new score
+      this.state.player.score = remainingScraps;
+      this.state.player.weapons = persistentState.weapons;
+      this.state.player.loadout = persistentState.loadout;
+      this.state.player.inventory = persistentState.inventory;
+      this.state.player.upgrades = persistentState.upgrades;
+      this.state.player.freeModules = persistentState.freeModules;
+      this.state.player.grenadeModules = persistentState.grenadeModules;
+      this.state.player.grenades = persistentState.grenades;
 
       this.state.gameMode = GameMode.EXPLORATION;
       this.state.selectedPlanetId = id;
@@ -368,6 +390,9 @@ export class GameEngine {
       this.state.appMode = AppMode.GAMEPLAY;
       
       this.spaceshipManager.applyPassiveBonuses();
+      
+      // Full heal the base after potential maxHp upgrade from bonuses
+      this.state.base.hp = this.state.base.maxHp;
 
       if (targetPlanet.missionType === MissionType.OFFENSE) {
           this.state.enemiesPendingSpawn = 0; 
@@ -413,7 +438,7 @@ export class GameEngine {
     // --- Wave Management ---
     if (!this.state.missionComplete) {
         if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
-            // Offense Mode Logic (handled in EnemyManager)
+            // Offense Mode Logic (handled in EnemyManager via boss death trigger)
         } else {
             // Standard Defense Logic
             this.state.waveTimeRemaining -= dt;
@@ -429,7 +454,24 @@ export class GameEngine {
             }
 
             if (this.state.waveTimeRemaining <= 0) {
-                this.nextWave();
+                // Check if it's the last wave of a planet defense mission
+                const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
+                                             this.state.currentPlanet?.missionType === MissionType.DEFENSE;
+                const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
+
+                if (isLastWave) {
+                    // VICTORY CONDITION: Last Wave Timer 0 AND No Spawns Left AND No Live Enemies
+                    const allEnemiesSpawned = this.state.enemiesPendingSpawn <= 0;
+                    const allEnemiesDefeated = this.state.enemies.length === 0;
+
+                    if (allEnemiesSpawned && allEnemiesDefeated) {
+                        this.completeMission();
+                    }
+                    // If not all defeated, we just wait. timeRemaining stays <= 0.
+                } else {
+                    // Standard Progression to next wave
+                    this.nextWave();
+                }
             }
         }
     }
@@ -468,13 +510,8 @@ export class GameEngine {
   }
   
   public nextWave() {
-      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet && this.state.currentPlanet.missionType === MissionType.DEFENSE) {
-          if (this.state.wave >= this.state.currentPlanet.totalWaves) {
-              this.completeMission();
-              return;
-          }
-      }
-
+      // Note: Logic for final mission completion is now handled in update loop for better control
+      
       this.state.wave++;
       this.state.activeSpecialEvent = SpecialEventType.NONE; 
 
@@ -551,9 +588,11 @@ export class GameEngine {
   public closeTurretUpgrade() { this.defenseManager.closeTurretUpgrade(); }
   
   public spawnToxicZone(x: number, y: number) { this.fxManager.spawnToxicZone(x, y); }
-  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean) {
-      this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone);
+  
+  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number) {
+      this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone, maxRange);
   }
+  
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.fxManager.spawnParticle(x, y, color, count, speed); }
   public spawnBloodStain(x: number, y: number, color: string) { this.fxManager.spawnBloodStain(x, y, color); }
   public purchaseItem(itemKey: string) { this.shopManager.purchaseItem(itemKey); }
@@ -583,7 +622,14 @@ export class GameEngine {
   public togglePause() { this.state.isPaused = !this.state.isPaused; }
   
   public swapLoadoutAndInventory(loadoutIdx: number, invIdx: number) { this.shopManager.swapLoadoutAndInventory(loadoutIdx, invIdx); }
-  public toggleSetting(key: any) { (this.state.settings as any)[key] = !(this.state.settings as any)[key]; }
+  
+  public toggleSetting(key: keyof GameSettings) { 
+      if (key === 'language') {
+          this.state.settings.language = this.state.settings.language === 'EN' ? 'CN' : 'EN';
+      } else {
+          (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
+      }
+  }
 
   public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
       // Enhanced physics for different types
@@ -654,6 +700,23 @@ export class GameEngine {
               this.state.planets[pIdx].completed = true;
           }
       }
+  }
+
+  public ascendToOrbit() {
+      this.state.missionComplete = false;
+      this.state.isPaused = false;
+      this.state.isGameOver = false;
+      this.state.appMode = AppMode.EXPLORATION_MAP;
+      this.state.currentPlanet = null;
+      this.state.selectedPlanetId = null;
+      
+      // Clear entities
+      this.state.enemies = [];
+      this.state.projectiles = [];
+      this.state.allies = [];
+      this.state.toxicZones = [];
+      this.state.bloodStains = [];
+      this.state.turretSpots.forEach(s => s.builtTurret = undefined);
   }
 
   public emergencyEvac() {

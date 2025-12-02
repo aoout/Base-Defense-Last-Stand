@@ -143,7 +143,7 @@ const App: React.FC = () => {
   const handleStartSurvival = () => { engineRef.current.enterSurvivalMode(); };
   const handleStartExploration = () => { engineRef.current.enterExplorationMode(); };
   const handleDeployPlanet = (id: string) => { engineRef.current.deployToPlanet(id); };
-  const handleReturnToMap = () => { engineRef.current.completeMission(); };
+  const handleReturnToMap = () => { engineRef.current.ascendToOrbit(); };
   const handleDeselectPlanet = () => { engineRef.current.selectPlanet(null); };
 
   // Spaceship Handlers

@@ -10,6 +10,7 @@ import { TacticalBackpack } from './ui/Backpack';
 import { TacticalCallInterface } from './ui/TacticalCall';
 import { WeaponIcon } from './ui/Shared';
 import { MissionFailedScreen } from './ui/MissionFailed';
+import { MissionSuccessScreen } from './ui/MissionSuccessScreen';
 import { ExtractionScreen } from './ui/ExtractionScreen';
 import { TurretUpgradeUI } from './ui/TurretUI';
 import { MainMenu } from './ui/MainMenu';
@@ -144,6 +145,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onLoadGame={onLoadGame}
                 onDeleteSave={onDeleteSave}
                 onTogglePin={onTogglePin}
+                onToggleSetting={onToggleSetting}
                 t={t}
             />
         )}
@@ -195,30 +197,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
         )}
 
         {state.missionComplete && (
-            <div className="absolute inset-0 z-50 bg-black/90 flex flex-col items-center justify-center pointer-events-auto font-mono text-white">
-                <div className="border-4 border-green-500 p-12 max-w-2xl w-full bg-gray-900 relative shadow-[0_0_50px_rgba(34,197,94,0.3)]">
-                    <h1 className="text-6xl font-black text-green-500 mb-2 tracking-tighter text-center">MISSION COMPLETE</h1>
-                    <p className="text-center text-green-300 tracking-[0.3em] mb-8">SECTOR SECURED</p>
-
-                    <div className="grid grid-cols-2 gap-8 mb-8 text-center">
-                        <div className="bg-black/40 p-4 border border-green-900">
-                            <div className="text-gray-500 text-xs">SCRAPS COLLECTED</div>
-                            <div className="text-3xl font-bold text-yellow-400">{Math.floor(state.player.score)}</div>
-                        </div>
-                        <div className="bg-black/40 p-4 border border-green-900">
-                            <div className="text-gray-500 text-xs">TOTAL KILLS</div>
-                            <div className="text-3xl font-bold text-red-400">{(Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0)}</div>
-                        </div>
-                    </div>
-
-                    <button 
-                        onClick={onReturnToMap}
-                        className="w-full py-4 bg-green-600 hover:bg-green-500 text-black font-bold text-xl tracking-widest uppercase transition-all"
-                    >
-                        Return to Orbit
-                    </button>
-                </div>
-            </div>
+            <MissionSuccessScreen state={state} onReturn={onReturnToMap} />
         )}
 
         {/* --- GAMEPLAY HUD --- */}

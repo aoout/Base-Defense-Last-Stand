@@ -8,10 +8,17 @@
 
 
 
+
+
+
+
+
+
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 3.3.0
+**Version**: 3.3.2
 
 ## 1. Game Mechanics
 
@@ -29,6 +36,7 @@ The hostile incursion is organized into waves.
 - **Progression**: The wave advances automatically when the timer reaches 0. 
 - **Spawning Queue**: Hostiles spawn every **0.5 seconds**. `12 + (5 * Wave Number)` hostiles per wave.
 - **Wave Acceleration**: You can skip the remaining wave time after 10 seconds have elapsed. A flashing **Fast Forward Icon** (►|) will appear on the right side of the Wave Counter HUD. Alternatively, press **[L]**. Skipping rewards you with bonus Scraps.
+- **Victory Condition**: In Exploration Mode, the mission is only considered complete when the final wave timer expires AND all remaining hostiles (including those pending spawn) have been neutralized.
 
 ### Offense Mode (Hive Mother)
 In Offense missions, you must eliminate a massive, stationary bio-form known as the **Hive Mother**.
@@ -61,6 +69,11 @@ The base is equipped with two autonomous Clone Vats located on the left and righ
 - **Shop**: `B` (Buy Ammo/Upgrades)
 - **Tactical Menu**: `TAB` -> `F1/F2/F3` for Squad Orders
 - **Pause/Stats**: `P`
+
+### Localization
+The tactical interface supports real-time language translation.
+- **Switch Language**: Use the Globe Icon in the Main Menu (bottom-right) or toggle via the Pause Menu (`P`) under Config.
+- **Supported**: English (EN), Chinese (CN).
 
 ## 2. Arsenal Data
 
@@ -121,11 +134,23 @@ Bosses appear during the **Incubation Event** (70% chance every 5th wave in Defe
 
 Travel to different planets to secure resources. Each planet has a unique environment.
 
+### Mission Success (Ascent Protocol 10-ZULU)
+When a sector is successfully pacified (All waves cleared or Hive Mother destroyed):
+- **Outcome**: The operative establishes a secure uplink.
+- **Reward**: All accumulated Scraps are securely transferred to the Colossus.
+- **Bonus**: High base integrity and rapid clearing yields bonus stats.
+- **Ascent**: Clicking "Initiate Ascent" returns the operative to the Sector Map with all spoils secured.
+
 ### Mission Failure (Emergency Extraction)
 Unlike the standard Simulation (Survival Mode) where death is final, Exploration Mode utilizes **Emergency Escape Protocol 99-Alpha**.
 - **Trigger**: If the Base HP reaches 0 while on a planetary mission.
 - **Outcome**: The operative is forcibly ejected in an escape pod and recovered by the Colossus.
 - **Consequence**: The mission is aborted. You will be returned to the **Sector Map**. You may choose to redeploy to the same planet (paying the drop cost again) or select a different target. Your inventory and upgrades are preserved, but any resources gathered during the failed mission are transmitted before destruction.
+
+### Base Integrity & Repairs
+The deployed Mobile Base Unit is fully fabricated anew for each orbital insertion.
+- **Full Repair**: Regardless of previous damage, the Base will always start a new deployment at **100% Health**.
+- **Reinforcements**: If the **Base Reinforcement Module** is installed on the Colossus, the base will deploy with its upgraded Max HP capacity fully filled.
 
 ### Spaceship Modules (Colossus Upgrades)
 Upgrade your mothership from the Exploration Map.
