@@ -1,5 +1,5 @@
 
-import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType } from "../types";
+import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
   maxHp: 200,
@@ -137,43 +137,45 @@ export const INITIAL_AMMO = {
   [WeaponType.GRENADE_LAUNCHER]: 24,
 };
 
-export const ENEMY_STATS: Record<EnemyType, { hp: number; speed: number; damage: number; scoreReward: number; radius: number; color: string; attackRate?: number; range?: number }> = {
-  [EnemyType.GRUNT]: { hp: 100, speed: 0.6, damage: 10, scoreReward: 10, radius: 15, color: '#F87171' }, // Speed 1.2 -> 0.6
-  [EnemyType.RUSHER]: { hp: 300, speed: 1.05, damage: 15, scoreReward: 20, radius: 12, color: '#FCD34D' }, // Speed 2.1 -> 1.05
-  [EnemyType.TANK]: { hp: 1500, speed: 0.3, damage: 30, scoreReward: 50, radius: 25, color: '#1F2937' }, // Speed 0.6 -> 0.3
-  [EnemyType.KAMIKAZE]: { hp: 50, speed: 1.5, damage: 200, scoreReward: 15, radius: 10, color: '#A855F7' }, // Speed 3.0 -> 1.5
-  [EnemyType.VIPER]: { hp: 150, speed: 0.45, damage: 40, scoreReward: 30, radius: 18, color: '#10B981', attackRate: 2000, range: 450 }, // Speed 0.9 -> 0.45
+export const ENEMY_STATS: Record<EnemyType, EnemyStatsConfig> = {
+  [EnemyType.GRUNT]: { 
+      hp: 100, speed: 0.6, damage: 10, scoreReward: 10, radius: 15, color: '#F87171',
+      detectionRange: 400 // Short sighted
+  },
+  [EnemyType.RUSHER]: { 
+      hp: 300, speed: 1.05, damage: 15, scoreReward: 20, radius: 12, color: '#FCD34D',
+      detectionRange: 600 // High alertness
+  },
+  [EnemyType.TANK]: { 
+      hp: 1500, speed: 0.3, damage: 30, scoreReward: 50, radius: 25, color: '#1F2937',
+      detectionRange: 500
+  },
+  [EnemyType.KAMIKAZE]: { 
+      hp: 50, speed: 1.5, damage: 200, scoreReward: 15, radius: 10, color: '#A855F7',
+      detectionRange: 500
+  },
+  [EnemyType.VIPER]: { 
+      hp: 150, speed: 0.45, damage: 40, scoreReward: 30, radius: 18, color: '#10B981', 
+      attackRate: 2000, range: 450,
+      detectionRange: 800 // Hunter behavior
+  },
 };
 
-export const BOSS_STATS = {
+export const BOSS_STATS: Record<BossType, EnemyStatsConfig> = {
     [BossType.RED_SUMMONER]: {
-        hp: 10000,
-        damage: 50,
-        speed: 0.7, // 1.4 -> 0.7
-        scoreReward: 1000,
-        radius: 40,
-        color: '#7f1d1d',
+        hp: 10000, damage: 50, speed: 0.7, scoreReward: 1000, radius: 40, color: '#7f1d1d',
         summonRate: 2000,
+        detectionRange: 1000
     },
     [BossType.BLUE_BURST]: {
-        hp: 8000,
-        damage: 30,
-        speed: 0.6, // 1.2 -> 0.6
-        scoreReward: 1000,
-        radius: 35,
-        color: '#1e3a8a',
-        fireRate: 1200,
-        burstDelay: 100,
+        hp: 8000, damage: 30, speed: 0.6, scoreReward: 1000, radius: 35, color: '#1e3a8a',
+        fireRate: 1200, burstDelay: 100,
+        detectionRange: 1200
     },
     [BossType.PURPLE_ACID]: {
-        hp: 12000,
-        damage: 40,
-        speed: 0.65, // 1.3 -> 0.65
-        scoreReward: 1000,
-        radius: 45,
-        color: '#581c87',
-        fireRate: 4000,
-        projectileDamage: 60,
+        hp: 12000, damage: 40, speed: 0.65, scoreReward: 1000, radius: 45, color: '#581c87',
+        fireRate: 4000, projectileDamage: 60,
+        detectionRange: 1000
     }
 };
 
@@ -225,6 +227,21 @@ export const SPACESHIP_MODULES = {
         name: "Base Reinforcement Module",
         cost: 4000,
         desc: "Deployed Base HP +3000"
+    },
+    [SpaceshipModuleType.CARAPACE_ANALYZER]: {
+        name: "Xenobiology Carapace Analyzer",
+        cost: 7000,
+        desc: "All Player Damage +20%"
+    },
+    [SpaceshipModuleType.ORBITAL_CANNON]: {
+        name: "Orbital Long-Range Support",
+        cost: 6700,
+        desc: "Strikes nearest enemy every 8s (400 Dmg)"
+    },
+    [SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR]: {
+        name: "Atmospheric Drag Adaptive Deflector",
+        cost: 4700,
+        desc: "Orbital Drop Cost -50%"
     }
 };
 

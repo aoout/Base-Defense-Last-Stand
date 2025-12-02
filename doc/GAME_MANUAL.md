@@ -98,13 +98,17 @@ Build on designated hardpoints using `E`.
 *Note: All unit movement speeds have been reduced by 50% in the latest combat update simulation to allow for more strategic decision making.*
 
 ### AI Behavior Update
-All Scourge variants now possess an adaptive **Target Acquisition System**. They will no longer blindly charge the base but will actively hunt the **closest hostile entity**. This means enemies will peel off to attack Clone Troopers, Turrets, or the Operative if they are closer than the central Base structure.
+All Scourge variants now possess an adaptive **Target Acquisition System**. 
+- **Detection Range**: Each enemy type has a specific vision radius.
+- **Target Priority**: Within their vision, they will attack the **closest** hostile entity (Player, Ally, or Turret).
+- **Base Instinct**: If NO valid targets are detected within their vision range, they revert to their primal instinct and move directly toward the **Base**.
+- *Tactical Note*: Operatives can "kite" enemies away from the base by entering their detection range, but staying too far away will cause them to ignore you and focus on the objective.
 
 ### Standard Strains
 | Class | HP | Speed | Dmg | Traits |
 | :--- | :--- | :--- | :--- | :--- |
-| **GRUNT** | 100 | Slow | 10 | Swarm tactics. Low threat individually. |
-| **RUSHER** | 300 | Medium | 15 | Orange shell. Flanks rapidly. Priority target. |
+| **GRUNT** | 100 | Slow | 10 | Swarm tactics. Low threat individually. Short vision. |
+| **RUSHER** | 300 | Medium | 15 | Orange shell. Flanks rapidly. High alertness. |
 | **VIPER** | 150 | Slow | 40 | Ranged acid attacks. Stays at distance. |
 | **TANK** | 1500 | Crawl | 30 | Heavy armor. Soaks damage. |
 | **KAMIKAZE** | 50 | Fast | 200 | Purple glow. Explodes on contact + Toxic Pool. |
@@ -118,6 +122,13 @@ Bosses appear during the **Incubation Event** (70% chance every 5th wave).
 ## 5. Exploration Mode (Planetary Deployment)
 
 Travel to different planets to secure resources. Each planet has a unique environment. Refer to the in-game **Tactical Interstellar Operations Manual** for detailed protocols.
+
+### Spaceship Modules (Colossus Upgrades)
+Upgrade your mothership from the Exploration Map.
+- **Base Reinforcement (4000)**: Deployed base HP +3000.
+- **Xenobiology Carapace Analyzer (7000)**: Player deals +20% damage to all organic targets.
+- **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a laser strike (400 Dmg) at the enemy nearest to your base.
+- **Atmospheric Drag Adaptive Deflector (4700)**: Reduces the Scraps cost of orbital insertion (deploying to a planet) by 50%.
 
 ### Orbital Drop Protocols (Landing Cost)
 Deploying to a planetary surface is resource-intensive. The *Colossus* drop-pods require Scraps to fabricate entry heat-shields.

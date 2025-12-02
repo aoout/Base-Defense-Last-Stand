@@ -30,7 +30,10 @@ export enum ModuleType {
 }
 
 export enum SpaceshipModuleType {
-  BASE_REINFORCEMENT = 'BASE_REINFORCEMENT' // Base HP +3000
+  BASE_REINFORCEMENT = 'BASE_REINFORCEMENT', // Base HP +3000
+  CARAPACE_ANALYZER = 'CARAPACE_ANALYZER', // Damage +20%
+  ORBITAL_CANNON = 'ORBITAL_CANNON', // Auto attack every 8s
+  ATMOSPHERIC_DEFLECTOR = 'ATMOSPHERIC_DEFLECTOR' // Drop cost -50%
 }
 
 export interface WeaponModule {
@@ -119,6 +122,22 @@ export enum BossType {
   PURPLE_ACID = 'PURPLE_ACID',
 }
 
+export interface EnemyStatsConfig {
+    hp: number;
+    speed: number;
+    damage: number;
+    scoreReward: number;
+    radius: number;
+    color: string;
+    detectionRange: number; // AI vision range
+    attackRate?: number;
+    range?: number;
+    fireRate?: number; // For bosses
+    burstDelay?: number; // For bosses
+    summonRate?: number; // For bosses
+    projectileDamage?: number; // For bosses
+}
+
 export interface Enemy extends Entity {
   type: EnemyType;
   hp: number;
@@ -127,8 +146,7 @@ export interface Enemy extends Entity {
   damage: number;
   scoreReward: number;
   lastAttackTime: number;
-  // AI State
-  targetId?: string; // 'player' or 'base' or 'ally'
+  detectionRange: number; // Instance value
   
   // Boss Specifics
   isBoss?: boolean;
@@ -356,6 +374,7 @@ export interface GameState {
 
   // Spaceship
   spaceship: SpaceshipState;
+  orbitalSupportTimer: number; // Tracks time for ORBITAL_CANNON module
 
   // Save System
   saveSlots: SaveFile[];

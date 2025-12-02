@@ -222,6 +222,7 @@ export class GameEngine {
       selectedPlanetId: null,
       savedPlayerState: null,
       spaceship: existingSpaceship,
+      orbitalSupportTimer: 0,
       saveSlots: existingSaveSlots,
 
       camera: { x: 0, y: 0 },
@@ -318,7 +319,14 @@ export class GameEngine {
 
       // Calculate Drop Cost
       const currentScraps = this.state.player.score;
-      const dropCost = Math.floor(currentScraps * (targetPlanet.landingDifficulty / 100));
+      let dropCostPercent = targetPlanet.landingDifficulty / 100;
+
+      // Module: Atmospheric Drag Adaptive Deflector (50% reduction)
+      if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
+          dropCostPercent *= 0.5;
+      }
+
+      const dropCost = Math.floor(currentScraps * dropCostPercent);
 
       this.reset(false); // Do not wipe planets
       
@@ -337,6 +345,11 @@ export class GameEngine {
       // Add a message about the drop cost
       setTimeout(() => {
         this.addMessage(`ORBITAL DROP COST: -${dropCost} SCRAPS`, this.state.player.x, this.state.player.y - 100, '#F87171');
+        if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
+             setTimeout(() => {
+                 this.addMessage(`ADAPTIVE DEFLECTOR ACTIVE`, this.state.player.x, this.state.player.y - 120, '#06b6d4');
+             }, 1000);
+        }
       }, 1000);
       
       // Generate Terrain
@@ -375,6 +388,9 @@ export class GameEngine {
         }
     }
 
+    // --- Spaceship Systems ---
+    this.updateSpaceshipSystems(dt);
+
     // --- Player Logic ---
     this.updatePlayer(dt, time);
 
@@ -391,6 +407,36 @@ export class GameEngine {
     const targetCamY = this.state.player.y - CANVAS_HEIGHT / 2;
     this.state.camera.x = Math.max(0, Math.min(targetCamX, WORLD_WIDTH - CANVAS_WIDTH));
     this.state.camera.y = Math.max(0, Math.min(targetCamY, WORLD_HEIGHT - CANVAS_HEIGHT));
+  }
+  
+  private updateSpaceshipSystems(dt: number) {
+      if (this.state.gameMode === GameMode.EXPLORATION && this.state.spaceship.installedModules.includes(SpaceshipModuleType.ORBITAL_CANNON)) {
+          this.state.orbitalSupportTimer += dt;
+          if (this.state.orbitalSupportTimer > 8000) {
+              // Find nearest enemy to base
+              const b = this.state.base;
+              let closest: Enemy | null = null;
+              let minDist = Infinity;
+              
+              this.state.enemies.forEach(e => {
+                  const dist = Math.sqrt((e.x - b.x)**2 + (e.y - b.y)**2);
+                  if (dist < minDist) {
+                      minDist = dist;
+                      closest = e;
+                  }
+              });
+
+              if (closest) {
+                  // Fire Orbital Laser
+                  this.damageEnemy(closest, 400);
+                  this.spawnParticle(closest.x, closest.y, '#06b6d4', 5, 2);
+                  this.addMessage("ORBITAL STRIKE", closest.x, closest.y - 40, '#06b6d4');
+                  this.audio.playTurretFire(2); // Heavy impact sound
+              }
+              
+              this.state.orbitalSupportTimer = 0;
+          }
+      }
   }
 
   // ... (rest of methods - nextWave, updatePlayer, etc. remain unchanged)
@@ -566,6 +612,11 @@ export class GameEngine {
                   if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
               });
 
+              // Module: Xenobiology Carapace Analyzer (+20% Dmg)
+              if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) {
+                  damage *= 1.2;
+              }
+
               this.state.projectiles.push({
                   id: Math.random().toString(),
                   x: p.x + Math.cos(angle) * 20,
@@ -612,13 +663,19 @@ export class GameEngine {
           const mouseWorldY = this.input.mouse.y + this.state.camera.y;
           const angle = Math.atan2(mouseWorldY - p.y, mouseWorldX - p.x);
           
+          let damage = PLAYER_STATS.grenadeDamage;
+          // Module: Xenobiology Carapace Analyzer (+20% Dmg for grenades too)
+          if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) {
+              damage *= 1.2;
+          }
+
           this.state.projectiles.push({
               id: Math.random().toString(),
               x: p.x,
               y: p.y,
               vx: Math.cos(angle) * 15,
               vy: Math.sin(angle) * 15,
-              damage: PLAYER_STATS.grenadeDamage,
+              damage: damage,
               rangeRemaining: 400,
               maxRange: 400,
               fromPlayer: true,
@@ -863,6 +920,7 @@ export class GameEngine {
           x: spawnX,
           y: spawnY,
           ...baseStats,
+          detectionRange: baseStats.detectionRange || 500,
           damage: damage, // Applied modifier
           maxHp: finalHp,
           hp: finalHp,
@@ -895,6 +953,7 @@ export class GameEngine {
           x: WORLD_WIDTH / 2,
           y: -100, 
           ...stats,
+          detectionRange: stats.detectionRange || 1000,
           maxHp: finalHp,
           hp: finalHp,
           angle: Math.PI / 2,
@@ -910,41 +969,59 @@ export class GameEngine {
       const tNow = this.lastTime;
 
       this.state.enemies.forEach(e => {
-          // Identify Closest Target (Base, Player, Ally, or Turret)
-          
-          // 1. Base Distance (AABB)
-          const bDx = Math.max(Math.abs(e.x - b.x) - b.width / 2, 0);
-          const bDy = Math.max(Math.abs(e.y - b.y) - b.height / 2, 0);
-          const distBase = Math.sqrt(bDx*bDx + bDy*bDy);
-          
-          let closestTarget: { type: 'BASE' | 'PLAYER' | 'ALLY' | 'TURRET', entity: any, dist: number, x: number, y: number } = 
-              { type: 'BASE', entity: b, dist: distBase, x: b.x, y: b.y };
+          // New AI Logic: Aggro Range Check
+          // 1. Determine "Search Range"
+          const detectionRange = e.detectionRange;
 
-          // 2. Player Distance
+          // 2. Find Candidates within range
+          let closestTarget: { type: 'BASE' | 'PLAYER' | 'ALLY' | 'TURRET', entity: any, dist: number, x: number, y: number } | null = null;
+          let minDist = Infinity;
+
+          // Check Player
           const distPlayer = Math.sqrt((e.x - p.x)**2 + (e.y - p.y)**2) - p.radius;
-          if (distPlayer < closestTarget.dist) {
+          if (distPlayer <= detectionRange) {
               closestTarget = { type: 'PLAYER', entity: p, dist: distPlayer, x: p.x, y: p.y };
+              minDist = distPlayer;
           }
 
-          // 3. Allies
+          // Check Allies
           this.state.allies.forEach(a => {
                const dist = Math.sqrt((e.x - a.x)**2 + (e.y - a.y)**2) - a.radius;
-               if (dist < closestTarget.dist) {
+               if (dist <= detectionRange && dist < minDist) {
                    closestTarget = { type: 'ALLY', entity: a, dist: dist, x: a.x, y: a.y };
+                   minDist = dist;
                }
           });
 
-          // 4. Turrets
+          // Check Turrets
           this.state.turretSpots.forEach(s => {
               if (s.builtTurret) {
                   const t = s.builtTurret;
                   const dist = Math.sqrt((e.x - t.x)**2 + (e.y - t.y)**2) - 20; // Approx Turret Radius
-                  if (dist < closestTarget.dist) {
+                  if (dist <= detectionRange && dist < minDist) {
                        closestTarget = { type: 'TURRET', entity: t, dist: dist, x: t.x, y: t.y };
+                       minDist = dist;
                   }
               }
           });
 
+          // Base Fallback (If no other target found, OR if base is very close and attackable)
+          // Base distance calc
+          const bDx = Math.max(Math.abs(e.x - b.x) - b.width / 2, 0);
+          const bDy = Math.max(Math.abs(e.y - b.y) - b.height / 2, 0);
+          const distBase = Math.sqrt(bDx*bDx + bDy*bDy);
+          
+          if (!closestTarget) {
+              // No unit in range -> Target Base Center
+              closestTarget = { type: 'BASE', entity: b, dist: distBase, x: b.x, y: b.y };
+          } else {
+              // A unit is in range, but check if Base is CLOSER (e.g. they walked past the player towards base)
+              if (distBase < minDist) {
+                   closestTarget = { type: 'BASE', entity: b, dist: distBase, x: b.x, y: b.y };
+              }
+          }
+
+          // Move and Attack Logic
           if (closestTarget) {
               // Move towards closest target center
               const angle = Math.atan2(closestTarget.y - e.y, closestTarget.x - e.x);
