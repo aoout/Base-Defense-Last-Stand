@@ -1,9 +1,17 @@
 
 
+
+
+
+
+
+
+
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 2.6.0
+**Version**: 3.3.0
 
 ## 1. Game Mechanics
 
@@ -14,12 +22,13 @@ When exploring the sector, planets are designated with specific mission profiles
 
 ### Defense Mode (Waves)
 The hostile incursion is organized into waves.
+- **Directional Threat**: Due to the sector's topological constraints, hostile swarms will invariably approach from the **North** (Top of the map). Establish your defensive lines accordingly.
 - **Wave 1**: Lasts 30 Seconds.
 - **Waves 2-10**: Each wave increases duration by 2 seconds (e.g., Wave 10 = 48s).
 - **Waves 11+**: Each wave increases duration by 1 second.
 - **Progression**: The wave advances automatically when the timer reaches 0. 
 - **Spawning Queue**: Hostiles spawn every **0.5 seconds**. `12 + (5 * Wave Number)` hostiles per wave.
-- **Wave Acceleration**: Press **[L]** after 10 seconds to skip wave and earn bonus Scraps.
+- **Wave Acceleration**: You can skip the remaining wave time after 10 seconds have elapsed. A flashing **Fast Forward Icon** (►|) will appear on the right side of the Wave Counter HUD. Alternatively, press **[L]**. Skipping rewards you with bonus Scraps.
 
 ### Offense Mode (Hive Mother)
 In Offense missions, you must eliminate a massive, stationary bio-form known as the **Hive Mother**.
@@ -46,7 +55,7 @@ The base is equipped with two autonomous Clone Vats located on the left and righ
 - **Switch Weapon**: `1, 2, 3, 4` or Drag in Backpack
 - **Reload**: `R`
 - **Throw Grenade**: `G`
-- **Interact**: `E` (Build Turrets, Open Shop, Upgrade)
+- **Interact**: `E` (Build Turrets, Upgrade)
 - **Deploy Lure**: `L` (Skip Wave - Defense Mode Only)
 - **Backpack**: `C` (Equip Modules)
 - **Shop**: `B` (Buy Ammo/Upgrades)
@@ -94,13 +103,13 @@ Build on designated hardpoints using `E`.
 ## 4. Bestiary (Hostile Analysis)
 
 ### Standard Strains
-| Class | HP | Speed | Dmg | Traits |
+| Class | HP | Speed | Dmg | Visual Traits |
 | :--- | :--- | :--- | :--- | :--- |
-| **GRUNT** | 100 | Slow | 10 | Swarm tactics. Low threat individually. Short vision. |
-| **RUSHER** | 300 | Medium | 15 | Orange shell. Flanks rapidly. High alertness. |
-| **VIPER** | 150 | Slow | 40 | Ranged acid attacks. Stays at distance. |
-| **TANK** | 1500 | Crawl | 30 | Heavy armor. Soaks damage. |
-| **KAMIKAZE** | 50 | Fast | 200 | Purple glow. Explodes on contact + Toxic Pool. |
+| **GRUNT** | 100 | Slow | 10 | Segmented arthropod body with twitching mandibles. Swarm tactics. |
+| **RUSHER** | 300 | Medium | 15 | Sleek, orange aerodynamic carapace. Large scythe-like claws. |
+| **VIPER** | 150 | Slow | 40 | Serpent-like body with a hooded crest. Green bio-luminescent glands. |
+| **TANK** | 1500 | Crawl | 30 | Massive, overlapping heavy plating. Tusked head. Resembles a beetle. |
+| **KAMIKAZE** | 50 | Fast | 200 | Small body dragging a massive, pulsating purple bio-sac. |
 
 ### Apex Strains (Bosses)
 Bosses appear during the **Incubation Event** (70% chance every 5th wave in Defense Mode).
@@ -112,12 +121,30 @@ Bosses appear during the **Incubation Event** (70% chance every 5th wave in Defe
 
 Travel to different planets to secure resources. Each planet has a unique environment.
 
+### Mission Failure (Emergency Extraction)
+Unlike the standard Simulation (Survival Mode) where death is final, Exploration Mode utilizes **Emergency Escape Protocol 99-Alpha**.
+- **Trigger**: If the Base HP reaches 0 while on a planetary mission.
+- **Outcome**: The operative is forcibly ejected in an escape pod and recovered by the Colossus.
+- **Consequence**: The mission is aborted. You will be returned to the **Sector Map**. You may choose to redeploy to the same planet (paying the drop cost again) or select a different target. Your inventory and upgrades are preserved, but any resources gathered during the failed mission are transmitted before destruction.
+
 ### Spaceship Modules (Colossus Upgrades)
 Upgrade your mothership from the Exploration Map.
-- **Base Reinforcement (4000)**: Deployed base HP +3000.
-- **Xenobiology Carapace Analyzer (7000)**: Player deals +20% damage to all organic targets.
-- **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a laser strike (400 Dmg) at the enemy nearest to your base. See Upgrade Matrix below.
-- **Atmospheric Drag Adaptive Deflector (4700)**: Reduces the Scraps cost of orbital insertion (deploying to a planet) by 50%.
+- **Base Reinforcement (4000)**: Deployed Base HP +3000.
+- **Xenobiology Carapace Analyzer (7000)**: Player deals +20% damage to all organic targets. Unlocks **Xenobiology Grid**.
+- **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a high-intensity laser strike (400 Dmg). Unlocks **Calibration Matrix**.
+- **Atmospheric Drag Adaptive Deflector (4700)**: Reduces the Scraps cost of orbital insertion by 50%.
+
+### Xenobiology Analysis Grid
+Requires **Carapace Analyzer** module. A 4x4 data matrix that provides targeted damage bonuses.
+- **Data Nodes**: Each of the 16 nodes targets a specific enemy strain (Grunt, Rusher, etc.) and provides **+10% to +30% Damage** against that specific type.
+- **Row Synergy**: Unlocking all 4 nodes in a row grants a **Global Damage Bonus (+20% to +60%)** against ALL targets.
+- **Column Synergy**: Unlocking all 4 nodes in a column grants a **Permanent Armor Bonus (+10 to +30)** to the player.
+
+### Orbital Calibration Matrix
+Requires **Orbital Long-Range Support** module.
+- **Structure**: 7 Layers. Layer N contains N upgrade nodes.
+- **Unlock Logic**: To access Layer N+1, you must purchase at least `Ceil(N/2)` nodes from Layer N.
+- **Effects**: Boosts Orbital Strike Damage or Fire Rate.
 
 ### Biological Scaling Rules (Exploration Mode)
 

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { GameState } from '../../types';
 import { CloseButton } from './Shared';
-import { PlanetInfoPanel } from './TacticalTerminal';
+import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { AtmosphereAnalysisModal } from './AtmosphereModal';
 import { ExplorationManual } from './ExplorationManual';
 

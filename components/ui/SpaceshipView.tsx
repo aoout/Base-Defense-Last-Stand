@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { GameState, SpaceshipModuleType } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
@@ -8,9 +9,10 @@ interface SpaceshipViewProps {
     onClose: () => void;
     onPurchaseModule: (modType: SpaceshipModuleType) => void;
     onOpenUpgrades: () => void;
+    onOpenCarapaceGrid: () => void;
 }
 
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades }) => {
+export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid }) => {
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
     const hasOrbitalCannon = installed.includes(SpaceshipModuleType.ORBITAL_CANNON);
@@ -114,6 +116,14 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                     className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
                                                 >
                                                     SYSTEM UPGRADE
+                                                </button>
+                                            )}
+                                            {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
+                                                <button 
+                                                    onClick={onOpenCarapaceGrid}
+                                                    className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
+                                                >
+                                                    XENO-DATA MATRIX
                                                 </button>
                                             )}
                                         </div>

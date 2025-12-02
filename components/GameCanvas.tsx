@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
 import { GameState, WeaponType, BossType, AppMode } from '../types';
@@ -9,7 +7,7 @@ import {
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
     drawBase, drawTurretSpot, drawProjectile,
-    drawStartScreen, drawExplorationMap
+    drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText
 } from '../utils/renderers';
 
 interface GameCanvasProps {
@@ -86,6 +84,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         }
     });
 
+    // Draw Orbital Beams (Under units but over ground)
+    if (state.orbitalBeams && state.orbitalBeams.length > 0) {
+        state.orbitalBeams.forEach(beam => {
+            drawOrbitalBeam(ctx, beam);
+        });
+    }
+
     // Draw Allies
     state.allies.forEach(ally => {
         ctx.save();
@@ -121,19 +126,39 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       }
       
       // HP Bar - Counter Rotate to keep horizontal
+      // STYLE: Bracketed Tech Bar
       ctx.rotate(-e.angle);
-      const barWidth = e.radius * 2;
-      ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-      ctx.fillRect(-barWidth/2, -e.radius - 8, barWidth, 4);
-      ctx.fillStyle = '#22C55E'; // Green 500
-      ctx.fillRect(-barWidth/2, -e.radius - 8, barWidth * (e.hp/e.maxHp), 4);
       
+      const barWidth = e.isBoss ? e.radius * 3 : e.radius * 2.5;
+      const barY = -e.radius - 15;
+      const hpPct = Math.max(0, e.hp / e.maxHp);
+      
+      // Brackets [ ]
+      ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      // Left Bracket
+      ctx.moveTo(-barWidth/2 + 2, barY - 2); ctx.lineTo(-barWidth/2, barY - 2); ctx.lineTo(-barWidth/2, barY + 6); ctx.lineTo(-barWidth/2 + 2, barY + 6);
+      // Right Bracket
+      ctx.moveTo(barWidth/2 - 2, barY - 2); ctx.lineTo(barWidth/2, barY - 2); ctx.lineTo(barWidth/2, barY + 6); ctx.lineTo(barWidth/2 - 2, barY + 6);
+      ctx.stroke();
+
+      // Segments
+      const totalSegments = e.isBoss ? 20 : 5;
+      const activeSegments = Math.ceil(totalSegments * hpPct);
+      const segWidth = (barWidth - 4) / totalSegments;
+      
+      ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
+      for(let i=0; i<activeSegments; i++) {
+          ctx.fillRect(-barWidth/2 + 2 + (i * segWidth), barY, segWidth - 1, 4);
+      }
+
       // Boss Name Tag
       if (e.isBoss) {
           ctx.fillStyle = e.color;
-          ctx.font = 'bold 12px monospace';
+          ctx.font = 'bold 10px monospace';
           ctx.textAlign = 'center';
-          ctx.fillText("BOSS", 0, -e.radius - 12);
+          ctx.fillText("APEX", 0, barY - 5);
       }
       
       ctx.restore();
@@ -170,37 +195,26 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     const isMoving = engine.input.keys['w'] || engine.input.keys['a'] || engine.input.keys['s'] || engine.input.keys['d'] || 
                      engine.input.keys['W'] || engine.input.keys['A'] || engine.input.keys['S'] || engine.input.keys['D'];
 
-    // Draw Player
+    // Draw Player (Includes new Holographic HUD in the renderer)
     const p = state.player;
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate(p.angle);
+    ctx.rotate(p.angle); // Rotated to face mouse
     drawPlayerSprite(ctx, p, time, !!isMoving);
     ctx.restore();
 
-    // Player HP/Armor Bar (Floating above player)
-    ctx.fillStyle = '#4B5563'; // bg
-    ctx.fillRect(p.x - 20, p.y - 30, 40, 6);
-    ctx.fillStyle = '#3B82F6'; // Armor
-    ctx.fillRect(p.x - 20, p.y - 30, 40 * (p.armor/p.maxArmor), 6);
-    ctx.fillStyle = '#EF4444'; // HP
-    ctx.fillRect(p.x - 20, p.y - 24, 40 * (p.hp/p.maxHp), 4);
-    
+    // Reload Indicator (Floating Text)
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
-    // Reload Indicator
     if (p.weapons[currentWeaponType].reloading) {
-        ctx.fillStyle = 'yellow';
-        ctx.font = '12px Arial';
-        ctx.fillText("RELOADING...", p.x - 30, p.y + 35);
+        ctx.fillStyle = '#fcd34d';
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText("[ RELOADING ]", p.x, p.y + 45);
     }
 
-    // Messages (Floating Text)
-    state.messages.forEach(m => {
-        ctx.fillStyle = m.color;
-        ctx.font = 'bold 16px Arial';
-        ctx.globalAlpha = Math.min(1, m.time / 500);
-        ctx.fillText(m.text, m.x, m.y);
-        ctx.globalAlpha = 1.0;
+    // Floating Text (Sci-Fi Data Style)
+    state.floatingTexts.forEach(ft => {
+        drawFloatingText(ctx, ft);
     });
 
     requestRef.current = requestAnimationFrame(render);

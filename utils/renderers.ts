@@ -1,13 +1,11 @@
 
-
-
 import { 
     Player, Enemy, Turret, Ally, Projectile, TerrainFeature, BloodStain, ToxicZone, Planet, TurretSpot,
     WeaponType, EnemyType, BossType, TurretType, BiomeType, GameMode, GameState, PlanetVisualType, TerrainType,
-    MissionType
+    MissionType, OrbitalBeam, FloatingText, FloatingTextType
 } from '../types';
 import { WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
-import { ENEMY_STATS, BOSS_STATS } from '../data/registry';
+import { ENEMY_STATS, BOSS_STATS, WEAPONS } from '../data/registry';
 import { BIOME_STYLES } from '../data/world';
 
 // Helper: Pseudo-random function for static noise in render loops
@@ -354,6 +352,57 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
 
     if (isFiring && currentWeaponType !== WeaponType.FLAMETHROWER) { drawMuzzleFlash(ctx, currentWeaponType); }
     ctx.restore();
+
+    // --- TACTICAL HOLOGRAPHIC HUD (Redesigned) ---
+    // Drawn relative to player but not rotated by player angle, so we counter rotate
+    ctx.rotate(-p.angle);
+    
+    // NEW STYLE: Horizontal Bar Stack below player
+    const hpPct = Math.max(0, p.hp / p.maxHp);
+    const armorPct = Math.max(0, p.armor / p.maxArmor);
+    
+    const barWidth = 40;
+    const barYOffset = 30; // Position below player
+    const barHeight = 4;
+    const spacing = 2;
+
+    // 1. Ammo Line (Thin top indicator)
+    const wepStats = WEAPONS[currentWeaponType];
+    if (currentWeaponType !== WeaponType.PISTOL) {
+        const ammoPct = weaponState.ammoInMag / wepStats.magSize;
+        ctx.fillStyle = weaponState.reloading ? '#f59e0b' : '#3b82f6';
+        ctx.fillRect(-barWidth/2, barYOffset - 3, barWidth * ammoPct, 1);
+    }
+
+    // 2. Health Bar
+    // Determine color based on HP %
+    let hpColor = '#10b981'; // Green
+    if (hpPct < 0.6) hpColor = '#eab308'; // Yellow
+    if (hpPct < 0.3) hpColor = '#ef4444'; // Red
+
+    // Background
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(-barWidth/2 - 1, barYOffset, barWidth + 2, barHeight + (p.maxArmor > 0 ? barHeight + spacing : 0) + 2);
+
+    // HP Fill
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(-barWidth/2, barYOffset + 1, barWidth * hpPct, barHeight);
+
+    // 3. Armor Bar (Segmented)
+    if (p.maxArmor > 0) {
+        const armorY = barYOffset + 1 + barHeight + spacing;
+        const totalSegments = 10;
+        const activeSegments = Math.ceil(totalSegments * armorPct);
+        const segWidth = (barWidth - (totalSegments - 1)) / totalSegments; // rudimentary spacing math
+
+        ctx.fillStyle = '#22d3ee'; // Cyan
+        for(let i=0; i<activeSegments; i++) {
+            // Logic to distribute width evenly with gaps
+            const x = -barWidth/2 + (i * (barWidth / totalSegments));
+            const w = (barWidth / totalSegments) - 1;
+            ctx.fillRect(x, armorY, w, barHeight);
+        }
+    }
 };
 
 export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean) => {
@@ -507,57 +556,266 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
     }
 }
 
-// Enemy Drawing placeholders...
+// --- ENEMY DRAWING (ZERG/ALIEN VISUALS) ---
+
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const legWiggle = Math.sin(time * 0.03) * 3;
-    ctx.strokeStyle = '#450a0a'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(4, 4); ctx.lineTo(12, 12 + legWiggle); ctx.lineTo(18, 8 + legWiggle); ctx.moveTo(4, -4); ctx.lineTo(12, -12 - legWiggle); ctx.lineTo(18, -8 - legWiggle); ctx.stroke();
-    ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(-2, 4); ctx.lineTo(-8, 14 + legWiggle); ctx.lineTo(-14, 16); ctx.moveTo(-2, -4); ctx.lineTo(-8, -14 - legWiggle); ctx.lineTo(-14, -16); ctx.stroke();
-    ctx.fillStyle = '#450a0a'; ctx.beginPath(); ctx.ellipse(-4, 0, 7, 5, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#7f1d1d'; ctx.beginPath(); ctx.arc(-6, 0, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-3, 0, 2, 0, Math.PI*2); ctx.fill();
-    const grad = ctx.createLinearGradient(0, -5, 0, 5); grad.addColorStop(0, '#ef4444'); grad.addColorStop(0.5, '#dc2626'); grad.addColorStop(1, '#991b1b');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(2, 0); ctx.lineTo(8, -4); ctx.lineTo(12, 0); ctx.lineTo(8, 4); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.moveTo(12, -2); ctx.lineTo(16, -4); ctx.lineTo(14, -1); ctx.fill(); ctx.beginPath(); ctx.moveTo(12, 2); ctx.lineTo(16, 4); ctx.lineTo(14, 1); ctx.fill();
-    ctx.fillStyle = '#fca5a5'; ctx.beginPath(); ctx.arc(6, -2, 1.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(6, 2, 1.5, 0, Math.PI*2); ctx.fill();
+    // Zergling / Roach hybrid
+    // Facing Right (X+)
+
+    const wiggle = Math.sin(time * 0.02) * 2;
+    const breathe = Math.sin(time * 0.005) * 1;
+
+    // Legs
+    ctx.strokeStyle = '#5c2b2b'; // Dark reddish brown
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+
+    const legPairs = [
+        { x: -2, y: -4, reachX: -8, reachY: -16 }, // Rear Left
+        { x: 2, y: -4, reachX: 4, reachY: -18 },   // Mid Left
+        { x: 6, y: -3, reachX: 14, reachY: -14 },  // Front Left
+        { x: -2, y: 4, reachX: -8, reachY: 16 },   // Rear Right
+        { x: 2, y: 4, reachX: 4, reachY: 18 },     // Mid Right
+        { x: 6, y: 3, reachX: 14, reachY: 14 },    // Front Right
+    ];
+
+    legPairs.forEach((leg, i) => {
+        const isLeft = leg.reachY < 0;
+        const move = isLeft ? wiggle : -wiggle;
+        const kneeX = (leg.x + leg.reachX) / 2;
+        const kneeY = (leg.y + leg.reachY) / 2 - (isLeft ? 5 : -5); // Pop knee up/down
+
+        ctx.beginPath();
+        ctx.moveTo(leg.x, leg.y);
+        ctx.quadraticCurveTo(kneeX, kneeY, leg.reachX + (i%3===0 ? move : -move), leg.reachY);
+        ctx.stroke();
+    });
+
+    // Body Group
+    // Abdomen (Rear)
+    ctx.fillStyle = '#450a0a';
+    ctx.beginPath();
+    ctx.ellipse(-6, 0, 9, 7 + breathe, 0, 0, Math.PI*2);
+    ctx.fill();
+    // Spine Ridge
+    ctx.fillStyle = '#7f1d1d';
+    ctx.beginPath();
+    ctx.moveTo(-12, 0); ctx.lineTo(-2, 0); ctx.stroke(); // primitive spine
+
+    // Thorax (Mid)
+    ctx.fillStyle = '#7f1d1d'; // Lighter red
+    ctx.beginPath();
+    ctx.ellipse(3, 0, 7, 6, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Carapace Plates on Thorax
+    ctx.fillStyle = '#991b1b';
+    ctx.beginPath();
+    ctx.moveTo(-2, -4); ctx.lineTo(8, -3); ctx.lineTo(8, 3); ctx.lineTo(-2, 4);
+    ctx.fill();
+
+    // Head
+    ctx.fillStyle = '#b91c1c';
+    ctx.beginPath();
+    ctx.ellipse(10, 0, 5, 4, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Mandibles
+    ctx.strokeStyle = '#1a0505'; // Blackish
+    ctx.lineWidth = 2;
+    const bite = Math.sin(time * 0.015) * 2;
+    ctx.beginPath();
+    // Left Mandible
+    ctx.moveTo(12, -2); ctx.lineTo(18, -4 + bite); ctx.lineTo(16, -1);
+    ctx.stroke();
+    // Right Mandible
+    ctx.moveTo(12, 2); ctx.lineTo(18, 4 - bite); ctx.lineTo(16, 1);
+    ctx.stroke();
+
+    // Glowing Eyes
+    ctx.fillStyle = '#fca5a5'; // Pinkish glow
+    ctx.beginPath(); ctx.arc(11, -2, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(11, 2, 1.5, 0, Math.PI*2); ctx.fill();
 }
+
 export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+    // Zergling / Raptor look
     const enginePulse = Math.sin(time * 0.05);
-    ctx.fillStyle = 'rgba(217, 119, 6, 0.3)'; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(-35 - enginePulse*5, -6); ctx.lineTo(-35 - enginePulse*5, 6); ctx.fill();
-    const grad = ctx.createLinearGradient(-10, 0, 10, 0); grad.addColorStop(0, '#92400e'); grad.addColorStop(1, '#f59e0b');
-    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(15, 0); ctx.bezierCurveTo(5, 8, -10, 6, -12, 0); ctx.bezierCurveTo(-10, -6, 5, -8, 15, 0); ctx.fill();
-    ctx.fillStyle = '#78350f'; ctx.beginPath(); ctx.moveTo(-5, 4); ctx.lineTo(-15, 12); ctx.lineTo(-8, 2); ctx.fill(); ctx.beginPath(); ctx.moveTo(-5, -4); ctx.lineTo(-15, -12); ctx.lineTo(-8, -2); ctx.fill();
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)'; ctx.beginPath(); ctx.ellipse(0, 0, 6, 2, 0, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(8, -3, 1.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(8, 3, 1.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(11, 0, 1.5, 0, Math.PI*2); ctx.fill();
+
+    // Speed trails/motion blur for wings
+    ctx.fillStyle = 'rgba(217, 119, 6, 0.3)'; 
+    ctx.beginPath(); 
+    ctx.moveTo(-5, 0); 
+    ctx.lineTo(-25 - enginePulse*5, -8); 
+    ctx.lineTo(-20, 0);
+    ctx.lineTo(-25 - enginePulse*5, 8); 
+    ctx.fill();
+
+    // Main Body (Sleek)
+    const grad = ctx.createLinearGradient(-10, 0, 15, 0); 
+    grad.addColorStop(0, '#7c2d12'); grad.addColorStop(1, '#f59e0b');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(15, 0);
+    ctx.quadraticCurveTo(5, 7, -10, 4); // Bottom curve
+    ctx.lineTo(-12, 0);
+    ctx.quadraticCurveTo(5, -7, 15, 0); // Top curve
+    ctx.fill();
+
+    // Large Scythe Claws
+    ctx.strokeStyle = '#78350f';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); 
+    ctx.moveTo(5, 3); ctx.lineTo(12, 12); ctx.lineTo(20, 6); // Right claw
+    ctx.moveTo(5, -3); ctx.lineTo(12, -12); ctx.lineTo(20, -6); // Left claw
+    ctx.stroke();
+
+    // Dorsal Spikes
+    ctx.fillStyle = '#78350f';
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-2, -5); ctx.lineTo(1, 0); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3, 5); ctx.lineTo(6, 0); ctx.fill();
+
+    // Glowing Eyes
+    ctx.fillStyle = '#10b981'; 
+    ctx.beginPath(); ctx.arc(12, -2, 1.5, 0, Math.PI*2); ctx.fill(); 
+    ctx.beginPath(); ctx.arc(12, 2, 1.5, 0, Math.PI*2); ctx.fill(); 
 }
+
 export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    ctx.strokeStyle = '#111827'; ctx.lineWidth = 6; ctx.lineCap = 'round';
-    for(let i=0; i<3; i++) { const offset = Math.sin(time * 0.005 + i) * 2; const angle = Math.PI/3 + (i * Math.PI/6); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(angle)*(28+offset), Math.sin(angle)*(28+offset)); ctx.stroke(); ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(-angle)*(28+offset), Math.sin(-angle)*(28+offset)); ctx.stroke(); }
-    ctx.fillStyle = '#1f2937'; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#374151'; ctx.beginPath(); ctx.arc(-8, 0, 14, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#4b5563'; ctx.beginPath(); ctx.arc(2, 0, 15, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#6b7280'; ctx.beginPath(); ctx.arc(12, 0, 12, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(-8, -6, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-8, 6, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(2, 0, 3, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#ef4444'; ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.moveTo(18, -4); ctx.lineTo(24, 0); ctx.lineTo(18, -2); ctx.fill(); ctx.beginPath(); ctx.moveTo(18, 4); ctx.lineTo(24, 0); ctx.lineTo(18, 2); ctx.fill(); ctx.shadowBlur = 0;
+    // Ultralisk / Beetle look
+    const walkOffset = Math.sin(time * 0.005) * 2;
+    
+    // Heavy Legs
+    ctx.strokeStyle = '#111827'; 
+    ctx.lineWidth = 6; 
+    ctx.lineCap = 'round';
+    for(let i=0; i<4; i++) { 
+        const angle = Math.PI/4 + (i * Math.PI/6); 
+        const legX = Math.cos(angle) * 20;
+        const legY = Math.sin(angle) * 20;
+        
+        ctx.beginPath(); 
+        ctx.moveTo(5, 5); 
+        ctx.lineTo(legX + walkOffset, legY + walkOffset); 
+        ctx.stroke();
+        
+        ctx.beginPath(); 
+        ctx.moveTo(5, -5); 
+        ctx.lineTo(legX + walkOffset, -legY - walkOffset); 
+        ctx.stroke(); 
+    }
+
+    // Main Carapace (Overlapping Plates)
+    ctx.fillStyle = '#1f2937'; 
+    ctx.beginPath(); ctx.arc(-5, 0, 20, 0, Math.PI*2); ctx.fill(); // Rear
+    
+    ctx.fillStyle = '#374151'; 
+    ctx.beginPath(); ctx.arc(5, 0, 18, 0, Math.PI*2); ctx.fill(); // Mid
+    ctx.stroke();
+
+    ctx.fillStyle = '#4b5563'; 
+    ctx.beginPath(); ctx.arc(12, 0, 14, 0, Math.PI*2); ctx.fill(); // Front
+    ctx.stroke();
+
+    // Tusks
+    ctx.fillStyle = '#e5e7eb';
+    ctx.beginPath(); ctx.moveTo(18, -8); ctx.quadraticCurveTo(35, -12, 30, -2); ctx.lineTo(20, -6); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(18, 8); ctx.quadraticCurveTo(35, 12, 30, 2); ctx.lineTo(20, 6); ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#ef4444'; 
+    ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 5; 
+    ctx.beginPath(); ctx.arc(20, 0, 2, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
 }
+
 export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const pulse = (Math.sin(time * 0.015) + 1) * 0.5; const shake = (Math.sin(time) * 1); // Fixed shake to deterministic
-    ctx.save(); ctx.translate(shake, shake);
-    const sackGrad = ctx.createRadialGradient(-5, 0, 2, -5, 0, 14); sackGrad.addColorStop(0, '#e9d5ff'); sackGrad.addColorStop(0.6, '#a855f7'); sackGrad.addColorStop(1, '#581c87');
-    ctx.fillStyle = sackGrad; ctx.beginPath(); ctx.ellipse(-5, 0, 12 + pulse*2, 10 + pulse*2, 0, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12, -6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12, 6); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-16, 0); ctx.stroke();
-    ctx.fillStyle = '#4c1d95'; ctx.beginPath(); ctx.arc(8, 0, 5, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#4c1d95'; ctx.lineWidth = 2; const legSpeed = time * 0.05; for(let i=-1; i<=1; i+=2) { ctx.beginPath(); ctx.moveTo(8, i*2); ctx.lineTo(14, i*8 + Math.sin(legSpeed)*3); ctx.stroke(); }
+    // Baneling look - Swollen Sac
+    const pulse = (Math.sin(time * 0.015) + 1) * 0.5; 
+    const shake = Math.sin(time * 0.1) * 0.5;
+    
+    ctx.save(); 
+    ctx.translate(shake, shake);
+
+    // Glowing Sac (Translucent)
+    const sackGrad = ctx.createRadialGradient(-5, 0, 2, -5, 0, 14); 
+    sackGrad.addColorStop(0, '#e9d5ff'); 
+    sackGrad.addColorStop(0.5, 'rgba(168, 85, 247, 0.8)'); 
+    sackGrad.addColorStop(1, 'rgba(88, 28, 135, 0.9)');
+    
+    ctx.fillStyle = sackGrad; 
+    // Throbbing shape
+    ctx.beginPath(); 
+    ctx.ellipse(-5, 0, 12 + pulse*2, 10 + pulse*2, 0, 0, Math.PI*2); 
+    ctx.fill();
+
+    // Veins on Sac
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; 
+    ctx.lineWidth = 1; 
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, -6 - pulse); ctx.stroke(); 
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, 6 + pulse); ctx.stroke(); 
+    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-16 - pulse, 0); ctx.stroke();
+
+    // Small head and scurrying legs
+    ctx.fillStyle = '#4c1d95'; 
+    ctx.beginPath(); ctx.arc(8, 0, 5, 0, Math.PI*2); ctx.fill(); // Head
+    
+    ctx.strokeStyle = '#4c1d95'; 
+    ctx.lineWidth = 2; 
+    const legSpeed = time * 0.05; 
+    for(let i=-1; i<=1; i+=2) { 
+        ctx.beginPath(); 
+        ctx.moveTo(8, i*2); 
+        ctx.lineTo(14, i*8 + Math.sin(legSpeed)*3); 
+        ctx.stroke(); 
+    }
+    
     ctx.restore();
 }
+
 export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+    // Hydralisk / Serpent look
     const flap = Math.sin(time * 0.008) * 0.5;
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.6)'; ctx.strokeStyle = '#065f46'; ctx.lineWidth = 1;
-    ctx.save(); ctx.scale(1, 1 + flap * 0.2); ctx.beginPath(); ctx.moveTo(5, 0); ctx.bezierCurveTo(-5, 25, -20, 20, -15, 0); ctx.bezierCurveTo(-20, -20, -5, -25, 5, 0); ctx.fill(); ctx.stroke(); ctx.restore();
-    ctx.fillStyle = '#064e3b'; ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-20, 2); ctx.lineTo(-20, -2); ctx.fill();
-    ctx.fillStyle = '#34d399'; ctx.shadowColor = '#34d399'; ctx.shadowBlur = 5; ctx.beginPath(); ctx.arc(-5, 10 + flap*5, 2, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(-5, -10 - flap*5, 2, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
-    ctx.fillStyle = '#022c22'; ctx.beginPath(); ctx.moveTo(10, 0); ctx.lineTo(18, 4); ctx.lineTo(18, -4); ctx.fill();
+
+    // Tail / Body coil
+    ctx.strokeStyle = '#064e3b';
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-15, 10, -25, 0); // Tail curve
+    ctx.stroke();
+
+    // Hood / Carapace
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.2)'; 
+    ctx.strokeStyle = '#065f46'; 
+    ctx.lineWidth = 1;
+    ctx.save(); 
+    ctx.scale(1, 1 + flap * 0.2); // Breathing hood
+    ctx.beginPath(); 
+    ctx.moveTo(5, 0); 
+    ctx.bezierCurveTo(-5, 25, -20, 20, -15, 0); 
+    ctx.bezierCurveTo(-20, -20, -5, -25, 5, 0); 
+    ctx.fill(); 
+    ctx.stroke(); 
+    ctx.restore();
+
+    // Head / Jaw
+    ctx.fillStyle = '#064e3b'; 
+    ctx.beginPath(); 
+    ctx.moveTo(5, -4); ctx.lineTo(18, -6); ctx.lineTo(15, -2); // Upper jaw part
+    ctx.lineTo(5, 0);
+    ctx.lineTo(15, 2); ctx.lineTo(18, 6); ctx.lineTo(5, 4); // Lower jaw part
+    ctx.fill();
+
+    // Glowing Glands
+    ctx.fillStyle = '#34d399'; 
+    ctx.shadowColor = '#34d399'; ctx.shadowBlur = 5; 
+    ctx.beginPath(); ctx.arc(-5, 10 + flap*5, 2, 0, Math.PI*2); ctx.fill(); 
+    ctx.beginPath(); ctx.arc(-5, -10 - flap*5, 2, 0, Math.PI*2); ctx.fill(); 
+    ctx.shadowBlur = 0;
 }
+
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const pulse = Math.sin(time * 0.003) * 3;
     ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 4;
@@ -820,19 +1078,39 @@ export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, 
 }
 
 export const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number) => {
-    ctx.fillStyle = '#0f172a';
+    // Warp Speed Background
+    ctx.fillStyle = '#020617';
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    ctx.strokeStyle = 'rgba(30, 41, 59, 0.5)';
-    ctx.lineWidth = 1;
-    const offset = (time * 0.02) % 40;
-    for(let i = 0; i < CANVAS_WIDTH; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, CANVAS_HEIGHT); ctx.stroke(); }
-    for(let i = 0; i < CANVAS_HEIGHT; i+=40) { ctx.beginPath(); ctx.moveTo(0, i + offset); ctx.lineTo(CANVAS_WIDTH, i + offset); ctx.stroke(); }
-    for(let i = 0; i < 50; i++) {
-        const x = (Math.sin(i * 100 + time * 0.0001) * CANVAS_WIDTH + CANVAS_WIDTH) % CANVAS_WIDTH;
-        const y = (Math.cos(i * 50 + time * 0.0002) * CANVAS_HEIGHT + CANVAS_HEIGHT) % CANVAS_HEIGHT;
-        const s = (Math.sin(time * 0.001 + i) + 1) * 1.5;
-        ctx.fillStyle = `rgba(100, 200, 255, ${0.1 + pRand(i)*0.3})`;
-        ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.fill();
+    
+    const cx = CANVAS_WIDTH / 2;
+    const cy = CANVAS_HEIGHT / 2;
+    
+    // Draw "Stars" radiating
+    for(let i = 0; i < 150; i++) {
+        const t = (time * 0.5 + i * 100) % 3000;
+        const pct = t / 3000;
+        const radius = pct * Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.8;
+        
+        const angle = i * (Math.PI * 2 / 150) * 13; // Randomize distribution slightly
+        
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        
+        const size = Math.pow(pct, 3) * 4;
+        const length = size * 10;
+        
+        // Trail
+        const tx = cx + Math.cos(angle) * (radius - length);
+        const ty = cy + Math.sin(angle) * (radius - length);
+        
+        const alpha = pct;
+        
+        ctx.strokeStyle = `rgba(200, 230, 255, ${alpha})`;
+        ctx.lineWidth = size;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(tx, ty);
+        ctx.stroke();
     }
 }
 
@@ -878,4 +1156,111 @@ export const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameSta
 
         ctx.fillText(label, p.x, p.y + p.radius + 18);
     });
+}
+
+// --- Orbital Beam Visuals ---
+export const drawOrbitalBeam = (ctx: CanvasRenderingContext2D, beam: OrbitalBeam) => {
+    ctx.save();
+    
+    // Beam width scales with remaining life (fades out by thinning)
+    const currentWidth = beam.width * Math.pow(beam.life, 0.5);
+    const opacity = beam.life;
+    
+    // Main Beam Core (White hot)
+    const grad = ctx.createLinearGradient(beam.x - currentWidth/2, 0, beam.x + currentWidth/2, 0);
+    grad.addColorStop(0, 'rgba(6,182,212,0)');
+    grad.addColorStop(0.2, `rgba(6,182,212,${opacity})`);
+    grad.addColorStop(0.5, `rgba(255,255,255,${opacity})`); // White core
+    grad.addColorStop(0.8, `rgba(6,182,212,${opacity})`);
+    grad.addColorStop(1, 'rgba(6,182,212,0)');
+    
+    ctx.fillStyle = grad;
+    // Draw from very top of screen down to target
+    // We assume the orbital beam comes from "orbit", so effectively y=0 in canvas space (or camera offset)
+    // Actually, let's draw it long enough to cover the screen vertically relative to the target
+    ctx.fillRect(beam.x - currentWidth/2, beam.y - 1000, currentWidth, 1000);
+    
+    // Impact Point Glow
+    const grdRadial = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, currentWidth * 2);
+    grdRadial.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
+    grdRadial.addColorStop(0.5, `rgba(6, 182, 212, ${opacity * 0.5})`);
+    grdRadial.addColorStop(1, 'rgba(0,0,0,0)');
+    
+    ctx.fillStyle = grdRadial;
+    ctx.beginPath();
+    ctx.arc(beam.x, beam.y, currentWidth * 2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Secondary vertical streak for "God Ray" effect
+    ctx.fillStyle = `rgba(6,182,212,${opacity * 0.2})`;
+    ctx.fillRect(beam.x - currentWidth * 2, beam.y - 1500, currentWidth * 4, 1500);
+
+    ctx.restore();
+}
+
+// --- Floating Text (Sci-Fi / Holographic Style) ---
+export const drawFloatingText = (ctx: CanvasRenderingContext2D, ft: FloatingText) => {
+    ctx.save();
+    ctx.translate(ft.x, ft.y);
+    
+    // Alpha Fade
+    const alpha = Math.min(1, ft.life / 500); // Quick fade at end
+    ctx.globalAlpha = alpha;
+
+    // Apply Scaling based on Type and Life
+    let scale = 1.0;
+    if (ft.type === FloatingTextType.CRIT) {
+        // Pop effect
+        const progress = 1 - (ft.life / ft.maxLife);
+        if (progress < 0.1) scale = 1 + progress * 5; // Start big
+        else scale = 1.5;
+    } else if (ft.type === FloatingTextType.DAMAGE) {
+        scale = 1 - (0.5 * (1 - (ft.life/ft.maxLife))); // Shrink over time
+    }
+
+    ctx.scale(scale, scale);
+
+    // Font Styles
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Text Color & Glow
+    ctx.fillStyle = ft.color;
+    // Add Neon Glow
+    ctx.shadowColor = ft.color;
+    ctx.shadowBlur = 10;
+
+    if (ft.type === FloatingTextType.SYSTEM) {
+        // Glitch Effect for System Text
+        const jitterX = Math.random() < 0.1 ? (Math.random()-0.5)*4 : 0;
+        ctx.font = `bold ${ft.size}px monospace`;
+        ctx.fillText(`[ ${ft.text} ]`, jitterX, 0);
+        
+        // Scanline
+        ctx.globalAlpha = alpha * 0.5;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(-ft.text.length*4, -1, ft.text.length*8, 1);
+    } 
+    else if (ft.type === FloatingTextType.LOOT) {
+        ctx.font = `bold ${ft.size}px monospace`;
+        ctx.fillText(`+${ft.text}`, 0, 0);
+        // Upward trail
+        ctx.globalAlpha = alpha * 0.3;
+        ctx.fillRect(-1, 5, 2, 10);
+    }
+    else {
+        // Damage / Crit
+        ctx.font = `bold ${ft.size}px monospace`;
+        // Hard drop shadow for legibility
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillText(ft.text, 2, 2);
+        
+        ctx.fillStyle = ft.color;
+        // Re-apply glow
+        ctx.shadowBlur = ft.type === FloatingTextType.CRIT ? 15 : 5; 
+        ctx.fillText(ft.text, 0, 0);
+    }
+
+    ctx.restore();
 }

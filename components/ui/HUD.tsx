@@ -1,6 +1,4 @@
 
-
-
 import React from 'react';
 import { GameState, WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
@@ -29,153 +27,221 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
     const canSkip = !isOffenseMode && elapsedWaveTime >= 10000;
     const skipReward = Math.max(0, Math.floor((state.waveTimeRemaining / 1000) * state.wave));
 
+    // Theme Colors
+    const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
+    const primaryText = isOffenseMode ? 'text-red-500' : 'text-cyan-500';
+    const primaryBg = isOffenseMode ? 'bg-red-950/80' : 'bg-cyan-950/80';
+    const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
+
     return (
         <>
-            {/* Top Center: Wave Counter & Skip Button */}
-            <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                <div className="flex items-center gap-4">
-                    {/* Wave Status */}
-                    <div className="bg-black/60 px-8 py-2 rounded-full border border-gray-600 backdrop-blur-sm shadow-lg flex flex-col items-center min-w-[200px]">
-                        {isOffenseMode ? (
-                            <>
-                                <div className="flex items-center">
-                                    <span className="text-red-400 text-xs font-bold tracking-[0.2em]">OFFENSE MISSION</span>
-                                </div>
-                                
-                                {/* New HP Bar */}
-                                {hiveMother && (
-                                    <div className="w-full h-3 bg-gray-900 border border-red-900 mt-2 mb-1 relative">
+            {/* --- TOP CENTER: TACTICAL CHRONOMETER --- */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
+                
+                {/* Main Dashboard Panel */}
+                <div className={`
+                    relative min-w-[280px] px-8 py-3 
+                    bg-slate-900/95 backdrop-blur-md 
+                    border-x-2 border-b-2 ${primaryColor} 
+                    rounded-b-xl 
+                    ${glowShadow}
+                    transition-all duration-300
+                    flex flex-col items-center justify-center
+                    group
+                `}>
+                    {/* Decorative Top Hooks */}
+                    <div className="absolute top-0 left-0 w-4 h-2 bg-slate-500"></div>
+                    <div className="absolute top-0 right-0 w-4 h-2 bg-slate-500"></div>
+                    
+                    {/* Internal Scanline Texture */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.2)_50%)] bg-[size:100%_4px] pointer-events-none rounded-b-lg"></div>
+
+                    {isOffenseMode ? (
+                        /* OFFENSE MODE UI */
+                        <div className="flex flex-col items-center w-full z-10">
+                            <div className="flex justify-between w-full items-end border-b border-red-900/50 pb-1 mb-1">
+                                <span className="text-[10px] font-black tracking-[0.2em] text-red-700 animate-pulse">ASSAULT OPS</span>
+                                <span className="text-[10px] font-mono text-red-400">TARGET LOCKED</span>
+                            </div>
+                            
+                            {hiveMother ? (
+                                <div className="w-full mt-1">
+                                    <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
+                                        <span>BOSS INTEGRITY</span>
+                                        <span>{Math.ceil(hiveMother.hp).toLocaleString()}</span>
+                                    </div>
+                                    <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
                                         <div 
                                             className="h-full bg-red-600 transition-all duration-300"
                                             style={{ width: `${Math.max(0, (hiveMother.hp / hiveMother.maxHp) * 100)}%` }}
                                         />
-                                        <div className="absolute inset-0 flex items-center justify-center text-[8px] text-white font-mono shadow-sm">
-                                            {Math.ceil(hiveMother.hp)} / {Math.ceil(hiveMother.maxHp)}
-                                        </div>
                                     </div>
-                                )}
+                                    <div className="flex justify-between text-[10px] font-mono text-red-500 mt-1">
+                                        <span>ARMOR PLATING: {Math.floor(hiveMother.armorValue || 0)}%</span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-red-500 font-mono text-sm animate-pulse">SEARCHING FOR TARGET...</div>
+                            )}
+                        </div>
+                    ) : (
+                        /* DEFENSE MODE UI */
+                        <div className="flex flex-col items-center w-full z-10">
+                            <div className="flex justify-between w-full items-baseline border-b border-cyan-900/50 pb-1 mb-1">
+                                <span className="text-[10px] font-black tracking-[0.2em] text-cyan-700">SECTOR DEFENSE</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
+                                    <span className="text-xl font-black text-white leading-none">{state.wave}</span>
+                                </div>
+                            </div>
 
-                                <div className="text-red-500 font-mono text-xl font-bold tracking-widest leading-none mt-1">
-                                    ARMOR: {hiveMother?.armorValue ?? '??'}%
-                                </div>
-                            </>
-                        ) : (
-                            <>
-                                <div className="flex items-center">
-                                    <span className="text-gray-400 text-xs font-bold tracking-[0.2em] mr-3">WAVE</span>
-                                    <span className="text-white text-3xl font-black italic">{state.wave}</span>
-                                    {state.gameMode === GameMode.EXPLORATION && state.currentPlanet && (
-                                        <span className="text-gray-500 text-sm ml-2 font-mono">/ {state.currentPlanet.totalWaves}</span>
-                                    )}
-                                </div>
-                                <div className="text-yellow-400 font-mono text-xl font-bold tracking-widest leading-none mt-1">
+                            <div className="relative w-full flex justify-center items-center py-1">
+                                <span className="text-4xl font-mono font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
                                     {formattedTime}
-                                </div>
-                            </>
-                        )}
-                    </div>
+                                </span>
+                            </div>
 
-                    {/* Lure / Skip Button */}
-                    {canSkip && (
-                        <button 
-                            onClick={onSkipWave}
-                            className="bg-cyan-900/80 hover:bg-cyan-600 border border-cyan-500 text-cyan-100 px-4 py-2 rounded-lg backdrop-blur-sm shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all flex flex-col items-center group animate-fadeIn"
-                        >
-                            <span className="text-[10px] font-bold tracking-widest uppercase mb-0.5">{t('SKIP_WAVE')}</span>
-                            <span className="text-xs font-mono group-hover:text-white">+{skipReward} SCRAPS</span>
-                            <div className="text-[8px] text-cyan-400 mt-1">[L] TO DEPLOY</div>
-                        </button>
+                            {/* Wave Progress Micro-Bar */}
+                            <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-cyan-500 transition-all duration-1000 linear"
+                                    style={{ width: `${(state.waveTimeRemaining / state.waveDuration) * 100}%` }}
+                                ></div>
+                            </div>
+                        </div>
                     )}
                 </div>
+
+                {/* --- THE LURE (SKIP BUTTON) --- */}
+                {/* This is the fusion part. It hangs FROM the main HUD, preserving symmetry. */}
+                <div className={`
+                    relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center
+                    ${canSkip ? 'h-12 opacity-100 translate-y-0' : 'h-0 opacity-0 -translate-y-4'}
+                `}>
+                    {/* Connecting "Cables" */}
+                    <div className="w-24 flex justify-between px-2">
+                        <div className="w-1 h-3 bg-yellow-600/50"></div>
+                        <div className="w-1 h-3 bg-yellow-600/50"></div>
+                    </div>
+
+                    <button 
+                        onClick={onSkipWave}
+                        className="
+                            group relative bg-yellow-500/10 hover:bg-yellow-500/90 
+                            border-x border-b border-yellow-500 
+                            text-yellow-400 hover:text-black
+                            px-6 py-1 
+                            font-black text-xs tracking-[0.2em] uppercase
+                            transition-all cursor-pointer
+                            clip-path-trapezoid-bottom
+                            backdrop-blur-sm
+                        "
+                        style={{ clipPath: 'polygon(10% 0, 90% 0, 100% 100%, 0% 100%)' }}
+                    >
+                        <div className="flex items-center gap-2">
+                            <span className="animate-pulse">►►</span>
+                            <span>DEPLOY LURE</span>
+                            <span className="animate-pulse">◄◄</span>
+                        </div>
+                        <div className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
+                            REWARD: {skipReward}
+                        </div>
+                    </button>
+                </div>
             </div>
 
-            {/* Top Right: Score */}
-            <div className="absolute top-6 right-6">
-                <div className="bg-black/60 px-6 py-3 rounded-xl border border-yellow-600/40 backdrop-blur-sm flex items-center gap-4 shadow-lg">
-                    <div className="flex flex-col items-end">
-                        <span className="text-yellow-500 text-[10px] font-bold uppercase tracking-widest">{t('SCRAPS')}</span>
-                        <span className="text-3xl font-mono font-bold text-white leading-none">{Math.floor(p.score)}</span>
+            {/* Top Right: Resource Monitor */}
+            <div className="absolute top-6 right-6 group">
+                <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></div>
+                        <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
                     </div>
-                    <div className="text-yellow-500">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-mono font-bold text-white tracking-tighter">{Math.floor(p.score)}</span>
+                        <span className="text-xs text-slate-500 font-bold">SCRAPS</span>
                     </div>
                 </div>
             </div>
 
-            {/* Bottom Left: Health & Base */}
-            <div className="absolute bottom-6 left-6 w-72">
-                <div className="bg-black/70 p-4 rounded-xl border border-blue-900/50 backdrop-blur-sm shadow-xl">
-                    <div className="flex justify-between items-baseline mb-2">
-                        <span className="text-blue-400 text-xs font-bold tracking-widest">BASE INTEGRITY</span>
-                        <span className="text-white font-mono text-sm">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
+            {/* Bottom Left: Integrity Monitor */}
+            <div className="absolute bottom-8 left-8 w-64">
+                <div className="flex items-end gap-2 mb-2">
+                    <span className="text-4xl font-black text-white/20 select-none">BASE</span>
+                    <div className="h-px bg-white/20 flex-1 mb-2"></div>
+                </div>
+                
+                <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
+                    <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
+                        <span className="text-blue-400">STRUCTURE</span>
+                        <span className="text-white">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
                     </div>
-                    <div className="h-4 w-full bg-gray-900 rounded-full overflow-hidden border border-gray-700 relative">
+                    {/* Health Bar */}
+                    <div className="w-full h-3 bg-slate-800 relative z-10">
                         <div 
-                            className={`h-full transition-all duration-300 ${state.base.hp < state.base.maxHp * 0.3 ? 'bg-red-600 animate-pulse' : 'bg-blue-600'}`} 
+                            className={`h-full transition-all duration-300 ${state.base.hp < state.base.maxHp * 0.3 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} 
                             style={{ width: `${Math.max(0, state.base.hp / state.base.maxHp * 100)}%` }}
                         ></div>
                     </div>
-                </div>
-                <div className="mt-2 text-gray-500 text-xs font-mono">
-                    {t('CLOSE_BACKPACK').replace("CLOSE", "OPEN")}
+                    {/* Background Grid */}
+                    <div className="absolute inset-0 bg-[size:10px_10px] bg-[linear-gradient(to_right,#1e3a8a1a_1px,transparent_1px),linear-gradient(to_bottom,#1e3a8a1a_1px,transparent_1px)] pointer-events-none"></div>
                 </div>
             </div>
 
-            {/* Bottom Right: Weapons */}
-            <div className="absolute bottom-6 right-6 flex flex-col items-end gap-3 scale-50 origin-bottom-right">
-                <div className="bg-black/80 p-6 rounded-2xl border border-gray-700 backdrop-blur-md text-right min-w-[260px] shadow-2xl">
-                    <div className="flex justify-between items-center mb-2">
-                        <div className="text-gray-500 text-[10px] font-bold uppercase tracking-widest bg-gray-900 px-2 py-1 rounded">
-                            {wepStats.name}
-                        </div>
-                        {currentWep.reloading && (
-                            <span className="text-yellow-400 text-xs font-bold animate-pulse">RELOADING</span>
-                        )}
-                    </div>
-                    <div className="flex items-baseline justify-end gap-1 mb-4">
-                        <span className={`text-6xl font-black tracking-tighter leading-none ${currentWep.ammoInMag === 0 ? 'text-red-500' : 'text-white'}`}>
-                            {currentWep.ammoInMag}
-                        </span>
-                        <div className="flex flex-col items-start ml-2">
-                            <span className="text-xs text-gray-500 font-bold uppercase">RESERVE</span>
-                            <span className="text-xl text-gray-400 font-mono font-medium leading-none">
-                                {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}
-                            </span>
-                        </div>
+            {/* Bottom Right: Weapon Systems */}
+            <div className="absolute bottom-8 right-8 flex flex-col items-end gap-4">
+                
+                {/* Active Weapon Card */}
+                <div className="bg-slate-900/90 border-t-2 border-r-2 border-slate-600 p-4 min-w-[240px] relative overflow-hidden shadow-2xl">
+                    <div className="absolute top-0 right-0 p-1 bg-slate-800">
+                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{wepStats.name}</div>
                     </div>
                     
-                    <div className="h-px bg-gradient-to-l from-gray-600 to-transparent w-full my-3"></div>
+                    <div className="mt-4 flex justify-between items-end">
+                        {currentWep.reloading ? (
+                            <div className="text-2xl font-black text-yellow-500 animate-pulse tracking-widest">RELOADING</div>
+                        ) : (
+                            <div className="flex items-baseline gap-1">
+                                <span className={`text-5xl font-black tracking-tighter ${currentWep.ammoInMag === 0 ? 'text-red-500' : 'text-white'}`}>
+                                    {currentWep.ammoInMag}
+                                </span>
+                                <span className="text-sm text-slate-500 font-bold">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
+                            </div>
+                        )}
+                        <WeaponIcon type={currentWeaponType} className="w-12 h-12 text-slate-600" />
+                    </div>
 
-                    <div className="flex items-center justify-end gap-3 text-white">
-                        <span className="text-[10px] text-gray-500 font-bold tracking-wider">{t('GRENADE')} [G]</span>
-                        <div className="flex gap-1">
-                            {Array.from({length: PLAYER_STATS.maxGrenades}).map((_, i) => (
-                                <div 
-                                    key={i} 
-                                    className={`w-3 h-5 rounded-sm border border-black/50 ${i < p.grenades ? 'bg-orange-500 shadow-[0_0_5px_rgba(249,115,22,0.8)]' : 'bg-gray-800'}`}
-                                />
-                            ))}
-                        </div>
-                        <span className="font-mono text-xl font-bold ml-1 text-orange-400">{p.grenades}</span>
+                    <div className="w-full h-1 bg-slate-800 mt-2">
+                        <div 
+                            className="h-full bg-white" 
+                            style={{ width: `${(currentWep.ammoInMag / wepStats.magSize) * 100}%` }}
+                        ></div>
                     </div>
                 </div>
 
-                <div className="flex gap-2 bg-black/40 p-2 rounded-xl backdrop-blur-sm border border-gray-800">
+                {/* Tactical Grenades */}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 tracking-wider">GRENADE [G]</span>
+                    <div className="flex gap-1">
+                        {Array.from({length: PLAYER_STATS.maxGrenades}).map((_, i) => (
+                            <div 
+                                key={i} 
+                                className={`w-2 h-4 skew-x-[-12deg] ${i < p.grenades ? 'bg-orange-500' : 'bg-slate-800 border border-slate-700'}`}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* Weapon Selector Dots */}
+                <div className="flex gap-2">
                     {p.loadout.map((wType, idx) => (
                         <div 
                             key={idx}
                             className={`
-                                w-12 h-12 flex flex-col items-center justify-center rounded-lg border transition-all duration-200
-                                ${p.currentWeaponIndex === idx 
-                                    ? 'bg-blue-600 border-blue-400 text-white shadow-lg -translate-y-1' 
-                                    : 'bg-gray-800/80 border-gray-700 text-gray-500'}
+                                w-8 h-1 transition-all duration-300
+                                ${p.currentWeaponIndex === idx ? 'bg-white w-12 shadow-[0_0_10px_white]' : 'bg-slate-700'}
                             `}
-                        >
-                            <span className="text-[10px] opacity-70 leading-none mb-0.5">{idx + 1}</span>
-                            <WeaponIcon type={wType} className="w-5 h-5 fill-current" />
-                        </div>
+                        />
                     ))}
                 </div>
             </div>

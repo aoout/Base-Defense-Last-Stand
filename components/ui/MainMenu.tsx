@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameState } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
@@ -51,26 +50,40 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             {/* Main Menu (Right Side) */}
             <div className="absolute right-24 flex flex-col items-end space-y-12">
                 <div className="text-right">
-                    <h1 className="text-8xl font-black text-white tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                        BASE<br/><span className="text-blue-500 text-9xl">DEFENSE</span>
+                    <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                        BASE<br/><span className="text-cyan-500 text-9xl drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">DEFENSE</span>
                     </h1>
                     <div className="flex items-center justify-end gap-2 mt-2">
-                        <div className="h-px w-24 bg-blue-500"></div>
-                        <p className="text-blue-300 font-mono tracking-[0.4em] text-sm">TACTICAL SURVIVAL SIMULATION</p>
+                        <div className="h-px w-24 bg-cyan-500"></div>
+                        <p className="text-cyan-300 font-mono tracking-[0.4em] text-sm">TACTICAL SURVIVAL SIMULATION</p>
                     </div>
                 </div>
                 
                 <div className="flex flex-col gap-6">
-                    <button onClick={onStartSurvival} className="group relative w-[420px] h-24 bg-gray-900/40 border-l-4 border-white/20 hover:border-blue-500 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-sm">
-                        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
-                        <span className="relative z-10 text-4xl font-black text-white tracking-widest group-hover:text-blue-100 transition-colors">SURVIVAL</span>
-                        <span className="relative z-10 text-xs text-gray-500 group-hover:text-blue-300 font-mono uppercase tracking-wider">Endless Waves</span>
+                    <button onClick={onStartSurvival} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-cyan-500/50 hover:border-cyan-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                        <div className="absolute inset-0 bg-cyan-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+                        
+                        <div className="relative z-10 flex flex-col items-start">
+                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-cyan-100 transition-colors">SURVIVAL</span>
+                            <span className="text-[10px] text-cyan-600 group-hover:text-cyan-300 font-mono uppercase tracking-[0.2em]">Endless Waves // Simulation</span>
+                        </div>
+                        
+                        <div className="relative z-10 w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan-500 group-hover:bg-cyan-500 group-hover:text-black transition-all">
+                            ▶
+                        </div>
                     </button>
 
-                    <button onClick={onStartExploration} className="group relative w-[420px] h-24 bg-gray-900/40 border-l-4 border-white/20 hover:border-purple-500 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-sm">
-                        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-transparent translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
-                        <span className="relative z-10 text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">EXPLORE</span>
-                        <span className="relative z-10 text-xs text-gray-500 group-hover:text-purple-300 font-mono uppercase tracking-wider">Campaign Mode</span>
+                    <button onClick={onStartExploration} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-purple-500/50 hover:border-purple-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                        <div className="absolute inset-0 bg-purple-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+                        
+                        <div className="relative z-10 flex flex-col items-start">
+                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">EXPLORE</span>
+                            <span className="text-[10px] text-purple-600 group-hover:text-purple-300 font-mono uppercase tracking-[0.2em]">Campaign Mode // Deployment</span>
+                        </div>
+
+                        <div className="relative z-10 w-8 h-8 border border-purple-800 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-black transition-all">
+                            ▲
+                        </div>
                     </button>
                 </div>
             </div>

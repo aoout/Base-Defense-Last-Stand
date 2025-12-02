@@ -215,6 +215,16 @@ export interface Particle extends Entity {
   maxLife: number;
 }
 
+export interface OrbitalBeam {
+    id: string;
+    x: number;
+    y: number;
+    life: number; // 0 to 1
+    maxLife: number; // In ms
+    width: number;
+    color: string;
+}
+
 export interface Turret extends Entity {
   level: number;
   type: TurretType;
@@ -295,7 +305,8 @@ export enum AppMode {
     EXPLORATION_MAP = 'EXPLORATION_MAP',
     GAMEPLAY = 'GAMEPLAY',
     SPACESHIP_VIEW = 'SPACESHIP_VIEW',
-    ORBITAL_UPGRADES = 'ORBITAL_UPGRADES'
+    ORBITAL_UPGRADES = 'ORBITAL_UPGRADES',
+    CARAPACE_GRID = 'CARAPACE_GRID'
 }
 
 export enum GameMode {
@@ -387,11 +398,68 @@ export interface OrbitalUpgradeNode {
     purchased: boolean;
 }
 
+// Carapace Analyzer Grid
+export interface CarapaceNode {
+    id: string;
+    row: number; // 0-3
+    col: number; // 0-3
+    cost: number;
+    targetEnemy: EnemyType;
+    damageBonus: number; // 0.1 - 0.3
+    purchased: boolean;
+}
+
+export interface CarapaceRowBonus {
+    id: string;
+    rowIndex: number;
+    damageBonus: number; // 0.2 - 0.6
+    unlocked: boolean;
+}
+
+export interface CarapaceColBonus {
+    id: string;
+    colIndex: number;
+    armorBonus: number; // 10 - 30
+    unlocked: boolean;
+}
+
+export interface CarapaceGridState {
+    nodes: CarapaceNode[][]; // 4x4
+    rowBonuses: CarapaceRowBonus[];
+    colBonuses: CarapaceColBonus[];
+}
+
 export interface SpaceshipState {
     installedModules: SpaceshipModuleType[];
-    orbitalUpgradeTree: OrbitalUpgradeNode[][]; // Array of layers, each layer array of nodes
+    
+    // Orbital Cannon Tree
+    orbitalUpgradeTree: OrbitalUpgradeNode[][]; 
     orbitalDamageMultiplier: number;
     orbitalRateMultiplier: number;
+
+    // Carapace Analyzer Grid
+    carapaceGrid: CarapaceGridState | null;
+}
+
+export enum FloatingTextType {
+    DAMAGE = 'DAMAGE',
+    CRIT = 'CRIT',
+    SYSTEM = 'SYSTEM',
+    LOOT = 'LOOT'
+}
+
+export interface FloatingText {
+    id: string;
+    text: string;
+    x: number;
+    y: number;
+    vx: number; // Velocity X
+    vy: number; // Velocity Y
+    life: number;
+    maxLife: number;
+    color: string;
+    type: FloatingTextType;
+    size: number;
 }
 
 export interface GameState {
@@ -427,6 +495,7 @@ export interface GameState {
   allies: Ally[];
   projectiles: Projectile[];
   particles: Particle[];
+  orbitalBeams: OrbitalBeam[];
   turretSpots: TurretSpot[];
   toxicZones: ToxicZone[];
   activeSpecialEvent: SpecialEventType;
@@ -446,7 +515,9 @@ export interface GameState {
   isTacticalMenuOpen: boolean;
   isInventoryOpen: boolean;
   isShopOpen: boolean;
-  messages: { text: string; x: number; y: number; color: string; time: number }[];
+  
+  // REPLACED: Old messages system with new robust one
+  floatingTexts: FloatingText[];
   activeTurretId?: number;
 
   settings: GameSettings;

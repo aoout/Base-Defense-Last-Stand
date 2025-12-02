@@ -1,5 +1,6 @@
 
 
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
@@ -311,5 +312,11 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
         classification: "APEX TOXIN",
         danger: 10,
         description: "Walking bio-hazard. Lobs organic mortars that create persistent zones of denial. The purple acid melts durasteel in seconds. Avoid area of effect."
+    },
+    [BossType.HIVE_MOTHER]: {
+        codeName: "MATRIARCH",
+        classification: "HIVE CORE",
+        danger: 10,
+        description: "The central nervous system of the planetary infestation. This massive, stationary bio-structure coordinates all local swarm activities. It is heavily armored and protected by a rapidly regenerating chitinous shell. Destroying it will sever the connection to the hive mind in this sector."
     }
 };

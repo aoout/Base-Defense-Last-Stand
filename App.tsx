@@ -167,6 +167,17 @@ const App: React.FC = () => {
   const handleCloseOrbitalUpgrades = () => { engineRef.current.exitOrbitalUpgradeMenu(); };
   const handlePurchaseOrbitalUpgrade = (nodeId: string) => { engineRef.current.purchaseOrbitalUpgrade(nodeId); };
 
+  // Carapace Grid
+  const handleOpenCarapaceGrid = () => { 
+      engineRef.current.generateCarapaceGrid(); // Ensure generated
+      engineRef.current.enterCarapaceGrid(); 
+  };
+  const handleCloseCarapaceGrid = () => { engineRef.current.exitCarapaceGrid(); };
+  const handlePurchaseCarapaceNode = (row: number, col: number) => { engineRef.current.purchaseCarapaceNode(row, col); };
+
+  // Evac
+  const handleEmergencyEvac = () => { engineRef.current.emergencyEvac(); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -198,6 +209,10 @@ const App: React.FC = () => {
         onPurchaseOrbitalUpgrade={handlePurchaseOrbitalUpgrade}
         onOpenOrbitalUpgrades={handleOpenOrbitalUpgrades}
         onCloseOrbitalUpgrades={handleCloseOrbitalUpgrades}
+        onOpenCarapaceGrid={handleOpenCarapaceGrid}
+        onCloseCarapaceGrid={handleCloseCarapaceGrid}
+        onPurchaseCarapaceNode={handlePurchaseCarapaceNode}
+        onEmergencyEvac={handleEmergencyEvac}
       />
     </div>
   );
