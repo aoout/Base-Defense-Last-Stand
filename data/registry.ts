@@ -1,6 +1,8 @@
 
 
 
+
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
@@ -12,7 +14,7 @@ export const PLAYER_STATS = {
   hpRegenDelay: 10000,
   hpRegenRate: 0.5 / 60,
   grenadeRadius: 150,
-  grenadeDamage: 500,
+  grenadeDamage: 600, // Buffed by 20% (was 500)
   maxGrenades: 3,
   initialScore: 300, 
 };
@@ -76,7 +78,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
   },
   [WeaponType.SR]: {
     name: 'Sniper Rifle',
-    damage: 400,
+    damage: 480, // Buffed by 20% (was 400)
     fireRate: 1500,
     spread: 0.01,
     magSize: 5,

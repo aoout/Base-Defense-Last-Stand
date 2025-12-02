@@ -1,4 +1,5 @@
 
+
 import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
@@ -97,6 +98,35 @@ export class SaveManager {
                 if (this.engine.state.gameMode === GameMode.EXPLORATION && !this.engine.state.currentPlanet) {
                      this.engine.state.appMode = AppMode.EXPLORATION_MAP;
                 }
+
+                // --- CRITICAL FIX: Reset Timestamps ---
+                // Timestamps like lastFireTime are performance.now() based which resets on page reload.
+                // Saved timestamps from previous sessions will be huge relative to new performance.now().
+                // We reset them to 0 to allow immediate action.
+                
+                // 1. Player Weapons
+                Object.values(this.engine.state.player.weapons).forEach(w => {
+                    w.lastFireTime = 0;
+                    w.reloading = false; // Cancel reload on load to prevent timer issues
+                });
+
+                // 2. Enemies
+                this.engine.state.enemies.forEach(e => {
+                    e.lastAttackTime = 0;
+                    if (e.bossNextShotTime) e.bossNextShotTime = 0;
+                });
+
+                // 3. Allies
+                this.engine.state.allies.forEach(a => {
+                    a.lastFireTime = 0;
+                });
+
+                // 4. Turrets
+                this.engine.state.turretSpots.forEach(s => {
+                    if (s.builtTurret) {
+                        s.builtTurret.lastFireTime = 0;
+                    }
+                });
                 
                 this.engine.addMessage("GAME LOADED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
             } catch (e) {

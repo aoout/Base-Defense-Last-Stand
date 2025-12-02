@@ -55,7 +55,17 @@ export class PlayerManager {
         if (wepState.reloading) {
             if (time - wepState.reloadStartTime > wepStats.reloadTime) {
                 wepState.reloading = false;
-                wepState.ammoInMag = wepStats.magSize; 
+                
+                // Calculate ammo needed
+                const needed = wepStats.magSize - wepState.ammoInMag;
+                
+                if (wepState.ammoReserve === Infinity) {
+                    wepState.ammoInMag = wepStats.magSize;
+                } else {
+                    const toLoad = Math.min(needed, wepState.ammoReserve);
+                    wepState.ammoInMag += toLoad;
+                    wepState.ammoReserve -= toLoad;
+                }
             }
         } 
         // Firing Logic
@@ -148,9 +158,14 @@ export class PlayerManager {
     public reloadWeapon(time: number) {
         const p = this.engine.state.player;
         const w = p.weapons[p.loadout[p.currentWeaponIndex]];
+        
+        // Check if reloading is possible
         if (!w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
-            w.reloading = true;
-            w.reloadStartTime = time;
+            // Only reload if we have reserve or infinite ammo
+            if (w.ammoReserve > 0 || w.ammoReserve === Infinity) {
+                w.reloading = true;
+                w.reloadStartTime = time;
+            }
         }
     }
 

@@ -15,10 +15,12 @@
 
 
 
+
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 3.3.2
+**Version**: 3.3.3
 
 ## 1. Game Mechanics
 
@@ -82,7 +84,7 @@ The tactical interface supports real-time language translation.
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **AR-15** | Kinetic | 45 | 100ms | 30 | 600 | 1.5s | Balanced |
 | **Shotgun** | Kinetic | 35x8 | 600ms | 8 | 300 | 2.0s | 8 Pellets per shot |
-| **Sniper** | Kinetic | 400 | 1.5s | 5 | 1200 | 2.5s | Penetrates targets |
+| **Sniper** | Kinetic | 480 | 1.5s | 5 | 1200 | 2.5s | Penetrates targets |
 | **Pulse Rifle** | Energy | 35 | 80ms | 45 | 700 | 1.2s | High Capacity, Low Recoil |
 | **Flamethrower** | Thermal | 15 | 40ms | 100 | 350 | 3.0s | Piercing Cone, DoT |
 | **Grenade Launcher** | Explosive | 300 | 1.2s | 6 | 600 | 3.5s | AoE Blast |
