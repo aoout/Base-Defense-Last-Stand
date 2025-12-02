@@ -159,6 +159,14 @@ const App: React.FC = () => {
   // Skip Wave
   const handleSkipWave = () => { engineRef.current.skipWave(); };
 
+  // Cheat
+  const handleCheat = () => { engineRef.current.activateBackdoor(); };
+
+  // Orbital Upgrades
+  const handleOpenOrbitalUpgrades = () => { engineRef.current.enterOrbitalUpgradeMenu(); };
+  const handleCloseOrbitalUpgrades = () => { engineRef.current.exitOrbitalUpgradeMenu(); };
+  const handlePurchaseOrbitalUpgrade = (nodeId: string) => { engineRef.current.purchaseOrbitalUpgrade(nodeId); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -186,6 +194,10 @@ const App: React.FC = () => {
         onDeleteSave={handleDeleteSave}
         onTogglePin={handleTogglePin}
         onSkipWave={handleSkipWave}
+        onCheat={handleCheat}
+        onPurchaseOrbitalUpgrade={handlePurchaseOrbitalUpgrade}
+        onOpenOrbitalUpgrades={handleOpenOrbitalUpgrades}
+        onCloseOrbitalUpgrades={handleCloseOrbitalUpgrades}
       />
     </div>
   );

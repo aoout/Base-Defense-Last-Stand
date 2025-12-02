@@ -7,11 +7,13 @@ interface SpaceshipViewProps {
     state: GameState;
     onClose: () => void;
     onPurchaseModule: (modType: SpaceshipModuleType) => void;
+    onOpenUpgrades: () => void;
 }
 
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule }) => {
+export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades }) => {
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
+    const hasOrbitalCannon = installed.includes(SpaceshipModuleType.ORBITAL_CANNON);
 
     return (
         <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col overflow-hidden pointer-events-auto select-none">
@@ -101,9 +103,19 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                             ) : (
                                 <div className="space-y-2">
                                     {installed.map((modType) => (
-                                        <div key={modType} className="flex items-center gap-2 text-xs text-white bg-cyan-900/30 p-2 border-l-2 border-cyan-500">
-                                            <span>✔️</span>
-                                            <span>{SPACESHIP_MODULES[modType].name}</span>
+                                        <div key={modType} className="flex flex-col gap-1 text-xs text-white bg-cyan-900/30 p-2 border-l-2 border-cyan-500">
+                                            <div className="flex items-center gap-2">
+                                                <span>✔️</span>
+                                                <span>{SPACESHIP_MODULES[modType].name}</span>
+                                            </div>
+                                            {modType === SpaceshipModuleType.ORBITAL_CANNON && (
+                                                <button 
+                                                    onClick={onOpenUpgrades}
+                                                    className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
+                                                >
+                                                    SYSTEM UPGRADE
+                                                </button>
+                                            )}
                                         </div>
                                     ))}
                                 </div>

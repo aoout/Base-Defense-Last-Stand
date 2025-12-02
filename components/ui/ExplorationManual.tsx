@@ -1,13 +1,32 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { CloseButton } from './Shared';
 
 interface ExplorationManualProps {
     onClose: () => void;
+    onCheat: () => void;
     t: (key: string) => string;
 }
 
-export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, t }) => {
+export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, onCheat, t }) => {
+    const [inputValue, setInputValue] = useState("");
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            const cmd = inputValue.trim().toLowerCase();
+            if (cmd === 'cheat') {
+                onCheat();
+                setInputValue("ACCESS GRANTED: FUNDS TRANSFERRED");
+                setTimeout(() => setInputValue(""), 1500);
+            } else if (cmd === 'close' || cmd === 'exit') {
+                onClose();
+            } else {
+                setInputValue("ERR: UNKNOWN COMMAND");
+                setTimeout(() => setInputValue(""), 1000);
+            }
+        }
+    }
+
     return (
         <div className="absolute inset-0 z-[250] bg-slate-950/90 flex items-center justify-center pointer-events-auto backdrop-blur-sm">
             <div className="w-[800px] bg-slate-900 border-2 border-slate-700 shadow-2xl relative flex flex-col max-h-[90vh]">
@@ -67,10 +86,20 @@ export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, t
 
                 </div>
 
-                <div className="p-4 border-t border-slate-800 bg-slate-950/50 text-center">
-                    <button onClick={onClose} className="text-xs text-slate-500 hover:text-white tracking-widest uppercase transition-colors">
-                        {t('MANUAL_CLOSE')}
-                    </button>
+                <div className="p-4 border-t border-slate-800 bg-slate-950/50 flex items-center justify-center">
+                    <div className="flex items-center gap-2 text-xs font-mono text-slate-500 group">
+                        <span className="group-focus-within:text-cyan-500">&gt;</span>
+                        <input 
+                            type="text" 
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="bg-transparent border-none outline-none text-slate-300 w-48 focus:w-64 transition-all placeholder-slate-700 focus:text-cyan-400 uppercase"
+                            placeholder="AWAITING INPUT..."
+                            autoFocus
+                        />
+                        <span className="w-2 h-4 bg-cyan-500/50 animate-pulse group-focus-within:block hidden"></span>
+                    </div>
                 </div>
             </div>
         </div>

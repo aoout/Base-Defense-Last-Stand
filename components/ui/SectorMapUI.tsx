@@ -12,6 +12,7 @@ interface SectorMapUIProps {
     onOpenSpaceship: () => void;
     onDeployPlanet: (id: string) => void;
     onDeselectPlanet: () => void;
+    onCheat: () => void;
     t: (key: string) => string;
 }
 
@@ -21,6 +22,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
     onOpenSpaceship, 
     onDeployPlanet, 
     onDeselectPlanet,
+    onCheat,
     t
 }) => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
@@ -38,7 +40,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
     return (
         <div className="absolute inset-0 pointer-events-none">
             {viewingManual && (
-                <ExplorationManual onClose={() => setViewingManual(false)} t={t} />
+                <ExplorationManual onClose={() => setViewingManual(false)} onCheat={onCheat} t={t} />
             )}
 
             <div className="absolute top-8 left-8">

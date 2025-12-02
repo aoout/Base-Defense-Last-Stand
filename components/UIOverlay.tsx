@@ -14,6 +14,7 @@ import { TurretUpgradeUI } from './ui/TurretUI';
 import { MainMenu } from './ui/MainMenu';
 import { SectorMapUI } from './ui/SectorMapUI';
 import { HUD } from './ui/HUD';
+import { OrbitalUpgradeUI } from './ui/OrbitalUpgradeUI';
 
 interface UIOverlayProps {
   state: GameState;
@@ -46,6 +47,14 @@ interface UIOverlayProps {
 
   // Mechanics
   onSkipWave: () => void;
+
+  // Cheats
+  onCheat: () => void;
+
+  // New Handlers for upgrades
+  onPurchaseOrbitalUpgrade: (nodeId: string) => void;
+  onOpenOrbitalUpgrades: () => void;
+  onCloseOrbitalUpgrades: () => void;
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
@@ -71,7 +80,11 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onLoadGame,
     onDeleteSave,
     onTogglePin,
-    onSkipWave
+    onSkipWave,
+    onCheat,
+    onPurchaseOrbitalUpgrade,
+    onOpenOrbitalUpgrades,
+    onCloseOrbitalUpgrades
 }) => {
   const t = (key: keyof typeof TRANSLATIONS.EN) => TRANSLATIONS[state.settings.language][key];
 
@@ -102,6 +115,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             state={state} 
             onClose={onCloseSpaceship} 
             onPurchaseModule={handlePurchaseSpaceshipModule}
+            onOpenUpgrades={onOpenOrbitalUpgrades}
+          />
+      )
+  }
+
+  if (state.appMode === AppMode.ORBITAL_UPGRADES) {
+      return (
+          <OrbitalUpgradeUI 
+            state={state}
+            onPurchase={onPurchaseOrbitalUpgrade}
+            onClose={onCloseOrbitalUpgrades}
           />
       )
   }
@@ -115,6 +139,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             onDeployPlanet={onDeployPlanet}
             onDeselectPlanet={onDeselectPlanet}
             t={t}
+            onCheat={onCheat}
           />
       )
   }

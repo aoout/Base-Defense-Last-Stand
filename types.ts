@@ -287,7 +287,8 @@ export enum AppMode {
     START_MENU = 'START_MENU',
     EXPLORATION_MAP = 'EXPLORATION_MAP',
     GAMEPLAY = 'GAMEPLAY',
-    SPACESHIP_VIEW = 'SPACESHIP_VIEW'
+    SPACESHIP_VIEW = 'SPACESHIP_VIEW',
+    ORBITAL_UPGRADES = 'ORBITAL_UPGRADES'
 }
 
 export enum GameMode {
@@ -358,8 +359,26 @@ export interface SaveFile {
     mode: GameMode;
 }
 
+export enum OrbitalUpgradeEffect {
+    DAMAGE = 'DAMAGE',
+    RATE = 'RATE'
+}
+
+export interface OrbitalUpgradeNode {
+    id: string;
+    layer: number; // 1-7
+    index: number; // 0 to layer-1
+    cost: number;
+    effectType: OrbitalUpgradeEffect;
+    effectValue: number; // Percentage float (e.g. 0.05)
+    purchased: boolean;
+}
+
 export interface SpaceshipState {
     installedModules: SpaceshipModuleType[];
+    orbitalUpgradeTree: OrbitalUpgradeNode[][]; // Array of layers, each layer array of nodes
+    orbitalDamageMultiplier: number;
+    orbitalRateMultiplier: number;
 }
 
 export interface GameState {

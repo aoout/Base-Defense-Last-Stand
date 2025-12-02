@@ -1,3 +1,4 @@
+
 # Base Defense: Last Stand
 
 **Version**: 1.0.0  
@@ -47,3 +48,11 @@
 4. Update `updateEnemies` in `gameService.ts` if special behavior is required (e.g., ranged attacks).
 5. Add entry to `BESTIARY_DB` in `data/registry.ts`.
 
+## Developer Tools & Cheats
+
+### Exploration Manual Backdoor
+A hidden developer console is accessible via the "Tactical Interstellar Operations Manual" in Exploration Mode.
+1. Open the Manual.
+2. In the footer command line input, type `cheat` and press **Enter**.
+   - **Effect**: Adds 99,999 Scraps to the player's funds.
+3. Type `close` or `exit` to close the manual.

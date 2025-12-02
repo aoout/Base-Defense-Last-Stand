@@ -28,7 +28,10 @@ import {
   WeaponModule,
   AtmosphereGas,
   SpaceshipModuleType,
-  PlanetVisualType
+  PlanetVisualType,
+  OrbitalUpgradeNode,
+  OrbitalUpgradeEffect,
+  SpaceshipState
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -187,7 +190,12 @@ export class GameEngine {
     // Preserve persistent data across resets if not a full reset
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets();
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
-    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { installedModules: [] };
+    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { 
+        installedModules: [],
+        orbitalUpgradeTree: [],
+        orbitalDamageMultiplier: 1,
+        orbitalRateMultiplier: 1
+    };
 
     // Initialize Weapons
     const initialWeapons: Record<string, WeaponState> = {};
@@ -412,7 +420,13 @@ export class GameEngine {
   private updateSpaceshipSystems(dt: number) {
       if (this.state.gameMode === GameMode.EXPLORATION && this.state.spaceship.installedModules.includes(SpaceshipModuleType.ORBITAL_CANNON)) {
           this.state.orbitalSupportTimer += dt;
-          if (this.state.orbitalSupportTimer > 8000) {
+          
+          // Apply Upgraded Fire Rate: Base 8000ms divided by multiplier
+          const baseRate = 8000;
+          const rateMultiplier = this.state.spaceship.orbitalRateMultiplier || 1;
+          const effectiveRate = baseRate / rateMultiplier;
+
+          if (this.state.orbitalSupportTimer > effectiveRate) {
               // Find nearest enemy to base
               const b = this.state.base;
               let closest: Enemy | null = null;
@@ -428,15 +442,119 @@ export class GameEngine {
 
               if (closest) {
                   // Fire Orbital Laser
-                  this.damageEnemy(closest, 400);
+                  // Apply Upgraded Damage: Base 400 * multiplier
+                  const baseDamage = 400;
+                  const damageMultiplier = this.state.spaceship.orbitalDamageMultiplier || 1;
+                  const finalDamage = baseDamage * damageMultiplier;
+
+                  this.damageEnemy(closest, finalDamage);
                   this.spawnParticle(closest.x, closest.y, '#06b6d4', 5, 2);
-                  this.addMessage("ORBITAL STRIKE", closest.x, closest.y - 40, '#06b6d4');
+                  this.addMessage(`ORBITAL STRIKE: ${Math.floor(finalDamage)}`, closest.x, closest.y - 40, '#06b6d4');
                   this.audio.playTurretFire(2); // Heavy impact sound
               }
               
               this.state.orbitalSupportTimer = 0;
           }
       }
+  }
+
+  // Generate the 7-layer upgrade tree if it doesn't exist
+  private generateOrbitalUpgradeTree() {
+      if (this.state.spaceship.orbitalUpgradeTree && this.state.spaceship.orbitalUpgradeTree.length > 0) return;
+
+      const tree: OrbitalUpgradeNode[][] = [];
+      
+      for (let layer = 1; layer <= 7; layer++) {
+          const layerNodes: OrbitalUpgradeNode[] = [];
+          for (let i = 0; i < layer; i++) {
+              // Cost: 1000 * (1 + n) * (0.8 ~ 1.2)
+              const baseCost = 1000 * (1 + layer);
+              const variance = 0.8 + Math.random() * 0.4;
+              const cost = Math.floor(baseCost * variance);
+
+              // Effect: 20% Rate, 80% Damage
+              const isRate = Math.random() < 0.2;
+              const effectType = isRate ? OrbitalUpgradeEffect.RATE : OrbitalUpgradeEffect.DAMAGE;
+              
+              // Value: Rate (0.05 - 0.12), Damage (0.08 - 0.14)
+              let effectValue = 0;
+              if (isRate) {
+                  effectValue = 0.05 + Math.random() * 0.07;
+              } else {
+                  effectValue = 0.08 + Math.random() * 0.06;
+              }
+
+              layerNodes.push({
+                  id: `orb-upg-${layer}-${i}`,
+                  layer,
+                  index: i,
+                  cost,
+                  effectType,
+                  effectValue,
+                  purchased: false
+              });
+          }
+          tree.push(layerNodes);
+      }
+      
+      this.state.spaceship.orbitalUpgradeTree = tree;
+      this.state.spaceship.orbitalDamageMultiplier = 1;
+      this.state.spaceship.orbitalRateMultiplier = 1;
+  }
+
+  public purchaseOrbitalUpgrade(nodeId: string) {
+      const p = this.state.player;
+      const s = this.state.spaceship;
+      
+      // Find node
+      let node: OrbitalUpgradeNode | null = null;
+      let layerIndex = -1;
+      
+      for(let i=0; i<s.orbitalUpgradeTree.length; i++) {
+          const found = s.orbitalUpgradeTree[i].find(n => n.id === nodeId);
+          if (found) {
+              node = found;
+              layerIndex = i; // 0-based index (Layer 1 is index 0)
+              break;
+          }
+      }
+
+      if (!node || node.purchased) return;
+
+      // Check Funds
+      if (p.score < node.cost) {
+          return; // UI should handle feedback via disabled button usually
+      }
+
+      // Check Unlock Requirement
+      // Layer n (index n-1) requires ceil((n-1)/2) nodes purchased in Layer n-1 (index n-2)
+      if (layerIndex > 0) {
+          const prevLayer = s.orbitalUpgradeTree[layerIndex - 1];
+          const purchasedCount = prevLayer.filter(n => n.purchased).length;
+          const prevLayerNum = layerIndex; // Previous layer number is actually the index + 1 - 1 = index
+          const required = Math.ceil(prevLayerNum / 2); // Wait, logic: Layer N depends on Layer N-1. Layer N-1 has N-1 nodes. Requirement is (N-1)/2. 
+          // Example: Buying in Layer 2 (index 1). Prev is Layer 1 (index 0). Size 1. Req ceil(1/2) = 1.
+          // Example: Buying in Layer 3 (index 2). Prev is Layer 2 (index 1). Size 2. Req ceil(2/2) = 1.
+          // Example: Buying in Layer 4 (index 3). Prev is Layer 3 (index 2). Size 3. Req ceil(3/2) = 2.
+          
+          if (purchasedCount < required) {
+              // Locked
+              return;
+          }
+      }
+
+      // Execute Purchase
+      p.score -= node.cost;
+      node.purchased = true;
+      
+      // Apply Effect
+      if (node.effectType === OrbitalUpgradeEffect.DAMAGE) {
+          s.orbitalDamageMultiplier += node.effectValue;
+      } else {
+          s.orbitalRateMultiplier += node.effectValue;
+      }
+      
+      this.audio.playTurretFire(2); // Success sound
   }
 
   // ... (rest of methods - nextWave, updatePlayer, etc. remain unchanged)
@@ -1374,9 +1492,14 @@ export class GameEngine {
            if (p.score >= stats.cost) {
                p.score -= stats.cost;
                this.state.spaceship.installedModules.push(type);
+               
                if (type === SpaceshipModuleType.BASE_REINFORCEMENT) {
                    this.state.base.maxHp += 3000;
                    this.state.base.hp += 3000;
+               }
+               if (type === SpaceshipModuleType.ORBITAL_CANNON) {
+                   // Init upgrade tree immediately on purchase
+                   this.generateOrbitalUpgradeTree();
                }
            }
       }
@@ -1418,6 +1541,12 @@ export class GameEngine {
               w.modules.splice(idx, 1);
           }
       }
+  }
+
+  public activateBackdoor() {
+      this.state.player.score += 99999;
+      this.addMessage("DEV BACKDOOR ACCESSED: +99,999 SCRAPS", this.state.player.x, this.state.player.y - 100, '#10B981');
+      this.audio.playTurretFire(2); // Heavy impact sound to confirm
   }
 
   public addMessage(text: string, x: number, y: number, color: string) {
@@ -1516,6 +1645,14 @@ export class GameEngine {
   }
   public exitSpaceshipView() {
       this.state.appMode = AppMode.EXPLORATION_MAP;
+  }
+  public enterOrbitalUpgradeMenu() {
+      // Ensure tree is generated
+      this.generateOrbitalUpgradeTree();
+      this.state.appMode = AppMode.ORBITAL_UPGRADES;
+  }
+  public exitOrbitalUpgradeMenu() {
+      this.state.appMode = AppMode.SPACESHIP_VIEW;
   }
 
   private loadSavesFromStorage(): SaveFile[] {

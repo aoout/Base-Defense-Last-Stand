@@ -127,8 +127,17 @@ Travel to different planets to secure resources. Each planet has a unique enviro
 Upgrade your mothership from the Exploration Map.
 - **Base Reinforcement (4000)**: Deployed base HP +3000.
 - **Xenobiology Carapace Analyzer (7000)**: Player deals +20% damage to all organic targets.
-- **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a laser strike (400 Dmg) at the enemy nearest to your base.
+- **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a laser strike (400 Dmg) at the enemy nearest to your base. See Upgrade Matrix below.
 - **Atmospheric Drag Adaptive Deflector (4700)**: Reduces the Scraps cost of orbital insertion (deploying to a planet) by 50%.
+
+### Orbital Support Upgrade Matrix
+The **Orbital Long-Range Support** module features a proprietary 7-Layer Calibration Tree.
+- **Structure**: Pyramid structure. Layer $N$ contains $N$ upgrade nodes.
+- **Prerequisites**: To unlock Layer $N+1$, you must purchase at least $\lceil N/2 \rceil$ (half, rounded up) upgrades from Layer $N$.
+- **Costs**: Escalating costs based on Layer depth. `~1000 * (1+Layer)`.
+- **Effects**: Randomly determined per node.
+  - **Damage Amplification** (80% chance): Boosts beam damage by 8-14%.
+  - **Cycle Rate Optimization** (20% chance): Increases firing frequency by 5-12%.
 
 ### Orbital Drop Protocols (Landing Cost)
 Deploying to a planetary surface is resource-intensive. The *Colossus* drop-pods require Scraps to fabricate entry heat-shields.
