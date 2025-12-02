@@ -1,6 +1,8 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { GameMode, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource } from '../../types';
+import { GameMode, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource, InfrastructureOption, InfrastructureUpgradeType, TurretType } from '../../types';
 import { PLAYER_STATS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
@@ -269,6 +271,103 @@ export class SpaceshipManager {
         return mult;
     }
 
+    // --- INFRASTRUCTURE RESEARCH LOGIC ---
+
+    public generateInfrastructureOptions() {
+        const s = this.engine.state.spaceship;
+        if (s.infrastructureLocked) return;
+        if (s.infrastructureOptions && s.infrastructureOptions.length > 0) return; // Keep existing options if generated
+        if ((s.infrastructureUpgrades?.length || 0) >= 9) return;
+
+        const options: InfrastructureOption[] = [];
+        const availableTypes = Object.values(InfrastructureUpgradeType);
+        
+        // Pick 3 unique random types
+        const selectedTypes: InfrastructureUpgradeType[] = [];
+        while (selectedTypes.length < 3) {
+            const t = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+            if (!selectedTypes.includes(t)) selectedTypes.push(t);
+        }
+
+        selectedTypes.forEach(type => {
+            let value = 0;
+            const cost = 3000 + Math.floor(Math.random() * 5001); // 3000-8000
+
+            switch (type) {
+                case InfrastructureUpgradeType.BASE_HP: value = 800 + Math.floor(Math.random() * 1801); break;
+                case InfrastructureUpgradeType.TURRET_HP: value = 400 + Math.floor(Math.random() * 801); break;
+                case InfrastructureUpgradeType.TURRET_L1_DMG: value = 0.10 + Math.random() * 0.30; break;
+                case InfrastructureUpgradeType.TURRET_GAUSS_RATE: value = 0.10 + Math.random() * 0.14; break;
+                case InfrastructureUpgradeType.TURRET_SNIPER_RANGE: value = 0.08 + Math.random() * 0.22; break;
+                case InfrastructureUpgradeType.TURRET_MISSILE_DMG: value = 0.11 + Math.random() * 0.24; break;
+                case InfrastructureUpgradeType.GLOBAL_TURRET_DMG: value = 0.05 + Math.random() * 0.15; break;
+                case InfrastructureUpgradeType.GLOBAL_TURRET_RATE: value = 0.04 + Math.random() * 0.12; break;
+                case InfrastructureUpgradeType.TURRET_L1_COST: value = 0.08 + Math.random() * 0.08; break;
+            }
+
+            options.push({
+                id: `infra-${Date.now()}-${Math.random()}`,
+                type,
+                value,
+                cost
+            });
+        });
+
+        s.infrastructureOptions = options;
+    }
+
+    public purchaseInfrastructureUpgrade(optionId: string) {
+        const s = this.engine.state.spaceship;
+        const p = this.engine.state.player;
+        const option = s.infrastructureOptions.find(o => o.id === optionId);
+
+        if (!option) return;
+        if (p.score < option.cost) return;
+
+        p.score -= option.cost;
+        if (!s.infrastructureUpgrades) s.infrastructureUpgrades = [];
+        s.infrastructureUpgrades.push(option);
+        
+        s.infrastructureLocked = true;
+        s.infrastructureOptions = []; // Clear options for next cycle
+        
+        this.applyPassiveBonuses();
+        this.engine.audio.playTurretFire(2);
+    }
+
+    // Helper: Get Infrastructure Bonuses
+    public getInfrastructureBonus(target: 'HP' | 'DMG' | 'RATE' | 'RANGE' | 'COST', turretType?: TurretType): number {
+        const s = this.engine.state.spaceship;
+        if (!s.infrastructureUpgrades) return 0;
+
+        let total = 0;
+        
+        s.infrastructureUpgrades.forEach(upg => {
+            switch (target) {
+                case 'HP':
+                    if (upg.type === InfrastructureUpgradeType.BASE_HP && turretType === undefined) total += upg.value;
+                    if (upg.type === InfrastructureUpgradeType.TURRET_HP && turretType !== undefined) total += upg.value;
+                    break;
+                case 'DMG':
+                    if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_DMG) total += upg.value;
+                    if (turretType === TurretType.STANDARD && upg.type === InfrastructureUpgradeType.TURRET_L1_DMG) total += upg.value;
+                    if (turretType === TurretType.MISSILE && upg.type === InfrastructureUpgradeType.TURRET_MISSILE_DMG) total += upg.value;
+                    break;
+                case 'RATE':
+                    if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_RATE) total += upg.value;
+                    if (turretType === TurretType.GAUSS && upg.type === InfrastructureUpgradeType.TURRET_GAUSS_RATE) total += upg.value;
+                    break;
+                case 'RANGE':
+                    if (turretType === TurretType.SNIPER && upg.type === InfrastructureUpgradeType.TURRET_SNIPER_RANGE) total += upg.value;
+                    break;
+                case 'COST':
+                    if (turretType === TurretType.STANDARD && upg.type === InfrastructureUpgradeType.TURRET_L1_COST) total += upg.value;
+                    break;
+            }
+        });
+        return total;
+    }
+
     public applyPassiveBonuses() {
         const s = this.engine.state.spaceship;
         const p = this.engine.state.player;
@@ -293,6 +392,8 @@ export class SpaceshipManager {
         let baseMaxHp = 5000;
         if (s.installedModules.includes(SpaceshipModuleType.BASE_REINFORCEMENT)) {
              baseMaxHp += 3000;
+             // Add Infrastructure Bonus
+             baseMaxHp += this.getInfrastructureBonus('HP');
         }
         this.engine.state.base.maxHp = baseMaxHp;
         if (this.engine.state.base.hp > baseMaxHp) this.engine.state.base.hp = baseMaxHp;

@@ -317,7 +317,8 @@ export enum AppMode {
     SPACESHIP_VIEW = 'SPACESHIP_VIEW',
     ORBITAL_UPGRADES = 'ORBITAL_UPGRADES',
     CARAPACE_GRID = 'CARAPACE_GRID',
-    SHIP_COMPUTER = 'SHIP_COMPUTER'
+    SHIP_COMPUTER = 'SHIP_COMPUTER',
+    INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH'
 }
 
 export enum GameMode {
@@ -440,6 +441,26 @@ export interface CarapaceGridState {
     colBonuses: CarapaceColBonus[];
 }
 
+// Infrastructure Research (Base Reinforcement)
+export enum InfrastructureUpgradeType {
+    BASE_HP = 'BASE_HP',
+    TURRET_HP = 'TURRET_HP',
+    TURRET_L1_DMG = 'TURRET_L1_DMG',
+    TURRET_GAUSS_RATE = 'TURRET_GAUSS_RATE',
+    TURRET_SNIPER_RANGE = 'TURRET_SNIPER_RANGE',
+    TURRET_MISSILE_DMG = 'TURRET_MISSILE_DMG',
+    GLOBAL_TURRET_DMG = 'GLOBAL_TURRET_DMG',
+    GLOBAL_TURRET_RATE = 'GLOBAL_TURRET_RATE',
+    TURRET_L1_COST = 'TURRET_L1_COST'
+}
+
+export interface InfrastructureOption {
+    id: string;
+    type: InfrastructureUpgradeType;
+    value: number; // The random roll value
+    cost: number;
+}
+
 export interface SpaceshipState {
     installedModules: SpaceshipModuleType[];
     
@@ -450,6 +471,11 @@ export interface SpaceshipState {
 
     // Carapace Analyzer Grid
     carapaceGrid: CarapaceGridState | null;
+
+    // Infrastructure Research
+    infrastructureUpgrades: InfrastructureOption[];
+    infrastructureOptions: InfrastructureOption[]; // Current 3 choices
+    infrastructureLocked: boolean; // True after picking, resets on mission success
 }
 
 export enum FloatingTextType {

@@ -1,4 +1,7 @@
-import React from 'react';
+
+
+
+import React, { useState, useRef } from 'react';
 import { GameState, SpaceshipModuleType } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
 
@@ -8,14 +11,33 @@ interface SpaceshipViewProps {
     onPurchaseModule: (modType: SpaceshipModuleType) => void;
     onOpenUpgrades: () => void;
     onOpenCarapaceGrid: () => void;
-    onOpenComputer?: () => void; // New prop
+    onOpenInfrastructure: () => void;
+    onOpenComputer?: () => void;
+    onCheat?: () => void;
     t: (key: string) => string;
 }
 
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenComputer, t }) => {
+export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenInfrastructure, onOpenComputer, onCheat, t }) => {
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
-    const hasOrbitalCannon = installed.includes(SpaceshipModuleType.ORBITAL_CANNON);
+    const [clickCount, setClickCount] = useState(0);
+    const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleScrapClick = () => {
+        if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+        
+        const newCount = clickCount + 1;
+        setClickCount(newCount);
+        
+        if (newCount >= 10) {
+            if (onCheat) onCheat();
+            setClickCount(0);
+        } else {
+            clickTimerRef.current = setTimeout(() => {
+                setClickCount(0);
+            }, 500); // 0.5s window between clicks
+        }
+    };
 
     return (
         <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col overflow-hidden pointer-events-auto select-none">
@@ -34,7 +56,10 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                         <div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse"></div>
                         <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">{t('STORAGE_ACCESS')}</span>
                     </div>
-                    <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3">
+                    <div 
+                        className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3 cursor-pointer hover:bg-slate-800 transition-colors active:bg-cyan-900/20"
+                        onClick={handleScrapClick}
+                    >
                          <span className="text-4xl font-display font-black text-white tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
                          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{t('FRAGMENTS')}</span>
                     </div>
@@ -124,6 +149,14 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                     className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
                                                 >
                                                     {t('XENO_MATRIX')}
+                                                </button>
+                                            )}
+                                            {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
+                                                <button 
+                                                    onClick={onOpenInfrastructure}
+                                                    className="mt-1 w-full text-[10px] bg-yellow-800 hover:bg-yellow-600 text-yellow-100 py-1 font-bold uppercase tracking-wide border border-yellow-600 transition-colors"
+                                                >
+                                                    {t('RESEARCH_BTN')}
                                                 </button>
                                             )}
                                         </div>

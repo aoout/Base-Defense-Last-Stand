@@ -1,4 +1,6 @@
 
+
+
 import {
   GameState,
   InputState,
@@ -233,7 +235,10 @@ export class GameEngine {
         orbitalUpgradeTree: [],
         orbitalDamageMultiplier: 1,
         orbitalRateMultiplier: 1,
-        carapaceGrid: null
+        carapaceGrid: null,
+        infrastructureUpgrades: [],
+        infrastructureOptions: [],
+        infrastructureLocked: false
     };
 
     // Preserve settings (especially language) across resets
@@ -731,6 +736,8 @@ export class GameEngine {
   public exitCarapaceGrid() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
   public enterShipComputer() { this.state.appMode = AppMode.SHIP_COMPUTER; }
   public exitShipComputer() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
+  public enterInfrastructureResearch() { this.state.appMode = AppMode.INFRASTRUCTURE_RESEARCH; }
+  public exitInfrastructureResearch() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
   public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; }
 
   public completeMission() {
@@ -741,6 +748,12 @@ export class GameEngine {
           if (pIdx !== -1) {
               this.state.planets[pIdx].completed = true;
           }
+      }
+      
+      // Unlock Research Cycle
+      if (this.state.spaceship.infrastructureLocked) {
+          this.state.spaceship.infrastructureLocked = false;
+          this.state.spaceship.infrastructureOptions = []; 
       }
   }
 
@@ -775,8 +788,9 @@ export class GameEngine {
   }
 
   public activateBackdoor() {
-      this.state.player.score += 99999;
+      this.state.player.score += 9999999;
       this.audio.playTurretFire(2);
+      this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM);
   }
   
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
@@ -784,4 +798,7 @@ export class GameEngine {
   
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }
   public purchaseCarapaceNode(row: number, col: number) { this.spaceshipManager.purchaseCarapaceNode(row, col); }
+
+  public generateInfrastructureOptions() { this.spaceshipManager.generateInfrastructureOptions(); }
+  public purchaseInfrastructureUpgrade(optionId: string) { this.spaceshipManager.purchaseInfrastructureUpgrade(optionId); }
 }

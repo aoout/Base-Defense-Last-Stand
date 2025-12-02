@@ -1,4 +1,6 @@
 
+
+
 import React from 'react';
 import { GameState, AppMode } from '../../types';
 import { TURRET_COSTS } from '../../data/registry';
@@ -42,6 +44,7 @@ export const InteractPrompt: React.FC<InteractPromptProps> = ({ state, t }) => {
         const spot = state.turretSpots[closestSpotIdx];
         
         if (spot.builtTurret) { 
+            if (spot.builtTurret.level >= 2) return null;
             return (
                 <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
                     <div className="bg-emerald-500 text-black font-black tracking-wider px-4 py-1 rounded shadow-[0_0_15px_rgba(16,185,129,0.6)] border-2 border-white text-sm">

@@ -1,4 +1,6 @@
 
+
+
 import { GameEngine } from '../gameService';
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
@@ -98,6 +100,15 @@ export class DefenseManager {
         state.turretSpots.forEach(spot => {
             const t = spot.builtTurret;
             if (!t) return;
+
+            // Check for destruction
+            if (t.hp <= 0) {
+                this.engine.spawnParticle(spot.x, spot.y, '#ef4444', 10, 5);
+                this.engine.spawnParticle(spot.x, spot.y, '#9ca3af', 8, 3); // Debris
+                this.engine.audio.playExplosion();
+                spot.builtTurret = undefined;
+                return;
+            }
             
             if (time - t.lastFireTime > t.fireRate) {
                 let target: Enemy | null = null;
@@ -124,6 +135,7 @@ export class DefenseManager {
     public interact() {
         const p = this.engine.state.player;
         const state = this.engine.state;
+        const sm = this.engine.spaceshipManager;
         
         let closestSpot = -1;
         let minDst = 60;
@@ -139,35 +151,54 @@ export class DefenseManager {
             const spot = state.turretSpots[closestSpot];
             if (!spot.builtTurret) {
                 const currentCount = state.turretSpots.filter(s => s.builtTurret).length;
-                const cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
+                let cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
+                
+                // Apply Infrastructure Cost Reduction
+                const costReduction = sm.getInfrastructureBonus('COST', TurretType.STANDARD);
+                cost = Math.floor(cost * (1 - costReduction));
+
                 if (p.score >= cost) {
                     p.score -= cost;
+                    
+                    // Apply Bonuses
+                    const hpBonus = sm.getInfrastructureBonus('HP', TurretType.STANDARD);
+                    const dmgBonusPct = sm.getInfrastructureBonus('DMG', TurretType.STANDARD);
+                    const rateBonusPct = sm.getInfrastructureBonus('RATE', TurretType.STANDARD); // Probably 0 for standard
+
+                    const baseStats = TURRET_STATS[TurretType.STANDARD];
+                    const finalHp = baseStats.hp + hpBonus;
+                    const finalDmg = baseStats.damage * (1 + dmgBonusPct);
+                    const finalRate = baseStats.fireRate / (1 + rateBonusPct);
+
                     spot.builtTurret = {
                         id: `t-${Date.now()}`,
                         x: spot.x,
                         y: spot.y,
-                        radius: 0, angle: 0, color: '', 
+                        radius: 12, angle: 0, color: '', 
                         level: 1,
                         type: TurretType.STANDARD,
                         lastFireTime: 0,
-                        range: TURRET_STATS[TurretType.STANDARD].range,
-                        hp: TURRET_STATS[TurretType.STANDARD].hp,
-                        maxHp: TURRET_STATS[TurretType.STANDARD].hp,
-                        damage: TURRET_STATS[TurretType.STANDARD].damage,
-                        fireRate: TURRET_STATS[TurretType.STANDARD].fireRate
+                        range: baseStats.range,
+                        hp: finalHp,
+                        maxHp: finalHp,
+                        damage: finalDmg,
+                        fireRate: finalRate
                     };
                     this.engine.audio.playTurretFire(1); 
                 } else {
                     this.engine.addMessage("INSUFFICIENT FUNDS", p.x, p.y - 50, 'red', FloatingTextType.SYSTEM);
                 }
             } else {
-                state.activeTurretId = closestSpot;
+                if (spot.builtTurret.level < 2) {
+                    state.activeTurretId = closestSpot;
+                }
             }
         }
     }
 
     public confirmTurretUpgrade(type: TurretType) {
         const state = this.engine.state;
+        const sm = this.engine.spaceshipManager;
         if (state.activeTurretId === undefined) return;
         const spot = state.turretSpots[state.activeTurretId];
         if (!spot.builtTurret) return;
@@ -181,12 +212,19 @@ export class DefenseManager {
             state.player.score -= cost;
             spot.builtTurret.type = type;
             spot.builtTurret.level = 2;
-            const s = TURRET_STATS[type];
-            spot.builtTurret.range = s.range;
-            spot.builtTurret.damage = s.damage;
-            spot.builtTurret.fireRate = s.fireRate;
-            spot.builtTurret.maxHp = s.hp;
-            spot.builtTurret.hp = s.hp;
+            const baseStats = TURRET_STATS[type];
+
+            // Apply Bonuses
+            const hpBonus = sm.getInfrastructureBonus('HP', type);
+            const dmgBonusPct = sm.getInfrastructureBonus('DMG', type);
+            const rateBonusPct = sm.getInfrastructureBonus('RATE', type);
+            const rangeBonusPct = sm.getInfrastructureBonus('RANGE', type);
+
+            spot.builtTurret.maxHp = baseStats.hp + hpBonus;
+            spot.builtTurret.hp = spot.builtTurret.maxHp;
+            spot.builtTurret.damage = baseStats.damage * (1 + dmgBonusPct);
+            spot.builtTurret.range = baseStats.range * (1 + rangeBonusPct);
+            spot.builtTurret.fireRate = baseStats.fireRate / (1 + rateBonusPct);
             
             this.closeTurretUpgrade();
         }

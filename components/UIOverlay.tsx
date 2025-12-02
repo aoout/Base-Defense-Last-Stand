@@ -1,3 +1,6 @@
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
@@ -19,6 +22,7 @@ import { OrbitalUpgradeUI } from './ui/OrbitalUpgradeUI';
 import { InteractPrompt } from './ui/InteractPrompt';
 import { CarapaceAnalyzerUI } from './ui/CarapaceAnalyzerUI';
 import { ShipComputer } from './ui/ShipComputer';
+import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
 
 interface UIOverlayProps {
   state: GameState;
@@ -66,6 +70,11 @@ interface UIOverlayProps {
   onOpenCarapaceGrid: () => void;
   onCloseCarapaceGrid: () => void;
   onPurchaseCarapaceNode: (row: number, col: number) => void;
+
+  // Infrastructure
+  onOpenInfrastructure: () => void;
+  onCloseInfrastructure: () => void;
+  onPurchaseInfrastructure: (optionId: string) => void;
 
   // Evac
   onEmergencyEvac: () => void;
@@ -127,6 +136,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onOpenCarapaceGrid,
     onCloseCarapaceGrid,
     onPurchaseCarapaceNode,
+    onOpenInfrastructure,
+    onCloseInfrastructure,
+    onPurchaseInfrastructure,
     onEmergencyEvac,
     onOpenShipComputer,
     onCloseShipComputer
@@ -175,7 +187,9 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onPurchaseModule={handlePurchaseSpaceshipModule}
                 onOpenUpgrades={onOpenOrbitalUpgrades}
                 onOpenCarapaceGrid={onOpenCarapaceGrid}
+                onOpenInfrastructure={onOpenInfrastructure}
                 onOpenComputer={onOpenShipComputer}
+                onCheat={onCheat}
                 t={t}
             />
         )}
@@ -198,8 +212,17 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             />
         )}
 
+        {state.appMode === AppMode.INFRASTRUCTURE_RESEARCH && (
+            <InfrastructureResearchUI 
+                state={state}
+                onPurchase={onPurchaseInfrastructure}
+                onClose={onCloseInfrastructure}
+                t={t}
+            />
+        )}
+
         {state.appMode === AppMode.SHIP_COMPUTER && (
-            <ShipComputer onClose={onCloseShipComputer} t={t} />
+            <ShipComputer onClose={onCloseShipComputer} t={t} onCheat={onCheat} />
         )}
 
         {state.appMode === AppMode.EXPLORATION_MAP && (

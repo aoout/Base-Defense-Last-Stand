@@ -460,6 +460,29 @@ export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: nu
 export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number) => {
     ctx.save();
     ctx.translate(t.x, t.y);
+
+    // --- HEALTH BAR START ---
+    const hpPct = Math.max(0, t.hp / t.maxHp);
+    const barH = 20;
+    const barW = 4;
+    const barX = -22;
+    const barY = -10;
+
+    // Background
+    ctx.fillStyle = '#1f2937'; // gray-800
+    ctx.fillRect(barX, barY, barW, barH);
+
+    // Fill
+    const fillH = barH * hpPct;
+    ctx.fillStyle = hpPct > 0.6 ? '#10b981' : hpPct > 0.3 ? '#facc15' : '#ef4444';
+    ctx.fillRect(barX, barY + (barH - fillH), barW, fillH);
+
+    // Frame
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barY, barW, barH);
+    // --- HEALTH BAR END ---
+
     ctx.fillStyle = '#064E3B'; 
     for(let i=0; i<3; i++) { ctx.save(); ctx.rotate(i * (Math.PI * 2 / 3)); ctx.fillRect(5, -2, 12, 4); ctx.restore(); }
     ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();

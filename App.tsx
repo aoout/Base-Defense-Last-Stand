@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -190,6 +192,14 @@ const App: React.FC = () => {
   const handleCloseCarapaceGrid = () => { engineRef.current.exitCarapaceGrid(); };
   const handlePurchaseCarapaceNode = (row: number, col: number) => { engineRef.current.purchaseCarapaceNode(row, col); };
 
+  // Infrastructure Research
+  const handleOpenInfrastructure = () => { 
+      engineRef.current.generateInfrastructureOptions();
+      engineRef.current.enterInfrastructureResearch(); 
+  };
+  const handleCloseInfrastructure = () => { engineRef.current.exitInfrastructureResearch(); };
+  const handlePurchaseInfrastructure = (optionId: string) => { engineRef.current.purchaseInfrastructureUpgrade(optionId); };
+
   // Evac
   const handleEmergencyEvac = () => { engineRef.current.emergencyEvac(); };
 
@@ -233,6 +243,9 @@ const App: React.FC = () => {
         onOpenCarapaceGrid={handleOpenCarapaceGrid}
         onCloseCarapaceGrid={handleCloseCarapaceGrid}
         onPurchaseCarapaceNode={handlePurchaseCarapaceNode}
+        onOpenInfrastructure={handleOpenInfrastructure}
+        onCloseInfrastructure={handleCloseInfrastructure}
+        onPurchaseInfrastructure={handlePurchaseInfrastructure}
         onEmergencyEvac={handleEmergencyEvac}
         onOpenShipComputer={handleOpenShipComputer}
         onCloseShipComputer={handleCloseShipComputer}

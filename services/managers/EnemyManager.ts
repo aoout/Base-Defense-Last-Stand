@@ -177,18 +177,31 @@ export class EnemyManager {
 
             const distToBase = Math.sqrt((e.x - base.x)**2 + (e.y - base.y)**2);
 
+            // 1. Check Player
             const distPlayer = Math.sqrt((e.x - player.x)**2 + (e.y - player.y)**2);
             if (distPlayer < minDist) {
                 minDist = distPlayer;
                 closestUnit = player;
             }
 
+            // 2. Check Allies
             state.allies.forEach(ally => {
                  const d = Math.sqrt((e.x - ally.x)**2 + (e.y - ally.y)**2);
                  if (d < minDist) {
                      minDist = d;
                      closestUnit = ally;
                  }
+            });
+
+            // 3. Check Turrets
+            state.turretSpots.forEach(spot => {
+                if (spot.builtTurret) {
+                    const d = Math.sqrt((e.x - spot.builtTurret.x)**2 + (e.y - spot.builtTurret.y)**2);
+                    if (d < minDist) {
+                        minDist = d;
+                        closestUnit = spot.builtTurret;
+                    }
+                }
             });
 
             if (closestUnit) {
@@ -280,6 +293,7 @@ export class EnemyManager {
                 } else if ((targetEntity as any).maxHp && (targetEntity as any).width) { 
                     this.engine.damageBase(e.damage);
                 } else if ((targetEntity as any).hp !== undefined) { 
+                    // Generic damage to Ally or Turret
                     (targetEntity as any).hp -= e.damage;
                 }
                 e.lastAttackTime = now;

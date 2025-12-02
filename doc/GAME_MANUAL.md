@@ -1,8 +1,10 @@
 
+
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 3.6.0
+**Version**: 3.7.0
 
 ## 1. Game Mechanics
 
@@ -52,7 +54,20 @@ For detailed strategies, recommended loadouts, and enemy weakness analysis, plea
 ## 3. Exploration Mode
 - **Cryo-Memory**: Auto-saves state. 7 Slots. Supports Import/Export (See Manual > SYSTEMS).
 - **Emergency Extraction**: If Base HP hits 0, you are evacuated but mission fails.
-- **Modules**: Upgrade ship to unlock Orbital Strike and Analysis Grid.
+- **Modules**: Upgrade ship to unlock Orbital Strike, Analysis Grid, and Base Reinforcements.
+
+### Ship Modules
+- **Orbital Cannon**: Unlocks Orbital Upgrade Tree (7 Layers).
+- **Carapace Analyzer**: Unlocks 4x4 Xenobiology Matrix.
+- **Base Reinforcement**: Unlocks Infrastructure Research.
+
+### Infrastructure Research
+The **Base Reinforcement Module** grants access to the R&D department.
+- **Protocol**: 3 random research options are generated per cycle.
+- **Selection**: Commander may choose only **ONE** option per visit.
+- **Lockout**: After selection, R&D is locked until a mission is successfully completed.
+- **Capacity**: Maximum of 9 technologies can be acquired.
+- **Bonuses**: Include Base HP, Turret Stats (DMG/HP/Range/Rate), and Cost Reductions.
 
 ### Biological Scaling Rules
 - **Oxygen (O2)**: Increases HP of Grunt/Rusher.

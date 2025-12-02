@@ -1,5 +1,7 @@
 
 
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -452,6 +454,8 @@ Immediate spawn of next wave. No downtime for reload or regen.
         INSTALL_BTN: "INSTALL",
         CORE_DB: "CORE DATABASE",
         ACCESS_COMPUTER: "ACCESS TERMINAL",
+        BASE_RESEARCH: "INFRASTRUCTURE RESEARCH",
+        RESEARCH_BTN: "BASE RESEARCH",
 
         // Spaceship Modules
         SHIP_MOD_BASE_REINFORCEMENT_NAME: "Base Reinforcement Module",
@@ -462,6 +466,25 @@ Immediate spawn of next wave. No downtime for reload or regen.
         SHIP_MOD_ORBITAL_CANNON_DESC: "Strikes nearest enemy every 8s (400 Dmg)",
         SHIP_MOD_ATMOSPHERIC_DEFLECTOR_NAME: "Atmospheric Drag Adaptive Deflector",
         SHIP_MOD_ATMOSPHERIC_DEFLECTOR_DESC: "Orbital Drop Cost -50%",
+
+        // Infrastructure Research
+        INFRA_TITLE: "INFRASTRUCTURE",
+        INFRA_SUB: "Research & Development",
+        INFRA_ACQUIRED: "ACQUIRED TECH",
+        INFRA_AVAILABLE: "AVAILABLE RESEARCH PROJECTS",
+        INFRA_LOCKED_MSG: "RESEARCH PROTOCOLS LOCKED. MISSION SUCCESS REQUIRED FOR NEXT CYCLE.",
+        INFRA_MAXED_MSG: "MAXIMUM RESEARCH CAPACITY REACHED.",
+        INFRA_SELECT_BTN: "INITIATE RESEARCH",
+        INFRA_COST: "COST",
+        INFRA_BASE_HP_DESC: "Base Hull Integrity +{0}",
+        INFRA_TURRET_HP_DESC: "Automated Turret Armor +{0}",
+        INFRA_TURRET_L1_DMG_DESC: "Standard Turret Damage +{0}%",
+        INFRA_TURRET_GAUSS_RATE_DESC: "Gauss Cannon Fire Rate +{0}%",
+        INFRA_TURRET_SNIPER_RANGE_DESC: "Sniper Turret Range +{0}%",
+        INFRA_TURRET_MISSILE_DMG_DESC: "Missile Warhead Yield +{0}%",
+        INFRA_GLOBAL_TURRET_DMG_DESC: "Global Defense Damage +{0}%",
+        INFRA_GLOBAL_TURRET_RATE_DESC: "Global Defense Fire Rate +{0}%",
+        INFRA_TURRET_L1_COST_DESC: "Standard Turret Cost -{0}%",
 
         // Orbital
         ORBITAL_TITLE: "Orbital Matrix",
@@ -919,7 +942,7 @@ function calculateEnemyCount(Wave) {
         ENEMY_RED_SUMMONER_DESC: "巨大的生物锚点。拥有能够快速孵化工蜂无人机的妊娠囊。必须被摧毁以阻止虫群扩张。",
         ENEMY_BLUE_BURST_NAME: "钴蓝收割者",
         ENEMY_BLUE_BURST_CLASS: "顶级炮兵",
-        ENEMY_BLUE_BURST_DESC: "高度进化的远程专家。发射高速等离子刺。覆盖着致密的蓝色甲壳。在它爆发周期期间优先寻找掩护。",
+        ENEMY_BLUE_BURST_DESC: "Highly evolved ranged specialist. Fires bursts of high-velocity plasma spines. Plated in dense blue chitin. Prioritize cover during its burst cycle.",
         ENEMY_PURPLE_ACID_NAME: "瘟疫使者",
         ENEMY_PURPLE_ACID_CLASS: "顶级毒素",
         ENEMY_PURPLE_ACID_DESC: "行走的生物危害。投掷有机迫击炮，制造持久的拒绝区域。紫色酸液能在几秒钟内熔化耐钢。避开影响区域。",
@@ -1036,6 +1059,8 @@ function calculateEnemyCount(Wave) {
         INSTALL_BTN: "安装",
         CORE_DB: "核心数据库",
         ACCESS_COMPUTER: "访问终端",
+        BASE_RESEARCH: "基建技术研究",
+        RESEARCH_BTN: "基建研究",
 
         // Spaceship Modules
         SHIP_MOD_BASE_REINFORCEMENT_NAME: "基地强化模块",
@@ -1046,6 +1071,25 @@ function calculateEnemyCount(Wave) {
         SHIP_MOD_ORBITAL_CANNON_DESC: "每8秒打击最近敌人 (400伤害)",
         SHIP_MOD_ATMOSPHERIC_DEFLECTOR_NAME: "大气阻力自适应偏转器",
         SHIP_MOD_ATMOSPHERIC_DEFLECTOR_DESC: "轨道投放消耗 -50%",
+
+        // Infrastructure Research
+        INFRA_TITLE: "基建技术",
+        INFRA_SUB: "研究与开发",
+        INFRA_ACQUIRED: "已获得技术",
+        INFRA_AVAILABLE: "可用研究项目",
+        INFRA_LOCKED_MSG: "研究协议锁定。需要任务成功以进行下一轮研究。",
+        INFRA_MAXED_MSG: "已达到最大研究容量。",
+        INFRA_SELECT_BTN: "开始研究",
+        INFRA_COST: "花费",
+        INFRA_BASE_HP_DESC: "基地结构完整性 +{0}",
+        INFRA_TURRET_HP_DESC: "自动炮塔装甲 +{0}",
+        INFRA_TURRET_L1_DMG_DESC: "标准炮塔伤害 +{0}%",
+        INFRA_TURRET_GAUSS_RATE_DESC: "高斯炮射速 +{0}%",
+        INFRA_TURRET_SNIPER_RANGE_DESC: "狙击炮塔射程 +{0}%",
+        INFRA_TURRET_MISSILE_DMG_DESC: "导弹弹头当量 +{0}%",
+        INFRA_GLOBAL_TURRET_DMG_DESC: "全局防御设施伤害 +{0}%",
+        INFRA_GLOBAL_TURRET_RATE_DESC: "全局防御设施射速 +{0}%",
+        INFRA_TURRET_L1_COST_DESC: "标准炮塔造价 -{0}%",
 
         // Orbital
         ORBITAL_TITLE: "轨道矩阵",

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { GameState, OrbitalUpgradeEffect, OrbitalUpgradeNode } from '../../types';
 import { CloseButton } from './Shared';
@@ -23,7 +24,7 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
             </div>
 
             <div className="relative w-full max-w-5xl h-[90vh] flex flex-col items-center">
-                 <CloseButton onClick={onClose} colorClass="absolute top-4 right-4 border-cyan-700 text-cyan-500 hover:text-white hover:bg-cyan-900" />
+                 <CloseButton onClick={onClose} colorClass="absolute top-4 right-4 border-cyan-700 text-cyan-500 hover:text-white hover:bg-cyan-900 z-50" />
                  
                  {/* Header */}
                  <div className="mt-8 text-center mb-12 relative z-10">
