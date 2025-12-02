@@ -1,4 +1,3 @@
-
 import React, { useRef } from 'react';
 import { GameState, GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
@@ -95,7 +94,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             {/* Main Menu (Right Side) */}
             <div className="absolute right-24 flex flex-col items-end space-y-12">
                 <div className="text-right">
-                    <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                    <h1 className="text-8xl font-black font-display text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-wider drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                         {t('GAME_TITLE')}<br/><span className="text-cyan-500 text-9xl drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">DEFENSE</span>
                     </h1>
                     <div className="flex items-center justify-end gap-2 mt-2">
@@ -109,7 +108,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <div className="absolute inset-0 bg-cyan-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
-                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-cyan-100 transition-colors">{t('SURVIVAL_MODE')}</span>
+                            <span className="text-4xl font-display font-bold text-white tracking-widest group-hover:text-cyan-100 transition-colors">{t('SURVIVAL_MODE')}</span>
                             <span className="text-[10px] text-cyan-600 group-hover:text-cyan-300 font-mono uppercase tracking-[0.2em]">{t('SURVIVAL_DESC')}</span>
                         </div>
                         
@@ -122,7 +121,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <div className="absolute inset-0 bg-purple-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
-                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">{t('EXPLORE_MODE')}</span>
+                            <span className="text-4xl font-display font-bold text-white tracking-widest group-hover:text-purple-100 transition-colors">{t('EXPLORE_MODE')}</span>
                             <span className="text-[10px] text-purple-600 group-hover:text-purple-300 font-mono uppercase tracking-[0.2em]">{t('EXPLORE_DESC')}</span>
                         </div>
 

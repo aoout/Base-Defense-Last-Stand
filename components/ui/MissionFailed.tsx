@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameState } from '../../types';
 
@@ -11,7 +10,7 @@ interface MissionFailedScreenProps {
 const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, value }) => (
     <div className="flex justify-between items-baseline border-b border-red-900/30 pb-1">
         <span className="text-red-800 text-sm font-bold tracking-wider">{label}</span>
-        <span className="text-xl text-white font-mono">{value}</span>
+        <span className="text-xl text-white font-display font-bold">{value}</span>
     </div>
 );
 
@@ -66,7 +65,7 @@ export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state,
              <div className="relative z-10 border-4 border-red-900 bg-black/90 p-12 max-w-4xl w-full shadow-[0_0_50px_rgba(220,38,38,0.3)]">
                  <div className="flex justify-between items-start mb-8 border-b-2 border-red-900 pb-4">
                      <div>
-                         <h1 className="text-6xl font-black tracking-tighter text-red-600 mb-2 glitch-text">{t('MISSION_FAILED')}</h1>
+                         <h1 className="text-8xl font-display font-black tracking-wide text-red-600 mb-2 glitch-text">{t('MISSION_FAILED')}</h1>
                          <p className="text-red-800 tracking-[0.5em] text-sm font-bold">SIGNAL LOST // BASE DESTROYED</p>
                      </div>
                      <div className="text-right">
@@ -94,7 +93,7 @@ export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state,
                          </div>
                          <div className="mt-6 pt-4 border-t border-red-900/50 flex justify-between">
                              <span className="text-red-400 font-bold">{t('TOTAL_UNITS')}</span>
-                             <span className="text-2xl text-white font-bold">
+                             <span className="text-2xl text-white font-display font-bold">
                                  {(Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0)}
                              </span>
                          </div>

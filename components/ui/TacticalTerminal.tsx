@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
@@ -139,7 +138,7 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
                                         <div className="absolute bottom-1 right-1 text-[10px] text-green-900 font-mono">FIG. A</div>
                                     </div>
                                     <div className="flex-1 space-y-2">
-                                        <div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{t(`ENEMY_${selectedId}_NAME`)}</div>
+                                        <div className="text-3xl font-display font-black text-green-400 border-b border-green-800 pb-1">{t(`ENEMY_${selectedId}_NAME`)}</div>
                                         <div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {t(`ENEMY_${selectedId}_CLASS`)}</div>
                                         <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300">
                                             <div className="bg-green-900/30 p-2 border border-green-800">
@@ -213,7 +212,7 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
             <div className="w-[900px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
                 <CloseButton onClick={onClose} colorClass="border-green-800 text-green-500 hover:text-white hover:bg-green-900/50" />
                 <div className="border-b border-green-800 p-4 flex justify-between items-center bg-black/50">
-                    <h1 className="text-2xl font-bold tracking-widest text-green-400">{t('PAUSE_TITLE')}</h1>
+                    <h1 className="text-3xl font-display font-bold tracking-wide text-green-400">{t('PAUSE_TITLE')}</h1>
                     <div className="text-xs text-green-700 animate-pulse mr-8">{t('SYSTEM_PAUSED')}</div>
                 </div>
                 <div className="flex border-b border-green-800">

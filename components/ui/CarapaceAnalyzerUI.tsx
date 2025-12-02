@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { GameState, CarapaceNode, EnemyType } from '../../types';
 import { CloseButton } from './Shared';
@@ -42,7 +41,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                  
                  {/* Header */}
                  <div className="mt-8 text-center mb-12 relative z-10">
-                     <h1 className="text-4xl font-black text-white tracking-widest uppercase mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
+                     <h1 className="text-5xl font-display font-black text-white tracking-widest uppercase mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
                          {t('XENO_TITLE')} <span className="text-green-500">{t('ANALYSIS')}</span>
                      </h1>
                      <div className="text-cyan-400 font-mono text-xs tracking-[0.5em] uppercase">{t('WEAKNESS_MATRIX')}</div>

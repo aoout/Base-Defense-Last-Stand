@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import { GameState } from '../../types';
 import { CloseButton } from './Shared';
@@ -40,7 +37,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
     return (
         <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-8 left-8">
-                <h1 className="text-4xl font-bold text-white tracking-widest">{t('PLANET_ANALYSIS')}</h1>
+                <h1 className="text-5xl font-display font-bold text-white tracking-widest">{t('PLANET_ANALYSIS')}</h1>
                 <p className="text-blue-400 font-mono text-sm">{t('SECTOR_NAME')}</p>
             </div>
 
@@ -77,7 +74,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
 
                     <div className="flex flex-col">
                         <div className="text-cyan-400 text-[10px] font-mono tracking-[0.2em] leading-none mb-1 group-hover:text-cyan-200">PROJECT</div>
-                        <div className="text-white text-xl font-black tracking-widest leading-none group-hover:text-cyan-100">VANGUARD</div>
+                        <div className="text-white text-2xl font-display font-black tracking-widest leading-none group-hover:text-cyan-100">VANGUARD</div>
                     </div>
                 </button>
             </div>

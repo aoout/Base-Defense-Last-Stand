@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { GameState } from '../../types';
 
@@ -23,7 +22,7 @@ export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t })
                      <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{t('SIGNAL_LOST')}</span>
                  </div>
 
-                 <h1 className="text-6xl font-black text-white tracking-tighter mb-2">{t('BASE_COMPROMISED')}</h1>
+                 <h1 className="text-7xl font-display font-black text-white tracking-wide mb-2">{t('BASE_COMPROMISED')}</h1>
                  <h2 className="text-2xl text-red-500 font-bold tracking-widest mb-12">{t('EMERGENCY_PROTO')} <span className="text-white">99-ALPHA</span> {t('EXECUTED')}</h2>
 
                  <div className="w-full border-t border-b border-red-900/50 py-8 mb-8 space-y-4">

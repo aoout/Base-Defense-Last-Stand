@@ -210,6 +210,10 @@ export class EnemyManager {
             if (distToTarget > stopDist) {
                 e.x += Math.cos(angle) * e.speed * timeScale;
                 e.y += Math.sin(angle) * e.speed * timeScale;
+
+                // Clamp to Map Boundaries
+                e.x = Math.max(0, Math.min(WORLD_WIDTH, e.x));
+                e.y = Math.max(0, Math.min(WORLD_HEIGHT, e.y));
             }
 
             const attackCooldown = e.isBoss ? (e.bossType ? 100 : 1000) : 1000;

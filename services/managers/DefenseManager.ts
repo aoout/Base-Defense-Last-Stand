@@ -2,6 +2,7 @@
 import { GameEngine } from '../gameService';
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export class DefenseManager {
     private engine: GameEngine;
@@ -83,6 +84,10 @@ export class DefenseManager {
                     a.angle = angle;
                 }
             }
+
+            // Clamp to Map Boundaries
+            a.x = Math.max(0, Math.min(WORLD_WIDTH, a.x));
+            a.y = Math.max(0, Math.min(WORLD_HEIGHT, a.y));
         });
         
         state.allies = state.allies.filter(a => a.hp > 0);

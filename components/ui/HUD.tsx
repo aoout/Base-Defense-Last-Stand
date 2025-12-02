@@ -1,6 +1,3 @@
-
-
-
 import React from 'react';
 import { GameState, WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
@@ -73,7 +70,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                         /* OFFENSE MODE UI */
                         <div className="flex flex-col items-center w-full z-10">
                             <div className="flex justify-between w-full items-end border-b border-red-900/50 pb-1 mb-1">
-                                <span className="text-[10px] font-black tracking-[0.2em] text-red-700 animate-pulse">ASSAULT OPS</span>
+                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-red-700 animate-pulse">ASSAULT OPS</span>
                                 <span className="text-[10px] font-mono text-red-400">TARGET LOCKED</span>
                             </div>
                             
@@ -81,7 +78,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                                 <div className="w-full mt-1">
                                     <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
                                         <span>BOSS INTEGRITY</span>
-                                        <span>{Math.ceil(hiveMother.hp).toLocaleString()}</span>
+                                        <span className="font-display text-lg">{Math.ceil(hiveMother.hp).toLocaleString()}</span>
                                     </div>
                                     <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
                                         <div 
@@ -101,10 +98,10 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                         /* DEFENSE MODE UI */
                         <div className="flex flex-col items-center w-full z-10">
                             <div className="flex justify-between w-full items-baseline border-b border-cyan-900/50 pb-1 mb-1">
-                                <span className="text-[10px] font-black tracking-[0.2em] text-cyan-700">SECTOR DEFENSE</span>
+                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
-                                    <span className="text-xl font-black text-white leading-none">{state.wave}</span>
+                                    <span className="text-2xl font-display font-black text-white leading-none">{state.wave}</span>
                                 </div>
                             </div>
 
@@ -112,12 +109,12 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                                 {isCleanupPhase ? (
                                     <div className="flex flex-col items-center">
                                         <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
-                                        <span className="text-3xl font-mono font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                        <span className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
                                             {state.enemies.length}
                                         </span>
                                     </div>
                                 ) : (
-                                    <span className="text-4xl font-mono font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                                    <span className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
                                         {formattedTime}
                                     </span>
                                 )}
@@ -182,7 +179,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                         <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-mono font-bold text-white tracking-tighter">{Math.floor(p.score)}</span>
+                        <span className="text-4xl font-display font-bold text-white tracking-wide">{Math.floor(p.score)}</span>
                         <span className="text-xs text-slate-500 font-bold">SCRAPS</span>
                     </div>
                 </div>
@@ -191,7 +188,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
             {/* Bottom Left: Integrity Monitor */}
             <div className="absolute bottom-8 left-8 w-64">
                 <div className="flex items-end gap-2 mb-2">
-                    <span className="text-4xl font-black text-white/20 select-none">BASE</span>
+                    <span className="text-4xl font-display font-black text-white/20 select-none">BASE</span>
                     <div className="h-px bg-white/20 flex-1 mb-2"></div>
                 </div>
                 
@@ -218,18 +215,18 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                 {/* Active Weapon Card */}
                 <div className="bg-slate-900/90 border-t-2 border-r-2 border-slate-600 p-4 min-w-[240px] relative overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 p-1 bg-slate-800">
-                        <div className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">{wepStats.name}</div>
+                        <div className="text-[12px] text-slate-400 font-display font-bold uppercase tracking-wider">{wepStats.name}</div>
                     </div>
                     
                     <div className="mt-4 flex justify-between items-end">
                         {currentWep.reloading ? (
-                            <div className="text-2xl font-black text-yellow-500 animate-pulse tracking-widest">RELOADING</div>
+                            <div className="text-3xl font-display font-black text-yellow-500 animate-pulse tracking-widest">RELOADING</div>
                         ) : (
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-5xl font-black tracking-tighter ${currentWep.ammoInMag === 0 ? 'text-red-500' : 'text-white'}`}>
+                                <span className={`text-6xl font-display font-black tracking-wide ${currentWep.ammoInMag === 0 ? 'text-red-500' : 'text-white'}`}>
                                     {currentWep.ammoInMag}
                                 </span>
-                                <span className="text-sm text-slate-500 font-bold">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
+                                <span className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
                             </div>
                         )}
                         <WeaponIcon type={currentWeaponType} className="w-12 h-12 text-slate-600" />

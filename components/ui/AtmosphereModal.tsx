@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect } from 'react';
 import * as d3 from 'd3';
 import { Planet, AtmosphereGas } from '../../types';
@@ -58,9 +57,9 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
             .attr("dy", "-0.5em")
             .text(t('ATMOS_LABEL'))
             .attr("fill", "#64748b")
-            .attr("font-size", "24px") 
-            .attr("font-family", "monospace")
-            .attr("letter-spacing", "0.2em");
+            .attr("font-size", "32px") 
+            .attr("font-family", "ZCOOL QingKe HuangYou, cursive")
+            .attr("letter-spacing", "0.1em");
         
         g.append("text")
             .attr("text-anchor", "middle")
@@ -69,7 +68,7 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
             .attr("fill", "#ffffff")
             .attr("font-size", "64px") 
             .attr("font-weight", "900")
-            .attr("font-family", "monospace");
+            .attr("font-family", "ZCOOL QingKe HuangYou, cursive");
 
     }, [planet, t]);
 
@@ -84,9 +83,9 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
                      <div className="absolute top-12 left-12">
                         <div className="flex items-center gap-4 mb-2">
                             <div className="w-3 h-3 bg-green-500 animate-pulse"></div>
-                            <h3 className="text-green-500 font-mono tracking-[0.5em] uppercase text-xl">{t('PLANET_ATMOS_ANALYSIS')}</h3>
+                            <h3 className="text-green-500 font-display tracking-[0.2em] uppercase text-2xl">{t('PLANET_ATMOS_ANALYSIS')}</h3>
                         </div>
-                        <h1 className="text-6xl text-white font-black tracking-tighter drop-shadow-2xl">{planet.name}</h1>
+                        <h1 className="text-7xl font-display text-white font-black tracking-wide drop-shadow-2xl">{planet.name}</h1>
                         <div className="h-1 w-full bg-gradient-to-r from-green-500 to-transparent mt-4"></div>
                      </div>
                     
@@ -115,9 +114,9 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
                                 <div className="flex justify-between items-end mb-4 relative z-10">
                                     <div className="flex items-center gap-6">
                                         <div className="w-6 h-6 shadow-[0_0_10px_currentColor]" style={{backgroundColor: gas.color, color: gas.color}}></div>
-                                        <span className="text-green-100 font-bold font-mono text-2xl tracking-widest uppercase">{t(`GAS_${gas.id}_NAME`)}</span>
+                                        <span className="text-green-100 font-bold font-display text-3xl tracking-wide uppercase">{t(`GAS_${gas.id}_NAME`)}</span>
                                     </div>
-                                    <span className="text-4xl font-black text-white tabular-nums tracking-tighter">{(gas.percentage * 100).toFixed(2)}%</span>
+                                    <span className="text-4xl font-display font-black text-white tabular-nums tracking-tighter">{(gas.percentage * 100).toFixed(2)}%</span>
                                 </div>
                                 <p className="text-base text-slate-400 leading-relaxed font-mono relative z-10 pl-12 group-hover:text-slate-300 transition-colors">
                                     {t(`GAS_${gas.id}_DESC`)}

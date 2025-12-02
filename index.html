@@ -4,16 +4,59 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Base Defense: Last Stand</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;700;900&family=ZCOOL+QingKe+HuangYou&display=swap" rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Noto Sans SC"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', '"Noto Sans SC"', 'monospace'],
+              display: ['"ZCOOL QingKe HuangYou"', 'cursive'],
+            },
+            animation: {
+                'spin-slow': 'spin 3s linear infinite',
+                'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                'noise': 'noise 0.2s infinite',
+            },
+            keyframes: {
+                noise: {
+                    '0%': { transform: 'translate(0,0)' },
+                    '10%': { transform: 'translate(-5%,-5%)' },
+                    '20%': { transform: 'translate(-10%,5%)' },
+                    '30%': { transform: 'translate(5%,-10%)' },
+                    '40%': { transform: 'translate(-5%,15%)' },
+                    '50%': { transform: 'translate(-10%,5%)' },
+                    '60%': { transform: 'translate(15%,0)' },
+                    '70%': { transform: 'translate(0,10%)' },
+                    '80%': { transform: 'translate(-15%,0)' },
+                    '90%': { transform: 'translate(10%,5%)' },
+                    '100%': { transform: 'translate(5%,0)' }
+                }
+            }
+          }
+        }
+      }
+    </script>
     <style>
       body {
         margin: 0;
         overflow: hidden;
         background-color: #1a202c; /* gray-900 */
         user-select: none;
+        font-family: "Noto Sans SC", sans-serif;
       }
       canvas {
         display: block;
+      }
+      .font-display {
+        font-family: "ZCOOL QingKe HuangYou", cursive;
       }
     </style>
   <script type="importmap">

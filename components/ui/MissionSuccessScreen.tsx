@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { GameState } from '../../types';
 
@@ -54,7 +53,7 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                      <span className="text-emerald-400 font-bold tracking-[0.2em] text-xs">{t('PROTOCOL_ZULU')}</span>
                  </div>
 
-                 <h1 className="text-6xl font-black text-white tracking-tighter mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">{t('SECTOR_PACIFIED')}</h1>
+                 <h1 className="text-8xl font-display font-black text-white tracking-wide mb-2 drop-shadow-[0_0_15px_rgba(52,211,153,0.8)]">{t('SECTOR_PACIFIED')}</h1>
                  <h2 className="text-xl text-emerald-500 font-bold tracking-widest mb-12">{t('MISSION_OBJ')} <span className="text-white bg-emerald-600 px-2 py-0.5 text-sm ml-2 rounded">{t('COMPLETE')}</span></h2>
 
                  <div className="w-full grid grid-cols-2 gap-8 mb-12">
@@ -62,7 +61,7 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                      <div className="bg-black/40 border border-emerald-900/50 p-6 flex flex-col justify-center items-center relative overflow-hidden group">
                          <div className="absolute top-0 left-0 w-full h-1 bg-yellow-500 shadow-[0_0_10px_#eab308]"></div>
                          <div className="text-xs text-emerald-600 font-bold uppercase tracking-widest mb-2">{t('RESOURCES_SECURED')}</div>
-                         <div className="text-5xl font-mono font-bold text-yellow-400 tabular-nums tracking-tighter group-hover:scale-110 transition-transform">
+                         <div className="text-6xl font-display font-bold text-yellow-400 tabular-nums tracking-tighter group-hover:scale-110 transition-transform">
                              {tallyScore}
                          </div>
                          <div className="text-[10px] text-yellow-600 mt-1">{t('SCRAPS_TRANSFER')}</div>
@@ -73,7 +72,7 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                          <div className="flex-1 bg-black/40 border border-emerald-900/50 p-4 flex justify-between items-center px-8">
                              <div className="text-left">
                                  <div className="text-xs text-emerald-600 font-bold uppercase">{t('HOSTILES_NEUTRALIZED')}</div>
-                                 <div className="text-2xl text-white font-bold">{totalKills}</div>
+                                 <div className="text-3xl font-display text-white font-bold">{totalKills}</div>
                              </div>
                              <div className="w-10 h-10 border border-emerald-800 rounded-full flex items-center justify-center text-emerald-500">
                                  ☠
@@ -82,7 +81,7 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                          <div className="flex-1 bg-black/40 border border-emerald-900/50 p-4 flex justify-between items-center px-8">
                              <div className="text-left">
                                  <div className="text-xs text-emerald-600 font-bold uppercase">{t('BASE_INTEGRITY')}</div>
-                                 <div className={`text-2xl font-bold ${baseIntegrity > 80 ? 'text-green-400' : baseIntegrity > 40 ? 'text-yellow-400' : 'text-red-400'}`}>
+                                 <div className={`text-3xl font-display font-bold ${baseIntegrity > 80 ? 'text-green-400' : baseIntegrity > 40 ? 'text-yellow-400' : 'text-red-400'}`}>
                                      {baseIntegrity}%
                                  </div>
                              </div>

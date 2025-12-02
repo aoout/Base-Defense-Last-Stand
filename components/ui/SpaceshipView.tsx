@@ -1,8 +1,3 @@
-
-
-
-
-
 import React from 'react';
 import { GameState, SpaceshipModuleType } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
@@ -40,19 +35,19 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                         <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">{t('STORAGE_ACCESS')}</span>
                     </div>
                     <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3">
-                         <span className="text-3xl font-black text-white font-mono tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
+                         <span className="text-4xl font-display font-black text-white tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
                          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{t('FRAGMENTS')}</span>
                     </div>
                 </div>
 
                 {/* Right: Ship Class Info */}
                  <div className="text-right pointer-events-auto opacity-80">
-                     <h1 className="text-4xl font-black italic text-slate-700 tracking-tighter uppercase">
+                     <h1 className="text-5xl font-display font-black italic text-slate-700 tracking-wide uppercase">
                          {t('SHIP_CLASS_NAME')}
                      </h1>
                      <div className="flex justify-end items-center gap-2 mt-1">
                          <div className="h-px w-24 bg-cyan-900"></div>
-                         <span className="text-cyan-800 font-mono text-[10px] tracking-[0.3em]">{t('SHIP_TYPE_NAME')}</span>
+                         <span className="text-cyan-800 font-display font-bold text-[14px] tracking-[0.3em]">{t('SHIP_TYPE_NAME')}</span>
                      </div>
                 </div>
             </div>
@@ -113,7 +108,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                         <div key={modType} className="flex flex-col gap-1 text-xs text-white bg-cyan-900/30 p-2 border-l-2 border-cyan-500">
                                             <div className="flex items-center gap-2">
                                                 <span>✔️</span>
-                                                <span>{t(`SHIP_MOD_${modType}_NAME`)}</span>
+                                                <span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span>
                                             </div>
                                             {modType === SpaceshipModuleType.ORBITAL_CANNON && (
                                                 <button 
@@ -147,7 +142,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                         >
                             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#00ff00_2px,#00ff00_4px)] opacity-5 pointer-events-none"></div>
                             <div className="text-green-500 font-mono text-xs tracking-[0.2em] mb-1 group-hover:text-green-400">{t('CORE_DB')}</div>
-                            <div className="text-white font-black text-xl tracking-wider group-hover:text-green-300">{t('ACCESS_COMPUTER')}</div>
+                            <div className="text-white font-display font-black text-2xl tracking-wide group-hover:text-green-300">{t('ACCESS_COMPUTER')}</div>
                             <div className="absolute bottom-0 w-full h-1 bg-slate-800 group-hover:bg-green-500 transition-colors"></div>
                         </button>
                     </div>
@@ -155,7 +150,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
 
                 {/* Right Panel: Module Shop */}
                 <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6">
-                    <h2 className="text-xl font-black text-white mb-1 uppercase">{t('ENGINEERING')}</h2>
+                    <h2 className="text-xl font-display font-black text-white mb-1 uppercase tracking-wide">{t('ENGINEERING')}</h2>
                     <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest">{t('MODULE_FAB')}</p>
                     
                     <div className="flex-1 overflow-y-auto space-y-4">
@@ -169,7 +164,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                             const canAfford = state.player.score >= mod.cost;
                             return (
                                 <div key={modType} className="border border-slate-700 bg-slate-800/50 p-4 hover:border-cyan-500 transition-colors group">
-                                    <div className="text-cyan-100 font-bold text-sm mb-1">{t(`SHIP_MOD_${modType}_NAME`)}</div>
+                                    <div className="text-cyan-100 font-display font-bold text-sm mb-1">{t(`SHIP_MOD_${modType}_NAME`)}</div>
                                     <div className="text-slate-400 text-xs mb-3 leading-relaxed">{t(`SHIP_MOD_${modType}_DESC`)}</div>
                                     <div className="flex justify-between items-center">
                                         <div className="text-yellow-400 font-mono text-sm font-bold">{mod.cost}</div>

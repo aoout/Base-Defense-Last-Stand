@@ -22,7 +22,7 @@ const DesktopIcon: React.FC<{ label: string, icon: string, onClick: () => void, 
         <div className={`text-4xl ${isFolder ? 'text-yellow-400 group-hover:text-yellow-200' : 'text-cyan-400 group-hover:text-cyan-200'} drop-shadow-md`}>
             {icon}
         </div>
-        <span className="text-[10px] text-white font-mono text-center bg-black/50 px-1 rounded leading-tight group-hover:bg-blue-900/80">
+        <span className="text-[12px] text-white font-display text-center bg-black/50 px-1 rounded leading-tight group-hover:bg-blue-900/80 tracking-wide">
             {label}
         </span>
     </div>
@@ -214,7 +214,7 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, t }) => {
                     className="h-8 px-4 flex items-center gap-1 bg-[#c0c0c0] border-2 border-b-black border-r-black border-t-white border-l-white active:border-t-black active:border-l-black active:border-b-white active:border-r-white font-bold"
                 >
                     <span className="w-4 h-4 bg-gradient-to-br from-green-400 to-blue-500 block"></span>
-                    {t('OS_SHUTDOWN')}
+                    <span className="font-display tracking-wide">{t('OS_SHUTDOWN')}</span>
                 </button>
                 
                 <div className="w-[2px] h-6 bg-gray-400 mx-2 shadow-[1px_0_0_white]"></div>
