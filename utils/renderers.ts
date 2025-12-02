@@ -1,7 +1,10 @@
 
+
+
 import { 
     Player, Enemy, Turret, Ally, Projectile, TerrainFeature, BloodStain, ToxicZone, Planet, TurretSpot,
-    WeaponType, EnemyType, BossType, TurretType, BiomeType, GameMode, GameState, PlanetVisualType, TerrainType
+    WeaponType, EnemyType, BossType, TurretType, BiomeType, GameMode, GameState, PlanetVisualType, TerrainType,
+    MissionType
 } from '../types';
 import { WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 import { ENEMY_STATS, BOSS_STATS } from '../data/registry';
@@ -576,6 +579,72 @@ export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
     ctx.fillStyle = '#d8b4fe'; for(let i=0; i<5; i++) { const bx = Math.sin(time * 0.001 * (i+1)) * 20; const by = Math.cos(time * 0.0013 * (i+1)) * 20; const s = 5 + Math.sin(time*0.005 + i)*2; ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill(); }
     const grad = ctx.createRadialGradient(0,0, 30, 0,0, 60); grad.addColorStop(0, 'rgba(168, 85, 247, 0.4)'); grad.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0, 60, 0, Math.PI*2); ctx.fill();
 }
+export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+    // Massive, pulsing organic structure
+    const pulse = Math.sin(time * 0.002) * 2;
+    const armor = e.armorValue || 0;
+    
+    // Main Body Gradient
+    const grad = ctx.createRadialGradient(0, 0, 20, 0, 0, 70);
+    grad.addColorStop(0, '#f87171');
+    grad.addColorStop(0.6, '#991b1b');
+    grad.addColorStop(1, '#450a0a');
+    
+    ctx.fillStyle = grad;
+    
+    // Draw Main Blob with wobble
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+        const angle = (i / 30) * Math.PI * 2;
+        const wobble = Math.sin(angle * 8 + time * 0.001) * 3;
+        const r = 60 + wobble + pulse;
+        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    }
+    ctx.fill();
+
+    // Armor Plates (Visual Representation of Armor Value)
+    // Draw shells that break off or shrink based on armor %
+    const armorScale = armor / 90; // Normalized roughly
+    if (armorScale > 0) {
+        ctx.strokeStyle = '#fca5a5';
+        ctx.lineWidth = 4 * armorScale + 1;
+        ctx.lineCap = 'round';
+        
+        const numPlates = 6;
+        for (let i = 0; i < numPlates; i++) {
+            const angle = (Math.PI * 2 / numPlates) * i + time * 0.0005;
+            ctx.beginPath();
+            ctx.arc(0, 0, 65, angle - 0.4 * armorScale, angle + 0.4 * armorScale);
+            ctx.stroke();
+        }
+    }
+
+    // Core Glow
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 20;
+    ctx.fillStyle = '#fee2e2';
+    ctx.beginPath();
+    ctx.arc(0, 0, 15 + Math.sin(time * 0.01) * 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Appendages / Tendrils
+    ctx.strokeStyle = '#7f1d1d';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI * 2 / 8) * i;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(angle) * 50, Math.sin(angle) * 50);
+        const tipX = Math.cos(angle) * (90 + Math.sin(time * 0.005 + i) * 10);
+        const tipY = Math.sin(angle) * (90 + Math.sin(time * 0.005 + i) * 10);
+        ctx.quadraticCurveTo(
+            Math.cos(angle + 0.2) * 100, 
+            Math.sin(angle + 0.2) * 100, 
+            tipX, tipY
+        );
+        ctx.stroke();
+    }
+}
 
 // --- Planet Visuals (Refined & Deterministic) ---
 
@@ -800,6 +869,13 @@ export const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameSta
         ctx.fillStyle = isSelected ? '#fff' : '#94a3b8';
         ctx.font = isSelected ? 'bold 12px monospace' : '10px monospace';
         ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.x, p.y + p.radius + 18);
+        
+        let label = p.name;
+        if (p.missionType === MissionType.OFFENSE) {
+            ctx.fillStyle = isSelected ? '#f87171' : '#7f1d1d';
+            label = "⚠ " + p.name;
+        }
+
+        ctx.fillText(label, p.x, p.y + p.radius + 18);
     });
 }

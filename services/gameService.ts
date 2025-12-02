@@ -31,7 +31,8 @@ import {
   PlanetVisualType,
   OrbitalUpgradeNode,
   OrbitalUpgradeEffect,
-  SpaceshipState
+  SpaceshipState,
+  MissionType
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -61,6 +62,7 @@ import {
 import { AudioService } from './audioService';
 import { generatePlanets, generateTerrain } from '../utils/worldGenerator';
 import { calculateEnemyStats, selectEnemyType } from '../utils/enemyUtils';
+import { GAS_INFO } from '../data/world';
 
 const TURRET_POSITIONS = [
   { x: -150, y: -150 },
@@ -148,6 +150,10 @@ export class GameEngine {
           // Skip Wave (L)
           if (key === 'l' || key === 'L') {
                if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) {
+                   // Skip wave only allowed in DEFENSE mode
+                   if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
+                       return;
+                   }
                    this.skipWave();
                }
           }
@@ -347,8 +353,14 @@ export class GameEngine {
       this.state.currentPlanet = targetPlanet;
       this.state.appMode = AppMode.GAMEPLAY;
       
-      // Recalculate pending spawn for wave 1 based on queue logic
-      this.state.enemiesPendingSpawn = 12 + 5 * 1; 
+      if (targetPlanet.missionType === MissionType.OFFENSE) {
+          this.state.enemiesPendingSpawn = 0; // Handled by Hive Mother mechanics
+          this.state.wave = 0; // Use wave as shed counter for Hive Mother
+          this.spawnHiveMother(targetPlanet);
+      } else {
+          // Defense Mode
+          this.state.enemiesPendingSpawn = 12 + 5 * 1; 
+      }
 
       // Add a message about the drop cost
       setTimeout(() => {
@@ -357,6 +369,12 @@ export class GameEngine {
              setTimeout(() => {
                  this.addMessage(`ADAPTIVE DEFLECTOR ACTIVE`, this.state.player.x, this.state.player.y - 120, '#06b6d4');
              }, 1000);
+        }
+        
+        if (targetPlanet.missionType === MissionType.OFFENSE) {
+             setTimeout(() => {
+                 this.addMessage(`MISSION: ASSAULT HIVE MOTHER`, this.state.player.x, this.state.player.y - 140, '#fca5a5');
+             }, 2000);
         }
       }, 1000);
       
@@ -369,30 +387,45 @@ export class GameEngine {
       this.lastTime = time;
       return;
     }
-    const dt = time - this.lastTime;
+    
+    // Delta Time in Milliseconds
+    let dt = time - this.lastTime;
     this.lastTime = time;
+
+    // Prevent spiral of death / teleportation on lag spikes
+    if (dt > 100) dt = 100;
+
+    // Calculate Time Scale relative to 60 FPS (approx 16.67ms per frame)
+    const TARGET_MS_PER_FRAME = 1000 / 60; 
+    const timeScale = dt / TARGET_MS_PER_FRAME;
 
     if (this.state.isPaused || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
 
     // --- Wave Management ---
     if (!this.state.missionComplete) {
-        this.state.waveTimeRemaining -= dt;
-        
-        // Spawn Logic (Fixed Queue)
-        this.state.spawnTimer += dt;
-        const SPAWN_INTERVAL = 500; // Fixed 0.5s spawn rate for items in queue
+        if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
+            // Offense Mode Logic (No waves)
+            // Hive Mother logic handled in updateEnemies
+        } else {
+            // Standard Defense Logic
+            this.state.waveTimeRemaining -= dt;
+            
+            // Spawn Logic (Fixed Queue)
+            this.state.spawnTimer += dt;
+            const SPAWN_INTERVAL = 500; // Fixed 0.5s spawn rate for items in queue
 
-        if (this.state.spawnTimer > SPAWN_INTERVAL) {
-            if (this.state.enemiesPendingSpawn > 0) {
-                this.spawnEnemy();
-                this.state.enemiesPendingSpawn--;
+            if (this.state.spawnTimer > SPAWN_INTERVAL) {
+                if (this.state.enemiesPendingSpawn > 0) {
+                    this.spawnEnemy();
+                    this.state.enemiesPendingSpawn--;
+                }
+                this.state.spawnTimer = 0;
             }
-            this.state.spawnTimer = 0;
-        }
 
-        // Timer ended -> Next Wave
-        if (this.state.waveTimeRemaining <= 0) {
-            this.nextWave();
+            // Timer ended -> Next Wave
+            if (this.state.waveTimeRemaining <= 0) {
+                this.nextWave();
+            }
         }
     }
 
@@ -400,14 +433,14 @@ export class GameEngine {
     this.updateSpaceshipSystems(dt);
 
     // --- Player Logic ---
-    this.updatePlayer(dt, time);
+    this.updatePlayer(dt, time, timeScale);
 
     // --- Entity Updates ---
-    this.updateProjectiles(dt);
-    this.updateEnemies(dt);
-    this.updateAllies(dt, time);
+    this.updateProjectiles(dt, timeScale);
+    this.updateEnemies(dt, timeScale);
+    this.updateAllies(dt, time, timeScale);
     this.updateTurrets(time);
-    this.updateParticles(dt);
+    this.updateParticles(dt, timeScale);
     this.updateToxicZones(dt);
 
     // --- Camera ---
@@ -527,15 +560,11 @@ export class GameEngine {
       }
 
       // Check Unlock Requirement
-      // Layer n (index n-1) requires ceil((n-1)/2) nodes purchased in Layer n-1 (index n-2)
       if (layerIndex > 0) {
           const prevLayer = s.orbitalUpgradeTree[layerIndex - 1];
           const purchasedCount = prevLayer.filter(n => n.purchased).length;
           const prevLayerNum = layerIndex; // Previous layer number is actually the index + 1 - 1 = index
-          const required = Math.ceil(prevLayerNum / 2); // Wait, logic: Layer N depends on Layer N-1. Layer N-1 has N-1 nodes. Requirement is (N-1)/2. 
-          // Example: Buying in Layer 2 (index 1). Prev is Layer 1 (index 0). Size 1. Req ceil(1/2) = 1.
-          // Example: Buying in Layer 3 (index 2). Prev is Layer 2 (index 1). Size 2. Req ceil(2/2) = 1.
-          // Example: Buying in Layer 4 (index 3). Prev is Layer 3 (index 2). Size 3. Req ceil(3/2) = 2.
+          const required = Math.ceil(prevLayerNum / 2);
           
           if (purchasedCount < required) {
               // Locked
@@ -557,10 +586,9 @@ export class GameEngine {
       this.audio.playTurretFire(2); // Success sound
   }
 
-  // ... (rest of methods - nextWave, updatePlayer, etc. remain unchanged)
   public nextWave() {
-      // Exploration Mode Victory Check
-      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet) {
+      // Exploration Mode Victory Check (Defense)
+      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet && this.state.currentPlanet.missionType === MissionType.DEFENSE) {
           if (this.state.wave >= this.state.currentPlanet.totalWaves) {
               this.completeMission();
               return;
@@ -592,9 +620,12 @@ export class GameEngine {
               this.addMessage("WARNING: FRENZY DETECTED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red');
           } else {
               // 70% Chance: Boss Incubation
-              this.state.activeSpecialEvent = SpecialEventType.BOSS;
-              this.spawnBoss(); // Spawn boss alongside normal mobs
-              this.addMessage("WARNING: APEX LIFEFORM", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'purple');
+              // Bosses only spawn in Defense mode or Survival
+              if (this.state.gameMode === GameMode.SURVIVAL || (this.state.currentPlanet?.missionType === MissionType.DEFENSE)) {
+                this.state.activeSpecialEvent = SpecialEventType.BOSS;
+                this.spawnBoss(); 
+                this.addMessage("WARNING: APEX LIFEFORM", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'purple');
+              }
           }
       } else {
           this.addMessage(`WAVE ${this.state.wave} STARTED`, WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow');
@@ -629,1112 +660,1171 @@ export class GameEngine {
           this.nextWave();
       } else {
           // Feedback that it's too early?
-          this.addMessage("LURE CHARGING...", this.state.player.x, this.state.player.y - 50, 'gray');
+          this.addMessage("LURE RECHARGE PENDING...", this.state.player.x, this.state.player.y - 80, 'red');
       }
   }
 
-  // ... [updatePlayer and others remain the same] ...
-  private updatePlayer(dt: number, time: number) {
-      const p = this.state.player;
-      const speed = p.speed;
+  private spawnEnemy() {
+      // Determine Type
+      const type = selectEnemyType(this.state.wave, this.state.gameMode, this.state.currentPlanet, this.state.activeSpecialEvent);
       
-      let dx = 0;
-      let dy = 0;
+      // Determine Position (Edge of world)
+      let x = 0, y = 0;
+      const side = Math.floor(Math.random() * 4);
+      if (side === 0) { x = Math.random() * WORLD_WIDTH; y = 0; }
+      else if (side === 1) { x = WORLD_WIDTH; y = Math.random() * WORLD_HEIGHT; }
+      else if (side === 2) { x = Math.random() * WORLD_WIDTH; y = WORLD_HEIGHT; }
+      else { x = 0; y = Math.random() * WORLD_HEIGHT; }
 
+      this.spawnSpecificEnemy(type, x, y);
+  }
+
+  private spawnSpecificEnemy(type: EnemyType, x: number, y: number) {
+      const baseStats = ENEMY_STATS[type];
+      const stats = calculateEnemyStats(type, baseStats, this.state.currentPlanet, this.state.gameMode);
+
+      this.state.enemies.push({
+          id: `e-${Date.now()}-${Math.random()}`,
+          type,
+          x,
+          y,
+          angle: 0,
+          hp: stats.maxHp,
+          maxHp: stats.maxHp,
+          damage: stats.damage,
+          speed: baseStats.speed,
+          scoreReward: baseStats.scoreReward,
+          radius: baseStats.radius,
+          color: baseStats.color,
+          lastAttackTime: 0,
+          detectionRange: baseStats.detectionRange
+      });
+
+      if (!this.state.stats.encounteredEnemies.includes(type)) {
+          this.state.stats.encounteredEnemies.push(type);
+      }
+  }
+
+  private spawnBoss() {
+      // Determine Boss Type
+      const roll = Math.random();
+      let bossType = BossType.RED_SUMMONER;
+      if (roll > 0.6) bossType = BossType.BLUE_BURST;
+      if (roll > 0.85) bossType = BossType.PURPLE_ACID;
+
+      // Position (Top Center usually)
+      const x = WORLD_WIDTH / 2;
+      const y = 100;
+
+      const stats = BOSS_STATS[bossType];
+      
+      // Boss Scaling for Exploration
+      let hp = stats.hp;
+      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet) {
+          hp *= this.state.currentPlanet.geneStrength;
+      }
+
+      this.state.enemies.push({
+          id: `boss-${Date.now()}`,
+          type: EnemyType.TANK, // Placeholder type for rendering logic fallback
+          isBoss: true,
+          bossType: bossType,
+          x, y, angle: Math.PI/2,
+          hp: hp,
+          maxHp: hp,
+          speed: stats.speed,
+          damage: stats.damage,
+          scoreReward: stats.scoreReward,
+          radius: stats.radius,
+          color: stats.color,
+          lastAttackTime: 0,
+          detectionRange: stats.detectionRange,
+          bossSummonTimer: 0,
+          bossBurstCount: 0,
+          bossNextShotTime: 0
+      });
+
+      if (!this.state.stats.encounteredEnemies.includes(bossType)) {
+          this.state.stats.encounteredEnemies.push(bossType);
+      }
+  }
+
+  private spawnHiveMother(planet: Planet) {
+      const stats = BOSS_STATS[BossType.HIVE_MOTHER];
+      
+      // HP: 8000 * GeneStrength * (1 + 0.1 * SulfurIndex)
+      let hp = 8000 * planet.geneStrength * (1 + 0.1 * planet.sulfurIndex);
+
+      this.state.enemies.push({
+          id: `hive-mother-${Date.now()}`,
+          type: EnemyType.TANK, // Placeholder
+          isBoss: true,
+          bossType: BossType.HIVE_MOTHER,
+          x: WORLD_WIDTH / 2,
+          y: 400, // Shifted down as requested
+          angle: Math.PI/2,
+          hp: hp,
+          maxHp: hp,
+          speed: 0,
+          damage: stats.damage,
+          scoreReward: stats.scoreReward,
+          radius: stats.radius,
+          color: stats.color,
+          lastAttackTime: 0,
+          detectionRange: 2000,
+          
+          // Mechanics
+          armorValue: 90, // Starts at 90%
+          shedTimer: 0,
+          shedCount: 0
+      });
+
+       if (!this.state.stats.encounteredEnemies.includes(BossType.HIVE_MOTHER)) {
+          this.state.stats.encounteredEnemies.push(BossType.HIVE_MOTHER);
+      }
+  }
+
+  private spawnHiveMinions(mother: Enemy) {
+      const shedCount = mother.shedCount || 0;
+      // Use shedCount as equivalent to wave number for difficulty scaling
+      const simulatedWave = Math.max(1, shedCount);
+      
+      // Count: 12 * (GeneStrength + ShedCount)
+      const geneStrength = this.state.currentPlanet?.geneStrength || 1;
+      const count = Math.ceil(12 * (geneStrength + shedCount));
+
+      for (let i = 0; i < count; i++) {
+          // Spawn around mother
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 100 + Math.random() * 100;
+          const x = mother.x + Math.cos(angle) * dist;
+          const y = mother.y + Math.sin(angle) * dist;
+
+          // NEW LOGIC: Use selectEnemyType
+          // This ensures that minion types (Vipers, Kamikazes, etc.) appear based on planet stats
+          const type = selectEnemyType(
+              simulatedWave,
+              this.state.gameMode,
+              this.state.currentPlanet,
+              SpecialEventType.NONE // No special event override for minions
+          );
+          
+          this.spawnSpecificEnemy(type, x, y);
+      }
+  }
+
+  private updateEnemies(dt: number, timeScale: number) {
+      // Hive Mother Logic
+      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
+          const mother = this.state.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
+          if (mother) {
+              mother.shedTimer = (mother.shedTimer || 0) + dt;
+              if (mother.shedTimer > 30000) {
+                  mother.shedTimer = 0;
+                  
+                  // Shed Armor
+                  mother.armorValue = Math.max(0, (mother.armorValue || 90) - 3);
+                  mother.shedCount = (mother.shedCount || 0) + 1;
+                  
+                  // Heal based on Oxygen: 0.4 * OxygenPercent * MaxHP 
+                  // (Interpreted "0.4 oxygen content" as scaling factor)
+                  const o2 = this.state.currentPlanet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
+                  const healAmount = mother.maxHp * (0.4 * o2);
+                  mother.hp = Math.min(mother.maxHp, mother.hp + healAmount);
+                  
+                  this.addMessage("HIVE MOTHER SHEDDING CARAPACE", mother.x, mother.y - 100, '#fca5a5');
+                  this.spawnHiveMinions(mother);
+              }
+          }
+      }
+
+      this.state.enemies.forEach(e => {
+          // Movement Logic
+          let target = { x: this.state.base.x, y: this.state.base.y };
+          
+          // Aggro Logic: Check if player or ally is closer
+          const distToBase = Math.sqrt((e.x - this.state.base.x)**2 + (e.y - this.state.base.y)**2);
+          
+          let closestUnit: Entity | null = null;
+          let minDist = e.detectionRange || 400;
+
+          // Check Player
+          const distPlayer = Math.sqrt((e.x - this.state.player.x)**2 + (e.y - this.state.player.y)**2);
+          if (distPlayer < minDist) {
+              minDist = distPlayer;
+              closestUnit = this.state.player;
+          }
+
+          // Check Allies
+          this.state.allies.forEach(ally => {
+               const d = Math.sqrt((e.x - ally.x)**2 + (e.y - ally.y)**2);
+               if (d < minDist) {
+                   minDist = d;
+                   closestUnit = ally;
+               }
+          });
+
+          if (closestUnit) {
+              target = { x: closestUnit.x, y: closestUnit.y };
+          } else if (distToBase > 2000) {
+              // If very far from base and no target, maybe idle? For now, move to base.
+          }
+
+          if (e.isBoss && e.bossType === BossType.HIVE_MOTHER) {
+               // Stationary
+               return;
+          }
+          
+          const angle = Math.atan2(target.y - e.y, target.x - e.x);
+          e.angle = angle;
+          
+          const distToTarget = Math.sqrt((e.x - target.x)**2 + (e.y - target.y)**2);
+          
+          // Stop if within attack range
+          let stopDist = e.radius + 10;
+          if (e.type === EnemyType.VIPER) stopDist = 400; // Ranged unit
+          if (e.bossType === BossType.BLUE_BURST) stopDist = 600;
+          if (e.bossType === BossType.PURPLE_ACID) stopDist = 500;
+          
+          if (distToTarget > stopDist) {
+              e.x += Math.cos(angle) * e.speed * timeScale;
+              e.y += Math.sin(angle) * e.speed * timeScale;
+          }
+
+          // Attack Logic
+          if (Date.now() - e.lastAttackTime > (e.bossType ? 100 : 1000)) { // Bosses manage their own rates
+               this.handleEnemyAttack(e, target, distToTarget, closestUnit || { x: this.state.base.x, y: this.state.base.y, radius: 200 } as any);
+          }
+      });
+  }
+
+  private handleEnemyAttack(e: Enemy, targetPos: {x: number, y: number}, dist: number, targetEntity: Entity) {
+      const now = Date.now();
+
+      // Boss Logic
+      if (e.isBoss) {
+           if (e.bossType === BossType.RED_SUMMONER) {
+               if (now - e.lastAttackTime > (BOSS_STATS[BossType.RED_SUMMONER].summonRate || 2000)) {
+                   // Summon Grunts
+                   for(let i=0; i<3; i++) {
+                       const a = Math.random() * Math.PI*2;
+                       this.spawnSpecificEnemy(EnemyType.GRUNT, e.x + Math.cos(a)*50, e.y + Math.sin(a)*50);
+                   }
+                   e.lastAttackTime = now;
+               }
+           }
+           else if (e.bossType === BossType.BLUE_BURST) {
+               if (now - e.lastAttackTime > (BOSS_STATS[BossType.BLUE_BURST].fireRate || 1000)) {
+                   // Fire Burst
+                   e.bossBurstCount = 3;
+                   e.bossNextShotTime = now;
+                   e.lastAttackTime = now;
+               }
+               // Handle Burst
+               if (e.bossBurstCount && e.bossBurstCount > 0 && now >= (e.bossNextShotTime || 0)) {
+                   this.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 10, e.damage, false, '#60a5fa');
+                   e.bossBurstCount--;
+                   e.bossNextShotTime = now + (BOSS_STATS[BossType.BLUE_BURST].burstDelay || 100);
+               }
+           }
+           else if (e.bossType === BossType.PURPLE_ACID) {
+               if (now - e.lastAttackTime > (BOSS_STATS[BossType.PURPLE_ACID].fireRate || 4000)) {
+                   // Lob Acid Blob
+                   // Fix: Pass undefined for homingTarget and isHoming, then true for createsToxicZone
+                   this.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#a855f7', undefined, false, true); 
+                   e.lastAttackTime = now;
+               }
+           }
+           return;
+      }
+
+      // Normal Units
+      if (e.type === EnemyType.VIPER) {
+          if (dist < 450 && now - e.lastAttackTime > 2000) {
+              this.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#10B981');
+              e.lastAttackTime = now;
+          }
+      }
+      else if (e.type === EnemyType.KAMIKAZE) {
+          if (dist < 30) {
+              // Explode
+              this.damageArea(e.x, e.y, 100, e.damage);
+              this.spawnToxicZone(e.x, e.y);
+              this.spawnParticle(e.x, e.y, '#a855f7', 10, 20);
+              e.hp = 0; // Suicide
+              this.audio.playExplosion();
+          }
+      }
+      else {
+          // Melee
+          if (dist < e.radius + (targetEntity.radius || 20) + 10 && now - e.lastAttackTime > 1000) {
+              // Deal Damage
+              if (targetEntity.id === 'player') {
+                  this.damagePlayer(e.damage);
+              } else if ((targetEntity as any).maxHp && (targetEntity as any).width) { // Base
+                  this.damageBase(e.damage);
+              } else if ((targetEntity as any).hp !== undefined) { // Ally/Turret
+                  (targetEntity as any).hp -= e.damage;
+              }
+              e.lastAttackTime = now;
+              this.audio.playMeleeHit();
+          }
+      }
+  }
+
+  public damageEnemy(enemy: Enemy, amount: number) {
+      let dmg = amount;
+      
+      // Hive Mother Armor Reduction
+      if (enemy.bossType === BossType.HIVE_MOTHER && enemy.armorValue) {
+          const mitigation = enemy.armorValue / 100; // 90% -> 0.9
+          dmg = dmg * (1 - mitigation);
+          // Min damage 1 to give feedback
+          dmg = Math.max(1, dmg);
+      }
+
+      enemy.hp -= dmg;
+      if (this.state.settings.showDamageNumbers) {
+          this.addMessage(`${Math.ceil(dmg)}`, enemy.x, enemy.y - 20, '#fff', 500);
+      }
+
+      if (enemy.hp <= 0) {
+          this.killEnemy(enemy);
+      }
+  }
+
+  private killEnemy(e: Enemy) {
+      // Reward
+      let score = e.scoreReward;
+      
+      // Hive Mother Victory Logic
+      if (e.bossType === BossType.HIVE_MOTHER) {
+          // Bonus: 20 * GeneStrength * Armor^2
+          // High armor kills = massive reward
+          const gene = this.state.currentPlanet?.geneStrength || 1;
+          const armor = e.armorValue || 0;
+          const bonus = Math.floor(20 * gene * (armor * armor));
+          score += bonus;
+          
+          this.addMessage(`HIVE MOTHER ELIMINATED`, e.x, e.y, '#ffff00');
+          this.addMessage(`DOMINANCE BONUS: +${bonus}`, e.x, e.y + 20, '#ffff00');
+          
+          this.completeMission();
+      }
+
+      this.state.player.score += score;
+      
+      // Remove from list
+      this.state.enemies = this.state.enemies.filter(en => en !== e);
+      
+      // Stats
+      if (e.isBoss) this.state.stats.killsByType['BOSS']++;
+      else this.state.stats.killsByType[e.type]++;
+
+      // FX
+      this.spawnBloodStain(e.x, e.y, e.color);
+      this.audio.playEnemyDeath(e.isBoss);
+  }
+
+  private updateProjectiles(dt: number, timeScale: number) {
+      this.state.projectiles.forEach(p => {
+          // Logic
+          if (p.isHoming && p.targetId) {
+              const target = this.state.enemies.find(e => e.id === p.targetId);
+              if (target) {
+                  const angle = Math.atan2(target.y - p.y, target.x - p.x);
+                  // Lerp angle for turn speed could go here, for now instant turn
+                  p.vx = Math.cos(angle) * (p.vx**2 + p.vy**2)**0.5;
+                  p.vy = Math.sin(angle) * (p.vx**2 + p.vy**2)**0.5;
+              }
+          }
+          
+          p.x += p.vx * timeScale;
+          p.y += p.vy * timeScale;
+          
+          const distTravelled = Math.sqrt((p.vx * timeScale)**2 + (p.vy * timeScale)**2);
+          p.rangeRemaining -= distTravelled;
+
+          // Collision
+          if (p.fromPlayer) {
+              // Check Enemy Hits
+              for (const e of this.state.enemies) {
+                  const d = Math.sqrt((p.x - e.x)**2 + (p.y - e.y)**2);
+                  if (d < e.radius + 5) {
+                      // Hit
+                      this.damageEnemy(e, p.damage);
+                      // Piercing Logic
+                      if (p.isPiercing) {
+                          if (!p.hitIds) p.hitIds = [];
+                          if (!p.hitIds.includes(e.id)) {
+                              p.hitIds.push(e.id);
+                              // Reduce damage per pierce?
+                          }
+                      } else if (p.isExplosive) {
+                           this.damageArea(p.x, p.y, 100, p.damage);
+                           this.spawnParticle(p.x, p.y, '#f87171', 10, 10);
+                           p.rangeRemaining = 0; // Destroy
+                      } else {
+                           p.rangeRemaining = 0; // Destroy single target
+                      }
+                      
+                      if (p.rangeRemaining <= 0) break;
+                  }
+              }
+          } else {
+              // Check Player/Base/Ally Hits
+              // Simplified: Only Player and Base
+              const dPlayer = Math.sqrt((p.x - this.state.player.x)**2 + (p.y - this.state.player.y)**2);
+              if (dPlayer < this.state.player.radius) {
+                  this.damagePlayer(p.damage);
+                  p.rangeRemaining = 0;
+                  // If toxic projectile
+                  if (p.createsToxicZone) this.spawnToxicZone(p.x, p.y);
+              }
+              // Check Base
+              if (p.x > this.state.base.x - this.state.base.width/2 && p.x < this.state.base.x + this.state.base.width/2 &&
+                  p.y > this.state.base.y - this.state.base.height/2 && p.y < this.state.base.y + this.state.base.height/2) {
+                      this.damageBase(p.damage);
+                      p.rangeRemaining = 0;
+              }
+          }
+      });
+      
+      this.state.projectiles = this.state.projectiles.filter(p => p.rangeRemaining > 0);
+  }
+
+  private updateAllies(dt: number, time: number, timeScale: number) {
+      // Spawn Logic
+      if (Date.now() - this.state.lastAllySpawnTime > 60000 && this.state.allies.length < ALLY_STATS.maxCount) {
+          const spawnX = this.state.base.x + (Math.random() > 0.5 ? 60 : -60);
+          this.state.allies.push({
+              id: `ally-${Date.now()}`,
+              x: spawnX, y: this.state.base.y,
+              radius: 12, angle: -Math.PI/2, color: '#3b82f6',
+              hp: ALLY_STATS.hp, maxHp: ALLY_STATS.hp,
+              speed: ALLY_STATS.speed,
+              damage: ALLY_STATS.damage,
+              currentOrder: 'PATROL',
+              state: 'PATROL',
+              lastFireTime: 0,
+              patrolPoint: { x: spawnX, y: this.state.base.y - 100 }
+          });
+          this.state.lastAllySpawnTime = Date.now();
+          this.addMessage("REINFORCEMENTS ARRIVED", spawnX, this.state.base.y - 20, '#3b82f6');
+      }
+
+      this.state.allies.forEach(a => {
+          // AI Logic
+          // Find target
+          let target: Enemy | null = null;
+          let minDist = 400; // Visual range
+          this.state.enemies.forEach(e => {
+              const d = Math.sqrt((e.x - a.x)**2 + (e.y - a.y)**2);
+              if (d < minDist) {
+                  minDist = d;
+                  target = e;
+              }
+          });
+
+          // Move
+          if (target) {
+              a.state = 'COMBAT';
+              // Kite
+              const d = Math.sqrt((target.x - a.x)**2 + (target.y - a.y)**2);
+              const idealDist = 200;
+              let moveAngle = Math.atan2(target.y - a.y, target.x - a.x);
+              
+              if (d < idealDist) {
+                  moveAngle += Math.PI; // Retreat
+              }
+              
+              a.x += Math.cos(moveAngle) * a.speed * timeScale;
+              a.y += Math.sin(moveAngle) * a.speed * timeScale;
+              a.angle = Math.atan2(target.y - a.y, target.x - a.x);
+
+              // Shoot
+              if (time - a.lastFireTime > 500) {
+                  this.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa');
+                  a.lastFireTime = time;
+                  this.audio.playAllyFire();
+              }
+          } else {
+              // Idle/Patrol
+              a.state = 'PATROL';
+              const dx = a.patrolPoint.x - a.x;
+              const dy = a.patrolPoint.y - a.y;
+              if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                  const angle = Math.atan2(dy, dx);
+                  a.x += Math.cos(angle) * a.speed * timeScale;
+                  a.y += Math.sin(angle) * a.speed * timeScale;
+                  a.angle = angle;
+              }
+          }
+      });
+      
+      this.state.allies = this.state.allies.filter(a => a.hp > 0);
+  }
+
+  private updateTurrets(time: number) {
+      this.state.turretSpots.forEach(spot => {
+          const t = spot.builtTurret;
+          if (!t) return;
+          
+          if (time - t.lastFireTime > t.fireRate) {
+              // Find Target
+              let target: Enemy | null = null;
+              let minDist = t.range;
+              
+              this.state.enemies.forEach(e => {
+                  const d = Math.sqrt((e.x - spot.x)**2 + (e.y - spot.y)**2);
+                  if (d < minDist) {
+                      minDist = d;
+                      target = e;
+                  }
+              });
+
+              if (target) {
+                  t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
+                  this.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE);
+                  t.lastFireTime = time;
+                  this.audio.playTurretFire(t.level);
+              }
+          }
+      });
+  }
+
+  private updatePlayer(dt: number, time: number, timeScale: number) {
+      const p = this.state.player;
+      
+      // Move
+      let dx = 0; let dy = 0;
       if (this.input.keys['w'] || this.input.keys['W']) dy -= 1;
       if (this.input.keys['s'] || this.input.keys['S']) dy += 1;
       if (this.input.keys['a'] || this.input.keys['A']) dx -= 1;
       if (this.input.keys['d'] || this.input.keys['D']) dx += 1;
-
-      // Normalize
+      
       if (dx !== 0 || dy !== 0) {
           const len = Math.sqrt(dx*dx + dy*dy);
-          dx /= len;
-          dy /= len;
-          p.x += dx * speed;
-          p.y += dy * speed;
-
-          p.x = Math.max(p.radius, Math.min(WORLD_WIDTH - p.radius, p.x));
-          p.y = Math.max(p.radius, Math.min(WORLD_HEIGHT - p.radius, p.y));
+          p.x += (dx/len) * p.speed * timeScale;
+          p.y += (dy/len) * p.speed * timeScale;
+          
+          // World Bounds
+          p.x = Math.max(0, Math.min(WORLD_WIDTH, p.x));
+          p.y = Math.max(0, Math.min(WORLD_HEIGHT, p.y));
       }
 
-      const mouseWorldX = this.input.mouse.x + this.state.camera.x;
-      const mouseWorldY = this.input.mouse.y + this.state.camera.y;
-      p.angle = Math.atan2(mouseWorldY - p.y, mouseWorldX - p.x);
+      // Aim
+      p.angle = Math.atan2(this.input.mouse.y - (p.y - this.state.camera.y), this.input.mouse.x - (p.x - this.state.camera.x));
 
-      p.isAiming = (p.loadout[p.currentWeaponIndex] === WeaponType.SR && this.input.mouse.rightDown);
+      // Right Click Aim
+      p.isAiming = this.input.mouse.rightDown;
 
-      if (this.input.mouse.down) {
-          this.attemptFireWeapon(time);
-      }
+      // Fire
+      const currentWep = p.loadout[p.currentWeaponIndex];
+      const wepState = p.weapons[currentWep];
+      const wepStats = WEAPONS[currentWep];
 
-      const weapon = p.weapons[p.loadout[p.currentWeaponIndex]];
-      if (weapon.reloading) {
-          if (time - weapon.reloadStartTime >= WEAPONS[weapon.type].reloadTime) {
-              weapon.reloading = false;
-              const needed = WEAPONS[weapon.type].magSize - weapon.ammoInMag;
-              const available = Math.min(needed, weapon.ammoReserve);
-              weapon.ammoInMag += available;
-              weapon.ammoReserve -= available;
-              this.addMessage("RELOADED", p.x, p.y - 40, '#fff');
+      if (wepState.reloading) {
+          if (time - wepState.reloadStartTime > wepStats.reloadTime) {
+              wepState.reloading = false;
+              wepState.ammoInMag = wepStats.magSize; // Simplify reserve logic for now
+          }
+      } else if (this.input.mouse.down) {
+          if (wepState.ammoInMag <= 0) {
+              this.reloadWeapon(time);
+          } else if (time - wepState.lastFireTime > wepStats.fireRate) {
+               // Handle Modules
+               let dmgMult = 1;
+               let fireRateMod = 1;
+               
+               // Module: Gel
+               if (wepState.modules.some(m => m.type === ModuleType.GEL_BARREL)) dmgMult += 0.4;
+               // Module: Rupturer
+               if (wepState.modules.some(m => m.type === ModuleType.MICRO_RUPTURER)) dmgMult += 0.6;
+               // Module: Pressurized Bolt
+               if (wepState.modules.some(m => m.type === ModuleType.PRESSURIZED_BOLT)) {
+                   wepState.consecutiveShots = Math.min(5, wepState.consecutiveShots + 1);
+                   fireRateMod = 1 / (1 + wepState.consecutiveShots * 0.1);
+               } else {
+                   wepState.consecutiveShots = 0;
+               }
+               // Spaceship Module: Carapace Analyzer
+               if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) {
+                   dmgMult += 0.2;
+               }
+
+               const finalDmg = wepStats.damage * dmgMult;
+
+               if (time - wepState.lastFireTime > wepStats.fireRate * fireRateMod) {
+                   // Create Projectiles
+                   if (currentWep === WeaponType.SG) {
+                       for(let i=0; i<8; i++) {
+                           this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*0.3, finalDmg, wepStats);
+                       }
+                   } else if (currentWep === WeaponType.FLAMETHROWER) {
+                       this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*0.2, finalDmg, wepStats);
+                   } else {
+                       this.firePlayerProjectile(p.x, p.y, p.angle, finalDmg, wepStats);
+                   }
+                   
+                   wepState.ammoInMag--;
+                   wepState.lastFireTime = time;
+                   this.state.stats.shotsFired++;
+                   this.audio.playWeaponFire(currentWep);
+               }
           }
       } else {
-           if (weapon.ammoInMag <= 0 && weapon.ammoReserve > 0) {
-               this.reloadWeapon(time);
-           }
+          // Reset consecutive shots if not firing
+          if (time - wepState.lastFireTime > 500) wepState.consecutiveShots = 0;
       }
 
+      // Regen
       if (time - p.lastHitTime > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
           p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
       }
-      if (time - p.lastHitTime > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
-          p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate * dt);
-      }
   }
 
-  private attemptFireWeapon(time: number) {
-      const p = this.state.player;
-      const weaponType = p.loadout[p.currentWeaponIndex];
-      const weaponState = p.weapons[weaponType];
-      const stats = WEAPONS[weaponType];
+  private firePlayerProjectile(x: number, y: number, angle: number, dmg: number, stats: any) {
+      const vx = Math.cos(angle) * stats.projectileSpeed;
+      const vy = Math.sin(angle) * stats.projectileSpeed;
+      
+      this.state.projectiles.push({
+          id: `p-${Date.now()}-${Math.random()}`,
+          x: x + Math.cos(angle)*20, 
+          y: y + Math.sin(angle)*20,
+          vx, vy,
+          radius: 3,
+          color: '#fff',
+          damage: dmg,
+          rangeRemaining: stats.range,
+          fromPlayer: true,
+          isExplosive: stats.isExplosive,
+          isPiercing: stats.isPiercing,
+          weaponType: stats.type,
+          maxRange: stats.range,
+          angle // for rendering orientation
+      });
+  }
 
-      if (weaponState.reloading) return;
-      if (weaponState.ammoInMag <= 0) return;
+  private updateParticles(dt: number, timeScale: number) {
+      this.state.particles.forEach(p => {
+          p.x += p.vx * timeScale;
+          p.y += p.vy * timeScale;
+          p.life -= dt * 0.05; // Fade out
+      });
+      this.state.particles = this.state.particles.filter(p => p.life > 0);
+  }
 
-      let fireRate = stats.fireRate;
-      const boltMod = weaponState.modules.find(m => m.type === ModuleType.PRESSURIZED_BOLT);
-      if (boltMod) {
-          const reduction = Math.min(0.5, weaponState.consecutiveShots * 0.1); 
-          fireRate = fireRate * (1 - reduction);
-      }
-
-      if (time - weaponState.lastFireTime >= fireRate) {
-          weaponState.lastFireTime = time;
-          weaponState.ammoInMag--;
-          weaponState.consecutiveShots++;
-
-          setTimeout(() => { 
-             if (Date.now() - weaponState.lastFireTime > fireRate * 2) weaponState.consecutiveShots = 0; 
-          }, fireRate * 2.1);
-
-          this.audio.playWeaponFire(weaponType);
-          this.state.stats.shotsFired++;
-
-          const createProj = (angleOffset: number = 0) => {
-              const spread = (Math.random() - 0.5) * stats.spread;
-              const angle = p.angle + spread + angleOffset;
-              
-              let damage = stats.damage;
-              weaponState.modules.forEach(m => {
-                  if (m.type === ModuleType.GEL_BARREL) damage *= 1.4;
-                  if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
-              });
-
-              // Module: Xenobiology Carapace Analyzer (+20% Dmg)
-              if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) {
-                  damage *= 1.2;
+  private updateToxicZones(dt: number) {
+      this.state.toxicZones.forEach(z => {
+          z.life -= dt;
+          if (z.life % 500 < dt) { // Tick damage
+              const p = this.state.player;
+              const d = Math.sqrt((p.x - z.x)**2 + (p.y - z.y)**2);
+              if (d < z.radius) {
+                  this.damagePlayer(z.damagePerSecond * 0.5);
               }
+          }
+      });
+      this.state.toxicZones = this.state.toxicZones.filter(z => z.life > 0);
+  }
 
-              this.state.projectiles.push({
-                  id: Math.random().toString(),
-                  x: p.x + Math.cos(angle) * 20,
-                  y: p.y + Math.sin(angle) * 20,
-                  vx: Math.cos(angle) * stats.projectileSpeed,
-                  vy: Math.sin(angle) * stats.projectileSpeed,
-                  damage: damage,
-                  rangeRemaining: stats.range,
-                  maxRange: stats.range,
-                  fromPlayer: true,
-                  radius: 3,
-                  angle: angle,
-                  color: '#FEF08A',
-                  weaponType: weaponType,
-                  isExplosive: stats.isExplosive,
-                  isPiercing: stats.isPiercing,
-                  hitIds: []
-              });
-          };
-
-          if (weaponType === WeaponType.SG) {
-              const pellets = stats.pellets || 8;
-              for(let i=0; i<pellets; i++) createProj();
+  public damagePlayer(amount: number) {
+      const p = this.state.player;
+      
+      // Mitigation Upgrades
+      if (p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)) {
+          amount *= 0.8; 
+      }
+      
+      let actualDmg = amount;
+      
+      // Armor Absorption
+      if (p.armor > 0) {
+          let mitigation = 0.5; // Base 50%
+          if (p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)) mitigation = 0.9;
+          
+          const armorDmg = amount * mitigation;
+          const hpDmg = amount * (1 - mitigation);
+          
+          if (p.armor >= armorDmg) {
+              p.armor -= armorDmg;
+              actualDmg = hpDmg;
           } else {
-              createProj();
+              actualDmg = amount - p.armor;
+              p.armor = 0;
           }
       }
+
+      p.hp -= actualDmg;
+      p.lastHitTime = Date.now();
+      
+      if (p.hp <= 0) {
+          this.state.isGameOver = true;
+          this.state.isPaused = true;
+      }
   }
 
-  public reloadWeapon(time: number) {
-      const p = this.state.player;
-      const weapon = p.weapons[p.loadout[p.currentWeaponIndex]];
-      if (!weapon.reloading && weapon.ammoReserve > 0 && weapon.ammoInMag < WEAPONS[weapon.type].magSize) {
-          weapon.reloading = true;
-          weapon.reloadStartTime = time;
+  public damageBase(amount: number) {
+      this.state.base.hp -= amount;
+      this.audio.playBaseDamage();
+      if (this.state.base.hp <= 0) {
+           this.state.isGameOver = true;
+           this.state.isPaused = true;
       }
+  }
+
+  public damageArea(x: number, y: number, radius: number, damage: number) {
+      this.state.enemies.forEach(e => {
+          if (Math.sqrt((e.x - x)**2 + (e.y - y)**2) < radius) {
+              this.damageEnemy(e, damage);
+          }
+      });
+  }
+
+  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean) {
+      const angle = Math.atan2(ty - y, tx - x);
+      this.state.projectiles.push({
+          id: `proj-${Date.now()}-${Math.random()}`,
+          x, y, 
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          damage: dmg,
+          color,
+          radius: 4,
+          rangeRemaining: 1000,
+          fromPlayer,
+          angle,
+          targetId: homingTarget,
+          isHoming,
+          createsToxicZone
+      });
+  }
+
+  public spawnParticle(x: number, y: number, color: string, count: number, speed: number) {
+      for(let i=0; i<count; i++) {
+          const a = Math.random() * Math.PI*2;
+          const s = Math.random() * speed;
+          this.state.particles.push({
+              id: `pt-${Math.random()}`,
+              x, y,
+              vx: Math.cos(a) * s,
+              vy: Math.sin(a) * s,
+              life: 1.0,
+              maxLife: 1.0,
+              color,
+              radius: Math.random() * 3,
+              angle: 0
+          });
+      }
+  }
+
+  public spawnBloodStain(x: number, y: number, color: string) {
+      if (!this.state.settings.showBlood) return;
+      this.state.bloodStains.push({
+          id: `bs-${Math.random()}`,
+          x, y, color,
+          life: 30000,
+          maxLife: 30000,
+          blotches: Array.from({length: 5}, () => ({
+              x: (Math.random()-0.5)*20,
+              y: (Math.random()-0.5)*20,
+              r: 2 + Math.random()*8
+          }))
+      });
+  }
+
+  public spawnToxicZone(x: number, y: number) {
+      this.state.toxicZones.push({
+          id: `${Math.random()}`,
+          x, y,
+          radius: TOXIC_ZONE_STATS.radius,
+          damagePerSecond: TOXIC_ZONE_STATS.dps,
+          life: TOXIC_ZONE_STATS.duration,
+          createdAt: Date.now()
+      });
   }
 
   public throwGrenade() {
       const p = this.state.player;
       if (p.grenades > 0) {
           p.grenades--;
-          const mouseWorldX = this.input.mouse.x + this.state.camera.x;
-          const mouseWorldY = this.input.mouse.y + this.state.camera.y;
-          const angle = Math.atan2(mouseWorldY - p.y, mouseWorldX - p.x);
+          const targetX = p.x + Math.cos(p.angle) * 300;
+          const targetY = p.y + Math.sin(p.angle) * 300;
           
-          let damage = PLAYER_STATS.grenadeDamage;
-          // Module: Xenobiology Carapace Analyzer (+20% Dmg for grenades too)
-          if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) {
-              damage *= 1.2;
-          }
-
-          this.state.projectiles.push({
-              id: Math.random().toString(),
-              x: p.x,
-              y: p.y,
-              vx: Math.cos(angle) * 15,
-              vy: Math.sin(angle) * 15,
-              damage: damage,
-              rangeRemaining: 400,
-              maxRange: 400,
-              fromPlayer: true,
-              radius: 6,
-              angle: angle,
-              color: '#F97316',
-              isExplosive: true,
-              isHoming: false 
-          });
+          this.spawnProjectile(p.x, p.y, targetX, targetY, 12, PLAYER_STATS.grenadeDamage, true, '#f97316');
+          // Actually grenade logic is projectile with isExplosive
+          // But here we simulate it for now as a simple projectile that will explode
+          this.state.projectiles[this.state.projectiles.length-1].isExplosive = true;
           this.audio.playGrenadeThrow();
-      } else {
-          this.addMessage("NO GRENADES", p.x, p.y - 50, 'red');
       }
   }
 
-  private updateProjectiles(dt: number) {
-      for (let i = this.state.projectiles.length - 1; i >= 0; i--) {
-          const p = this.state.projectiles[i];
-          p.x += p.vx; p.y += p.vy;
-          p.rangeRemaining -= Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-
-          if (p.isHoming && p.targetId) {
-              const target = this.state.enemies.find(e => e.id === p.targetId);
-              if (target) {
-                  const angleToTarget = Math.atan2(target.y - p.y, target.x - p.x);
-                  const turnSpeed = p.turnSpeed || 0.1;
-                  let diff = angleToTarget - p.angle;
-                  while (diff < -Math.PI) diff += Math.PI*2;
-                  while (diff > Math.PI) diff -= Math.PI*2;
-                  p.angle += Math.sign(diff) * Math.min(Math.abs(diff), turnSpeed);
-                  const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-                  p.vx = Math.cos(p.angle) * speed;
-                  p.vy = Math.sin(p.angle) * speed;
-              }
-          }
-
-          if (p.rangeRemaining <= 0 || p.x < 0 || p.x > WORLD_WIDTH || p.y < -500 || p.y > WORLD_HEIGHT) {
-              if (p.isExplosive) this.explodeProjectile(p);
-              else if (p.createsToxicZone) this.createToxicZone(p.x, p.y);
-              this.state.projectiles.splice(i, 1);
-              continue;
-          }
-
-          let hit = false;
-          if (p.fromPlayer) {
-              for (let j = 0; j < this.state.enemies.length; j++) {
-                  const e = this.state.enemies[j];
-                  if (p.hitIds?.includes(e.id)) continue; 
-
-                  const dist = Math.sqrt((p.x - e.x)**2 + (p.y - e.y)**2);
-                  if (dist < e.radius + p.radius) {
-                      this.damageEnemy(e, p.damage);
-                      hit = true;
-                      this.spawnParticle(p.x, p.y, e.color, 2, 0.5); 
-                      if (p.isExplosive) {
-                          this.explodeProjectile(p);
-                          this.state.projectiles.splice(i, 1);
-                      } else if (p.isPiercing) {
-                          if (!p.hitIds) p.hitIds = [];
-                          p.hitIds.push(e.id);
-                          hit = false; 
-                      } else {
-                          this.state.projectiles.splice(i, 1);
-                      }
-                      this.state.stats.shotsHit++;
-                      break; 
-                  }
-              }
-          } else {
-              const targets: Entity[] = [this.state.player, ...this.state.allies];
-              if (p.x > this.state.base.x - this.state.base.width/2 && p.x < this.state.base.x + this.state.base.width/2 &&
-                  p.y > this.state.base.y - this.state.base.height/2 && p.y < this.state.base.y + this.state.base.height/2) {
-                      this.damageBase(p.damage);
-                      this.state.projectiles.splice(i, 1);
-                      continue;
-              }
-              for (const t of targets) {
-                  const dist = Math.sqrt((p.x - t.x)**2 + (p.y - t.y)**2);
-                  if (dist < t.radius + p.radius) {
-                      this.damageEntity(t, p.damage);
-                      if (p.createsToxicZone) this.createToxicZone(p.x, p.y);
-                      this.state.projectiles.splice(i, 1);
-                      hit = true;
-                      break;
-                  }
-              }
-          }
-      }
-  }
-
-  private explodeProjectile(p: Projectile) {
-      const radius = 100; 
-      this.audio.playExplosion();
-      for(let i=0; i<10; i++) this.spawnParticle(p.x, p.y, '#F59E0B', 4, 1);
-
-      if (p.fromPlayer) {
-          this.state.enemies.forEach(e => {
-              const dist = Math.sqrt((p.x - e.x)**2 + (p.y - e.y)**2);
-              if (dist < radius) {
-                  const falloff = 1 - (dist / radius);
-                  this.damageEnemy(e, p.damage * falloff);
-              }
-          });
-      }
-  }
-
-  private createToxicZone(x: number, y: number) {
-      this.state.toxicZones.push({
-          id: Math.random().toString(),
-          x, y,
-          radius: TOXIC_ZONE_STATS.radius,
-          life: TOXIC_ZONE_STATS.duration,
-          damagePerSecond: TOXIC_ZONE_STATS.dps,
-          createdAt: Date.now()
-      });
-  }
-
-  private updateToxicZones(dt: number) {
-      for(let i = this.state.toxicZones.length - 1; i >= 0; i--) {
-          const zone = this.state.toxicZones[i];
-          zone.life -= dt;
-          if (zone.life <= 0) {
-              this.state.toxicZones.splice(i, 1);
-              continue;
-          }
-          const p = this.state.player;
-          const dist = Math.sqrt((zone.x - p.x)**2 + (zone.y - p.y)**2);
-          if (dist < zone.radius) {
-              this.damageEntity(p, zone.damagePerSecond * (dt/1000));
-          }
-      }
-  }
-
-  private damageEnemy(e: Enemy, amount: number) {
-      e.hp -= amount;
-      this.state.stats.damageDealt += amount;
-      if (this.state.settings.showDamageNumbers) {
-          this.addMessage(Math.floor(amount).toString(), e.x, e.y - 20, '#FFF');
-      }
-      if (e.hp <= 0) {
-          this.killEnemy(e);
-      }
-  }
-
-  private killEnemy(e: Enemy) {
-      this.audio.playEnemyDeath(e.type === EnemyType.TANK || !!e.isBoss);
-      this.state.player.score += e.scoreReward;
-      this.state.stats.killsByType[e.isBoss ? 'BOSS' : e.type]++;
-      
-      if (e.isBoss && e.bossType && !this.state.stats.encounteredEnemies.includes(e.bossType)) {
-          this.state.stats.encounteredEnemies.push(e.bossType);
-      } else if (!e.isBoss && !this.state.stats.encounteredEnemies.includes(e.type)) {
-          this.state.stats.encounteredEnemies.push(e.type);
-      }
-
-      if (this.state.settings.showBlood) {
-          const blotches = [];
-          for(let i=0; i<3 + Math.random()*3; i++) {
-              blotches.push({
-                  x: (Math.random()-0.5) * 20,
-                  y: (Math.random()-0.5) * 20,
-                  r: 5 + Math.random() * 10
-              })
-          }
-          this.state.bloodStains.push({
-              id: Math.random().toString(),
-              x: e.x,
-              y: e.y,
-              color: e.color === '#A855F7' ? '#7E22CE' : '#7F1D1D',
-              life: 30000,
-              maxLife: 30000,
-              blotches
-          });
-      }
-      this.state.enemies = this.state.enemies.filter(en => en.id !== e.id);
-  }
-
-  private damageEntity(e: Entity, amount: number) {
-      if ('hp' in e) {
-          const entity = e as any;
-          if (entity.id === 'player') {
-             const p = entity as typeof this.state.player;
-             let effectiveDmg = amount;
-             if (p.armor > 0) {
-                 const mitigation = p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL) ? 0.9 : 0.7;
-                 const absorbed = amount * mitigation;
-                 p.armor -= absorbed;
-                 effectiveDmg = amount - absorbed;
-                 if (p.armor < 0) {
-                     effectiveDmg += Math.abs(p.armor);
-                     p.armor = 0;
-                 }
-             }
-             p.hp -= effectiveDmg;
-             p.lastHitTime = this.lastTime;
-             if (p.hp <= 0) this.gameOver();
-          } else {
-             entity.hp -= amount;
-             if (entity.hp <= 0) {
-                 if (this.state.allies.includes(entity)) {
-                     this.state.allies = this.state.allies.filter(a => a.id !== entity.id);
-                 } else {
-                     const spot = this.state.turretSpots.find(s => s.builtTurret === entity);
-                     if (spot) spot.builtTurret = undefined;
-                 }
-             }
-          }
-      }
-  }
-
-  private damageBase(amount: number) {
-      this.state.base.hp -= amount;
-      this.audio.playBaseDamage();
-      if (this.state.base.hp <= 0) this.gameOver();
-  }
-
-  private spawnEnemy() {
-      // Use helper to determine type based on game rules
-      const type = selectEnemyType(
-          this.state.wave, 
-          this.state.gameMode, 
-          this.state.currentPlanet, 
-          this.state.activeSpecialEvent
-      );
-
-      const baseStats = ENEMY_STATS[type];
-      
-      // Calculate Environmental/Planetary Modifiers (HP/Dmg scaling)
-      const { maxHp, damage } = calculateEnemyStats(type, baseStats, this.state.currentPlanet, this.state.gameMode);
-
-      // Spawn Logic: Always from TOP line (y ~= -50), X is random
-      // Base is at y ~= 3100.
-      const spawnX = Math.random() * WORLD_WIDTH;
-      const spawnY = -50; // Just off-screen top
-
-      // Apply Wave Difficulty scaling on top of planetary base stats
-      const finalHp = maxHp * (1 + this.state.wave * 0.1);
-
-      this.state.enemies.push({
-          id: Math.random().toString(),
-          type,
-          x: spawnX,
-          y: spawnY,
-          ...baseStats,
-          detectionRange: baseStats.detectionRange || 500,
-          damage: damage, // Applied modifier
-          maxHp: finalHp,
-          hp: finalHp,
-          angle: Math.PI / 2, // Facing Down
-          lastAttackTime: 0
-      });
-      this.state.enemiesSpawnedInWave++;
-  }
-
-  private spawnBoss() {
-      const bossTypes = [BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID];
-      const type = bossTypes[Math.floor(Math.random() * bossTypes.length)];
-      const stats = BOSS_STATS[type];
-      
-      // Calculate Scaling
-      let finalHp = stats.hp;
-      if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet) {
-          finalHp *= this.state.currentPlanet.geneStrength;
-      }
-      
-      // Wave Scaling
-      finalHp = finalHp * (1 + this.state.wave * 0.25);
-
-      // Boss spawns top center
-      this.state.enemies.push({
-          id: `boss-${Date.now()}`,
-          type: EnemyType.TANK, 
-          bossType: type,
-          isBoss: true,
-          x: WORLD_WIDTH / 2,
-          y: -100, 
-          ...stats,
-          detectionRange: stats.detectionRange || 1000,
-          maxHp: finalHp,
-          hp: finalHp,
-          angle: Math.PI / 2,
-          lastAttackTime: 0
-      });
-  }
-
-  // ... [Rest of update methods remain same] ...
-
-  private updateEnemies(dt: number) {
+  public reloadWeapon(time: number) {
       const p = this.state.player;
-      const b = this.state.base;
-      const tNow = this.lastTime;
-
-      this.state.enemies.forEach(e => {
-          // New AI Logic: Aggro Range Check
-          // 1. Determine "Search Range"
-          const detectionRange = e.detectionRange;
-
-          // 2. Find Candidates within range
-          let closestTarget: { type: 'BASE' | 'PLAYER' | 'ALLY' | 'TURRET', entity: any, dist: number, x: number, y: number } | null = null;
-          let minDist = Infinity;
-
-          // Check Player
-          const distPlayer = Math.sqrt((e.x - p.x)**2 + (e.y - p.y)**2) - p.radius;
-          if (distPlayer <= detectionRange) {
-              closestTarget = { type: 'PLAYER', entity: p, dist: distPlayer, x: p.x, y: p.y };
-              minDist = distPlayer;
-          }
-
-          // Check Allies
-          this.state.allies.forEach(a => {
-               const dist = Math.sqrt((e.x - a.x)**2 + (e.y - a.y)**2) - a.radius;
-               if (dist <= detectionRange && dist < minDist) {
-                   closestTarget = { type: 'ALLY', entity: a, dist: dist, x: a.x, y: a.y };
-                   minDist = dist;
-               }
-          });
-
-          // Check Turrets
-          this.state.turretSpots.forEach(s => {
-              if (s.builtTurret) {
-                  const t = s.builtTurret;
-                  const dist = Math.sqrt((e.x - t.x)**2 + (e.y - t.y)**2) - 20; // Approx Turret Radius
-                  if (dist <= detectionRange && dist < minDist) {
-                       closestTarget = { type: 'TURRET', entity: t, dist: dist, x: t.x, y: t.y };
-                       minDist = dist;
-                  }
-              }
-          });
-
-          // Base Fallback (If no other target found, OR if base is very close and attackable)
-          // Base distance calc
-          const bDx = Math.max(Math.abs(e.x - b.x) - b.width / 2, 0);
-          const bDy = Math.max(Math.abs(e.y - b.y) - b.height / 2, 0);
-          const distBase = Math.sqrt(bDx*bDx + bDy*bDy);
-          
-          if (!closestTarget) {
-              // No unit in range -> Target Base Center
-              closestTarget = { type: 'BASE', entity: b, dist: distBase, x: b.x, y: b.y };
-          } else {
-              // A unit is in range, but check if Base is CLOSER (e.g. they walked past the player towards base)
-              if (distBase < minDist) {
-                   closestTarget = { type: 'BASE', entity: b, dist: distBase, x: b.x, y: b.y };
-              }
-          }
-
-          // Move and Attack Logic
-          if (closestTarget) {
-              // Move towards closest target center
-              const angle = Math.atan2(closestTarget.y - e.y, closestTarget.x - e.x);
-              e.angle = angle;
-              e.x += Math.cos(angle) * e.speed;
-              e.y += Math.sin(angle) * e.speed;
-
-              // Melee Attack Logic (Distance <= 5 means overlapping or touching)
-              if (closestTarget.dist <= 5) {
-                  if (tNow - e.lastAttackTime > 1000) {
-                       let damage = e.damage;
-
-                       if (closestTarget.type === 'BASE') {
-                           this.damageBase(damage);
-                       } else if (closestTarget.type === 'PLAYER') {
-                           if (p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)) damage *= 0.8;
-                           this.damageEntity(p, damage);
-                           this.audio.playMeleeHit();
-                       } else {
-                           this.damageEntity(closestTarget.entity, damage);
-                           this.audio.playMeleeHit();
-                       }
-
-                       e.lastAttackTime = tNow;
-                  }
-
-                  // Kamikaze Special Behavior
-                  if (e.type === EnemyType.KAMIKAZE) {
-                      if (closestTarget.type === 'BASE') {
-                          this.damageBase(e.damage * 2); 
-                      } 
-                      this.createToxicZone(e.x, e.y);
-                      this.killEnemy(e);
-                  }
-              }
-          }
-
-          // Ranged Logic (Viper / Bosses)
-          if (e.type === EnemyType.VIPER || !!e.isBoss) {
-             const cooldown = !!e.isBoss ? 1500 : 2000;
-             if (tNow - e.lastAttackTime > cooldown) {
-                 this.state.projectiles.push({
-                     id: Math.random().toString(),
-                     x: e.x, y: e.y,
-                     vx: Math.cos(e.angle) * 8, // Shoots towards closest target
-                     vy: Math.sin(e.angle) * 8,
-                     damage: e.damage,
-                     rangeRemaining: 600,
-                     fromPlayer: false,
-                     radius: 5,
-                     angle: e.angle,
-                     color: e.color,
-                     createsToxicZone: e.bossType === BossType.PURPLE_ACID
-                 });
-                 e.lastAttackTime = tNow;
-                 this.audio.playViperShoot();
-             }
-          }
-      });
-  }
-
-  private updateAllies(dt: number, time: number) {
-      // 1. Auto-Spawn Check (Every 60s)
-      if (time - this.state.lastAllySpawnTime > 60000) {
-          if (this.state.allies.length < ALLY_STATS.maxCount) {
-              this.state.allies.push({
-                  id: Math.random().toString(),
-                  x: this.state.base.x - 120, // Spawn left clone vat
-                  y: this.state.base.y,
-                  ...ALLY_STATS,
-                  maxHp: ALLY_STATS.hp,
-                  angle: -Math.PI/2,
-                  color: '#60A5FA',
-                  currentOrder: 'PATROL',
-                  state: 'PATROL',
-                  lastFireTime: 0,
-                  radius: 12,
-                  patrolPoint: { x: this.state.base.x, y: this.state.base.y - 150 } // Patrol front of base
-              });
-              this.addMessage("CLONE DEPLOYED", this.state.base.x, this.state.base.y - 60, '#60A5FA');
-          }
-          this.state.lastAllySpawnTime = time;
-      }
-
-      // 2. AI Behavior
-      this.state.allies.forEach(ally => {
-          let targetX = ally.patrolPoint.x;
-          let targetY = ally.patrolPoint.y;
-
-          // Find Target Enemy
-          const nearestEnemy = this.state.enemies.reduce((nearest, current) => {
-              const dist = Math.sqrt((current.x - ally.x)**2 + (current.y - ally.y)**2);
-              if (!nearest || dist < nearest.dist) {
-                  return { enemy: current, dist };
-              }
-              return nearest;
-          }, null as { enemy: Enemy, dist: number } | null);
-
-          // State Machine Overrides
-          if (ally.currentOrder === 'FOLLOW') {
-              targetX = this.state.player.x + Math.cos(time * 0.001 + parseInt(ally.id)*2) * 80;
-              targetY = this.state.player.y + Math.sin(time * 0.001 + parseInt(ally.id)*2) * 80;
-          } else if (ally.currentOrder === 'ATTACK' && nearestEnemy) {
-              targetX = nearestEnemy.enemy.x;
-              targetY = nearestEnemy.enemy.y;
-          }
-
-          // Combat Logic (Kiting)
-          let moveSpeed = ally.speed;
-          
-          if (nearestEnemy && nearestEnemy.dist < 600) {
-              ally.state = 'COMBAT';
-              // Look at enemy
-              ally.angle = Math.atan2(nearestEnemy.enemy.y - ally.y, nearestEnemy.enemy.x - ally.x);
-              
-              if (ally.currentOrder !== 'FOLLOW') {
-                // Kiting Logic: Ideal distance 150 - 300
-                if (nearestEnemy.dist < 150) {
-                    // Too close! Retreat!
-                    const retreatAngle = ally.angle + Math.PI;
-                    targetX = ally.x + Math.cos(retreatAngle) * 100;
-                    targetY = ally.y + Math.sin(retreatAngle) * 100;
-                } else if (nearestEnemy.dist > 300) {
-                    // Too far, advance
-                    targetX = nearestEnemy.enemy.x;
-                    targetY = nearestEnemy.enemy.y;
-                } else {
-                    // Sweet spot, maybe strafe slightly or stand ground
-                    targetX = ally.x; 
-                    targetY = ally.y;
-                }
-              }
-
-              // Fire Weapon
-              if (time - ally.lastFireTime > 500) { // Increased fire rate to 500ms
-                   this.state.projectiles.push({
-                       id: Math.random().toString(),
-                       x: ally.x, y: ally.y,
-                       vx: Math.cos(ally.angle) * 15,
-                       vy: Math.sin(ally.angle) * 15,
-                       damage: ally.damage,
-                       rangeRemaining: 400,
-                       fromPlayer: true, 
-                       radius: 3,
-                       angle: ally.angle,
-                       color: '#60A5FA'
-                   });
-                   this.audio.playAllyFire();
-                   ally.lastFireTime = time;
-              }
-
-          } else {
-              ally.state = ally.currentOrder === 'FOLLOW' ? 'FOLLOW' : 'PATROL';
-          }
-
-          // Movement Physics
-          const dx = targetX - ally.x;
-          const dy = targetY - ally.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist > 5) {
-              ally.x += (dx/dist) * moveSpeed;
-              ally.y += (dy/dist) * moveSpeed;
-              if (ally.state !== 'COMBAT') {
-                  ally.angle = Math.atan2(dy, dx);
-              }
-          }
-      });
-  }
-
-  private updateTurrets(time: number) {
-      this.state.turretSpots.forEach(spot => {
-          const t = spot.builtTurret;
-          if (t && time - t.lastFireTime > t.fireRate) {
-              let target: Enemy | undefined;
-              if (t.type === TurretType.MISSILE) {
-                  target = this.state.enemies[Math.floor(Math.random() * this.state.enemies.length)];
-              } else {
-                  let minDist = t.range;
-                  this.state.enemies.forEach(e => {
-                      const dist = Math.sqrt((e.x - t.x)**2 + (e.y - t.y)**2);
-                      if (dist < minDist) {
-                          minDist = dist;
-                          target = e;
-                      }
-                  });
-              }
-
-              if (target) {
-                  const angle = Math.atan2(target.y - t.y, target.x - t.x);
-                  t.angle = angle;
-                  t.lastFireTime = time;
-                  this.audio.playTurretFire(t.level);
-
-                  this.state.projectiles.push({
-                       id: Math.random().toString(),
-                       x: t.x + Math.cos(angle)*20, 
-                       y: t.y + Math.sin(angle)*20,
-                       vx: Math.cos(angle) * (t.type === TurretType.SNIPER ? 40 : 20),
-                       vy: Math.sin(angle) * (t.type === TurretType.SNIPER ? 40 : 20),
-                       damage: t.damage,
-                       rangeRemaining: t.range,
-                       fromPlayer: true,
-                       radius: t.type === TurretType.MISSILE ? 6 : 4,
-                       angle: angle,
-                       color: t.type === TurretType.GAUSS ? '#10B981' : '#FCD34D',
-                       isHoming: t.type === TurretType.MISSILE,
-                       targetId: t.type === TurretType.MISSILE ? target.id : undefined,
-                       turnSpeed: 0.15,
-                       isExplosive: t.type === TurretType.MISSILE
-                  });
-              }
-          }
-      });
-  }
-
-  public spawnParticle(x: number, y: number, color: string, speed: number, life: number) {
-      const angle = Math.random() * Math.PI * 2;
-      this.state.particles.push({
-          id: Math.random().toString(),
-          x, y,
-          vx: Math.cos(angle) * speed * Math.random(),
-          vy: Math.sin(angle) * speed * Math.random(),
-          color,
-          life,
-          maxLife: life,
-          radius: Math.random() * 2 + 1,
-          angle: 0
-      });
-  }
-
-  private updateParticles(dt: number) {
-      for(let i=this.state.particles.length-1; i>=0; i--) {
-          const p = this.state.particles[i];
-          p.x += p.vx;
-          p.y += p.vy;
-          p.life -= dt / 1000;
-          if (p.life <= 0) this.state.particles.splice(i, 1);
+      const w = p.weapons[p.loadout[p.currentWeaponIndex]];
+      if (!w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
+          w.reloading = true;
+          w.reloadStartTime = time;
       }
   }
 
-  public completeMission() {
-      this.state.missionComplete = true;
-      if (this.state.currentPlanet) {
-          const idx = this.state.planets.findIndex(p => p.id === this.state.currentPlanet?.id);
-          if (idx !== -1) this.state.planets[idx].completed = true;
-      }
-      this.state.isPaused = true;
-  }
-
-  public gameOver() {
-      this.state.isGameOver = true;
-      this.state.isPaused = true;
-  }
-
+  // Interaction Logic (Turrets, Shop)
   public interact() {
       const p = this.state.player;
-      let closestSpot: any = null;
-      let minDist = 60;
-      this.state.turretSpots.forEach(s => {
-          const dist = Math.sqrt((s.x - p.x)**2 + (s.y - p.y)**2);
-          if (dist < minDist) {
-              closestSpot = s;
-              minDist = dist;
+      
+      // Check Turret Spots
+      let closestSpot = -1;
+      let minDst = 60;
+      this.state.turretSpots.forEach((s, i) => {
+          const d = Math.sqrt((s.x - p.x)**2 + (s.y - p.y)**2);
+          if (d < minDst) {
+              minDst = d;
+              closestSpot = i;
           }
       });
 
-      if (closestSpot) {
-          if (closestSpot.builtTurret) {
-              this.state.activeTurretId = closestSpot.id;
-          } else {
-              const cost = TURRET_COSTS.baseCost + (this.state.turretSpots.filter(s => s.builtTurret).length * TURRET_COSTS.costIncrement);
+      if (closestSpot !== -1) {
+          const spot = this.state.turretSpots[closestSpot];
+          if (!spot.builtTurret) {
+              // Build
+              const currentCount = this.state.turretSpots.filter(s => s.builtTurret).length;
+              const cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
               if (p.score >= cost) {
                   p.score -= cost;
-                  closestSpot.builtTurret = {
-                      ...TURRET_STATS[TurretType.STANDARD],
-                      id: Math.random().toString(),
-                      x: closestSpot.x,
-                      y: closestSpot.y,
-                      radius: 20,
-                      angle: 0,
-                      color: '#059669',
+                  spot.builtTurret = {
+                      id: `t-${Date.now()}`,
+                      x: 0, y: 0, radius: 0, angle: 0, color: '', // Entity props
                       level: 1,
                       type: TurretType.STANDARD,
                       lastFireTime: 0,
-                      maxHp: TURRET_STATS[TurretType.STANDARD].hp
+                      range: TURRET_STATS[TurretType.STANDARD].range,
+                      hp: TURRET_STATS[TurretType.STANDARD].hp,
+                      maxHp: TURRET_STATS[TurretType.STANDARD].hp,
+                      damage: TURRET_STATS[TurretType.STANDARD].damage,
+                      fireRate: TURRET_STATS[TurretType.STANDARD].fireRate
                   };
-                  this.addMessage("TURRET BUILT", closestSpot.x, closestSpot.y, '#10B981');
+                  this.audio.playTurretFire(1); // Building sound placeholder
               } else {
                   this.addMessage("INSUFFICIENT FUNDS", p.x, p.y - 50, 'red');
               }
+          } else {
+              // Open Upgrade Menu
+              this.state.activeTurretId = closestSpot;
           }
       }
-  }
-
-  public purchaseItem(itemKey: string) {
-      const p = this.state.player;
-      if (itemKey.includes('AMMO') || itemKey === 'GRENADE') {
-          const cost = SHOP_PRICES[itemKey as keyof typeof SHOP_PRICES] || 99999;
-          if (p.score >= cost) {
-              p.score -= cost;
-              if (itemKey === 'AR_AMMO') p.weapons[WeaponType.AR].ammoReserve += 60;
-              if (itemKey === 'SG_AMMO') p.weapons[WeaponType.SG].ammoReserve += 16;
-              if (itemKey === 'SR_AMMO') p.weapons[WeaponType.SR].ammoReserve += 10;
-              if (itemKey === 'PULSE_AMMO') p.weapons[WeaponType.PULSE_RIFLE].ammoReserve += 90;
-              if (itemKey === 'FLAME_AMMO') p.weapons[WeaponType.FLAMETHROWER].ammoReserve += 200;
-              if (itemKey === 'GL_AMMO') p.weapons[WeaponType.GRENADE_LAUNCHER].ammoReserve += 12;
-              if (itemKey === 'GRENADE') p.grenades++;
-          }
-      }
-      else if (itemKey.includes('WEAPON_')) {
-          const cost = SHOP_PRICES[itemKey as keyof typeof SHOP_PRICES] || 99999;
-          if (p.score >= cost) {
-              p.score -= cost;
-              let type = WeaponType.AR;
-              if (itemKey === 'WEAPON_PULSE') type = WeaponType.PULSE_RIFLE;
-              if (itemKey === 'WEAPON_FLAME') type = WeaponType.FLAMETHROWER;
-              if (itemKey === 'WEAPON_GL') type = WeaponType.GRENADE_LAUNCHER;
-              const emptyIdx = p.inventory.findIndex(i => i === null);
-              if (emptyIdx !== -1) {
-                  p.inventory[emptyIdx] = { id: Math.random().toString(), type };
-              } else {
-                  this.addMessage("INVENTORY FULL", p.x, p.y, 'red');
-                  p.score += cost; 
-              }
-          }
-      }
-      else if (itemKey in DEFENSE_UPGRADE_INFO) {
-          const type = itemKey as DefenseUpgradeType;
-          const info = DEFENSE_UPGRADE_INFO[type];
-          if (p.score >= info.cost && !p.upgrades.includes(type)) {
-               p.score -= info.cost;
-               p.upgrades.push(type);
-               if (type === DefenseUpgradeType.SPORE_BARRIER) {
-                   p.maxArmor += 100;
-                   p.armor += 100;
-               }
-          }
-      }
-      else if (itemKey in MODULE_STATS) {
-           const type = itemKey as ModuleType;
-           const stats = MODULE_STATS[type];
-           if (p.score >= stats.cost) {
-               p.score -= stats.cost;
-               p.freeModules.push({ id: Math.random().toString(), type });
-           }
-      }
-      else if (itemKey in SPACESHIP_MODULES) {
-           const type = itemKey as SpaceshipModuleType;
-           const stats = SPACESHIP_MODULES[type];
-           if (p.score >= stats.cost) {
-               p.score -= stats.cost;
-               this.state.spaceship.installedModules.push(type);
-               
-               if (type === SpaceshipModuleType.BASE_REINFORCEMENT) {
-                   this.state.base.maxHp += 3000;
-                   this.state.base.hp += 3000;
-               }
-               if (type === SpaceshipModuleType.ORBITAL_CANNON) {
-                   // Init upgrade tree immediately on purchase
-                   this.generateOrbitalUpgradeTree();
-               }
-           }
-      }
-  }
-
-  public equipModule(target: string, modId: string) {
-      const p = this.state.player;
-      const modIdx = p.freeModules.findIndex(m => m.id === modId);
-      if (modIdx === -1) return;
-      const mod = p.freeModules[modIdx];
-      if (target === 'GRENADE') {
-          if (p.grenadeModules.length < 2) {
-              p.grenadeModules.push(mod);
-              p.freeModules.splice(modIdx, 1);
-          }
-      } else {
-          const w = p.weapons[target as WeaponType];
-          const max = target === WeaponType.PISTOL ? 2 : 3;
-          if (w.modules.length < max) {
-              w.modules.push(mod);
-              p.freeModules.splice(modIdx, 1);
-          }
-      }
-  }
-
-  public unequipModule(target: string, modId: string) {
-      const p = this.state.player;
-      if (target === 'GRENADE') {
-          const idx = p.grenadeModules.findIndex(m => m.id === modId);
-          if (idx !== -1) {
-              p.freeModules.push(p.grenadeModules[idx]);
-              p.grenadeModules.splice(idx, 1);
-          }
-      } else {
-          const w = p.weapons[target as WeaponType];
-          const idx = w.modules.findIndex(m => m.id === modId);
-           if (idx !== -1) {
-              p.freeModules.push(w.modules[idx]);
-              w.modules.splice(idx, 1);
-          }
-      }
-  }
-
-  public activateBackdoor() {
-      this.state.player.score += 99999;
-      this.addMessage("DEV BACKDOOR ACCESSED: +99,999 SCRAPS", this.state.player.x, this.state.player.y - 100, '#10B981');
-      this.audio.playTurretFire(2); // Heavy impact sound to confirm
-  }
-
-  public addMessage(text: string, x: number, y: number, color: string) {
-      this.state.messages.push({ text, x, y, color, time: 2000 });
-      setTimeout(() => {
-          this.state.messages = this.state.messages.filter(m => m.text !== text);
-      }, 2000);
   }
 
   public confirmTurretUpgrade(type: TurretType) {
-      const id = this.state.activeTurretId;
-      if (id === undefined) return;
-      const spot = this.state.turretSpots[id];
-      const p = this.state.player;
+      if (this.state.activeTurretId === undefined) return;
+      const spot = this.state.turretSpots[this.state.activeTurretId];
+      if (!spot.builtTurret) return;
+      
       let cost = 0;
       if (type === TurretType.GAUSS) cost = TURRET_COSTS.upgrade_gauss;
       if (type === TurretType.SNIPER) cost = TURRET_COSTS.upgrade_sniper;
       if (type === TurretType.MISSILE) cost = TURRET_COSTS.upgrade_missile;
-      if (p.score >= cost) {
-          p.score -= cost;
-          if (spot.builtTurret) {
-              spot.builtTurret = {
-                  ...spot.builtTurret,
-                  ...TURRET_STATS[type],
-                  type: type,
-                  level: 2,
-                  maxHp: TURRET_STATS[type].hp,
-                  hp: TURRET_STATS[type].hp,
-              }
-          }
-          this.state.activeTurretId = undefined; 
+
+      if (this.state.player.score >= cost) {
+          this.state.player.score -= cost;
+          spot.builtTurret.type = type;
+          spot.builtTurret.level = 2;
+          // Apply Stats
+          const s = TURRET_STATS[type];
+          spot.builtTurret.range = s.range;
+          spot.builtTurret.damage = s.damage;
+          spot.builtTurret.fireRate = s.fireRate;
+          spot.builtTurret.maxHp = s.hp;
+          spot.builtTurret.hp = s.hp;
+          
+          this.closeTurretUpgrade();
       }
   }
 
-  public toggleInventory() { this.state.isInventoryOpen = !this.state.isInventoryOpen; }
-  public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; }
-  public togglePause() { this.state.isPaused = !this.state.isPaused; }
-  public closeTurretUpgrade() { this.state.activeTurretId = undefined; }
+  public closeTurretUpgrade() {
+      this.state.activeTurretId = undefined;
+  }
 
-  public swapLoadoutAndInventory(loadoutIdx: number, inventoryIdx: number) {
+  public purchaseItem(itemKey: string) {
       const p = this.state.player;
-      const invItem = p.inventory[inventoryIdx];
-      if (invItem) {
-          const currentWeapon = p.loadout[loadoutIdx];
-          p.loadout[loadoutIdx] = invItem.type;
-          p.inventory[inventoryIdx] = { id: Math.random().toString(), type: currentWeapon };
+      
+      // Ammo
+      if (itemKey === 'AR_AMMO' && p.score >= SHOP_PRICES.AR_AMMO) { p.score -= SHOP_PRICES.AR_AMMO; p.weapons[WeaponType.AR].ammoReserve += 60; }
+      if (itemKey === 'SG_AMMO' && p.score >= SHOP_PRICES.SG_AMMO) { p.score -= SHOP_PRICES.SG_AMMO; p.weapons[WeaponType.SG].ammoReserve += 16; }
+      if (itemKey === 'SR_AMMO' && p.score >= SHOP_PRICES.SR_AMMO) { p.score -= SHOP_PRICES.SR_AMMO; p.weapons[WeaponType.SR].ammoReserve += 10; }
+      if (itemKey === 'GRENADE' && p.score >= SHOP_PRICES.GRENADE) { p.score -= SHOP_PRICES.GRENADE; p.grenades++; }
+      
+      // New Ammo
+      if (itemKey === 'PULSE_AMMO' && p.score >= SHOP_PRICES.PULSE_AMMO) { p.score -= SHOP_PRICES.PULSE_AMMO; p.weapons[WeaponType.PULSE_RIFLE].ammoReserve += 90; }
+      if (itemKey === 'FLAME_AMMO' && p.score >= SHOP_PRICES.FLAME_AMMO) { p.score -= SHOP_PRICES.FLAME_AMMO; p.weapons[WeaponType.FLAMETHROWER].ammoReserve += 200; }
+      if (itemKey === 'GL_AMMO' && p.score >= SHOP_PRICES.GL_AMMO) { p.score -= SHOP_PRICES.GL_AMMO; p.weapons[WeaponType.GRENADE_LAUNCHER].ammoReserve += 12; }
+
+      // Weapons
+      if (itemKey === 'WEAPON_PULSE' && p.score >= SHOP_PRICES.WEAPON_PULSE) {
+          p.score -= SHOP_PRICES.WEAPON_PULSE;
+          this.addToInventory(WeaponType.PULSE_RIFLE);
+      }
+      if (itemKey === 'WEAPON_FLAME' && p.score >= SHOP_PRICES.WEAPON_FLAME) {
+          p.score -= SHOP_PRICES.WEAPON_FLAME;
+          this.addToInventory(WeaponType.FLAMETHROWER);
+      }
+      if (itemKey === 'WEAPON_GL' && p.score >= SHOP_PRICES.WEAPON_GL) {
+          p.score -= SHOP_PRICES.WEAPON_GL;
+          this.addToInventory(WeaponType.GRENADE_LAUNCHER);
+      }
+
+      // Upgrades
+      if (itemKey === DefenseUpgradeType.INFECTION_DISPOSAL || itemKey === DefenseUpgradeType.SPORE_BARRIER || itemKey === DefenseUpgradeType.IMPACT_PLATE) {
+           const info = DEFENSE_UPGRADE_INFO[itemKey as DefenseUpgradeType];
+           if (p.score >= info.cost && !p.upgrades.includes(itemKey as DefenseUpgradeType)) {
+               p.score -= info.cost;
+               p.upgrades.push(itemKey as DefenseUpgradeType);
+               // Apply Immediate Effects
+               if (itemKey === DefenseUpgradeType.SPORE_BARRIER) {
+                   const bonus = (info as any).maxArmorBonus;
+                   p.maxArmor += bonus;
+                   p.armor += bonus;
+               }
+           }
+      }
+
+      // Modules
+      if (Object.values(ModuleType).includes(itemKey as ModuleType)) {
+          const m = MODULE_STATS[itemKey as ModuleType];
+          if (p.score >= m.cost) {
+              p.score -= m.cost;
+              p.freeModules.push({ id: `mod-${Date.now()}-${Math.random()}`, type: itemKey as ModuleType });
+          }
+      }
+
+      // Spaceship Modules
+      if (Object.values(SpaceshipModuleType).includes(itemKey as SpaceshipModuleType)) {
+          const m = SPACESHIP_MODULES[itemKey as SpaceshipModuleType];
+          if (p.score >= m.cost) {
+               p.score -= m.cost;
+               this.state.spaceship.installedModules.push(itemKey as SpaceshipModuleType);
+               // Apply immediate effects
+               if (itemKey === SpaceshipModuleType.BASE_REINFORCEMENT) {
+                   this.state.base.maxHp += 3000;
+                   this.state.base.hp += 3000;
+               }
+               // Unlock tree if cannon purchased
+               if (itemKey === SpaceshipModuleType.ORBITAL_CANNON) {
+                   this.generateOrbitalUpgradeTree();
+               }
+          }
       }
   }
 
-  public issueOrder(order: AllyOrder) {
-      this.state.allies.forEach(a => a.currentOrder = order);
-      this.addMessage(`SQUAD ORDER: ${order}`, this.state.player.x, this.state.player.y - 60, '#06B6D4');
-      if (this.state.allies.length < 5 && order === 'FOLLOW' && this.state.player.score > 500) {
-           this.state.player.score -= 500;
-           this.state.allies.push({
-               id: Math.random().toString(),
-               x: this.state.base.x,
-               y: this.state.base.y,
-               ...ALLY_STATS,
-               maxHp: ALLY_STATS.hp,
-               angle: 0,
-               color: '#60A5FA',
-               currentOrder: 'FOLLOW',
-               state: 'FOLLOW',
-               lastFireTime: 0,
-               radius: 12,
-               patrolPoint: { x: this.state.base.x + (Math.random()-0.5)*200, y: this.state.base.y - 100 }
-           });
-           this.addMessage("UNIT DEPLOYED", this.state.base.x, this.state.base.y - 40, '#60A5FA');
+  public addToInventory(type: WeaponType) {
+      const idx = this.state.player.inventory.findIndex(i => i === null);
+      if (idx !== -1) {
+          this.state.player.inventory[idx] = { id: `w-${Date.now()}`, type };
       }
   }
 
-  public toggleSetting(key: keyof typeof this.state.settings) {
-      const val = this.state.settings[key];
-      if (typeof val === 'boolean') {
-          (this.state.settings as any)[key] = !val;
-      } else {
-          this.state.settings.language = this.state.settings.language === 'EN' ? 'CN' : 'EN';
+  public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; }
+  public toggleInventory() { this.state.isInventoryOpen = !this.state.isInventoryOpen; }
+  public togglePause() { this.state.isPaused = !this.state.isPaused; }
+  public issueOrder(order: AllyOrder) { this.state.allies.forEach(a => a.currentOrder = order); }
+  
+  public swapLoadoutAndInventory(loadoutIdx: number, invIdx: number) {
+      const p = this.state.player;
+      const invItem = p.inventory[invIdx];
+      if (!invItem) return;
+
+      const oldWeapon = p.loadout[loadoutIdx];
+      p.loadout[loadoutIdx] = invItem.type;
+      p.inventory[invIdx] = { id: `w-${Date.now()}`, type: oldWeapon };
+  }
+
+  public toggleSetting(key: any) { (this.state.settings as any)[key] = !(this.state.settings as any)[key]; }
+
+  public addMessage(text: string, x: number, y: number, color: string, time: number = 1000) {
+      this.state.messages.push({ text, x, y, color, time });
+  }
+
+  // --- SAVE SYSTEM ---
+  public saveGame() {
+      // Create Persistent State
+      const p = this.state.player;
+      const persistent: PersistentPlayerState = {
+          score: p.score,
+          weapons: p.weapons,
+          loadout: p.loadout,
+          inventory: p.inventory,
+          grenades: p.grenades,
+          upgrades: p.upgrades,
+          freeModules: p.freeModules,
+          grenadeModules: p.grenadeModules
+      };
+      
+      // Update SavedPlayerState in global state (for Exploration map persistence)
+      this.state.savedPlayerState = persistent;
+
+      const saveData: Partial<GameState> = {
+          ...this.state,
+          // Don't save transient things
+          projectiles: [],
+          particles: [],
+          messages: []
+      };
+
+      const newSave: SaveFile = {
+          id: `save-${Date.now()}`,
+          timestamp: Date.now(),
+          label: this.state.gameMode === GameMode.EXPLORATION 
+            ? `EXPLORATION - ${this.state.currentPlanet?.name || 'SECTOR MAP'}` 
+            : `SURVIVAL - WAVE ${this.state.wave}`,
+          isPinned: false,
+          data: JSON.stringify(saveData),
+          mode: this.state.gameMode
+      };
+
+      // Add to list
+      this.state.saveSlots.unshift(newSave);
+      
+      // Manage Limits
+      const pinned = this.state.saveSlots.filter(s => s.isPinned);
+      const unpinned = this.state.saveSlots.filter(s => !s.isPinned);
+      
+      if (unpinned.length > (MAX_SAVE_SLOTS - pinned.length)) {
+          // Remove oldest unpinned
+          const toKeep = unpinned.slice(0, MAX_SAVE_SLOTS - pinned.length);
+          this.state.saveSlots = [...pinned, ...toKeep].sort((a,b) => b.timestamp - a.timestamp);
+      }
+
+      this.persistSaves();
+      this.addMessage("GAME SAVED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981');
+  }
+
+  public loadGame(id: string) {
+      const slot = this.state.saveSlots.find(s => s.id === id);
+      if (slot) {
+          const data = JSON.parse(slot.data);
+          // Restore
+          Object.assign(this.state, data);
+          // Re-hydrate helpers if needed (not needed for simple POJOs)
+          this.state.isPaused = false;
+          this.state.appMode = AppMode.GAMEPLAY;
+          // Fix camera if needed
+          this.state.camera = { x: 0, y: 0 }; 
       }
   }
 
+  public deleteSave(id: string) {
+      this.state.saveSlots = this.state.saveSlots.filter(s => s.id !== id);
+      this.persistSaves();
+  }
+
+  public togglePin(id: string) {
+      const slot = this.state.saveSlots.find(s => s.id === id);
+      if (slot) {
+          if (!slot.isPinned && this.state.saveSlots.filter(s => s.isPinned).length >= MAX_PINNED_SLOTS) {
+              return; // Max pins reached
+          }
+          slot.isPinned = !slot.isPinned;
+          this.persistSaves();
+      }
+  }
+
+  private loadSavesFromStorage(): SaveFile[] {
+      const raw = localStorage.getItem(this.storageKey);
+      return raw ? JSON.parse(raw) : [];
+  }
+
+  private persistSaves() {
+      localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
+  }
+
+  // --- MODES ---
   public enterSurvivalMode() {
-      this.reset();
-      this.state.gameMode = GameMode.SURVIVAL;
+      this.reset(true);
       this.state.appMode = AppMode.GAMEPLAY;
+      this.state.gameMode = GameMode.SURVIVAL;
   }
+
   public enterExplorationMode() {
+      this.reset(true); // Generates planets
       this.state.appMode = AppMode.EXPLORATION_MAP;
       this.state.gameMode = GameMode.EXPLORATION;
   }
-  public selectPlanet(id: string | null) {
-      this.state.selectedPlanetId = id;
-  }
+  
   public enterSpaceshipView() {
       this.state.appMode = AppMode.SPACESHIP_VIEW;
   }
   public exitSpaceshipView() {
       this.state.appMode = AppMode.EXPLORATION_MAP;
   }
+
   public enterOrbitalUpgradeMenu() {
-      // Ensure tree is generated
-      this.generateOrbitalUpgradeTree();
       this.state.appMode = AppMode.ORBITAL_UPGRADES;
   }
   public exitOrbitalUpgradeMenu() {
       this.state.appMode = AppMode.SPACESHIP_VIEW;
   }
 
-  private loadSavesFromStorage(): SaveFile[] {
-      try {
-          const raw = localStorage.getItem(this.storageKey);
-          if (raw) return JSON.parse(raw);
-      } catch (e) { console.error(e); }
-      return [];
+  public selectPlanet(id: string | null) {
+      this.state.selectedPlanetId = id;
   }
 
-  public saveGame() {
-      const { saveSlots, ...stateToSave } = this.state;
-      const snapshot = JSON.stringify(stateToSave);
-      let label = this.state.gameMode === GameMode.SURVIVAL ? `SURVIVAL - WAVE ${this.state.wave}` : `EXP - ${this.state.currentPlanet?.name || 'SPACE'} - W${this.state.wave}`;
+  public completeMission() {
+      this.state.missionComplete = true;
+      this.state.isPaused = true;
       
-      const newSave: SaveFile = {
-          id: Math.random().toString(36).substr(2, 9),
-          timestamp: Date.now(),
-          label,
-          isPinned: false,
-          data: snapshot,
-          mode: this.state.gameMode
-      };
-      
-      const saves = [...this.state.saveSlots];
-      if (saves.length >= MAX_SAVE_SLOTS) {
-          saves.sort((a, b) => a.timestamp - b.timestamp);
-          const unpinned = saves.findIndex(s => !s.isPinned);
-          if (unpinned !== -1) saves.splice(unpinned, 1);
-          else saves.shift();
-      }
-      saves.push(newSave);
-      saves.sort((a, b) => b.timestamp - a.timestamp);
-      this.state.saveSlots = saves;
-      localStorage.setItem(this.storageKey, JSON.stringify(saves));
-      this.addMessage("STATE ARCHIVED", this.state.player.x, this.state.player.y - 50, 'cyan');
-  }
-
-  public loadGame(id: string) {
-      const save = this.state.saveSlots.find(s => s.id === id);
-      if (!save) return;
-      try {
-          const loaded: GameState = JSON.parse(save.data);
-          const currentSaves = this.state.saveSlots;
-          const currentSettings = this.state.settings;
-
-          this.state = {
-              ...loaded,
-              saveSlots: currentSaves,
-              settings: { ...loaded.settings, language: currentSettings.language }
-          };
-
-          const p = this.state.player;
-          Object.values(p.weapons).forEach(w => {
-              w.lastFireTime = 0; w.reloadStartTime = 0; w.reloading = false;
-              if (w.type === WeaponType.PISTOL && !w.ammoReserve) w.ammoReserve = Infinity;
-          });
-          this.state.allies.forEach(a => a.lastFireTime = 0);
-          this.state.turretSpots.forEach(s => { if(s.builtTurret) s.builtTurret.lastFireTime = 0; });
-          
-          this.lastTime = 0;
-          this.state.isPaused = false;
-          this.state.appMode = AppMode.GAMEPLAY;
-          this.audio.resume();
-          this.addMessage("MEMORY EXTRACTED", p.x, p.y - 50, 'cyan');
-      } catch (e) { console.error(e); }
-  }
-
-  public deleteSave(id: string) {
-      const idx = this.state.saveSlots.findIndex(s => s.id === id);
-      if (idx !== -1) {
-          this.state.saveSlots.splice(idx, 1);
-          localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
+      // Mark planet complete
+      if (this.state.currentPlanet) {
+          const pIdx = this.state.planets.findIndex(p => p.id === this.state.currentPlanet?.id);
+          if (pIdx !== -1) {
+              this.state.planets[pIdx].completed = true;
+          }
       }
   }
 
-  public togglePin(id: string) {
-      const save = this.state.saveSlots.find(s => s.id === id);
-      if (save) {
-          if (!save.isPinned && this.state.saveSlots.filter(s => s.isPinned).length >= MAX_PINNED_SLOTS) return;
-          save.isPinned = !save.isPinned;
-          localStorage.setItem(this.storageKey, JSON.stringify(this.state.saveSlots));
+  // --- CHEATS ---
+  public activateBackdoor() {
+      this.state.player.score += 99999;
+      this.audio.playTurretFire(2);
+  }
+
+  // --- Module System ---
+  public equipModule(target: WeaponType | 'GRENADE', modId: string) {
+      const p = this.state.player;
+      const modIndex = p.freeModules.findIndex(m => m.id === modId);
+      if (modIndex === -1) return;
+      
+      const mod = p.freeModules[modIndex];
+
+      if (target === 'GRENADE') {
+          if (p.grenadeModules.length < 2) {
+              p.freeModules.splice(modIndex, 1);
+              p.grenadeModules.push(mod);
+          }
+      } else {
+          const w = p.weapons[target];
+          const limit = target === WeaponType.PISTOL ? 2 : 3;
+          if (w.modules.length < limit) {
+              p.freeModules.splice(modIndex, 1);
+              w.modules.push(mod);
+          }
+      }
+  }
+
+  public unequipModule(target: WeaponType | 'GRENADE', modId: string) {
+      const p = this.state.player;
+      if (target === 'GRENADE') {
+          const idx = p.grenadeModules.findIndex(m => m.id === modId);
+          if (idx !== -1) {
+              const mod = p.grenadeModules.splice(idx, 1)[0];
+              p.freeModules.push(mod);
+          }
+      } else {
+          const w = p.weapons[target];
+          const idx = w.modules.findIndex(m => m.id === modId);
+          if (idx !== -1) {
+              const mod = w.modules.splice(idx, 1)[0];
+              p.freeModules.push(mod);
+          }
       }
   }
 }

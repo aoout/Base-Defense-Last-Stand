@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import { GameState, GameSettings, EnemyType, BossType, Planet, SaveFile, GameMode } from '../../types';
+import { GameState, GameSettings, EnemyType, BossType, Planet, SaveFile, GameMode, MissionType } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawPlanetSprite } from '../../utils/renderers';
@@ -77,7 +78,10 @@ const PlanetInfoPanel: React.FC<{ planet: Planet, t: any, onShowDetail: () => vo
         <div className="flex flex-col h-full gap-4">
              <div className="flex justify-between items-start mb-6">
                  <div>
-                     <h2 className="text-3xl font-black text-white leading-none">{planet.name}</h2>
+                     <div className="flex items-center gap-2">
+                         <h2 className="text-3xl font-black text-white leading-none">{planet.name}</h2>
+                         {planet.missionType === MissionType.OFFENSE && <span className="text-[10px] bg-red-900 text-red-200 px-2 rounded border border-red-700 font-bold">OFFENSE</span>}
+                     </div>
                      {planet.completed && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 font-bold tracking-widest uppercase inline-block mt-1">CLEARED</span>}
                  </div>
                  <div className="w-24 h-24 border border-blue-900/50 rounded-full overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
@@ -88,7 +92,9 @@ const PlanetInfoPanel: React.FC<{ planet: Planet, t: any, onShowDetail: () => vo
              <div className="grid grid-cols-2 gap-3 text-xs font-mono">
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50">
                      <div className="text-blue-500 mb-1">{t('THREAT LEVEL')}</div>
-                     <div className="text-white text-lg font-bold">{planet.totalWaves} WAVES</div>
+                     <div className="text-white text-lg font-bold">
+                         {planet.missionType === MissionType.OFFENSE ? 'ASSAULT OPS' : `${planet.totalWaves} WAVES`}
+                     </div>
                  </div>
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50">
                      <div className="text-blue-500 mb-1">{t('GENE_MODIFIER')}</div>

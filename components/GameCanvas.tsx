@@ -1,10 +1,12 @@
+
+
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
 import { GameState, WeaponType, BossType, AppMode } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
 import { 
     drawTerrain, drawBloodStains, drawToxicZones, drawTurret, 
-    drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple,
+    drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
     drawBase, drawTurretSpot, drawProjectile,
     drawStartScreen, drawExplorationMap
@@ -105,6 +107,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
               case BossType.RED_SUMMONER: drawBossRed(ctx, e, time); break;
               case BossType.BLUE_BURST: drawBossBlue(ctx, e, time); break;
               case BossType.PURPLE_ACID: drawBossPurple(ctx, e, time); break;
+              case BossType.HIVE_MOTHER: drawHiveMother(ctx, e, time); break;
           }
       } else {
           // Normal Enemies

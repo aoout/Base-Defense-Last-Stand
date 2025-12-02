@@ -1,6 +1,8 @@
 
+
+
 import React from 'react';
-import { GameState, WeaponType, GameMode } from '../../types';
+import { GameState, WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
 
@@ -16,12 +18,15 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
     const currentWep = p.weapons[currentWeaponType];
     const wepStats = WEAPONS[currentWeaponType];
 
+    const isOffenseMode = state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE;
+    const hiveMother = state.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
+
     const secondsLeft = Math.ceil(state.waveTimeRemaining / 1000);
     const formattedTime = `${Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:${(secondsLeft % 60).toString().padStart(2, '0')}`;
     
     // Skip Wave Logic
     const elapsedWaveTime = state.waveDuration - state.waveTimeRemaining;
-    const canSkip = elapsedWaveTime >= 10000;
+    const canSkip = !isOffenseMode && elapsedWaveTime >= 10000;
     const skipReward = Math.max(0, Math.floor((state.waveTimeRemaining / 1000) * state.wave));
 
     return (
@@ -30,17 +35,44 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
             <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
                 <div className="flex items-center gap-4">
                     {/* Wave Status */}
-                    <div className="bg-black/60 px-8 py-2 rounded-full border border-gray-600 backdrop-blur-sm shadow-lg flex flex-col items-center">
-                        <div className="flex items-center">
-                            <span className="text-gray-400 text-xs font-bold tracking-[0.2em] mr-3">WAVE</span>
-                            <span className="text-white text-3xl font-black italic">{state.wave}</span>
-                            {state.gameMode === GameMode.EXPLORATION && state.currentPlanet && (
-                                <span className="text-gray-500 text-sm ml-2 font-mono">/ {state.currentPlanet.totalWaves}</span>
-                            )}
-                        </div>
-                        <div className="text-yellow-400 font-mono text-xl font-bold tracking-widest leading-none mt-1">
-                            {formattedTime}
-                        </div>
+                    <div className="bg-black/60 px-8 py-2 rounded-full border border-gray-600 backdrop-blur-sm shadow-lg flex flex-col items-center min-w-[200px]">
+                        {isOffenseMode ? (
+                            <>
+                                <div className="flex items-center">
+                                    <span className="text-red-400 text-xs font-bold tracking-[0.2em]">OFFENSE MISSION</span>
+                                </div>
+                                
+                                {/* New HP Bar */}
+                                {hiveMother && (
+                                    <div className="w-full h-3 bg-gray-900 border border-red-900 mt-2 mb-1 relative">
+                                        <div 
+                                            className="h-full bg-red-600 transition-all duration-300"
+                                            style={{ width: `${Math.max(0, (hiveMother.hp / hiveMother.maxHp) * 100)}%` }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center text-[8px] text-white font-mono shadow-sm">
+                                            {Math.ceil(hiveMother.hp)} / {Math.ceil(hiveMother.maxHp)}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="text-red-500 font-mono text-xl font-bold tracking-widest leading-none mt-1">
+                                    ARMOR: {hiveMother?.armorValue ?? '??'}%
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="flex items-center">
+                                    <span className="text-gray-400 text-xs font-bold tracking-[0.2em] mr-3">WAVE</span>
+                                    <span className="text-white text-3xl font-black italic">{state.wave}</span>
+                                    {state.gameMode === GameMode.EXPLORATION && state.currentPlanet && (
+                                        <span className="text-gray-500 text-sm ml-2 font-mono">/ {state.currentPlanet.totalWaves}</span>
+                                    )}
+                                </div>
+                                <div className="text-yellow-400 font-mono text-xl font-bold tracking-widest leading-none mt-1">
+                                    {formattedTime}
+                                </div>
+                            </>
+                        )}
                     </div>
 
                     {/* Lure / Skip Button */}

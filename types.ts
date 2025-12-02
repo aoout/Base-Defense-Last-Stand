@@ -1,4 +1,5 @@
 
+
 export enum WeaponType {
   AR = 'AR',
   SG = 'SG',
@@ -120,6 +121,7 @@ export enum BossType {
   RED_SUMMONER = 'RED_SUMMONER',
   BLUE_BURST = 'BLUE_BURST',
   PURPLE_ACID = 'PURPLE_ACID',
+  HIVE_MOTHER = 'HIVE_MOTHER', // New Offensive Mode Boss
 }
 
 export interface EnemyStatsConfig {
@@ -154,6 +156,11 @@ export interface Enemy extends Entity {
   bossSummonTimer?: number; // For Red Boss
   bossBurstCount?: number; // For Blue Boss
   bossNextShotTime?: number; // For Blue Boss burst timing
+  
+  // Hive Mother Specifics
+  armorValue?: number; // Percentage 0-100
+  shedTimer?: number;
+  shedCount?: number;
 }
 
 export type AllyOrder = 'PATROL' | 'FOLLOW' | 'ATTACK';
@@ -296,6 +303,11 @@ export enum GameMode {
     EXPLORATION = 'EXPLORATION'
 }
 
+export enum MissionType {
+    DEFENSE = 'DEFENSE',
+    OFFENSE = 'OFFENSE'
+}
+
 export enum BiomeType {
     BARREN = 'BARREN',
     ICE = 'ICE',
@@ -329,6 +341,7 @@ export interface Planet {
     y: number;
     radius: number;
     color: string;
+    missionType: MissionType;
     totalWaves: number;
     geneStrength: number;
     sulfurIndex: number; // 0 - 10
@@ -402,43 +415,44 @@ export interface GameState {
   player: Player;
   base: {
     x: number;
-    y: number;
+    y: number
     width: number;
     height: number;
     hp: number;
     maxHp: number;
   };
-  terrain: TerrainFeature[]; 
-  bloodStains: BloodStain[]; 
+  terrain: TerrainFeature[];
+  bloodStains: BloodStain[];
   enemies: Enemy[];
   allies: Ally[];
   projectiles: Projectile[];
   particles: Particle[];
   turretSpots: TurretSpot[];
-  activeTurretId?: number; 
-  activeSpecialEvent: SpecialEventType;
   toxicZones: ToxicZone[];
-
+  activeSpecialEvent: SpecialEventType;
+  
   wave: number;
-  waveTimeRemaining: number; 
-  waveDuration: number; // Total duration of the current wave
-  spawnTimer: number; 
-  enemiesPendingSpawn: number; // Number of enemies queued to spawn
+  waveTimeRemaining: number;
+  waveDuration: number;
+  spawnTimer: number;
+  enemiesPendingSpawn: number;
   enemiesSpawnedInWave: number;
   totalEnemiesInWave: number;
   lastAllySpawnTime: number;
-  
-  isGameOver: boolean;
-  missionComplete: boolean; // For Exploration Mode Victory
 
+  isGameOver: boolean;
+  missionComplete: boolean;
   isPaused: boolean;
-  isTacticalMenuOpen: boolean; 
+  isTacticalMenuOpen: boolean;
   isInventoryOpen: boolean;
   isShopOpen: boolean;
-  messages: { text: string; time: number; x: number; y: number; color: string }[];
-  
+  messages: { text: string; x: number; y: number; color: string; time: number }[];
+  activeTurretId?: number;
+
   settings: GameSettings;
   stats: GameStats;
+  
+  input?: any; // kept for legacy compat if needed, though strictly handled in engine
 }
 
 export interface InputState {

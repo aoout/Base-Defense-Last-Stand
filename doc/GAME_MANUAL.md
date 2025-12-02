@@ -1,38 +1,36 @@
 
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 2.3.0
+**Version**: 2.6.0
 
 ## 1. Game Mechanics
 
-### Wave System
+### Mission Types
+When exploring the sector, planets are designated with specific mission profiles.
+- **DEFENSE (Standard)**: Hold the line against waves of enemies. Survive until the wave counter reaches zero.
+- **OFFENSE (New)**: Assault the Hive Mother. There are no waves. The mission ends when the Hive Mother is eliminated.
+
+### Defense Mode (Waves)
 The hostile incursion is organized into waves.
 - **Wave 1**: Lasts 30 Seconds.
 - **Waves 2-10**: Each wave increases duration by 2 seconds (e.g., Wave 10 = 48s).
 - **Waves 11+**: Each wave increases duration by 1 second.
 - **Progression**: The wave advances automatically when the timer reaches 0. 
-- **Spawning Queue**: Unlike standard simulations, enemies are queued.
-  - **Count**: `12 + (5 * Wave Number)` hostiles per wave.
-  - **Interval**: Hostiles spawn every **0.5 seconds**.
-  - **Overflow**: If a wave ends before all hostiles spawn, the remaining queue carries over to the next wave, creating overlapping pressure.
-- **Spawn Logic**: Hostiles enter the combat zone from the **Northern Perimeter** (Top of map), advancing South towards the base.
+- **Spawning Queue**: Hostiles spawn every **0.5 seconds**. `12 + (5 * Wave Number)` hostiles per wave.
+- **Wave Acceleration**: Press **[L]** after 10 seconds to skip wave and earn bonus Scraps.
 
-### Wave Acceleration (Lure System)
-Operatives can deploy a neuro-reactive lure to immediately summon the next wave.
-- **Condition**: Can only be deployed after **10 seconds** have elapsed in the current wave.
-- **Action**: Press **[L]** or click the "DEPLOY LURE" button on the HUD.
-- **Effect**: Instantly ends the current wave timer and begins the next wave.
-- **Reward**: You are compensated for the accelerated data collection.
-  - Formula: `(Remaining Seconds) * Current Wave Number` Scraps.
-  - *Example*: Skipping 20s on Wave 8 yields `20 * 8 = 160` Scraps.
-
-### Special Events
-A planetary anomaly check occurs every **5 Waves**.
-- **Probability A (30%) - FRENZY**: The Hive mind accelerates. 
-  - **Effect**: The number of enemies in this wave is **TRIPLED**.
-  - **Composition**: High probability of **RUSHER** strain.
-- **Probability B (70%) - INCUBATION**: An Apex predator (Boss) is detected. A random Boss unit will spawn alongside normal wave enemies.
+### Offense Mode (Hive Mother)
+In Offense missions, you must eliminate a massive, stationary bio-form known as the **Hive Mother**.
+- **Armor Plating**: The Hive Mother starts with **90% Armor** (Damage reduction).
+- **Shedding Phase**: Every 30 seconds, the Hive Mother sheds 3% of its armor.
+- **Regeneration**: Upon shedding, it heals itself. The healing amount is proportional to the **Oxygen content** of the planet atmosphere (0.4 factor).
+- **Swarm Defense**: Upon shedding, the Hive Mother spawns a swarm of defenders.
+  - **Count**: `12 * (GeneStrength + ShedCount)`.
+  - **Type**: The types of enemies spawned are determined by the **Environmental Conditions** (Oxygen, Sulfur) and current Difficulty (Shed Count), identical to Defense Mode logic.
+- **Victory**: Destroy the Hive Mother.
+- **Reward**: You receive a massive Scrap bonus based on how quickly you killed it (squared scaling with remaining Armor). Killing it early while it has high armor yields maximum rewards.
 
 ### Clone Center (Automated Reinforcement)
 The base is equipped with two autonomous Clone Vats located on the left and right wings.
@@ -49,7 +47,7 @@ The base is equipped with two autonomous Clone Vats located on the left and righ
 - **Reload**: `R`
 - **Throw Grenade**: `G`
 - **Interact**: `E` (Build Turrets, Open Shop, Upgrade)
-- **Deploy Lure**: `L` (Skip Wave)
+- **Deploy Lure**: `L` (Skip Wave - Defense Mode Only)
 - **Backpack**: `C` (Equip Modules)
 - **Shop**: `B` (Buy Ammo/Upgrades)
 - **Tactical Menu**: `TAB` -> `F1/F2/F3` for Squad Orders
@@ -95,15 +93,6 @@ Build on designated hardpoints using `E`.
 
 ## 4. Bestiary (Hostile Analysis)
 
-*Note: All unit movement speeds have been reduced by 50% in the latest combat update simulation to allow for more strategic decision making.*
-
-### AI Behavior Update
-All Scourge variants now possess an adaptive **Target Acquisition System**. 
-- **Detection Range**: Each enemy type has a specific vision radius.
-- **Target Priority**: Within their vision, they will attack the **closest** hostile entity (Player, Ally, or Turret).
-- **Base Instinct**: If NO valid targets are detected within their vision range, they revert to their primal instinct and move directly toward the **Base**.
-- *Tactical Note*: Operatives can "kite" enemies away from the base by entering their detection range, but staying too far away will cause them to ignore you and focus on the objective.
-
 ### Standard Strains
 | Class | HP | Speed | Dmg | Traits |
 | :--- | :--- | :--- | :--- | :--- |
@@ -114,14 +103,14 @@ All Scourge variants now possess an adaptive **Target Acquisition System**.
 | **KAMIKAZE** | 50 | Fast | 200 | Purple glow. Explodes on contact + Toxic Pool. |
 
 ### Apex Strains (Bosses)
-Bosses appear during the **Incubation Event** (70% chance every 5th wave).
+Bosses appear during the **Incubation Event** (70% chance every 5th wave in Defense Mode).
 - **RED SUMMONER (Hive Lord)**: HP 10k. Spawns Grunts continuously.
 - **BLUE BURST (Cobalt Reaper)**: HP 8k. Fires rapid plasma bursts. High ranged threat.
 - **PURPLE ACID (Plague Bringer)**: HP 12k. Massive health. Creates large acid zones that damage over time.
 
 ## 5. Exploration Mode (Planetary Deployment)
 
-Travel to different planets to secure resources. Each planet has a unique environment. Refer to the in-game **Tactical Interstellar Operations Manual** for detailed protocols.
+Travel to different planets to secure resources. Each planet has a unique environment.
 
 ### Spaceship Modules (Colossus Upgrades)
 Upgrade your mothership from the Exploration Map.
@@ -130,37 +119,16 @@ Upgrade your mothership from the Exploration Map.
 - **Orbital Long-Range Support (6700)**: Every 8 seconds, the Colossus fires a laser strike (400 Dmg) at the enemy nearest to your base. See Upgrade Matrix below.
 - **Atmospheric Drag Adaptive Deflector (4700)**: Reduces the Scraps cost of orbital insertion (deploying to a planet) by 50%.
 
-### Orbital Support Upgrade Matrix
-The **Orbital Long-Range Support** module features a proprietary 7-Layer Calibration Tree.
-- **Structure**: Pyramid structure. Layer $N$ contains $N$ upgrade nodes.
-- **Prerequisites**: To unlock Layer $N+1$, you must purchase at least $\lceil N/2 \rceil$ (half, rounded up) upgrades from Layer $N$.
-- **Costs**: Escalating costs based on Layer depth. `~1000 * (1+Layer)`.
-- **Effects**: Randomly determined per node.
-  - **Damage Amplification** (80% chance): Boosts beam damage by 8-14%.
-  - **Cycle Rate Optimization** (20% chance): Increases firing frequency by 5-12%.
-
-### Orbital Drop Protocols (Landing Cost)
-Deploying to a planetary surface is resource-intensive. The *Colossus* drop-pods require Scraps to fabricate entry heat-shields.
-- **Cost**: `Current Scraps * Landing Difficulty %`.
-- **Difficulty Range**: 1% to 30%.
-- **Distribution**: Low cost (1-10%) planets are common. High cost (21-30%) planets are rare.
-
 ### Biological Scaling Rules (Exploration Mode)
 
 #### 1. Oxygen Saturation (O2)
 The Scourge relies on hyper-oxygenated blood for rapid movement and metabolism. High oxygen environments supercharge their durability.
 *   **GRUNT Strain**: `HP = BaseHP * GeneStrength * (1 + 1.2 * Oxygen%)`
 *   **RUSHER Strain**: `HP = BaseHP * GeneStrength * (1 + 0.8 * Oxygen%)`
+*   **HIVE MOTHER**: Regeneration rate scales with Oxygen.
 
 #### 2. Sulfur Index (S)
 Planets with high volcanic activity or toxic atmospheres (High Sulfur Index `0-10`) empower specific chemical-based mutations.
 *   **KAMIKAZE Strain**: `HP = BaseHP * GeneStrength * (1 + 0.1 * SulfurIndex)`
 *   **VIPER Strain**: `Damage = BaseDamage * (1 + 0.1 * SulfurIndex)`
-
-#### 3. Weighted Spawn Logic
-Planetary atmosphere determines the composition of the swarm.
-- **GRUNT Probability**: `10 * (1 + Oxygen%)`
-- **RUSHER Probability**: `8 * (1 + 0.5 * Oxygen%)`
-- **VIPER Probability**: `4 * (1 + 0.1 * Sulfur)`
-- **TANK Probability**: `3`
-- **KAMIKAZE Probability**: `2 * (1 + 0.05 * Sulfur)`
+*   **HIVE MOTHER**: Max HP scales with Sulfur Index.
