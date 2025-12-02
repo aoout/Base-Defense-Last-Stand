@@ -11,6 +11,7 @@ export class FXManager {
 
     public update(dt: number, timeScale: number) {
         this.updateParticles(dt, timeScale);
+        this.updateBlood(dt);
         this.updateToxicZones(dt);
     }
 
@@ -21,6 +22,14 @@ export class FXManager {
             p.life -= dt * 0.05; 
         });
         this.engine.state.particles = this.engine.state.particles.filter(p => p.life > 0);
+    }
+
+    private updateBlood(dt: number) {
+        // Fade out blood stains
+        this.engine.state.bloodStains.forEach(b => {
+            b.life -= dt;
+        });
+        this.engine.state.bloodStains = this.engine.state.bloodStains.filter(b => b.life > 0);
     }
 
     private updateToxicZones(dt: number) {
@@ -57,13 +66,19 @@ export class FXManager {
         }
     }
 
-    public spawnBloodStain(x: number, y: number, color: string) {
+    public spawnBloodStain(x: number, y: number, color: string, maxHp: number = 100) {
         if (!this.engine.state.settings.showBlood) return;
+        
+        // Duration scales with HP. 
+        // Base 10s + 20ms per HP point. Cap at 60s.
+        // Grunt (100) -> 12s. Tank (1500) -> 40s.
+        const lifeDuration = Math.min(60000, 10000 + (maxHp * 20));
+
         this.engine.state.bloodStains.push({
             id: `bs-${Math.random()}`,
             x, y, color,
-            life: 30000,
-            maxLife: 30000,
+            life: lifeDuration,
+            maxLife: lifeDuration,
             blotches: Array.from({length: 5}, () => ({
                 x: (Math.random()-0.5)*20,
                 y: (Math.random()-0.5)*20,

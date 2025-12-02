@@ -1,5 +1,4 @@
 
-
 import { GameEngine } from '../gameService';
 import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile } from '../../types';
 import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
@@ -50,6 +49,11 @@ export class PlayerManager {
         const currentWep = p.loadout[p.currentWeaponIndex];
         const wepState = p.weapons[currentWep];
         const wepStats = WEAPONS[currentWep];
+
+        // Ensure Pistol is infinite
+        if (currentWep === WeaponType.PISTOL && wepState.ammoReserve !== Infinity) {
+            wepState.ammoReserve = Infinity;
+        }
 
         // Reload Logic
         if (wepState.reloading) {

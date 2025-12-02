@@ -155,6 +155,21 @@ const App: React.FC = () => {
   const handleLoadGame = (id: string) => { engineRef.current.loadGame(id); };
   const handleDeleteSave = (id: string) => { engineRef.current.deleteSave(id); };
   const handleTogglePin = (id: string) => { engineRef.current.togglePin(id); };
+  const handleExportSave = (id: string) => { 
+      const json = engineRef.current.exportSave(id);
+      if (json) {
+          const blob = new Blob([json], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Vanguard_Save_${Date.now()}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+      }
+  };
+  const handleImportSave = (json: string) => {
+      engineRef.current.importSave(json);
+  };
 
   // Skip Wave
   const handleSkipWave = () => { engineRef.current.skipWave(); };
@@ -204,6 +219,8 @@ const App: React.FC = () => {
         onLoadGame={handleLoadGame}
         onDeleteSave={handleDeleteSave}
         onTogglePin={handleTogglePin}
+        onExportSave={handleExportSave}
+        onImportSave={handleImportSave}
         onSkipWave={handleSkipWave}
         onCheat={handleCheat}
         onPurchaseOrbitalUpgrade={handlePurchaseOrbitalUpgrade}

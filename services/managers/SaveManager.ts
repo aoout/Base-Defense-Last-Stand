@@ -1,5 +1,4 @@
 
-
 import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
@@ -21,6 +20,31 @@ export class SaveManager {
         localStorage.setItem(this.storageKey, JSON.stringify(this.engine.state.saveSlots));
     }
 
+    private enforceSlotLimit() {
+        const slots = this.engine.state.saveSlots;
+        const pinned = slots.filter(s => s.isPinned);
+        const unpinned = slots.filter(s => !s.isPinned);
+
+        // Sort unpinned by timestamp descending (newest first)
+        unpinned.sort((a, b) => b.timestamp - a.timestamp);
+
+        // Calculate how many unpinned we can keep
+        const availableSlots = MAX_SAVE_SLOTS - pinned.length;
+        
+        if (availableSlots < 0) {
+            // Edge case: User pinned more than max slots (should be prevented elsewhere, but handle it)
+            // We keep all pinned, but 0 unpinned.
+            this.engine.state.saveSlots = pinned;
+        } else if (unpinned.length > availableSlots) {
+            // Keep the newest 'availableSlots' amount of unpinned saves
+            const keptUnpinned = unpinned.slice(0, availableSlots);
+            this.engine.state.saveSlots = [...pinned, ...keptUnpinned];
+        }
+        
+        // Final sort for display
+        this.engine.state.saveSlots.sort((a, b) => b.timestamp - a.timestamp);
+    }
+
     public saveGame() {
         // Create Persistent State
         const p = this.engine.state.player;
@@ -35,19 +59,17 @@ export class SaveManager {
             grenadeModules: p.grenadeModules
         };
         
-        // Update SavedPlayerState in global state (for Exploration map persistence)
+        // Update SavedPlayerState in global state
         this.engine.state.savedPlayerState = persistent;
 
-        // Create a deep copy of state to sanitize
+        // Create a deep copy of state
         const stateToSave = { ...this.engine.state };
         
         // Don't save transient/heavy things
         stateToSave.projectiles = [];
         stateToSave.particles = [];
-        stateToSave.floatingTexts = []; // CHANGED: Reset new floatingTexts array
-        // Enemies and Allies can be saved to resume mid-wave, but let's keep it simple for now
-        // or allow them. Currently saving full state.
-
+        stateToSave.floatingTexts = [];
+        
         const newSave: SaveFile = {
             id: `save-${Date.now()}`,
             timestamp: Date.now(),
@@ -62,18 +84,53 @@ export class SaveManager {
         // Add to list
         this.engine.state.saveSlots.unshift(newSave);
         
-        // Manage Limits
-        const pinned = this.engine.state.saveSlots.filter(s => s.isPinned);
-        const unpinned = this.engine.state.saveSlots.filter(s => !s.isPinned);
-        
-        if (unpinned.length > (MAX_SAVE_SLOTS - pinned.length)) {
-            // Remove oldest unpinned
-            const toKeep = unpinned.slice(0, MAX_SAVE_SLOTS - pinned.length);
-            this.engine.state.saveSlots = [...pinned, ...toKeep].sort((a,b) => b.timestamp - a.timestamp);
-        }
+        // Enforce Limits
+        this.enforceSlotLimit();
 
         this.persistSaves();
         this.engine.addMessage("GAME SAVED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
+    }
+
+    public importSave(jsonString: string): boolean {
+        try {
+            const parsed = JSON.parse(jsonString);
+            
+            // Basic validation
+            if (!parsed.label || !parsed.data || !parsed.mode) {
+                throw new Error("Invalid Save Format");
+            }
+
+            // Create a new entry for this import to ensure unique ID and fresh timestamp
+            const newSave: SaveFile = {
+                id: `import-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+                timestamp: Date.now(),
+                label: parsed.label + " (IMP)",
+                isPinned: false,
+                data: parsed.data,
+                mode: parsed.mode
+            };
+
+            this.engine.state.saveSlots.unshift(newSave);
+            this.enforceSlotLimit();
+            this.persistSaves();
+            return true;
+        } catch (e) {
+            console.error("Import Failed", e);
+            return false;
+        }
+    }
+
+    public exportSaveString(id: string): string | null {
+        const slot = this.engine.state.saveSlots.find(s => s.id === id);
+        if (!slot) return null;
+        
+        // We export the SaveFile object structure (excluding ID/Timestamp which are regenerated on import usually, 
+        // but for simplicity we export the whole object and let import cleaner handle it)
+        return JSON.stringify({
+            label: slot.label,
+            data: slot.data,
+            mode: slot.mode
+        }, null, 2);
     }
 
     public loadGame(id: string) {
@@ -82,46 +139,34 @@ export class SaveManager {
             try {
                 const data = JSON.parse(slot.data);
                 
-                // Ensure settings object exists and has language (fallback for old saves)
                 if (!data.settings) data.settings = { ...this.engine.state.settings };
                 if (!data.settings.language) data.settings.language = 'EN';
 
-                // Restore
                 Object.assign(this.engine.state, data);
                 
-                // Re-hydrate helpers/state
                 this.engine.state.isPaused = false;
                 this.engine.state.appMode = AppMode.GAMEPLAY;
                 this.engine.state.camera = { x: 0, y: 0 };
                 
-                // If loaded in Exploration Map mode, ensure mode is set correctly
                 if (this.engine.state.gameMode === GameMode.EXPLORATION && !this.engine.state.currentPlanet) {
                      this.engine.state.appMode = AppMode.EXPLORATION_MAP;
                 }
 
-                // --- CRITICAL FIX: Reset Timestamps ---
-                // Timestamps like lastFireTime are performance.now() based which resets on page reload.
-                // Saved timestamps from previous sessions will be huge relative to new performance.now().
-                // We reset them to 0 to allow immediate action.
-                
-                // 1. Player Weapons
+                // Reset Timestamps
                 Object.values(this.engine.state.player.weapons).forEach(w => {
                     w.lastFireTime = 0;
-                    w.reloading = false; // Cancel reload on load to prevent timer issues
+                    w.reloading = false;
                 });
 
-                // 2. Enemies
                 this.engine.state.enemies.forEach(e => {
                     e.lastAttackTime = 0;
                     if (e.bossNextShotTime) e.bossNextShotTime = 0;
                 });
 
-                // 3. Allies
                 this.engine.state.allies.forEach(a => {
                     a.lastFireTime = 0;
                 });
 
-                // 4. Turrets
                 this.engine.state.turretSpots.forEach(s => {
                     if (s.builtTurret) {
                         s.builtTurret.lastFireTime = 0;
@@ -145,7 +190,7 @@ export class SaveManager {
         const slot = this.engine.state.saveSlots.find(s => s.id === id);
         if (slot) {
             if (!slot.isPinned && this.engine.state.saveSlots.filter(s => s.isPinned).length >= MAX_PINNED_SLOTS) {
-                return; // Max pins reached
+                return;
             }
             slot.isPinned = !slot.isPinned;
             this.persistSaves();

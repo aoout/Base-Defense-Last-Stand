@@ -594,7 +594,7 @@ export class GameEngine {
   }
   
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.fxManager.spawnParticle(x, y, color, count, speed); }
-  public spawnBloodStain(x: number, y: number, color: string) { this.fxManager.spawnBloodStain(x, y, color); }
+  public spawnBloodStain(x: number, y: number, color: string, maxHp: number = 100) { this.fxManager.spawnBloodStain(x, y, color, maxHp); }
   public purchaseItem(itemKey: string) { this.shopManager.purchaseItem(itemKey); }
   public addToInventory(type: WeaponType) { this.shopManager.addToInventory(type); }
   public equipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.equipModule(target, modId); }
@@ -670,6 +670,8 @@ export class GameEngine {
   public loadGame(id: string) { this.saveManager.loadGame(id); }
   public deleteSave(id: string) { this.saveManager.deleteSave(id); }
   public togglePin(id: string) { this.saveManager.togglePin(id); }
+  public exportSave(id: string) { return this.saveManager.exportSaveString(id); }
+  public importSave(json: string) { return this.saveManager.importSave(json); }
 
   public enterSurvivalMode() {
       this.reset(true);

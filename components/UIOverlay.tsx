@@ -48,6 +48,8 @@ interface UIOverlayProps {
   onLoadGame: (id: string) => void;
   onDeleteSave: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onExportSave: (id: string) => void;
+  onImportSave: (json: string) => void;
 
   // Mechanics
   onSkipWave: () => void;
@@ -111,6 +113,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onLoadGame,
     onDeleteSave,
     onTogglePin,
+    onExportSave,
+    onImportSave,
     onSkipWave,
     onCheat,
     onPurchaseOrbitalUpgrade,
@@ -145,6 +149,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onLoadGame={onLoadGame}
                 onDeleteSave={onDeleteSave}
                 onTogglePin={onTogglePin}
+                onExportSave={onExportSave}
+                onImportSave={onImportSave}
                 onToggleSetting={onToggleSetting}
                 t={t}
             />

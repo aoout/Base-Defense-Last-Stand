@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { SaveFile } from '../../types';
 
@@ -6,10 +7,11 @@ interface SaveSlotItemProps {
     onLoad: () => void;
     onDelete: () => void;
     onPin: () => void;
+    onExport: () => void;
     t: (key: string) => string;
 }
 
-export const SaveSlotItem: React.FC<SaveSlotItemProps> = ({ save, onLoad, onDelete, onPin, t }) => {
+export const SaveSlotItem: React.FC<SaveSlotItemProps> = ({ save, onLoad, onDelete, onPin, onExport, t }) => {
     return (
         <div className={`p-4 border-l-2 flex flex-col gap-2 transition-all relative group ${save.isPinned ? 'bg-blue-900/20 border-blue-400' : 'bg-gray-900/40 border-gray-700 hover:border-blue-500/50'}`}>
             <div className="flex justify-between items-start">
@@ -30,6 +32,9 @@ export const SaveSlotItem: React.FC<SaveSlotItemProps> = ({ save, onLoad, onDele
             <div className="flex gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={onLoad} className="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-200 text-[10px] py-1 border border-blue-800 hover:border-blue-500">
                     {t('LOAD')}
+                </button>
+                <button onClick={onExport} title="Download Save" className="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] py-1 border border-gray-700">
+                    ⬇
                 </button>
                 <button onClick={onPin} className="px-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-[10px] py-1 border border-gray-700">
                     {save.isPinned ? t('UNPIN') : t('PIN')}

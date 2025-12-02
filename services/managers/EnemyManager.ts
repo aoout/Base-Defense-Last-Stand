@@ -1,3 +1,4 @@
+
 import { GameEngine } from '../gameService';
 import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
@@ -353,7 +354,7 @@ export class EnemyManager {
         else this.engine.state.stats.killsByType[e.type]++;
   
         // FX
-        this.engine.spawnBloodStain(e.x, e.y, e.color);
+        this.engine.spawnBloodStain(e.x, e.y, e.color, e.maxHp);
         this.engine.audio.playEnemyDeath(e.isBoss);
     }
 }

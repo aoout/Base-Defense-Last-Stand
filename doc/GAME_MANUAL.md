@@ -17,10 +17,11 @@
 
 
 
+
 # Operational Manual: Base Defense: Last Stand
 
 **Classification**: TOP SECRET  
-**Version**: 3.3.3
+**Version**: 3.4.0
 
 ## 1. Game Mechanics
 
@@ -132,9 +133,20 @@ Bosses appear during the **Incubation Event** (70% chance every 5th wave in Defe
 - **BLUE BURST (Cobalt Reaper)**: HP 8k. Fires rapid plasma bursts. High ranged threat.
 - **PURPLE ACID (Plague Bringer)**: HP 12k. Massive health. Creates large acid zones that damage over time.
 
+### Bio-Decay (Blood)
+Hostile biological matter rapidly breaks down upon death.
+- **Persistence**: Larger bio-forms (higher Max HP) leave traces that persist longer on the battlefield.
+- **Decay Rate**: Standard grunts decompose in ~12 seconds. Tanks and Bosses persist significantly longer.
+
 ## 5. Exploration Mode (Planetary Deployment)
 
 Travel to different planets to secure resources. Each planet has a unique environment.
+
+### Cryo-Memory Storage (Save System)
+- **Capacity**: The Colossus computer stores up to **7 Mission States**.
+- **Auto-Purge**: If a new state is saved (or imported) when full, the oldest **Unpinned** save is automatically purged.
+- **Pinning**: Important saves can be "Pinned" to prevent auto-deletion.
+- **Data Portability**: Saves can be Exported (Downloaded as JSON) and Imported via the Main Menu.
 
 ### Mission Success (Ascent Protocol 10-ZULU)
 When a sector is successfully pacified (All waves cleared or Hive Mother destroyed):

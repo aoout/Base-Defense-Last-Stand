@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { GameState, GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
 
@@ -10,32 +10,67 @@ interface MainMenuProps {
     onLoadGame: (id: string) => void;
     onDeleteSave: (id: string) => void;
     onTogglePin: (id: string) => void;
+    onExportSave: (id: string) => void;
+    onImportSave: (json: string) => void;
+    onToggleSetting: (key: keyof GameSettings) => void;
     t: (key: string) => string;
-    onToggleSetting?: (key: keyof GameSettings) => void; // Optional prop if not passed previously, but required now ideally
 }
 
-// NOTE: MainMenu receives onToggleSetting via UIOverlay which is passed from App. 
-// We might need to cast or update MainMenuProps in UIOverlay to ensure it's passed if it wasn't.
-// Looking at UIOverlay.tsx, MainMenu only took state, onStart..., onLoad..., t.
-// We need to ensure `onToggleSetting` is passed to MainMenu in UIOverlay.tsx first or use a method to access it.
-// Actually, UIOverlay has onToggleSetting available.
-
-export const MainMenu: React.FC<MainMenuProps & { onToggleSetting: (key: keyof GameSettings) => void }> = ({ 
+export const MainMenu: React.FC<MainMenuProps> = ({ 
     state, 
     onStartSurvival, 
     onStartExploration, 
     onLoadGame, 
     onDeleteSave, 
     onTogglePin,
+    onExportSave,
+    onImportSave,
     onToggleSetting,
     t 
 }) => {
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const content = ev.target?.result as string;
+            if (content) {
+                onImportSave(content);
+            }
+        };
+        reader.readAsText(file);
+        // Reset so same file can be selected again if needed
+        e.target.value = '';
+    };
+
     return (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
+            {/* Hidden Input for Import */}
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".json" 
+                onChange={handleFileChange} 
+            />
+
             {/* Floating Cryo Storage (Left) */}
             <div className="absolute top-12 bottom-12 left-12 w-96 flex flex-col justify-center">
-                <div className="mb-6 border-b border-blue-500/30 pb-2">
+                <div className="mb-6 border-b border-blue-500/30 pb-2 flex justify-between items-center">
                     <h2 className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase drop-shadow-[0_0_5px_rgba(59,130,246,0.8)] animate-pulse">{t('EXTRACTABLE_MEMORIES')}</h2>
+                    <button 
+                        onClick={handleImportClick}
+                        className="text-[10px] bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-2 py-1 border border-blue-700"
+                    >
+                        IMPORT DATA
+                    </button>
                 </div>
                 <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-4 scrollbar-thin scrollbar-thumb-blue-900/50 scrollbar-track-transparent">
                     {state.saveSlots.length === 0 && (
@@ -50,6 +85,7 @@ export const MainMenu: React.FC<MainMenuProps & { onToggleSetting: (key: keyof G
                         onLoad={() => onLoadGame(save.id)}
                         onDelete={() => onDeleteSave(save.id)}
                         onPin={() => onTogglePin(save.id)}
+                        onExport={() => onExportSave(save.id)}
                         t={t}
                         />
                     ))}
