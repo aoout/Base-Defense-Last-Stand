@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
 import { TRANSLATIONS } from '../data/locales';
@@ -19,6 +18,7 @@ import { HUD } from './ui/HUD';
 import { OrbitalUpgradeUI } from './ui/OrbitalUpgradeUI';
 import { InteractPrompt } from './ui/InteractPrompt';
 import { CarapaceAnalyzerUI } from './ui/CarapaceAnalyzerUI';
+import { ShipComputer } from './ui/ShipComputer';
 
 interface UIOverlayProps {
   state: GameState;
@@ -69,6 +69,10 @@ interface UIOverlayProps {
 
   // Evac
   onEmergencyEvac: () => void;
+
+  // Ship Computer
+  onOpenShipComputer: () => void;
+  onCloseShipComputer: () => void;
 }
 
 const VisorOverlay: React.FC = () => (
@@ -123,13 +127,21 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onOpenCarapaceGrid,
     onCloseCarapaceGrid,
     onPurchaseCarapaceNode,
-    onEmergencyEvac
+    onEmergencyEvac,
+    onOpenShipComputer,
+    onCloseShipComputer
 }) => {
-  const t = (key: keyof typeof TRANSLATIONS.EN) => {
+  const t = useCallback((key: keyof typeof TRANSLATIONS.EN, params?: Record<string, any>) => {
       const lang = state.settings?.language || 'EN';
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
-      return dict[key] || key;
-  };
+      let str = (dict as any)[key] || key;
+      if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+              str = str.replace(`{${k}}`, String(v));
+          });
+      }
+      return str;
+  }, [state.settings.language]);
 
   const handlePurchaseSpaceshipModule = (modType: SpaceshipModuleType) => {
       onPurchase(modType);
@@ -163,6 +175,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onPurchaseModule={handlePurchaseSpaceshipModule}
                 onOpenUpgrades={onOpenOrbitalUpgrades}
                 onOpenCarapaceGrid={onOpenCarapaceGrid}
+                onOpenComputer={onOpenShipComputer}
+                t={t}
             />
         )}
 
@@ -171,6 +185,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 state={state}
                 onPurchase={onPurchaseOrbitalUpgrade}
                 onClose={onCloseOrbitalUpgrades}
+                t={t}
             />
         )}
 
@@ -179,7 +194,12 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 state={state}
                 onPurchase={onPurchaseCarapaceNode}
                 onClose={onCloseCarapaceGrid}
+                t={t}
             />
+        )}
+
+        {state.appMode === AppMode.SHIP_COMPUTER && (
+            <ShipComputer onClose={onCloseShipComputer} t={t} />
         )}
 
         {state.appMode === AppMode.EXPLORATION_MAP && (
@@ -196,14 +216,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
 
         {state.isGameOver && (
             state.gameMode === GameMode.EXPLORATION ? (
-                <ExtractionScreen onEvac={onEmergencyEvac} />
+                <ExtractionScreen onEvac={onEmergencyEvac} t={t} />
             ) : (
-                <MissionFailedScreen state={state} onRestart={onRestart} />
+                <MissionFailedScreen state={state} onRestart={onRestart} t={t} />
             )
         )}
 
         {state.missionComplete && (
-            <MissionSuccessScreen state={state} onReturn={onReturnToMap} />
+            <MissionSuccessScreen state={state} onReturn={onReturnToMap} t={t} />
         )}
 
         {/* --- GAMEPLAY HUD --- */}
@@ -216,15 +236,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                     <div className="absolute top-32 left-1/2 -translate-x-1/2 w-full flex justify-center z-30">
                         <div className="bg-red-950/90 border-y-2 border-red-500 w-full py-2 flex justify-center items-center shadow-[0_0_20px_rgba(220,38,38,0.5)] animate-pulse">
                             <div className="text-white font-black text-2xl tracking-[0.3em] uppercase drop-shadow-md">
-                                {state.activeSpecialEvent === SpecialEventType.FRENZY && "WARNING: SWARM FRENZY DETECTED"}
-                                {state.activeSpecialEvent === SpecialEventType.BOSS && "WARNING: HIGH CLASS BIO-SIGNATURE"}
+                                {state.activeSpecialEvent === SpecialEventType.FRENZY && t('FRENZY_BANNER')}
+                                {state.activeSpecialEvent === SpecialEventType.BOSS && t('BOSS_BANNER')}
                             </div>
                         </div>
                     </div>
                 )}
 
                 {state.activeTurretId !== undefined ? (
-                    <TurretUpgradeUI state={state} onConfirmUpgrade={onConfirmUpgrade} />
+                    <TurretUpgradeUI state={state} onConfirmUpgrade={onConfirmUpgrade} t={t} />
                 ) : state.isTacticalMenuOpen ? (
                     <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} onClose={onCloseTacticalMenu} t={t} />
                 ) : state.isInventoryOpen ? (
@@ -234,7 +254,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 ) : (
                     <>
                         {state.settings.showHUD && <HUD state={state} t={t} onSkipWave={onSkipWave} />}
-                        {!state.isShopOpen && !state.isGameOver && !state.missionComplete && <InteractPrompt state={state} />}
+                        {!state.isShopOpen && !state.isGameOver && !state.missionComplete && <InteractPrompt state={state} t={t} />}
                     </>
                 )}
 

@@ -1,4 +1,6 @@
 
+
+
 import React, { useState } from 'react';
 import { GameState, WeaponType, ModuleType, WeaponModule, DefenseUpgradeType } from '../../types';
 import { INVENTORY_SIZE } from '../../constants';
@@ -28,7 +30,7 @@ const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state:
     } else {
         installedModules = p.weapons[weaponType].modules;
         if (weaponType === WeaponType.PISTOL) maxSlots = 2;
-        weaponName = WEAPONS[weaponType].name;
+        weaponName = t(`WEAPON_${weaponType}_NAME`);
     }
 
     const handleEquip = (modId: string) => {
@@ -77,7 +79,7 @@ const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state:
                                  </div>
                                  {mod && (
                                      <div className="text-[10px] text-cyan-200 w-24 text-center leading-tight">
-                                         {MODULE_STATS[mod.type].name}
+                                         {t(`MODULE_${mod.type}_NAME`)}
                                      </div>
                                  )}
                              </div>
@@ -109,8 +111,8 @@ const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state:
                                     `}
                                  >
                                      <div>
-                                         <div className={`text-sm font-bold ${isCompatible ? 'text-white' : 'text-gray-500'}`}>{config.name}</div>
-                                         <div className="text-[10px] text-gray-400">{config.desc}</div>
+                                         <div className={`text-sm font-bold ${isCompatible ? 'text-white' : 'text-gray-500'}`}>{t(`MODULE_${mod.type}_NAME`)}</div>
+                                         <div className="text-[10px] text-gray-400">{t(`MODULE_${mod.type}_DESC`)}</div>
                                      </div>
                                      {isCompatible ? (
                                          <span className="text-cyan-500 text-xl">➜</span>
@@ -249,7 +251,7 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
                                     >
                                         <div className="absolute top-1 left-2 text-xs text-gray-600 font-bold">{t('SLOT')} {idx+1}</div>
                                         <WeaponIcon type={wType} className="w-16 h-16 fill-gray-400 group-hover:fill-cyan-400" />
-                                        <div className="text-xs font-bold text-white text-center px-1 mt-2">{WEAPONS[wType].name}</div>
+                                        <div className="text-xs font-bold text-white text-center px-1 mt-2">{t(`WEAPON_${wType}_NAME`)}</div>
                                         <div className="text-[10px] text-gray-400">{idx === 3 ? t('SLOT_SIDEARM') : t('SLOT_MAIN')}</div>
                                         
                                         {/* Module Indicator Dots */}
@@ -284,7 +286,7 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
                                             <>
                                                 <WeaponIcon type={item.type} className="w-10 h-10 fill-gray-300" />
                                                 <div className="absolute bottom-0.5 right-1 text-[8px] text-gray-300">
-                                                    {WEAPONS[item.type].name.substring(0,3).toUpperCase()}
+                                                    {t(`WEAPON_${item.type}_NAME`).substring(0,3).toUpperCase()}
                                                 </div>
                                             </>
                                         )}

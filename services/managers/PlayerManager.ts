@@ -1,6 +1,5 @@
-
 import { GameEngine } from '../gameService';
-import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile } from '../../types';
+import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile, DamageSource } from '../../types';
 import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export class PlayerManager {
@@ -38,9 +37,15 @@ export class PlayerManager {
         // 3. Combat / Weapon Logic
         this.updateWeapons(dt, time);
 
-        // 4. Armor Regen
+        // 4. Regeneration Logic
+        // Armor Regen
         if (time - p.lastHitTime > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
             p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
+        }
+        
+        // HP Regen
+        if (time - p.lastHitTime > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
+            p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate * dt);
         }
     }
 
@@ -152,7 +157,8 @@ export class PlayerManager {
             isExplosive: stats.isExplosive,
             isPiercing: stats.isPiercing,
             weaponType: type,
-            maxRange: stats.range
+            maxRange: stats.range,
+            source: DamageSource.PLAYER
         };
         
         // Direct registration avoids the race condition and manual override hack
@@ -188,7 +194,7 @@ export class PlayerManager {
             const targetX = p.x + Math.cos(p.angle) * 300;
             const targetY = p.y + Math.sin(p.angle) * 300;
             
-            this.engine.spawnProjectile(p.x, p.y, targetX, targetY, 12, PLAYER_STATS.grenadeDamage, true, '#f97316');
+            this.engine.spawnProjectile(p.x, p.y, targetX, targetY, 12, PLAYER_STATS.grenadeDamage, true, '#f97316', undefined, false, false, 1000, DamageSource.PLAYER);
             const proj = this.engine.state.projectiles[this.engine.state.projectiles.length-1];
             if(proj) proj.isExplosive = true;
             this.engine.audio.playGrenadeThrow();
@@ -205,7 +211,7 @@ export class PlayerManager {
         let actualDmg = amount;
         
         if (p.armor > 0) {
-            let mitigation = 0.5; 
+            let mitigation = 0.8; // Default 80% mitigation
             if (p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)) mitigation = 0.9;
             
             const armorDmg = amount * mitigation;

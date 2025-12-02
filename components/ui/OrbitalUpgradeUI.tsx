@@ -7,9 +7,10 @@ interface OrbitalUpgradeUIProps {
     state: GameState;
     onPurchase: (nodeId: string) => void;
     onClose: () => void;
+    t: (key: string) => string;
 }
 
-export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPurchase, onClose }) => {
+export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPurchase, onClose, t }) => {
     const s = state.spaceship;
     const tree = s.orbitalUpgradeTree;
     const [hoveredNode, setHoveredNode] = useState<OrbitalUpgradeNode | null>(null);
@@ -28,21 +29,21 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
                  {/* Header */}
                  <div className="mt-8 text-center mb-12 relative z-10">
                      <h1 className="text-4xl font-black text-white tracking-widest uppercase mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-                         Orbital Matrix <span className="text-cyan-500">Calibration</span>
+                         {t('ORBITAL_TITLE')} <span className="text-cyan-500">{t('CALIBRATION')}</span>
                      </h1>
-                     <div className="text-cyan-400 font-mono text-xs tracking-[0.5em] uppercase">Weapon System Optimization Tree</div>
+                     <div className="text-cyan-400 font-mono text-xs tracking-[0.5em] uppercase">{t('ORBITAL_SUB')}</div>
                  </div>
 
                  {/* Stats Summary */}
                  <div className="absolute top-8 left-8 bg-black/40 border border-cyan-900/50 p-6 backdrop-blur-sm">
-                     <h3 className="text-cyan-500 text-xs font-bold tracking-widest border-b border-cyan-900 pb-2 mb-4">CURRENT OUTPUT</h3>
+                     <h3 className="text-cyan-500 text-xs font-bold tracking-widest border-b border-cyan-900 pb-2 mb-4">{t('CURRENT_OUTPUT')}</h3>
                      <div className="space-y-2 font-mono text-sm">
                          <div className="flex justify-between w-48">
-                             <span className="text-slate-400">DAMAGE MULTIPLIER</span>
+                             <span className="text-slate-400">{t('DMG_MULT')}</span>
                              <span className="text-white font-bold">x{(s.orbitalDamageMultiplier || 1).toFixed(2)}</span>
                          </div>
                          <div className="flex justify-between w-48">
-                             <span className="text-slate-400">FIRE RATE DIVISION</span>
+                             <span className="text-slate-400">{t('RATE_DIV')}</span>
                              <span className="text-white font-bold">/{(s.orbitalRateMultiplier || 1).toFixed(2)}</span>
                          </div>
                      </div>
@@ -50,8 +51,8 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
 
                  {/* Available Funds */}
                  <div className="absolute top-8 left-64 bg-black/40 border border-cyan-900/50 p-6 backdrop-blur-sm">
-                     <div className="text-cyan-500 text-xs font-bold tracking-widest uppercase mb-1">Available Funds</div>
-                     <div className="text-2xl font-mono text-yellow-400 font-bold">{Math.floor(state.player.score)} <span className="text-sm text-yellow-600">SCRAPS</span></div>
+                     <div className="text-cyan-500 text-xs font-bold tracking-widest uppercase mb-1">{t('AVAILABLE_FUNDS')}</div>
+                     <div className="text-2xl font-mono text-yellow-400 font-bold">{Math.floor(state.player.score)} <span className="text-sm text-yellow-600">{t('SCRAPS')}</span></div>
                  </div>
 
                  {/* The Tree (Pyramid) */}
@@ -67,7 +68,7 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
                              <div key={layerIndex} className="flex gap-12 relative">
                                  {/* Layer Label */}
                                  <div className="absolute -left-24 top-1/2 -translate-y-1/2 text-cyan-900 font-mono text-xs font-bold">
-                                     LAYER {layerIndex + 1}
+                                     {t('LAYER')} {layerIndex + 1}
                                  </div>
                                  
                                  {layer.map((node) => {
@@ -113,16 +114,16 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
                      {hoveredNode ? (
                          <div className="flex gap-12 items-center animate-fadeIn">
                              <div className="text-right">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">UPGRADE TYPE</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('UPGRADE_TYPE')}</div>
                                  <div className={`text-2xl font-black uppercase ${hoveredNode.effectType === OrbitalUpgradeEffect.DAMAGE ? 'text-red-500' : 'text-yellow-500'}`}>
-                                     {hoveredNode.effectType === OrbitalUpgradeEffect.DAMAGE ? 'KINETIC AMPLIFICATION' : 'CYCLING SPEED'}
+                                     {hoveredNode.effectType === OrbitalUpgradeEffect.DAMAGE ? t('KINETIC_AMP') : t('CYCLING_SPD')}
                                  </div>
                              </div>
                              
                              <div className="h-12 w-px bg-slate-700"></div>
 
                              <div className="text-center">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">EFFECT</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('EFFECT')}</div>
                                  <div className="text-4xl font-mono text-white">
                                      +{Math.round(hoveredNode.effectValue * 100)}%
                                  </div>
@@ -131,15 +132,15 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
                              <div className="h-12 w-px bg-slate-700"></div>
 
                              <div className="text-left">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">COST</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('COST')}</div>
                                  <div className={`text-2xl font-mono font-bold ${hoveredNode.purchased ? 'text-emerald-500' : state.player.score >= hoveredNode.cost ? 'text-yellow-400' : 'text-red-500'}`}>
-                                     {hoveredNode.purchased ? 'ACQUIRED' : `${hoveredNode.cost} SCRAPS`}
+                                     {hoveredNode.purchased ? t('ACQUIRED') : `${hoveredNode.cost} ${t('SCRAPS')}`}
                                  </div>
                              </div>
                          </div>
                      ) : (
                          <div className="text-slate-600 font-mono text-sm tracking-widest animate-pulse">
-                             HOVER OVER A NODE TO VIEW SCHEMATICS
+                             {t('HOVER_NODE')}
                          </div>
                      )}
                  </div>

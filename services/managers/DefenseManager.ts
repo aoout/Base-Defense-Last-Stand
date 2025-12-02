@@ -1,6 +1,8 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { AllyOrder, TurretType, Enemy, FloatingTextType } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
 
 export class DefenseManager {
@@ -65,7 +67,7 @@ export class DefenseManager {
                 a.angle = Math.atan2(target.y - a.y, target.x - a.x);
 
                 if (time - a.lastFireTime > 500) {
-                    this.engine.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa');
+                    this.engine.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa', undefined, false, false, 1000, DamageSource.ALLY);
                     a.lastFireTime = time;
                     this.engine.audio.playAllyFire();
                 }
@@ -107,7 +109,7 @@ export class DefenseManager {
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
                     // Pass t.range as the final argument (maxRange) to allow infinite range missiles to travel
-                    this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE, undefined, t.range);
+                    this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE, undefined, t.range, DamageSource.TURRET);
                     t.lastFireTime = time;
                     this.engine.audio.playTurretFire(t.level);
                 }

@@ -3,18 +3,19 @@
 
 
 
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
   maxHp: 200,
   maxArmor: 100,
-  speed: 3.2, // Increased by 60% (was 2)
+  speed: 3.2, 
   armorRegenDelay: 5000,
-  armorRegenRate: 6 / 60, 
+  armorRegenRate: 0.001, // 1 per second (0.001 per ms)
   hpRegenDelay: 10000,
-  hpRegenRate: 0.5 / 60,
+  hpRegenRate: 0.0005, // 0.5 per second (0.0005 per ms)
   grenadeRadius: 150,
-  grenadeDamage: 600, // Buffed by 20% (was 500)
+  grenadeDamage: 600, 
   maxGrenades: 3,
   initialScore: 300, 
 };
@@ -42,7 +43,7 @@ export const TURRET_STATS = {
 
 export const ALLY_STATS = {
   hp: 200,
-  speed: 1.44, // Increased by 60% (was 0.9)
+  speed: 1.44, 
   damage: 20,
   range: 400,
   maxCount: 5,
@@ -78,7 +79,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
   },
   [WeaponType.SR]: {
     name: 'Sniper Rifle',
-    damage: 480, // Buffed by 20% (was 400)
+    damage: 480, 
     fireRate: 1500,
     spread: 0.01,
     magSize: 5,

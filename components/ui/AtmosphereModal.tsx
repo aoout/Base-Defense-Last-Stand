@@ -1,14 +1,16 @@
+
 import React, { useRef, useEffect } from 'react';
-import { select, pie, arc, PieArcDatum } from 'd3';
+import * as d3 from 'd3';
 import { Planet, AtmosphereGas } from '../../types';
 import { CloseButton } from './Shared';
 
 interface AtmosphereAnalysisModalProps {
     planet: Planet;
     onClose: () => void;
+    t: (key: string) => string;
 }
 
-export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = ({ planet, onClose }) => {
+export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = ({ planet, onClose, t }) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -19,7 +21,7 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
         const height = containerRef.current.clientHeight;
         const radius = Math.min(width, height) / 2.8; 
 
-        const svg = select(svgRef.current);
+        const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove();
 
         svg.attr("width", width).attr("height", height);
@@ -27,11 +29,11 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
         const g = svg.append("g")
             .attr("transform", `translate(${width / 2},${height / 2})`);
 
-        const pieGenerator = pie<AtmosphereGas>()
+        const pieGenerator = d3.pie<AtmosphereGas>()
             .value(d => d.percentage)
             .sort(null);
 
-        const arcGenerator = arc<PieArcDatum<AtmosphereGas>>()
+        const arcGenerator = d3.arc<d3.PieArcDatum<AtmosphereGas>>()
             .innerRadius(radius * 0.6) 
             .outerRadius(radius * 0.9);
         
@@ -45,16 +47,16 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
             .attr("stroke-width", "4px")
             .style("opacity", 0.9)
             .on("mouseover", function() {
-                select(this).style("opacity", 1).attr("transform", "scale(1.05)").attr("stroke-width", "0px");
+                d3.select(this).style("opacity", 1).attr("transform", "scale(1.05)").attr("stroke-width", "0px");
             })
             .on("mouseout", function() {
-                select(this).style("opacity", 0.9).attr("transform", "scale(1)").attr("stroke-width", "4px");
+                d3.select(this).style("opacity", 0.9).attr("transform", "scale(1)").attr("stroke-width", "4px");
             });
 
         g.append("text")
             .attr("text-anchor", "middle")
             .attr("dy", "-0.5em")
-            .text("ATMOS")
+            .text(t('ATMOS_LABEL'))
             .attr("fill", "#64748b")
             .attr("font-size", "24px") 
             .attr("font-family", "monospace")
@@ -69,7 +71,7 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
             .attr("font-weight", "900")
             .attr("font-family", "monospace");
 
-    }, [planet]);
+    }, [planet, t]);
 
     return (
         <div className="fixed inset-0 z-[200] bg-slate-950 pointer-events-auto flex flex-col">
@@ -82,7 +84,7 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
                      <div className="absolute top-12 left-12">
                         <div className="flex items-center gap-4 mb-2">
                             <div className="w-3 h-3 bg-green-500 animate-pulse"></div>
-                            <h3 className="text-green-500 font-mono tracking-[0.5em] uppercase text-xl">Planetary Atmosphere Analysis</h3>
+                            <h3 className="text-green-500 font-mono tracking-[0.5em] uppercase text-xl">{t('PLANET_ATMOS_ANALYSIS')}</h3>
                         </div>
                         <h1 className="text-6xl text-white font-black tracking-tighter drop-shadow-2xl">{planet.name}</h1>
                         <div className="h-1 w-full bg-gradient-to-r from-green-500 to-transparent mt-4"></div>
@@ -100,10 +102,9 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
 
                 <div className="w-1/3 h-full p-12 overflow-y-auto bg-slate-950/80 relative backdrop-blur-sm border-l border-green-500/20">
                     <div className="mb-12 mt-4">
-                        <div className="text-xs text-green-600 font-bold uppercase tracking-[0.3em] mb-4">SPECTROSCOPIC DATA</div>
+                        <div className="text-xs text-green-600 font-bold uppercase tracking-[0.3em] mb-4">{t('SPECTROSCOPIC_DATA')}</div>
                         <div className="text-xl text-green-400/80 font-mono leading-relaxed">
-                            Full atmospheric breakdown of sector target <span className="text-white font-bold">{planet.name}</span>. 
-                            Composition suggests <span className={planet.biome === 'TOXIC' ? 'text-purple-400' : 'text-blue-400'}>{planet.biome}</span> environmental conditions.
+                            {t('ATMOS_DETAILS_PRE')} <span className="text-white font-bold">{planet.name}</span>{t('ATMOS_DETAILS_MID')} <span className={planet.biome === 'TOXIC' ? 'text-purple-400' : 'text-blue-400'}>{t(`BIOME_${planet.biome}`)}</span> {t('ATMOS_DETAILS_POST')}
                         </div>
                     </div>
 
@@ -114,12 +115,12 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
                                 <div className="flex justify-between items-end mb-4 relative z-10">
                                     <div className="flex items-center gap-6">
                                         <div className="w-6 h-6 shadow-[0_0_10px_currentColor]" style={{backgroundColor: gas.color, color: gas.color}}></div>
-                                        <span className="text-green-100 font-bold font-mono text-2xl tracking-widest uppercase">{gas.name}</span>
+                                        <span className="text-green-100 font-bold font-mono text-2xl tracking-widest uppercase">{t(`GAS_${gas.id}_NAME`)}</span>
                                     </div>
                                     <span className="text-4xl font-black text-white tabular-nums tracking-tighter">{(gas.percentage * 100).toFixed(2)}%</span>
                                 </div>
                                 <p className="text-base text-slate-400 leading-relaxed font-mono relative z-10 pl-12 group-hover:text-slate-300 transition-colors">
-                                    {gas.description}
+                                    {t(`GAS_${gas.id}_DESC`)}
                                 </p>
                             </div>
                         ))}
@@ -128,9 +129,9 @@ export const AtmosphereAnalysisModal: React.FC<AtmosphereAnalysisModalProps> = (
                     <div className="absolute bottom-12 left-12 right-12 pt-8 border-t border-slate-800 flex justify-between items-center text-green-800">
                          <div className="flex items-center gap-3">
                             <div className="w-2 h-2 bg-green-500 animate-ping rounded-full"></div>
-                            <span className="font-mono text-xs tracking-[0.2em]">UPLINK ESTABLISHED</span>
+                            <span className="font-mono text-xs tracking-[0.2em]">{t('UPLINK_ESTABLISHED')}</span>
                          </div>
-                         <div className="font-mono text-xs">SECURE CONNECTION</div>
+                         <div className="font-mono text-xs">{t('SECURE_CONNECTION')}</div>
                     </div>
                 </div>
             </div>

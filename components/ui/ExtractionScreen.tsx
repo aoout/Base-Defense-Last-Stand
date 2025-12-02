@@ -4,9 +4,10 @@ import { GameState } from '../../types';
 
 interface ExtractionScreenProps {
     onEvac: () => void;
+    t: (key: string) => string;
 }
 
-export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac }) => {
+export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t }) => {
     return (
         <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center pointer-events-auto font-mono overflow-hidden">
              {/* Background Alarm Effect */}
@@ -18,30 +19,30 @@ export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac }) =>
                  
                  {/* Top Warning Banner */}
                  <div className="w-full bg-red-600/20 border border-red-600 p-2 mb-8 flex justify-between items-center animate-pulse">
-                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">CRITICAL SYSTEM FAILURE</span>
-                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">SIGNAL LOST</span>
+                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{t('CRITICAL_FAILURE')}</span>
+                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{t('SIGNAL_LOST')}</span>
                  </div>
 
-                 <h1 className="text-6xl font-black text-white tracking-tighter mb-2">BASE COMPROMISED</h1>
-                 <h2 className="text-2xl text-red-500 font-bold tracking-widest mb-12">EMERGENCY PROTOCOL <span className="text-white">99-ALPHA</span> EXECUTED</h2>
+                 <h1 className="text-6xl font-black text-white tracking-tighter mb-2">{t('BASE_COMPROMISED')}</h1>
+                 <h2 className="text-2xl text-red-500 font-bold tracking-widest mb-12">{t('EMERGENCY_PROTO')} <span className="text-white">99-ALPHA</span> {t('EXECUTED')}</h2>
 
                  <div className="w-full border-t border-b border-red-900/50 py-8 mb-8 space-y-4">
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                         <div className="text-slate-400 text-sm">Base structural integrity at 0%. Auto-destruct sequence initiated.</div>
+                         <div className="text-slate-400 text-sm">{t('LOG_INTEGRITY')}</div>
                      </div>
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                         <div className="text-slate-400 text-sm">Commander Escape Pod launched. Trajectory: High Orbit.</div>
+                         <div className="text-slate-400 text-sm">{t('LOG_POD')}</div>
                      </div>
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
-                         <div className="text-green-400 text-sm font-bold">Colossus docking successful. Operative recovered.</div>
+                         <div className="text-green-400 text-sm font-bold">{t('LOG_DOCK')}</div>
                      </div>
                  </div>
 
                  <p className="text-slate-500 text-xs mb-8 max-w-md">
-                     The planetary beachhead has been lost. Resources gathered prior to destruction have been transmitted. The sector remains hostile. Re-group and select a new drop zone.
+                     {t('FAILURE_DESC')}
                  </p>
 
                  <button 
@@ -53,7 +54,7 @@ export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac }) =>
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-500 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                          </svg>
-                         <span className="text-red-100 font-bold tracking-[0.2em] text-lg">RETURN TO BRIDGE</span>
+                         <span className="text-red-100 font-bold tracking-[0.2em] text-lg">{t('RETURN_BRIDGE')}</span>
                      </div>
                  </button>
 
@@ -61,7 +62,7 @@ export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac }) =>
 
              {/* Footer Tech Text */}
              <div className="absolute bottom-8 text-red-900 font-mono text-xs tracking-[0.5em] animate-pulse">
-                 NO SIGNAL // NO SIGNAL // NO SIGNAL
+                 {t('NO_SIGNAL')}
              </div>
         </div>
     );

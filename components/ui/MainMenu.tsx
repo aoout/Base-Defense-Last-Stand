@@ -22,7 +22,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     onStartExploration, 
     onLoadGame, 
     onDeleteSave, 
-    onTogglePin,
+    onTogglePin, 
     onExportSave,
     onImportSave,
     onToggleSetting,
@@ -69,13 +69,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         onClick={handleImportClick}
                         className="text-[10px] bg-blue-900/50 hover:bg-blue-800 text-blue-300 px-2 py-1 border border-blue-700"
                     >
-                        IMPORT DATA
+                        {t('IMPORT_DATA')}
                     </button>
                 </div>
                 <div className="space-y-4 overflow-y-auto max-h-[70vh] pr-4 scrollbar-thin scrollbar-thumb-blue-900/50 scrollbar-track-transparent">
                     {state.saveSlots.length === 0 && (
                         <div className="text-blue-500/30 italic text-xs py-10 border border-blue-900/20 bg-blue-900/5 p-4 text-center tracking-widest">
-                            NO DATA ARCHIVED
+                            {t('NO_ARCHIVES')}
                         </div>
                     )}
                     {state.saveSlots.map(save => (
@@ -96,11 +96,11 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             <div className="absolute right-24 flex flex-col items-end space-y-12">
                 <div className="text-right">
                     <h1 className="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
-                        BASE<br/><span className="text-cyan-500 text-9xl drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">DEFENSE</span>
+                        {t('GAME_TITLE')}<br/><span className="text-cyan-500 text-9xl drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">DEFENSE</span>
                     </h1>
                     <div className="flex items-center justify-end gap-2 mt-2">
                         <div className="h-px w-24 bg-cyan-500"></div>
-                        <p className="text-cyan-300 font-mono tracking-[0.4em] text-sm">TACTICAL SURVIVAL SIMULATION</p>
+                        <p className="text-cyan-300 font-mono tracking-[0.4em] text-sm">{t('GAME_SUB')}</p>
                     </div>
                 </div>
                 
@@ -109,8 +109,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <div className="absolute inset-0 bg-cyan-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
-                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-cyan-100 transition-colors">SURVIVAL</span>
-                            <span className="text-[10px] text-cyan-600 group-hover:text-cyan-300 font-mono uppercase tracking-[0.2em]">Endless Waves // Simulation</span>
+                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-cyan-100 transition-colors">{t('SURVIVAL_MODE')}</span>
+                            <span className="text-[10px] text-cyan-600 group-hover:text-cyan-300 font-mono uppercase tracking-[0.2em]">{t('SURVIVAL_DESC')}</span>
                         </div>
                         
                         <div className="relative z-10 w-8 h-8 border border-cyan-800 flex items-center justify-center text-cyan-500 group-hover:bg-cyan-500 group-hover:text-black transition-all">
@@ -122,8 +122,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <div className="absolute inset-0 bg-purple-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
-                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">EXPLORE</span>
-                            <span className="text-[10px] text-purple-600 group-hover:text-purple-300 font-mono uppercase tracking-[0.2em]">Campaign Mode // Deployment</span>
+                            <span className="text-4xl font-black text-white tracking-widest group-hover:text-purple-100 transition-colors">{t('EXPLORE_MODE')}</span>
+                            <span className="text-[10px] text-purple-600 group-hover:text-purple-300 font-mono uppercase tracking-[0.2em]">{t('EXPLORE_DESC')}</span>
                         </div>
 
                         <div className="relative z-10 w-8 h-8 border border-purple-800 flex items-center justify-center text-purple-500 group-hover:bg-purple-500 group-hover:text-black transition-all">

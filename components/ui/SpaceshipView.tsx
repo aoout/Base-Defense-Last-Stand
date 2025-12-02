@@ -1,5 +1,8 @@
 
 
+
+
+
 import React from 'react';
 import { GameState, SpaceshipModuleType } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
@@ -10,9 +13,11 @@ interface SpaceshipViewProps {
     onPurchaseModule: (modType: SpaceshipModuleType) => void;
     onOpenUpgrades: () => void;
     onOpenCarapaceGrid: () => void;
+    onOpenComputer?: () => void; // New prop
+    t: (key: string) => string;
 }
 
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid }) => {
+export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenComputer, t }) => {
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
     const hasOrbitalCannon = installed.includes(SpaceshipModuleType.ORBITAL_CANNON);
@@ -32,22 +37,22 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                 <div className="flex flex-col gap-2 pointer-events-auto">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse"></div>
-                        <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">Storage Access</span>
+                        <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">{t('STORAGE_ACCESS')}</span>
                     </div>
                     <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3">
                          <span className="text-3xl font-black text-white font-mono tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
-                         <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">FRAGMENTS</span>
+                         <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{t('FRAGMENTS')}</span>
                     </div>
                 </div>
 
                 {/* Right: Ship Class Info */}
                  <div className="text-right pointer-events-auto opacity-80">
                      <h1 className="text-4xl font-black italic text-slate-700 tracking-tighter uppercase">
-                         Colossus <span className="text-slate-600">Class</span>
+                         {t('SHIP_CLASS_NAME')}
                      </h1>
                      <div className="flex justify-end items-center gap-2 mt-1">
                          <div className="h-px w-24 bg-cyan-900"></div>
-                         <span className="text-cyan-800 font-mono text-[10px] tracking-[0.3em]">HEAVY CRUISER</span>
+                         <span className="text-cyan-800 font-mono text-[10px] tracking-[0.3em]">{t('SHIP_TYPE_NAME')}</span>
                      </div>
                 </div>
             </div>
@@ -55,7 +60,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
             <div className="flex-1 flex relative z-10 px-8 pb-8 gap-8 pointer-events-none">
                 
                 {/* Center: Ship Visual (Simplified for layout) */}
-                <div className="flex-1 relative flex items-center justify-center pointer-events-auto">
+                <div className="flex-1 relative flex flex-col items-center justify-center pointer-events-auto">
                      {/* SVG Container */}
                     <div className="relative w-[800px] h-[400px] filter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]">
                         <svg viewBox="0 0 1000 500" className="w-full h-full">
@@ -99,23 +104,23 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                         
                         {/* Installed Modules List Overlay (Left Side of Ship) */}
                         <div className="absolute top-0 left-0 w-64 bg-slate-900/80 border border-slate-700 p-4">
-                            <h3 className="text-cyan-400 text-xs font-bold tracking-widest border-b border-slate-700 pb-2 mb-2">INSTALLED MODULES</h3>
+                            <h3 className="text-cyan-400 text-xs font-bold tracking-widest border-b border-slate-700 pb-2 mb-2">{t('SHIP_MODULES')}</h3>
                             {installed.length === 0 ? (
-                                <div className="text-slate-500 text-xs italic">No additional modules installed. System nominal.</div>
+                                <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div>
                             ) : (
                                 <div className="space-y-2">
                                     {installed.map((modType) => (
                                         <div key={modType} className="flex flex-col gap-1 text-xs text-white bg-cyan-900/30 p-2 border-l-2 border-cyan-500">
                                             <div className="flex items-center gap-2">
                                                 <span>✔️</span>
-                                                <span>{SPACESHIP_MODULES[modType].name}</span>
+                                                <span>{t(`SHIP_MOD_${modType}_NAME`)}</span>
                                             </div>
                                             {modType === SpaceshipModuleType.ORBITAL_CANNON && (
                                                 <button 
                                                     onClick={onOpenUpgrades}
                                                     className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
                                                 >
-                                                    SYSTEM UPGRADE
+                                                    {t('SYSTEM_UPGRADE')}
                                                 </button>
                                             )}
                                             {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
@@ -123,7 +128,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                     onClick={onOpenCarapaceGrid}
                                                     className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
                                                 >
-                                                    XENO-DATA MATRIX
+                                                    {t('XENO_MATRIX')}
                                                 </button>
                                             )}
                                         </div>
@@ -133,17 +138,30 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                         </div>
 
                     </div>
+
+                    {/* CORE COMPUTER TERMINAL BUTTON */}
+                    <div className="mt-8">
+                        <button 
+                            onClick={onOpenComputer}
+                            className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#00ff00_2px,#00ff00_4px)] opacity-5 pointer-events-none"></div>
+                            <div className="text-green-500 font-mono text-xs tracking-[0.2em] mb-1 group-hover:text-green-400">{t('CORE_DB')}</div>
+                            <div className="text-white font-black text-xl tracking-wider group-hover:text-green-300">{t('ACCESS_COMPUTER')}</div>
+                            <div className="absolute bottom-0 w-full h-1 bg-slate-800 group-hover:bg-green-500 transition-colors"></div>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Right Panel: Module Shop */}
                 <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6">
-                    <h2 className="text-xl font-black text-white mb-1 uppercase">Engineering</h2>
-                    <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest">MODULE FABRICATION</p>
+                    <h2 className="text-xl font-black text-white mb-1 uppercase">{t('ENGINEERING')}</h2>
+                    <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest">{t('MODULE_FAB')}</p>
                     
                     <div className="flex-1 overflow-y-auto space-y-4">
                         {availableModules.length === 0 && (
                             <div className="text-slate-500 text-center text-sm py-10">
-                                All available modules fabricated and installed.
+                                {t('ALL_INSTALLED')}
                             </div>
                         )}
                         {availableModules.map(modType => {
@@ -151,8 +169,8 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                             const canAfford = state.player.score >= mod.cost;
                             return (
                                 <div key={modType} className="border border-slate-700 bg-slate-800/50 p-4 hover:border-cyan-500 transition-colors group">
-                                    <div className="text-cyan-100 font-bold text-sm mb-1">{mod.name}</div>
-                                    <div className="text-slate-400 text-xs mb-3 leading-relaxed">{mod.desc}</div>
+                                    <div className="text-cyan-100 font-bold text-sm mb-1">{t(`SHIP_MOD_${modType}_NAME`)}</div>
+                                    <div className="text-slate-400 text-xs mb-3 leading-relaxed">{t(`SHIP_MOD_${modType}_DESC`)}</div>
                                     <div className="flex justify-between items-center">
                                         <div className="text-yellow-400 font-mono text-sm font-bold">{mod.cost}</div>
                                         <button 
@@ -164,7 +182,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                     : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
                                             `}
                                         >
-                                            {canAfford ? 'INSTALL' : 'NO FUNDS'}
+                                            {canAfford ? t('INSTALL_BTN') : t('NO_FUNDS')}
                                         </button>
                                     </div>
                                 </div>
@@ -181,14 +199,14 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                     className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white"
                 >
                     <span className="text-xl">«</span>
-                    <span className="font-mono text-xs tracking-widest uppercase">Return to Sector</span>
+                    <span className="font-mono text-xs tracking-widest uppercase">{t('RETURN_SECTOR_BTN')}</span>
                 </button>
             </div>
             
             <div className="absolute bottom-8 right-8 z-20 pointer-events-none">
                 <div className="text-right text-[10px] text-slate-600 font-mono">
-                    <div>VESSEL STATUS: ONLINE</div>
-                    <div>HULL INTEGRITY: 100%</div>
+                    <div>{t('VESSEL_ONLINE')}</div>
+                    <div>{t('HULL_INTEGRITY')}: 100%</div>
                 </div>
             </div>
 

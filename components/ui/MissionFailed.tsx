@@ -1,9 +1,11 @@
+
 import React from 'react';
 import { GameState } from '../../types';
 
 interface MissionFailedScreenProps {
     state: GameState;
     onRestart: () => void;
+    t: (key: string) => string;
 }
 
 const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, value }) => (
@@ -13,7 +15,7 @@ const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, v
     </div>
 );
 
-export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state, onRestart }) => {
+export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state, onRestart, t }) => {
     const handleDownloadReport = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 800;
@@ -64,24 +66,24 @@ export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state,
              <div className="relative z-10 border-4 border-red-900 bg-black/90 p-12 max-w-4xl w-full shadow-[0_0_50px_rgba(220,38,38,0.3)]">
                  <div className="flex justify-between items-start mb-8 border-b-2 border-red-900 pb-4">
                      <div>
-                         <h1 className="text-6xl font-black tracking-tighter text-red-600 mb-2 glitch-text">MISSION FAILED</h1>
+                         <h1 className="text-6xl font-black tracking-tighter text-red-600 mb-2 glitch-text">{t('MISSION_FAILED')}</h1>
                          <p className="text-red-800 tracking-[0.5em] text-sm font-bold">SIGNAL LOST // BASE DESTROYED</p>
                      </div>
                      <div className="text-right">
-                         <div className="text-red-900 text-xs">REPORT ID</div>
+                         <div className="text-red-900 text-xs">{t('REPORT_ID')}</div>
                          <div className="text-red-500 font-bold">#A7-XX-{Math.floor(Math.random()*9999)}</div>
                      </div>
                  </div>
                  <div className="grid grid-cols-2 gap-12 mb-12">
                      <div className="space-y-4">
                          <StatRow label="WAVES SURVIVED" value={state.wave} />
-                         <StatRow label="FINAL SCORE" value={Math.floor(state.player.score)} />
-                         <StatRow label="DAMAGE DEALT" value={state.stats.damageDealt.toLocaleString()} />
-                         <StatRow label="SHOTS FIRED" value={state.stats.shotsFired.toLocaleString()} />
-                         <StatRow label="ACCURACY" value={state.stats.shotsFired > 0 ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) + '%' : '0%'} />
+                         <StatRow label={t('FINAL_SCORE')} value={Math.floor(state.player.score)} />
+                         <StatRow label={t('TOTAL_DAMAGE')} value={state.stats.damageDealt.toLocaleString()} />
+                         <StatRow label={t('SHOTS_FIRED')} value={state.stats.shotsFired.toLocaleString()} />
+                         <StatRow label={t('ACCURACY')} value={state.stats.shotsFired > 0 ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) + '%' : '0%'} />
                      </div>
                      <div>
-                         <h3 className="text-red-500 border-b border-red-900/50 pb-2 mb-4 font-bold tracking-widest">HOSTILES ELIMINATED</h3>
+                         <h3 className="text-red-500 border-b border-red-900/50 pb-2 mb-4 font-bold tracking-widest">{t('HOSTILES_NEUTRALIZED')}</h3>
                          <div className="space-y-2">
                              {Object.entries(state.stats.killsByType).map(([type, count]) => (
                                  <div key={type} className="flex justify-between text-sm">
@@ -91,16 +93,16 @@ export const MissionFailedScreen: React.FC<MissionFailedScreenProps> = ({ state,
                              ))}
                          </div>
                          <div className="mt-6 pt-4 border-t border-red-900/50 flex justify-between">
-                             <span className="text-red-400 font-bold">TOTAL KILLS</span>
+                             <span className="text-red-400 font-bold">{t('TOTAL_UNITS')}</span>
                              <span className="text-2xl text-white font-bold">
                                  {(Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0)}
                              </span>
                          </div>
                      </div>
                  </div>
-                 <div className="flex justify-center gap-6">
-                     <button onClick={onRestart} className="px-8 py-4 bg-red-900 hover:bg-red-800 text-white font-bold tracking-widest uppercase border border-red-600 transition-all hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]">Re-Deploy</button>
-                     <button onClick={handleDownloadReport} className="px-8 py-4 bg-black hover:bg-gray-900 text-red-500 font-bold tracking-widest uppercase border border-red-900 transition-all hover:text-red-400 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>Save Intel</button>
+                 <div className="flex-1 flex justify-center gap-6">
+                     <button onClick={onRestart} className="px-8 py-4 bg-red-900 hover:bg-red-800 text-white font-bold tracking-widest uppercase border border-red-600 transition-all hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]">{t('RE_DEPLOY')}</button>
+                     <button onClick={handleDownloadReport} className="px-8 py-4 bg-black hover:bg-gray-900 text-red-500 font-bold tracking-widest uppercase border border-red-900 transition-all hover:text-red-400 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>{t('SAVE_INTEL')}</button>
                  </div>
              </div>
         </div>

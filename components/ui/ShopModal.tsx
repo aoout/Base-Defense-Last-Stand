@@ -1,4 +1,6 @@
 
+
+
 import React, { useState } from 'react';
 import { GameState, GameSettings, DefenseUpgradeType, ModuleType } from '../../types';
 import { PLAYER_STATS, SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS } from '../../data/registry';
@@ -76,29 +78,29 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                    {activeTab === 'AMMO' && (
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                             <ShopItem 
-                                name="Assault Rifle Ammo"
-                                amount="+60 Rnds" 
+                                name={t('AMMO_AR_NAME')}
+                                amount={t('AMMO_AR_DESC')}
                                 cost={SHOP_PRICES.AR_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.AR_AMMO}
                                 onClick={() => onPurchase('AR_AMMO')}
                             />
                             <ShopItem 
-                                name="Shotgun Shells" 
-                                amount="+16 Shells"
+                                name={t('AMMO_SG_NAME')}
+                                amount={t('AMMO_SG_DESC')}
                                 cost={SHOP_PRICES.SG_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.SG_AMMO}
                                 onClick={() => onPurchase('SG_AMMO')}
                             />
                             <ShopItem 
-                                name="Sniper Rounds" 
-                                amount="+10 Rnds"
+                                name={t('AMMO_SR_NAME')} 
+                                amount={t('AMMO_SR_DESC')}
                                 cost={SHOP_PRICES.SR_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.SR_AMMO}
                                 onClick={() => onPurchase('SR_AMMO')}
                             />
                             <ShopItem 
-                                name="Frag Grenade" 
-                                amount="+1 Unit"
+                                name={t('AMMO_GRENADE_NAME')}
+                                amount={t('AMMO_GRENADE_DESC')}
                                 cost={SHOP_PRICES.GRENADE} 
                                 canAfford={p.score >= SHOP_PRICES.GRENADE && p.grenades < PLAYER_STATS.maxGrenades}
                                 onClick={() => onPurchase('GRENADE')}
@@ -107,22 +109,22 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                             
                              {/* New Ammo Types */}
                             <ShopItem 
-                                name="Pulse Cells" 
-                                amount="+90 Energy"
+                                name={t('AMMO_PULSE_NAME')}
+                                amount={t('AMMO_PULSE_DESC')}
                                 cost={SHOP_PRICES.PULSE_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.PULSE_AMMO}
                                 onClick={() => onPurchase('PULSE_AMMO')}
                             />
                             <ShopItem 
-                                name="Napalm Tanks" 
-                                amount="+200 Fuel"
+                                name={t('AMMO_FLAME_NAME')}
+                                amount={t('AMMO_FLAME_DESC')}
                                 cost={SHOP_PRICES.FLAME_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.FLAME_AMMO}
                                 onClick={() => onPurchase('FLAME_AMMO')}
                             />
                              <ShopItem 
-                                name="40mm Grenades" 
-                                amount="+12 Rnds"
+                                name={t('AMMO_GL_NAME')}
+                                amount={t('AMMO_GL_DESC')}
                                 cost={SHOP_PRICES.GL_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.GL_AMMO}
                                 onClick={() => onPurchase('GL_AMMO')}
@@ -133,24 +135,24 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                    {activeTab === 'WEAPONS' && (
                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                             <ShopItem 
-                                name="Pulse Rifle" 
-                                amount="Energy Weapon"
+                                name={t('WEAPON_PULSE_RIFLE_NAME')}
+                                amount={t('WEAPON_PULSE_DESC')}
                                 cost={SHOP_PRICES.WEAPON_PULSE} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_PULSE}
                                 onClick={() => onPurchase('WEAPON_PULSE')}
                                 highlight
                             />
                             <ShopItem 
-                                name="Flamethrower" 
-                                amount="Incendiary"
+                                name={t('WEAPON_FLAMETHROWER_NAME')}
+                                amount={t('WEAPON_FLAME_DESC')}
                                 cost={SHOP_PRICES.WEAPON_FLAME} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_FLAME}
                                 onClick={() => onPurchase('WEAPON_FLAME')}
                                 highlight
                             />
                             <ShopItem 
-                                name="Grenade Launcher" 
-                                amount="Heavy Explosive"
+                                name={t('WEAPON_GRENADE_LAUNCHER_NAME')}
+                                amount={t('WEAPON_GL_DESC')}
                                 cost={SHOP_PRICES.WEAPON_GL} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_GL}
                                 onClick={() => onPurchase('WEAPON_GL')}
@@ -201,8 +203,8 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                return (
                                    <ShopItem
                                         key={mType}
-                                        name={stats.name}
-                                        amount={stats.desc}
+                                        name={t(`MODULE_${mType}_NAME`)}
+                                        amount={t(`MODULE_${mType}_DESC`)}
                                         cost={stats.cost}
                                         canAfford={p.score >= stats.cost}
                                         onClick={() => onPurchase(mType)}

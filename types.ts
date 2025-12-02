@@ -177,12 +177,21 @@ export interface Ally extends Entity {
   patrolPoint: { x: number; y: number };
 }
 
+export enum DamageSource {
+    PLAYER = 'PLAYER',
+    TURRET = 'TURRET',
+    ALLY = 'ALLY',
+    ORBITAL = 'ORBITAL',
+    ENEMY = 'ENEMY' // For incoming damage, not tracked in stats usually
+}
+
 export interface Projectile extends Entity {
   vx: number;
   vy: number;
   damage: number;
   rangeRemaining: number;
   fromPlayer: boolean; // true if player/ally/turret, false if enemy
+  source: DamageSource; // Specific source for stats
   isExplosive?: boolean;
   isPiercing?: boolean;
   weaponType?: WeaponType; // For rendering specific visuals
@@ -289,7 +298,8 @@ export interface GameSettings {
 export interface GameStats {
   shotsFired: number;
   shotsHit: number;
-  damageDealt: number;
+  damageDealt: number; // Total
+  damageBySource: Record<DamageSource, number>; // Breakdown
   killsByType: Record<EnemyType | 'BOSS', number>;
   encounteredEnemies: string[]; // List of EnemyType or BossType IDs encountered in this run
 }
@@ -306,7 +316,8 @@ export enum AppMode {
     GAMEPLAY = 'GAMEPLAY',
     SPACESHIP_VIEW = 'SPACESHIP_VIEW',
     ORBITAL_UPGRADES = 'ORBITAL_UPGRADES',
-    CARAPACE_GRID = 'CARAPACE_GRID'
+    CARAPACE_GRID = 'CARAPACE_GRID',
+    SHIP_COMPUTER = 'SHIP_COMPUTER'
 }
 
 export enum GameMode {
@@ -516,7 +527,6 @@ export interface GameState {
   isInventoryOpen: boolean;
   isShopOpen: boolean;
   
-  // REPLACED: Old messages system with new robust one
   floatingTexts: FloatingText[];
   activeTurretId?: number;
 

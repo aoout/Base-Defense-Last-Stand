@@ -1,6 +1,8 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType } from '../../types';
+import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { GAS_INFO } from '../../data/world';
@@ -255,7 +257,7 @@ export class EnemyManager {
                  }
                  // Handle Burst
                  if (e.bossBurstCount && e.bossBurstCount > 0 && now >= (e.bossNextShotTime || 0)) {
-                     this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 10, e.damage, false, '#60a5fa');
+                     this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 10, e.damage, false, '#60a5fa', undefined, false, false, 1000, DamageSource.ENEMY);
                      e.bossBurstCount--;
                      e.bossNextShotTime = now + (BOSS_STATS[BossType.BLUE_BURST].burstDelay || 100);
                  }
@@ -263,7 +265,7 @@ export class EnemyManager {
              else if (e.bossType === BossType.PURPLE_ACID) {
                  if (now - e.lastAttackTime > (BOSS_STATS[BossType.PURPLE_ACID].fireRate || 4000)) {
                      // Lob Acid Blob
-                     this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#a855f7', undefined, false, true); 
+                     this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#a855f7', undefined, false, true, 1000, DamageSource.ENEMY); 
                      e.lastAttackTime = now;
                  }
              }
@@ -273,7 +275,7 @@ export class EnemyManager {
         // Normal Units
         if (e.type === EnemyType.VIPER) {
             if (dist < 450 && now - e.lastAttackTime > 2000) {
-                this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#10B981');
+                this.engine.spawnProjectile(e.x, e.y, targetPos.x, targetPos.y, 8, e.damage, false, '#10B981', undefined, false, false, 1000, DamageSource.ENEMY);
                 this.engine.audio.playViperShoot();
                 e.lastAttackTime = now;
             }
@@ -305,7 +307,7 @@ export class EnemyManager {
         }
     }
 
-    public damageEnemy(enemy: Enemy, amount: number) {
+    public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) {
         let dmg = amount;
         
         // Hive Mother Armor Reduction

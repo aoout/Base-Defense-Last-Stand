@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { GameState, CarapaceNode, EnemyType } from '../../types';
 import { CloseButton } from './Shared';
@@ -8,9 +7,10 @@ interface CarapaceAnalyzerUIProps {
     state: GameState;
     onPurchase: (row: number, col: number) => void;
     onClose: () => void;
+    t: (key: string, params?: any) => string;
 }
 
-export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, onPurchase, onClose }) => {
+export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, onPurchase, onClose, t }) => {
     const grid = state.spaceship.carapaceGrid;
     const [hoveredNode, setHoveredNode] = useState<CarapaceNode | null>(null);
 
@@ -43,15 +43,15 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                  {/* Header */}
                  <div className="mt-8 text-center mb-12 relative z-10">
                      <h1 className="text-4xl font-black text-white tracking-widest uppercase mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.5)]">
-                         Xenobiology <span className="text-green-500">Analysis</span>
+                         {t('XENO_TITLE')} <span className="text-green-500">{t('ANALYSIS')}</span>
                      </h1>
-                     <div className="text-cyan-400 font-mono text-xs tracking-[0.5em] uppercase">Weakness Identification Matrix</div>
+                     <div className="text-cyan-400 font-mono text-xs tracking-[0.5em] uppercase">{t('WEAKNESS_MATRIX')}</div>
                  </div>
 
                  {/* Available Funds */}
                  <div className="absolute top-8 left-8 bg-black/40 border border-green-900/50 p-6 backdrop-blur-sm">
-                     <div className="text-green-500 text-xs font-bold tracking-widest uppercase mb-1">Available Funds</div>
-                     <div className="text-2xl font-mono text-yellow-400 font-bold">{Math.floor(state.player.score)} <span className="text-sm text-yellow-600">SCRAPS</span></div>
+                     <div className="text-green-500 text-xs font-bold tracking-widest uppercase mb-1">{t('AVAILABLE_FUNDS')}</div>
+                     <div className="text-2xl font-mono text-yellow-400 font-bold">{Math.floor(state.player.score)} <span className="text-sm text-yellow-600">{t('SCRAPS')}</span></div>
                  </div>
 
                  {/* Main Grid Interface */}
@@ -80,7 +80,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                                             <div className="absolute top-1 left-2 text-[10px] text-slate-500">#{rIndex}-{cIndex}</div>
                                             {renderEnemyIcon(node.targetEnemy)}
                                             <div className="text-white font-bold text-sm">+{Math.round(node.damageBonus * 100)}%</div>
-                                            {node.purchased && <div className="absolute bottom-1 right-2 text-green-500 text-xs">ACQUIRED</div>}
+                                            {node.purchased && <div className="absolute bottom-1 right-2 text-green-500 text-xs">{t('ACQUIRED')}</div>}
                                         </div>
                                     )
                                 })}
@@ -92,9 +92,9 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                     <div className="flex flex-col justify-around ml-8 h-full py-2">
                         {grid.rowBonuses.map((bonus, i) => (
                             <div key={bonus.id} className={`w-32 h-20 border flex flex-col items-center justify-center rounded transition-all ${bonus.unlocked ? 'bg-green-500 text-black border-green-300 shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-black/40 border-slate-800 text-slate-600'}`}>
-                                <div className="text-[10px] font-bold tracking-widest uppercase mb-1">ROW {i+1} BONUS</div>
+                                <div className="text-[10px] font-bold tracking-widest uppercase mb-1">{t('ROW_BONUS', {0: i+1})}</div>
                                 <div className="text-xl font-black">+{Math.round(bonus.damageBonus * 100)}%</div>
-                                <div className="text-[8px] uppercase">Global Damage</div>
+                                <div className="text-[8px] uppercase">{t('GLOBAL_DMG')}</div>
                             </div>
                         ))}
                     </div>
@@ -103,9 +103,9 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                     <div className="absolute -bottom-24 left-8 right-32 flex justify-between px-2">
                         {grid.colBonuses.map((bonus, i) => (
                              <div key={bonus.id} className={`w-20 h-20 border flex flex-col items-center justify-center rounded transition-all ${bonus.unlocked ? 'bg-cyan-600 text-white border-cyan-300 shadow-[0_0_15px_rgba(8,145,178,0.6)]' : 'bg-black/40 border-slate-800 text-slate-600'}`}>
-                                <div className="text-[8px] font-bold tracking-widest uppercase mb-1">COL {i+1}</div>
+                                <div className="text-[8px] font-bold tracking-widest uppercase mb-1">{t('COL_BONUS_LABEL')} {i+1}</div>
                                 <div className="text-xl font-black">+{bonus.armorBonus}</div>
-                                <div className="text-[8px] uppercase">Armor</div>
+                                <div className="text-[8px] uppercase">{t('COL_BONUS_ARMOR')}</div>
                             </div>
                         ))}
                     </div>
@@ -116,7 +116,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                      {hoveredNode ? (
                          <div className="flex gap-8 items-center animate-fadeIn px-8 w-full justify-between">
                              <div className="text-left">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">TARGET SPECIES</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('TARGET_SPECIES')}</div>
                                  <div className="text-xl font-black uppercase text-green-400">
                                      {hoveredNode.targetEnemy}
                                  </div>
@@ -125,7 +125,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                              <div className="h-12 w-px bg-slate-700"></div>
 
                              <div className="text-center">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">DAMAGE AMPLIFICATION</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('DMG_AMP')}</div>
                                  <div className="text-3xl font-mono text-white">
                                      +{Math.round(hoveredNode.damageBonus * 100)}%
                                  </div>
@@ -134,15 +134,15 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                              <div className="h-12 w-px bg-slate-700"></div>
 
                              <div className="text-right">
-                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">ANALYSIS COST</div>
+                                 <div className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-1">{t('ANALYSIS_COST')}</div>
                                  <div className={`text-2xl font-mono font-bold ${hoveredNode.purchased ? 'text-green-500' : state.player.score >= hoveredNode.cost ? 'text-yellow-400' : 'text-red-500'}`}>
-                                     {hoveredNode.purchased ? 'COMPLETE' : `${hoveredNode.cost} SCRAPS`}
+                                     {hoveredNode.purchased ? t('COMPLETE_BTN') : `${hoveredNode.cost} ${t('SCRAPS')}`}
                                  </div>
                              </div>
                          </div>
                      ) : (
                          <div className="text-slate-600 font-mono text-sm tracking-widest animate-pulse">
-                             HOVER OVER A DATA NODE TO VIEW DETAILS
+                             {t('HOVER_DATA')}
                          </div>
                      )}
                  </div>

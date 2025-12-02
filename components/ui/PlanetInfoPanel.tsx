@@ -35,9 +35,9 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
                  <div>
                      <div className="flex items-center gap-2">
                          <h2 className="text-3xl font-black text-white leading-none">{planet.name}</h2>
-                         {planet.missionType === MissionType.OFFENSE && <span className="text-[10px] bg-red-900 text-red-200 px-2 rounded border border-red-700 font-bold">OFFENSE</span>}
+                         {planet.missionType === MissionType.OFFENSE && <span className="text-[10px] bg-red-900 text-red-200 px-2 rounded border border-red-700 font-bold">{t('OFFENSE_TAG')}</span>}
                      </div>
-                     {planet.completed && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 font-bold tracking-widest uppercase inline-block mt-1">CLEARED</span>}
+                     {planet.completed && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 font-bold tracking-widest uppercase inline-block mt-1">{t('CLEARED_TAG')}</span>}
                  </div>
                  <div className="w-24 h-24 border border-blue-900/50 rounded-full overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
                      <canvas ref={canvasRef} width={96} height={96} className="w-full h-full"></canvas>
@@ -46,9 +46,9 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
              </div>
              <div className="grid grid-cols-2 gap-3 text-xs font-mono">
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50">
-                     <div className="text-blue-500 mb-1">{t('THREAT LEVEL')}</div>
+                     <div className="text-blue-500 mb-1">{t('THREAT_LEVEL')}</div>
                      <div className="text-white text-lg font-bold">
-                         {planet.missionType === MissionType.OFFENSE ? 'ASSAULT OPS' : `${planet.totalWaves} WAVES`}
+                         {planet.missionType === MissionType.OFFENSE ? t('ASSAULT_OPS') : `${planet.totalWaves} ${t('WAVES_SUFFIX')}`}
                      </div>
                  </div>
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50">
@@ -57,7 +57,7 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
                  </div>
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50 col-span-2">
                      <div className="text-blue-500 mb-1 flex justify-between">
-                        <span>SULFUR INDEX</span>
+                        <span>{t('SULFUR_INDEX')}</span>
                         <span className="text-yellow-500 font-bold">{planet.sulfurIndex}/10</span>
                      </div>
                      <div className="h-2 w-full bg-gray-900 rounded-full overflow-hidden">
@@ -71,7 +71,7 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
              <div className="bg-blue-950/20 p-4 border border-blue-900/50 flex flex-col gap-3 mt-2 flex-1">
                   <div className="flex justify-between items-center">
                       <label className="text-blue-400 text-xs tracking-widest uppercase font-bold">{t('ATMOSPHERE_COMP')}</label>
-                      <button onClick={onShowDetail} className="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer">View Analysis</button>
+                      <button onClick={onShowDetail} className="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer">{t('VIEW_ANALYSIS')}</button>
                   </div>
                   <div 
                     onClick={onShowDetail}
@@ -86,7 +86,7 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
                           <div key={gas.id} className="flex justify-between items-center text-xs border-b border-blue-900/20 pb-1 last:border-0">
                               <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-sm" style={{backgroundColor: gas.color}}></div>
-                                  <span className="text-gray-300 font-mono">{gas.name}</span>
+                                  <span className="text-gray-300 font-mono">{t(`GAS_${gas.id}_NAME`)}</span>
                               </div>
                               <span className="text-white font-bold font-mono">{(gas.percentage * 100).toFixed(1)}%</span>
                           </div>

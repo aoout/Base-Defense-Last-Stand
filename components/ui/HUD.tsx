@@ -1,4 +1,6 @@
 
+
+
 import React from 'react';
 import { GameState, WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
@@ -19,18 +21,29 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
     const isOffenseMode = state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE;
     const hiveMother = state.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
 
+    // Defense Mode Logic
+    const isDefense = state.gameMode === GameMode.SURVIVAL || (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.DEFENSE);
+    
+    // Check for Cleanup Phase (Last wave, no time left)
+    const isCleanupPhase = isDefense && 
+                           state.gameMode === GameMode.EXPLORATION && 
+                           state.wave >= (state.currentPlanet?.totalWaves || 0) &&
+                           state.waveTimeRemaining <= 0;
+
+    const noMoreWaves = isDefense && 
+                        state.gameMode === GameMode.EXPLORATION && 
+                        state.wave >= (state.currentPlanet?.totalWaves || 0);
+
     const secondsLeft = Math.ceil(state.waveTimeRemaining / 1000);
     const formattedTime = `${Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:${(secondsLeft % 60).toString().padStart(2, '0')}`;
     
     // Skip Wave Logic
     const elapsedWaveTime = state.waveDuration - state.waveTimeRemaining;
-    const canSkip = !isOffenseMode && elapsedWaveTime >= 10000;
+    const canSkip = !isOffenseMode && elapsedWaveTime >= 10000 && !noMoreWaves;
     const skipReward = Math.max(0, Math.floor((state.waveTimeRemaining / 1000) * state.wave));
 
     // Theme Colors
     const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
-    const primaryText = isOffenseMode ? 'text-red-500' : 'text-cyan-500';
-    const primaryBg = isOffenseMode ? 'bg-red-950/80' : 'bg-cyan-950/80';
     const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
 
     return (
@@ -96,18 +109,29 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                             </div>
 
                             <div className="relative w-full flex justify-center items-center py-1">
-                                <span className="text-4xl font-mono font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                                    {formattedTime}
-                                </span>
+                                {isCleanupPhase ? (
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
+                                        <span className="text-3xl font-mono font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                            {state.enemies.length}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <span className="text-4xl font-mono font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                                        {formattedTime}
+                                    </span>
+                                )}
                             </div>
 
                             {/* Wave Progress Micro-Bar */}
-                            <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
-                                <div 
-                                    className="h-full bg-cyan-500 transition-all duration-1000 linear"
-                                    style={{ width: `${(state.waveTimeRemaining / state.waveDuration) * 100}%` }}
-                                ></div>
-                            </div>
+                            {!isCleanupPhase && (
+                                <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-cyan-500 transition-all duration-1000 linear"
+                                        style={{ width: `${(state.waveTimeRemaining / state.waveDuration) * 100}%` }}
+                                    ></div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

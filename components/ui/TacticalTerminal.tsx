@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { select, scaleBand, scaleLinear, max, axisBottom, axisLeft } from 'd3';
-import { GameState, GameSettings, EnemyType, BossType, GameMode } from '../../types';
+import * as d3 from 'd3';
+import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother } from '../../utils/renderers';
@@ -120,7 +121,9 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
             <div className="w-1/3 border-r border-green-800 pr-2 overflow-y-auto">
                 {allEntities.map(id => {
                     const discovered = isDiscovered(id);
-                    const name = BESTIARY_DB[id]?.codeName || id;
+                    const nameKey = `ENEMY_${id}_NAME`;
+                    const name = t(nameKey) !== nameKey ? t(nameKey) : BESTIARY_DB[id]?.codeName || id;
+                    
                     return (<div key={id} onClick={() => setSelectedId(id)} className={`p-3 mb-2 cursor-pointer border transition-colors flex justify-between items-center ${selectedId === id ? 'bg-green-900 border-green-500 text-white' : 'bg-black/40 border-green-900/50 text-green-700 hover:bg-green-900/20'}`}><span className="font-bold text-xs tracking-widest">{discovered ? name : 'UNKNOWN SIGNAL'}</span>{!discovered && <span className="text-[10px] text-green-900 bg-green-900/20 px-1">LOCKED</span>}</div>);
                 })}
             </div>
@@ -136,8 +139,8 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
                                         <div className="absolute bottom-1 right-1 text-[10px] text-green-900 font-mono">FIG. A</div>
                                     </div>
                                     <div className="flex-1 space-y-2">
-                                        <div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{BESTIARY_DB[selectedId].codeName}</div>
-                                        <div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {BESTIARY_DB[selectedId].classification}</div>
+                                        <div className="text-2xl font-black text-green-400 border-b border-green-800 pb-1">{t(`ENEMY_${selectedId}_NAME`)}</div>
+                                        <div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {t(`ENEMY_${selectedId}_CLASS`)}</div>
                                         <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300">
                                             <div className="bg-green-900/30 p-2 border border-green-800">
                                                 <span className="text-green-600 block text-[10px]">{t('DANGER_LEVEL')}</span>
@@ -151,7 +154,7 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
                                     </div>
                                 </div>
                                 <div className="flex-1 bg-green-900/10 p-4 border border-green-900/50 text-sm text-green-400 font-mono leading-relaxed overflow-y-auto">
-                                    {BESTIARY_DB[selectedId].description}
+                                    {t(`ENEMY_${selectedId}_DESC`)}
                                 </div>
                             </div>
                         ) : (
@@ -182,22 +185,27 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
     useEffect(() => {
         if (activeTab === 'DATA' && chartRef.current) {
             const data = Object.entries(state.stats.killsByType).map(([type, count]) => ({ type, count }));
-            const svg = select(chartRef.current);
+            const svg = d3.select(chartRef.current);
             svg.selectAll("*").remove();
             const margin = { top: 20, right: 20, bottom: 40, left: 40 };
             const width = 400 - margin.left - margin.right;
             const height = 250 - margin.top - margin.bottom;
             const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-            const x = scaleBand().rangeRound([0, width]).padding(0.1).domain(data.map(d => d.type));
-            const y = scaleLinear().rangeRound([height, 0]).domain([0, max(data, d => d.count) || 10]);
-            g.append("g").attr("transform", `translate(0,${height})`).call(axisBottom(x)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace").attr("font-size", "10px");
-            g.append("g").call(axisLeft(y).ticks(5)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace");
+            const x = d3.scaleBand().rangeRound([0, width]).padding(0.1).domain(data.map(d => d.type));
+            const y = d3.scaleLinear().rangeRound([height, 0]).domain([0, d3.max(data, d => d.count) || 10]);
+            g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace").attr("font-size", "10px");
+            g.append("g").call(d3.axisLeft(y).ticks(5)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace");
             g.selectAll("path, line").attr("stroke", "#065F46");
             g.selectAll(".bar").data(data).enter().append("rect").attr("class", "bar").attr("x", d => x(d.type)!).attr("y", d => y(d.count)).attr("width", x.bandwidth()).attr("height", d => height - y(d.count)).attr("fill", "#10B981").attr("opacity", 0.8);
         }
     }, [activeTab, state.stats.killsByType]);
 
-    const accuracy = state.stats.shotsFired > 0 ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) : "0.0";
+    const calculatePlayerShare = () => {
+        const total = state.stats.damageDealt;
+        if (total === 0) return "0.0";
+        const playerDmg = state.stats.damageBySource?.[DamageSource.PLAYER] || 0;
+        return ((playerDmg / total) * 100).toFixed(1);
+    };
 
     return (
         <div className="absolute inset-0 z-[100] bg-black pointer-events-auto font-mono text-green-500 flex items-center justify-center">
@@ -217,10 +225,31 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                     {activeTab === 'DATA' && (
                         <div className="space-y-6">
                             <div className="grid grid-cols-3 gap-4 mb-6">
-                                <div className="border border-green-900 p-4 bg-black/40"> <div className="text-green-700 text-xs uppercase mb-1">{t('TOTAL_DAMAGE')}</div> <div className="text-2xl text-green-300">{state.stats.damageDealt.toLocaleString()}</div> </div>
-                                <div className="border border-green-900 p-4 bg-black/40"> <div className="text-green-700 text-xs uppercase mb-1">{t('SHOTS_FIRED')}</div> <div className="text-2xl text-green-300">{state.stats.shotsFired.toLocaleString()}</div> </div>
-                                <div className="border border-green-900 p-4 bg-black/40"> <div className="text-green-700 text-xs uppercase mb-1">{t('ACCURACY')}</div> <div className="text-2xl text-green-300">{accuracy}%</div> </div>
+                                <div className="border border-green-900 p-4 bg-black/40"> 
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('TOTAL_DAMAGE')}</div> 
+                                    <div className="text-2xl text-green-300">{state.stats.damageDealt.toLocaleString()}</div> 
+                                </div>
+                                <div className="border border-green-900 p-4 bg-black/40"> 
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('SHOTS_FIRED')}</div> 
+                                    <div className="text-2xl text-green-300">{state.stats.shotsFired.toLocaleString()}</div> 
+                                </div>
+                                <div className="border border-green-900 p-4 bg-black/40"> 
+                                    <div className="text-green-700 text-xs uppercase mb-1">PLAYER DMG CONTRIBUTION</div> 
+                                    <div className="text-2xl text-green-300">{calculatePlayerShare()}%</div> 
+                                </div>
                             </div>
+                            
+                            {/* Damage Breakdown Mini-Table */}
+                            <div className="border border-green-900 p-4 bg-black/40 mb-6">
+                                <div className="text-green-700 text-xs uppercase mb-4">DAMAGE SOURCE BREAKDOWN</div>
+                                <div className="grid grid-cols-4 gap-4 text-center">
+                                    <div><span className="block text-xs text-green-600">PLAYER</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.PLAYER] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">TURRETS</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.TURRET] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">ALLIES</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ALLY] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">ORBITAL</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ORBITAL] || 0).toLocaleString()}</span></div>
+                                </div>
+                            </div>
+
                             <div className="border border-green-900 p-4 bg-black/40 flex flex-col items-center">
                                 <div className="w-full text-left text-green-700 text-xs uppercase mb-4">{t('KILLS_ANALYSIS')}</div>
                                 <svg ref={chartRef} width={400} height={250}></svg>
@@ -237,11 +266,23 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                         </div>
                     )}
                     {activeTab === 'NOTES' && (
-                        <div className="text-green-600 text-sm space-y-4 font-mono leading-relaxed">
-                            <p className="text-green-400 font-bold">[MISSION BRIEFING]</p> <p>Defend the outpost against indigenous xenomorph lifeforms. The base integrity must be maintained at all costs.</p>
-                            <p className="text-green-400 font-bold mt-6">[WEAPONRY]</p>
-                            <ul className="list-disc pl-5 space-y-2"> <li><strong className="text-green-500">AR (Assault Rifle):</strong> Standard issue. Reliable damage and fire rate.</li> <li><strong className="text-green-500">SG (Shotgun):</strong> High impact at close quarters. Wide spread.</li> <li><strong className="text-green-500">SR (Sniper):</strong> Precision elimination. High recoil.</li> <li><strong className="text-green-500">PISTOL:</strong> Backup sidearm. Infinite ammo.</li> </ul>
-                            <p className="text-green-400 font-bold mt-6">[TACTICS]</p> <p>Use [E] near base to access supply depot. Use [E] to construct automated defense turrets. Press [P] to access this terminal.</p>
+                        <div className="flex flex-col h-full bg-black/20 border border-green-900/50 p-6">
+                            <div className="mb-6 pb-4 border-b border-green-800">
+                                <h2 className="text-2xl font-black tracking-widest text-green-400 uppercase">{t('LOG_TITLE')}</h2>
+                                <p className="text-xs text-green-700 font-mono tracking-[0.3em] uppercase">{t('LOG_SUBTITLE')}</p>
+                            </div>
+                            <div className="flex-1 overflow-y-auto space-y-8 pr-4 scrollbar-thin scrollbar-thumb-green-900/50 scrollbar-track-transparent">
+                                {[1, 2, 3, 4, 5].map(idx => (
+                                    <div key={idx} className="relative pl-6 border-l-2 border-green-800/30">
+                                        <div className="absolute left-[-5px] top-0 w-2 h-2 bg-green-700 rounded-full"></div>
+                                        <div className="text-xs text-green-700 font-bold mb-1 font-mono tracking-widest">{t(`LOG_${idx}_DATE`)}</div>
+                                        <div className="text-green-300 font-bold mb-2 uppercase text-sm bg-green-900/20 inline-block px-2 py-0.5">{t(`LOG_${idx}_TITLE`)}</div>
+                                        <p className="text-green-500/80 text-xs leading-relaxed font-mono text-justify">
+                                            {t(`LOG_${idx}_CONTENT`)}
+                                        </p>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}

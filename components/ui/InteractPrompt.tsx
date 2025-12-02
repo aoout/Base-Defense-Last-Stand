@@ -5,9 +5,10 @@ import { TURRET_COSTS } from '../../data/registry';
 
 interface InteractPromptProps {
     state: GameState;
+    t: (key: string) => string;
 }
 
-export const InteractPrompt: React.FC<InteractPromptProps> = ({ state }) => {
+export const InteractPrompt: React.FC<InteractPromptProps> = ({ state, t }) => {
     if (state.appMode !== AppMode.GAMEPLAY) return null;
     const p = state.player;
     
@@ -17,7 +18,7 @@ export const InteractPrompt: React.FC<InteractPromptProps> = ({ state }) => {
         return (
             <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
                 <div className="bg-yellow-500 text-black font-black tracking-wider px-4 py-1 rounded shadow-[0_0_15px_rgba(234,179,8,0.6)] border-2 border-white text-sm">
-                    OPEN DEPOT [B]
+                    {t('OPEN_DEPOT')}
                 </div>
                 <div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-yellow-500 border-r-[8px] border-r-transparent mt-[-1px]"></div>
             </div>
@@ -44,7 +45,7 @@ export const InteractPrompt: React.FC<InteractPromptProps> = ({ state }) => {
             return (
                 <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
                     <div className="bg-emerald-500 text-black font-black tracking-wider px-4 py-1 rounded shadow-[0_0_15px_rgba(16,185,129,0.6)] border-2 border-white text-sm">
-                        UPGRADE [E]
+                        {t('UPGRADE_TURRET')}
                     </div>
                     <div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-emerald-500 border-r-[8px] border-r-transparent mt-[-1px]"></div>
                 </div>
@@ -57,7 +58,7 @@ export const InteractPrompt: React.FC<InteractPromptProps> = ({ state }) => {
             return (
                 <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
                     <div className={`${canAfford ? 'bg-blue-600 border-white' : 'bg-red-900 border-red-500'} text-white font-black tracking-wider px-4 py-1 rounded shadow-lg border-2 text-sm flex gap-2 items-center`}>
-                        <span>BUILD TURRET [E]</span>
+                        <span>{t('BUILD_TURRET')}</span>
                         <span className={`font-mono ${canAfford ? 'text-blue-200' : 'text-red-300'}`}>-{cost}</span>
                     </div>
                     <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] ${canAfford ? 'border-t-blue-600' : 'border-t-red-900'} border-r-[8px] border-r-transparent mt-[-1px]`}></div>

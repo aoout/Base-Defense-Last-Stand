@@ -1,4 +1,6 @@
 
+
+
 import {
   GameState,
   InputState,
@@ -35,7 +37,8 @@ import {
   MissionType,
   FloatingText,
   FloatingTextType,
-  GameSettings
+  GameSettings,
+  DamageSource
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -64,6 +67,7 @@ import { PlayerManager } from './managers/PlayerManager';
 import { DefenseManager } from './managers/DefenseManager';
 import { FXManager } from './managers/FXManager';
 import { SpaceshipManager } from './managers/SpaceshipManager';
+import { TRANSLATIONS } from '../data/locales';
 
 const TURRET_POSITIONS = [
   { x: -150, y: -150 },
@@ -118,6 +122,19 @@ export class GameEngine {
     
     // Load saves
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
+  }
+
+  // Translation Helper
+  public t(key: string, params?: Record<string, any>): string {
+      const lang = this.state.settings.language;
+      const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
+      let str = (dict as any)[key] || key;
+      if (params) {
+          Object.entries(params).forEach(([k, v]) => {
+              str = str.replace(`{${k}}`, String(v));
+          });
+      }
+      return str;
   }
 
   public handleInput(key: string, isDown: boolean) {
@@ -216,6 +233,14 @@ export class GameEngine {
         carapaceGrid: null
     };
 
+    // Preserve settings (especially language) across resets
+    const currentSettings = this.state?.settings || {
+        showHUD: true,
+        showBlood: true,
+        showDamageNumbers: true,
+        language: 'EN'
+    };
+
     const initialWeapons: Record<string, WeaponState> = {};
     Object.values(WeaponType).forEach(type => {
       initialWeapons[type] = {
@@ -311,16 +336,18 @@ export class GameEngine {
       isShopOpen: false,
       floatingTexts: [],
       
-      settings: {
-        showHUD: true,
-        showBlood: true,
-        showDamageNumbers: true,
-        language: 'EN'
-      },
+      settings: currentSettings, // Use preserved settings
       stats: {
         shotsFired: 0,
         shotsHit: 0,
         damageDealt: 0,
+        damageBySource: {
+            [DamageSource.PLAYER]: 0,
+            [DamageSource.TURRET]: 0,
+            [DamageSource.ALLY]: 0,
+            [DamageSource.ORBITAL]: 0,
+            [DamageSource.ENEMY]: 0
+        },
         killsByType: {
             [EnemyType.GRUNT]: 0,
             [EnemyType.RUSHER]: 0,
@@ -403,16 +430,16 @@ export class GameEngine {
       }
 
       setTimeout(() => {
-        this.addMessage(`ORBITAL DROP COST: -${dropCost} SCRAPS`, this.state.player.x, this.state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
+        this.addMessage(this.t('ORBITAL_DROP_COST', {0: dropCost}), this.state.player.x, this.state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
         if (this.state.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
              setTimeout(() => {
-                 this.addMessage(`ADAPTIVE DEFLECTOR ACTIVE`, this.state.player.x, this.state.player.y - 120, '#06b6d4', FloatingTextType.SYSTEM);
+                 this.addMessage(this.t('DEFLECTOR_ACTIVE'), this.state.player.x, this.state.player.y - 120, '#06b6d4', FloatingTextType.SYSTEM);
              }, 1000);
         }
         
         if (targetPlanet.missionType === MissionType.OFFENSE) {
              setTimeout(() => {
-                 this.addMessage(`MISSION: ASSAULT HIVE MOTHER`, this.state.player.x, this.state.player.y - 140, '#fca5a5', FloatingTextType.SYSTEM);
+                 this.addMessage(this.t('MISSION_ASSAULT'), this.state.player.x, this.state.player.y - 140, '#fca5a5', FloatingTextType.SYSTEM);
              }, 2000);
         }
       }, 1000);
@@ -445,6 +472,7 @@ export class GameEngine {
             this.state.spawnTimer += dt;
             const SPAWN_INTERVAL = 500; 
 
+            // Spawn Logic: decoupled from wave timer to allow cleanup spawns
             if (this.state.spawnTimer > SPAWN_INTERVAL) {
                 if (this.state.enemiesPendingSpawn > 0) {
                     this.spawnEnemy();
@@ -531,16 +559,16 @@ export class GameEngine {
           if (roll < 0.3) {
               this.state.activeSpecialEvent = SpecialEventType.FRENZY;
               isFrenzy = true;
-              this.addMessage("WARNING: FRENZY DETECTED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red', FloatingTextType.SYSTEM);
+              this.addMessage(this.t('FRENZY_DETECTED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red', FloatingTextType.SYSTEM);
           } else {
               if (this.state.gameMode === GameMode.SURVIVAL || (this.state.currentPlanet?.missionType === MissionType.DEFENSE)) {
                 this.state.activeSpecialEvent = SpecialEventType.BOSS;
                 this.spawnBoss(); 
-                this.addMessage("WARNING: APEX LIFEFORM", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'purple', FloatingTextType.SYSTEM);
+                this.addMessage(this.t('BOSS_DETECTED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'purple', FloatingTextType.SYSTEM);
               }
           }
       } else {
-          this.addMessage(`WAVE ${this.state.wave} STARTED`, WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM);
+          this.addMessage(this.t('WAVE_STARTED', {0: this.state.wave}), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM);
       }
 
       let newEnemies = 12 + 5 * this.state.wave;
@@ -552,6 +580,11 @@ export class GameEngine {
   }
 
   public skipWave() {
+      // Logic for checking if it's the last wave is handled here to prevent invalid wave increments
+      const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
+                                   this.state.currentPlanet?.missionType === MissionType.DEFENSE;
+      const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
+
       const elapsed = this.state.waveDuration - this.state.waveTimeRemaining;
       
       if (elapsed >= 10000) {
@@ -559,21 +592,17 @@ export class GameEngine {
           const reward = remainingSeconds * this.state.wave;
           
           this.state.player.score += reward;
-          this.addMessage(`LURE REWARD: +${reward}`, this.state.player.x, this.state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
+          this.addMessage(this.t('LURE_REWARD', {0: reward}), this.state.player.x, this.state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
           this.audio.playBaseDamage(); 
           
-          const isExplorationDefense = this.state.gameMode === GameMode.EXPLORATION &&
-                                       this.state.currentPlanet?.missionType === MissionType.DEFENSE;
-          const isLastWave = isExplorationDefense && this.state.wave >= (this.state.currentPlanet?.totalWaves || 0);
-
           if (isLastWave) {
               this.state.waveTimeRemaining = 0;
-              this.addMessage("FINAL WAVE ACCELERATED", this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
+              this.addMessage(this.t('FINAL_WAVE'), this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
           } else {
               this.nextWave();
           }
       } else {
-          this.addMessage("LURE RECHARGE PENDING...", this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
+          this.addMessage(this.t('LURE_PENDING'), this.state.player.x, this.state.player.y - 80, 'red', FloatingTextType.SYSTEM);
       }
   }
 
@@ -582,7 +611,13 @@ export class GameEngine {
   private spawnBoss() { this.enemyManager.spawnBoss(); }
   private spawnHiveMother(planet: Planet) { this.enemyManager.spawnHiveMother(planet); }
   
-  public damageEnemy(enemy: Enemy, amount: number) { this.enemyManager.damageEnemy(enemy, amount); }
+  public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { 
+      this.state.stats.damageDealt += amount;
+      if (this.state.stats.damageBySource) {
+          this.state.stats.damageBySource[source] += amount;
+      }
+      this.enemyManager.damageEnemy(enemy, amount, source); 
+  }
   public damagePlayer(amount: number) { this.playerManager.damagePlayer(amount); }
   public switchWeapon(index: number) { this.playerManager.switchWeapon(index); }
   public reloadWeapon(time: number) { this.playerManager.reloadWeapon(time); }
@@ -598,8 +633,8 @@ export class GameEngine {
   
   public spawnToxicZone(x: number, y: number) { this.fxManager.spawnToxicZone(x, y); }
   
-  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number) {
-      this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone, maxRange);
+  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY) {
+      this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone, maxRange, source);
   }
   
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.fxManager.spawnParticle(x, y, color, count, speed); }
@@ -621,7 +656,7 @@ export class GameEngine {
   public damageArea(x: number, y: number, radius: number, damage: number) {
       this.state.enemies.forEach(e => {
           if (Math.sqrt((e.x - x)**2 + (e.y - y)**2) < radius) {
-              this.damageEnemy(e, damage);
+              this.damageEnemy(e, damage, DamageSource.PLAYER); // Assume area damage (grenades) comes from player
           }
       });
   }
@@ -700,6 +735,8 @@ export class GameEngine {
   public exitOrbitalUpgradeMenu() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
   public enterCarapaceGrid() { this.state.appMode = AppMode.CARAPACE_GRID; }
   public exitCarapaceGrid() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
+  public enterShipComputer() { this.state.appMode = AppMode.SHIP_COMPUTER; }
+  public exitShipComputer() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
   public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; }
 
   public completeMission() {

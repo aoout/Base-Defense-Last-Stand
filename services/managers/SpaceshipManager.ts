@@ -1,5 +1,7 @@
+
+
 import { GameEngine } from '../gameService';
-import { GameMode, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType } from '../../types';
+import { GameMode, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource } from '../../types';
 import { PLAYER_STATS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
@@ -41,7 +43,7 @@ export class SpaceshipManager {
                     const carapaceMult = this.getCarapaceDamageMultiplier(closest.type);
                     const finalDamage = baseDamage * damageMultiplier * carapaceMult;
 
-                    this.engine.damageEnemy(closest, finalDamage);
+                    this.engine.damageEnemy(closest, finalDamage, DamageSource.ORBITAL);
                     
                     // Create Orbital Beam Visual
                     const beam: OrbitalBeam = {

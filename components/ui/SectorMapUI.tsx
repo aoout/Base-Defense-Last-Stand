@@ -1,10 +1,11 @@
 
+
+
 import React, { useState } from 'react';
 import { GameState } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { AtmosphereAnalysisModal } from './AtmosphereModal';
-import { ExplorationManual } from './ExplorationManual';
 
 interface SectorMapUIProps {
     state: GameState;
@@ -27,7 +28,6 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
 }) => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
     const [viewingAtmosphere, setViewingAtmosphere] = useState(false);
-    const [viewingManual, setViewingManual] = useState(false);
 
     // Calculate drop cost
     let dropCost = 0;
@@ -39,13 +39,9 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
 
     return (
         <div className="absolute inset-0 pointer-events-none">
-            {viewingManual && (
-                <ExplorationManual onClose={() => setViewingManual(false)} onCheat={onCheat} t={t} />
-            )}
-
             <div className="absolute top-8 left-8">
-                <h1 className="text-4xl font-bold text-white tracking-widest">SECTOR MAP</h1>
-                <p className="text-blue-400 font-mono text-sm">SELECT DESTINATION</p>
+                <h1 className="text-4xl font-bold text-white tracking-widest">{t('PLANET_ANALYSIS')}</h1>
+                <p className="text-blue-400 font-mono text-sm">{t('SECTOR_NAME')}</p>
             </div>
 
             <div className="absolute top-8 right-8 pointer-events-auto flex gap-4">
@@ -86,33 +82,15 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                 </button>
             </div>
 
-            {/* Manual Button (Bottom Right) */}
-             <div className="absolute bottom-8 right-8 pointer-events-auto">
-                <button 
-                onClick={() => setViewingManual(true)}
-                className="group flex items-center gap-3 px-6 py-3 bg-slate-900/90 border border-slate-600 hover:border-white transition-all overflow-hidden"
-                >
-                    <div className="flex flex-col items-end">
-                        <div className="text-xs text-slate-400 font-mono tracking-widest uppercase mb-1">{t('MANUAL_SUB')}</div>
-                        <div className="text-white font-bold tracking-wider">{t('MANUAL_BTN')}</div>
-                    </div>
-                    <div className="w-10 h-10 border border-slate-500 flex items-center justify-center bg-slate-800 text-slate-300 group-hover:bg-slate-700 group-hover:text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                    </div>
-                </button>
-            </div>
-
             {/* Current Scraps Display */}
             <div className="absolute bottom-8 left-64 bg-slate-900/80 p-4 border border-blue-900/50">
-                <div className="text-xs text-blue-400 font-bold uppercase tracking-widest">Available Funds</div>
+                <div className="text-xs text-blue-400 font-bold uppercase tracking-widest">{t('AVAILABLE_FUNDS')}</div>
                 <div className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
             </div>
 
             {/* Full Screen Atmosphere Modal */}
             {viewingAtmosphere && planet && (
-                <AtmosphereAnalysisModal planet={planet} onClose={() => setViewingAtmosphere(false)} />
+                <AtmosphereAnalysisModal planet={planet} onClose={() => setViewingAtmosphere(false)} t={t} />
             )}
 
             {planet && (
@@ -130,11 +108,11 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                         <div className="flex justify-between items-center mb-2">
                              <span className="text-xs text-blue-400 uppercase font-bold tracking-widest">{t('LANDING_DIFFICULTY')}</span>
                              <span className={`text-xs font-bold ${planet.landingDifficulty > 20 ? 'text-red-500' : planet.landingDifficulty > 10 ? 'text-yellow-500' : 'text-green-500'}`}>
-                                 {planet.landingDifficulty > 20 ? 'HIGH' : planet.landingDifficulty > 10 ? 'MEDIUM' : 'LOW'} ({planet.landingDifficulty}%)
+                                 {planet.landingDifficulty > 20 ? t('HIGH') : planet.landingDifficulty > 10 ? t('MEDIUM') : t('LOW')} ({planet.landingDifficulty}%)
                              </span>
                         </div>
                         <div className="flex justify-between items-center border-t border-blue-900/30 pt-2">
-                            <span className="text-gray-400 text-sm">DROP COST</span>
+                            <span className="text-gray-400 text-sm">{t('DROP_COST')}</span>
                             <span className="text-white font-mono text-lg font-bold">-{dropCost} SCRAPS</span>
                         </div>
                     </div>
@@ -146,7 +124,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                             ${canAfford ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
                         `}
                     >
-                        {canAfford ? 'INITIATE DROP' : 'INSUFFICIENT FUNDS'}
+                        {canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}
                     </button>
                 </div>
             )}

@@ -1,6 +1,8 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { Projectile, WeaponType, Entity } from '../../types';
+import { Projectile, WeaponType, Entity, DamageSource } from '../../types';
 
 export class ProjectileManager {
     private engine: GameEngine;
@@ -13,7 +15,7 @@ export class ProjectileManager {
         this.engine.state.projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY) {
         const angle = Math.atan2(ty - y, tx - x);
         this.engine.state.projectiles.push({
             id: `proj-${Date.now()}-${Math.random()}`,
@@ -29,7 +31,8 @@ export class ProjectileManager {
             targetId: homingTarget,
             isHoming,
             createsToxicZone,
-            maxRange: maxRange // Store initial range for potential visual effects (fade out etc)
+            maxRange: maxRange,
+            source
         });
     }
 
@@ -66,7 +69,7 @@ export class ProjectileManager {
                         const multiplier = this.engine.spaceshipManager.getCarapaceDamageMultiplier(e.type);
                         const finalDamage = p.damage * multiplier;
 
-                        this.engine.damageEnemy(e, finalDamage);
+                        this.engine.damageEnemy(e, finalDamage, p.source);
                         
                         // Piercing / Explosive Logic
                         if (p.isPiercing) {

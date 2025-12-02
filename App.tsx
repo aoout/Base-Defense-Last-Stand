@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -7,10 +9,8 @@ import { GameState, AllyOrder, TurretType, AppMode, WeaponType } from './types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './constants';
 
 const App: React.FC = () => {
-  // We use a ref for the engine so it persists across renders without triggering them
-  const engineRef = useRef<GameEngine>(new GameEngine());
-  
   // We use state only for the UI overlay to update at 60fps (or less if we throttle)
+  const engineRef = useRef<GameEngine>(new GameEngine());
   const [gameState, setGameState] = useState<GameState>(engineRef.current.state);
 
   useEffect(() => {
@@ -193,6 +193,10 @@ const App: React.FC = () => {
   // Evac
   const handleEmergencyEvac = () => { engineRef.current.emergencyEvac(); };
 
+  // Ship Computer
+  const handleOpenShipComputer = () => { engineRef.current.enterShipComputer(); };
+  const handleCloseShipComputer = () => { engineRef.current.exitShipComputer(); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -230,6 +234,8 @@ const App: React.FC = () => {
         onCloseCarapaceGrid={handleCloseCarapaceGrid}
         onPurchaseCarapaceNode={handlePurchaseCarapaceNode}
         onEmergencyEvac={handleEmergencyEvac}
+        onOpenShipComputer={handleOpenShipComputer}
+        onCloseShipComputer={handleCloseShipComputer}
       />
     </div>
   );
