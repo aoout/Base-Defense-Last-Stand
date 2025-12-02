@@ -91,7 +91,8 @@ export class EnemyManager {
 
     public spawnHiveMother(planet: Planet) {
         const stats = BOSS_STATS[BossType.HIVE_MOTHER];
-        let hp = 8000 * planet.geneStrength * (1 + 0.1 * planet.sulfurIndex);
+        // Updated formula: 14000 * Gene * (1 + 0.08 * Sulfur)
+        let hp = 14000 * planet.geneStrength * (1 + 0.08 * planet.sulfurIndex);
 
         this.engine.state.enemies.push({
             id: `hive-mother-${Date.now()}`,

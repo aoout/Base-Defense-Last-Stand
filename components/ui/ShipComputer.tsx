@@ -4,6 +4,7 @@ import { CloseButton } from './Shared';
 interface ShipComputerProps {
     onClose: () => void;
     t: (key: string) => string;
+    onCheat?: () => void;
 }
 
 interface WindowState {
@@ -62,7 +63,7 @@ const Window: React.FC<{
     </div>
 );
 
-export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, t }) => {
+export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, t, onCheat }) => {
     const [booting, setBooting] = useState(true);
     const [bootLog, setBootLog] = useState<string[]>([]);
     const [windows, setWindows] = useState<WindowState[]>([]);

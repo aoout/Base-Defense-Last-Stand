@@ -1,58 +1,65 @@
 
-# Base Defense: Last Stand
+# Base Defense: Last Stand - Developer Archives
 
-**Version**: 1.0.0  
-**Genre**: Top-Down Survival Shooter / Strategy  
-**Engine**: React + HTML5 Canvas  
+**Version**: 1.0.0
+**Engine**: React 18 + HTML5 Canvas + Web Audio API
+**Language**: TypeScript
 
-## Project Overview
+## Documentation Index
 
-*Base Defense: Last Stand* is a web-based survival game where players must defend a central base against endless waves of alien bio-forms. The game features a robust weapon modification system, base building mechanics, and an exploration mode involving planetary travel.
+The documentation for this project has been split into specific "Sector Files" for clarity and depth.
 
-### Key Features
-- **Survival Mode**: Endless waves of enemies with increasing difficulty.
-- **Exploration Mode**: Travel between procedurally generated planets with unique biomes and atmospheres.
-- **Weapon Assembly**: Modify weapons with modules (e.g., thermal rounds, rapid fire bolts).
-- **Base Defense**: Construct and upgrade automated turrets (Gauss, Sniper, Missile).
-- **Tactical Command**: Deploy and command AI squadmates.
+### [01. World Lore & Narrative](./01_WORLD_LORE.md)
+*   History of the Collapse
+*   The Mycelium Scourge Origins
+*   Project Vanguard & The Colossus
+*   The Philosophy of "Scraps" (Molecular Printing)
 
-## Directory Structure
+### [02. Weapon Data & Ballistics](./02_DATA_WEAPONS.md)
+*   **Code Reference**: `data/registry.ts`, `services/managers/PlayerManager.ts`
+*   Detailed stats for all firearms.
+*   Ammo economy.
+*   Weapon Module mechanics and math.
 
-- `components/`: React UI components.
-  - `GameCanvas.tsx`: Main rendering loop.
-  - `UIOverlay.tsx`: HUD and Menu orchestration.
-  - `ui/`: Individual UI widgets (Shop, Backpack, etc.).
-- `services/`: Core business logic.
-  - `gameService.ts`: The "God Class" handling state, updates, and physics.
-  - `audioService.ts`: WebAudio API synthesizer for SFX and Music.
-- `data/`: Static game data.
-  - `registry.ts`: Stats for weapons, enemies, and prices.
-  - `world.ts`: Biome definitions.
-  - `locales.ts`: Localization strings (EN/CN).
-- `utils/`: Helper functions.
-  - `renderers.ts`: Pure canvas drawing functions.
+### [03. Xenobiology (Enemy Data)](./03_DATA_XENOBIOLOGY.md)
+*   **Code Reference**: `data/registry.ts`, `services/managers/EnemyManager.ts`, `utils/enemyUtils.ts`
+*   Base stats for Grunts, Rushers, Tanks, Vipers, Kamikazes.
+*   Boss Mechanics (Red, Blue, Purple, Hive Mother).
+*   **Environmental Scaling Formulas** (Oxygen/Sulfur impact).
 
-## Development Guide
+### [04. Exploration & Economy Systems](./04_SYSTEM_EXPLORATION.md)
+*   **Code Reference**: `utils/worldGenerator.ts`, `services/managers/SpaceshipManager.ts`
+*   Procedural Planet Generation (Biomes, Atmosphere).
+*   The Upgrade Trees (Orbital, Carapace, Infrastructure).
+*   Mission Types (Defense vs. Offense).
 
-### Adding a New Weapon
-1. Add enum to `WeaponType` in `types.ts`.
-2. Define stats in `WEAPONS` in `data/registry.ts`.
-3. Add initial ammo in `INITIAL_AMMO`.
-4. Create a drawing function in `utils/renderers.ts` and update `drawPlayerSprite`.
-5. Add icon SVG in `components/ui/Shared.tsx`.
+### [05. Technical Architecture](./05_TECHNICAL_ARCHITECTURE.md)
+*   **Code Reference**: `services/gameService.ts`, `services/managers/TimeManager.ts`
+*   The "God Class" Pattern (`GameEngine`).
+*   **The Time Consistency Protocol** (Fixing `Date.now()` vs `performance.now()`).
+*   Save/Load Hydration logic.
 
-### Adding a New Enemy
-1. Add enum to `EnemyType` in `types.ts`.
-2. Define stats in `ENEMY_STATS` in `data/registry.ts`.
-3. Create a drawing function in `utils/renderers.ts`.
-4. Update `updateEnemies` in `gameService.ts` if special behavior is required (e.g., ranged attacks).
-5. Add entry to `BESTIARY_DB` in `data/registry.ts`.
+### [06. Art & Audio Direction](./06_ART_AND_AUDIO.md)
+*   **Code Reference**: `utils/renderers.ts`, `services/audioService.ts`
+*   Procedural Rendering techniques.
+*   UI Design Philosophy (Tactical/Diegetic).
+*   Synthesized Audio (Oscillators & Noise Buffers).
 
-## Developer Tools & Cheats
+---
 
-### Exploration Manual Backdoor
-A hidden developer console is accessible via the "Tactical Interstellar Operations Manual" in Exploration Mode.
-1. Open the Manual.
-2. In the footer command line input, type `cheat` and press **Enter**.
-   - **Effect**: Adds 99,999 Scraps to the player's funds.
-3. Type `close` or `exit` to close the manual.
+## Quick Start (Development)
+
+1.  **Install Dependencies**: `npm install`
+2.  **Run Dev Server**: `npm start`
+3.  **Build**: `npm run build`
+
+## Project Structure Overview
+
+*   `components/`: React UI overlay components.
+    *   `GameCanvas.tsx`: The visual heart of the game.
+    *   `UIOverlay.tsx`: The UI orchestrator.
+*   `services/`: Business logic.
+    *   `gameService.ts`: The central controller.
+    *   `managers/`: Sub-systems (Enemy, Player, Projectile, etc.).
+*   `data/`: Static configuration (Stats, Locales, World Gen rules).
+*   `utils/`: Pure functions (Rendering, Math, Generators).

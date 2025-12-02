@@ -1,81 +1,50 @@
 
+# VANGUARD OPERATIVE FIELD MANUAL
 
+**Status**: DECLASSIFIED
+**Distribution**: GENERAL INFANTRY
 
-# Operational Manual: Base Defense: Last Stand
+## Welcome to the Front
+You are a Vanguard Operative. Your goal is survival. Your method is superior firepower.
 
-**Classification**: TOP SECRET  
-**Version**: 3.7.0
+This document serves as a quick reference. For deep technical specifications, refer to the **Ship Computer** in-game.
 
-## 1. Game Mechanics
+## Core Directives
 
-### Mission Types
-- **DEFENSE (Standard)**: Hold the line against waves of enemies. Survive until the wave counter reaches zero.
-- **OFFENSE (New)**: Assault the Hive Mother. There are no waves. The mission ends when the Hive Mother is eliminated.
+1.  **PROTECT THE BASE**: The Molecular Printer is your lifeline. If it is destroyed, you are extracted, but the mission is a failure.
+2.  **HARVEST SCRAPS**: Every enemy kill provides carbon/metal particulates ("Scraps"). Use these to build defenses.
+3.  **ADAPT**: The planet is hostile. Use the environment or it will use you.
 
-### Defense Mode (Waves)
-- **Wave 1**: 30 Seconds.
-- **Spawning Queue**: Hostiles spawn every **0.5 seconds**. `12 + (5 * Wave Number)` hostiles per wave.
-- **Wave Acceleration**: Press **[L]** after 10s to skip the wave for bonus Scraps.
-- **Victory**: Clear all hostiles on the final wave.
+## Controls
 
-### Offense Mode (Hive Mother)
-- **Armor Plating**: Hive Mother starts with 90% Armor.
-- **Shedding Phase**: Every 30s, sheds 3% armor and spawns minions.
-- **Regeneration**: Heals based on **Oxygen** content.
+| Action | Key | Notes |
+| :--- | :--- | :--- |
+| **Move** | `W` `A` `S` `D` | Keep moving. Stationary targets are dead targets. |
+| **Shoot** | `Left Click` | Short controlled bursts improve accuracy. |
+| **Scope** | `Right Click` | Extends view range. Critical for Snipers. |
+| **Reload** | `R` | **Tactical Tip**: Reload *before* the mag is empty. |
+| **Grenade** | `G` | Clears swarms. Limited capacity. |
+| **Lure** | `L` | **Warning**: Enrages the swarm. Skipping wave timers grants massive resource bonuses. |
+| **Interact** | `E` | Build/Upgrade Turrets at hardpoints. |
+| **Shop** | `B` | Access Supply Depot (Must be near Base). |
+| **Backpack** | `C` | Manage inventory and weapon modules. |
+| **Command** | `TAB` | Issue orders to AI Squadmates. |
 
-### Operative Physiology
-- **Max Health**: 200 HP.
-- **Max Armor**: 100 Armor.
-- **Armor Mechanics**: 
-  - **Mitigation**: Absorbs **80%** of damage. 20% penetrates to HP.
-  - **Depletion**: When Armor is 0, 100% damage to HP.
-- **Regeneration**:
-  - **Armor**: 5s delay, 1/sec.
-  - **Health**: 10s delay, 0.5/sec.
+## The Enemy
 
-### Controls
-See In-Game Manual [PILOT] tab for interactive guide.
-- **WASD**: Move
-- **Mouse**: Aim/Fire
-- **R**: Reload
-- **G**: Grenade
-- **L**: Lure
-- **E**: Interact
-- **B**: Shop
-- **C**: Backpack
-- **TAB**: Tactical Menu
+*   **Grunts**: Weak alone, deadly in packs.
+*   **Rushers**: Fast. Orange shell. Prioritize immediately.
+*   **Tanks**: heavily armored. Kite them.
+*   **Kamikazes**: They glow purple. Do not let them get close.
+*   **Vipers**: Ranged spitters. They will whittle down your base from afar.
 
-### Localization
-Switch Language via Main Menu Globe Icon or Pause Menu Config.
+## Advanced Tactics
 
-## 2. In-Game Tactical Guide
-For detailed strategies, recommended loadouts, and enemy weakness analysis, please refer to the **"Tactical Interstellar Operations Manual"** available in the Exploration Mode map screen. This interactive guide provides specific advice for Defense and Offense missions.
+*   **Turret Synergy**: Use **Gauss Turrets** for close-range DPS and **Missile Turrets** (Level 2) for global map coverage.
+*   **Damage Types**:
+    *   **Explosive**: Good vs Swarms.
+    *   **Piercing** (Pulse/Flamer): Good vs Lines of enemies.
+    *   **High Caliber** (Sniper): Good vs Bosses/Tanks.
+*   **Extraction**: If you are overwhelmed in Exploration Mode, your progress (Scraps/Items) is saved, even if the mission fails. Don't be afraid to take risks.
 
-## 3. Exploration Mode
-- **Cryo-Memory**: Auto-saves state. 7 Slots. Supports Import/Export (See Manual > SYSTEMS).
-- **Emergency Extraction**: If Base HP hits 0, you are evacuated but mission fails.
-- **Modules**: Upgrade ship to unlock Orbital Strike, Analysis Grid, and Base Reinforcements.
-
-### Ship Modules
-- **Orbital Cannon**: Unlocks Orbital Upgrade Tree (7 Layers).
-- **Carapace Analyzer**: Unlocks 4x4 Xenobiology Matrix.
-- **Base Reinforcement**: Unlocks Infrastructure Research.
-
-### Infrastructure Research
-The **Base Reinforcement Module** grants access to the R&D department.
-- **Protocol**: 3 random research options are generated per cycle.
-- **Selection**: Commander may choose only **ONE** option per visit.
-- **Lockout**: After selection, R&D is locked until a mission is successfully completed.
-- **Capacity**: Maximum of 9 technologies can be acquired.
-- **Bonuses**: Include Base HP, Turret Stats (DMG/HP/Range/Rate), and Cost Reductions.
-
-### Biological Scaling Rules
-- **Oxygen (O2)**: Increases HP of Grunt/Rusher.
-- **Sulfur (S)**: Increases Kamikaze HP and Viper Damage.
-- **Gene Strength**: Global multiplier.
-
-## 4. Technical Appendix: Chrono-Synchronization
-**System Integrity Note**: The game engine utilizes a high-precision `TimeManager` to maintain simulation consistency across sessions.
-
-- **Timestamp Hydration**: When saving/loading, the engine converts absolute timestamps (like reload start time) into relative durations. This ensures that pausing, saving, or reloading the browser does not "jam" weapons or break health regeneration timers.
-- **Relative Reference**: All mechanics rely on `engine.time.now` rather than system wall-clock time, preventing issues with system date changes or browser suspension.
+*Good luck, Commander.*

@@ -2,6 +2,8 @@
 
 
 
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -414,7 +416,7 @@ Immediate spawn of next wave. No downtime for reload or regen.
         AMMO_GL_DESC: "+12 Rnds",
 
         // Weapon Shop Descs
-        WEAPON_PULSE_DESC: "Energy Weapon",
+        WEAPON_PULSE_DESC: "Piercing Energy (10% Decay)",
         WEAPON_FLAME_DESC: "Incendiary",
         WEAPON_GL_DESC: "Heavy Explosive",
 
@@ -1019,7 +1021,7 @@ function calculateEnemyCount(Wave) {
         AMMO_GL_DESC: "+12 发",
 
         // Weapon Shop Descs
-        WEAPON_PULSE_DESC: "能量武器",
+        WEAPON_PULSE_DESC: "穿透能量 (10% 穿透衰减)",
         WEAPON_FLAME_DESC: "燃烧武器",
         WEAPON_GL_DESC: "重型爆破",
 

@@ -59,16 +59,30 @@ export class ProjectileManager {
                 for (const e of state.enemies) {
                     const d = Math.sqrt((p.x - e.x)**2 + (p.y - e.y)**2);
                     if (d < e.radius + 5) {
+                        
+                        // PIERCING LOGIC: Check strictly if we already hit this unit to prevent multi-frame damage
+                        if (p.isPiercing) {
+                            if (!p.hitIds) p.hitIds = [];
+                            if (p.hitIds.includes(e.id)) continue; 
+                        }
+
                         const multiplier = this.engine.spaceshipManager.getCarapaceDamageMultiplier(e.type);
-                        const finalDamage = p.damage * multiplier;
+                        let finalDamage = p.damage * multiplier;
+
+                        // PULSE RIFLE DECAY LOGIC
+                        // Damage reduces by 10% for each enemy penetrated (0.9^n)
+                        if (p.isPiercing && p.weaponType === WeaponType.PULSE_RIFLE) {
+                            const hitCount = p.hitIds ? p.hitIds.length : 0;
+                            if (hitCount > 0) {
+                                finalDamage *= Math.pow(0.9, hitCount);
+                            }
+                        }
 
                         this.engine.damageEnemy(e, finalDamage, p.source);
                         
                         if (p.isPiercing) {
-                            if (!p.hitIds) p.hitIds = [];
-                            if (!p.hitIds.includes(e.id)) {
-                                p.hitIds.push(e.id);
-                            }
+                            // Already initialized hitIds above
+                            p.hitIds!.push(e.id);
                         } else if (p.isExplosive) {
                              this.engine.damageArea(p.x, p.y, 100, finalDamage);
                              this.engine.spawnParticle(p.x, p.y, '#f87171', 10, 10);
