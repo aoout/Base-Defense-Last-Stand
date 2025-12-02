@@ -251,6 +251,17 @@ Immediate spawn of next wave. No downtime for reload or regen.
         HIGH: "HIGH",
         MEDIUM: "MEDIUM",
         LOW: "LOW",
+        
+        // Planet Detail Screen
+        PLANETARY_SCAN: "PLANETARY SCAN COMPLETE",
+        HAZARD_ASSESSMENT: "HAZARD ASSESSMENT",
+        LAUNCH_WINDOW: "LAUNCH WINDOW",
+        TACTICAL_ASSESSMENT: "TACTICAL ASSESSMENT",
+        ATMOSPHERIC_BREAKDOWN: "ATMOSPHERIC BREAKDOWN",
+        ESTIMATED_HOSTILES: "EST. HOSTILES",
+        RESOURCE_DENSITY: "RESOURCE DENSITY",
+        SCAN_ID: "SCAN ID",
+        FULL_ANALYSIS_BTN: "FULL TACTICAL ANALYSIS",
 
         // Biomes
         BIOME_BARREN: "Barren",
@@ -259,7 +270,7 @@ Immediate spawn of next wave. No downtime for reload or regen.
         BIOME_DESERT: "Desert",
         BIOME_TOXIC: "Toxic",
 
-        // Atmosphere Modal
+        // Atmosphere Modal (Legacy/Reused)
         PLANET_ATMOS_ANALYSIS: "Planetary Atmosphere Analysis",
         SPECTROSCOPIC_DATA: "SPECTROSCOPIC DATA",
         ATMOS_DETAILS_PRE: "Full atmospheric breakdown of sector target",
@@ -824,6 +835,17 @@ function calculateEnemyCount(Wave) {
         HIGH: "高",
         MEDIUM: "中",
         LOW: "低",
+        
+        // Planet Detail Screen
+        PLANETARY_SCAN: "行星扫描完成",
+        HAZARD_ASSESSMENT: "环境危害评估",
+        LAUNCH_WINDOW: "发射窗口",
+        TACTICAL_ASSESSMENT: "战术评估",
+        ATMOSPHERIC_BREAKDOWN: "大气成分解析",
+        ESTIMATED_HOSTILES: "预计敌对单位",
+        RESOURCE_DENSITY: "资源密度",
+        SCAN_ID: "扫描 ID",
+        FULL_ANALYSIS_BTN: "完整战术分析",
 
         // Biomes
         BIOME_BARREN: "荒芜",
@@ -832,7 +854,7 @@ function calculateEnemyCount(Wave) {
         BIOME_DESERT: "沙漠",
         BIOME_TOXIC: "剧毒",
 
-        // Atmosphere Modal
+        // Atmosphere Modal (Legacy/Reused)
         PLANET_ATMOS_ANALYSIS: "行星大气分析",
         SPECTROSCOPIC_DATA: "光谱数据",
         ATMOS_DETAILS_PRE: "扇区目标",
@@ -1086,7 +1108,7 @@ function calculateEnemyCount(Wave) {
         // Mission Failed
         MISSION_FAILED: "任务失败",
         REPORT_ID: "报告 ID",
-        FINAL_SCORE: "最终得分",
+        FINAL_SCORE: "FINAL SCORE",
         RE_DEPLOY: "重新部署",
         SAVE_INTEL: "保存情报",
 

@@ -14,12 +14,15 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
     const requestRef = useRef<number>(0);
 
     useEffect(() => {
-        const renderPreview = () => {
+        const renderPreview = (time: number) => {
             if (!canvasRef.current) return;
             const ctx = canvasRef.current.getContext('2d');
             if (!ctx) return;
-            const w = canvasRef.current.width; const h = canvasRef.current.height; const time = Date.now();
-            ctx.clearRect(0, 0, w, h); ctx.fillStyle = '#020617'; ctx.fillRect(0, 0, w, h);
+            const w = canvasRef.current.width; 
+            const h = canvasRef.current.height; 
+            ctx.clearRect(0, 0, w, h); 
+            ctx.fillStyle = '#020617'; 
+            ctx.fillRect(0, 0, w, h);
             drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
             requestRef.current = requestAnimationFrame(renderPreview);
         };
@@ -68,15 +71,17 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
                      </div>
                  </div>
              </div>
-             <div className="bg-blue-950/20 p-4 border border-blue-900/50 flex flex-col gap-3 mt-2 flex-1">
+             
+             {/* Atmosphere Preview Box */}
+             <div 
+                className="group bg-blue-950/20 p-4 border border-blue-900/50 flex flex-col gap-3 mt-2 flex-1 cursor-pointer hover:bg-blue-900/30 transition-colors"
+                onClick={onShowDetail}
+             >
                   <div className="flex justify-between items-center">
                       <label className="text-blue-400 text-xs tracking-widest uppercase font-bold">{t('ATMOSPHERE_COMP')}</label>
-                      <button onClick={onShowDetail} className="text-[10px] text-cyan-400 hover:text-white underline cursor-pointer">{t('VIEW_ANALYSIS')}</button>
+                      <div className="text-[10px] text-cyan-500 group-hover:text-white transition-colors">{t('VIEW_ANALYSIS')} »</div>
                   </div>
-                  <div 
-                    onClick={onShowDetail}
-                    className="h-4 w-full flex rounded overflow-hidden bg-gray-900 cursor-pointer border border-blue-900/30 hover:border-cyan-400 transition-all shadow-sm"
-                  >
+                  <div className="h-4 w-full flex rounded overflow-hidden bg-gray-900 border border-blue-900/30 group-hover:border-cyan-400 transition-all shadow-sm">
                       {planet.atmosphere.map((gas, i) => (
                           <div key={i} style={{ width: `${gas.percentage * 100}%`, backgroundColor: gas.color }}></div>
                       ))}

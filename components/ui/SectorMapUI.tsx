@@ -1,8 +1,9 @@
+
 import React, { useState } from 'react';
 import { GameState } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
-import { AtmosphereAnalysisModal } from './AtmosphereModal';
+import { PlanetDetailScreen } from './PlanetDetailScreen';
 
 interface SectorMapUIProps {
     state: GameState;
@@ -11,7 +12,7 @@ interface SectorMapUIProps {
     onDeployPlanet: (id: string) => void;
     onDeselectPlanet: () => void;
     onCheat: () => void;
-    t: (key: string) => string;
+    t: (key: string, params?: any) => string;
 }
 
 export const SectorMapUI: React.FC<SectorMapUIProps> = ({ 
@@ -24,14 +25,14 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
     t
 }) => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
-    const [viewingAtmosphere, setViewingAtmosphere] = useState(false);
+    const [viewingDetail, setViewingDetail] = useState(false);
 
     // Calculate drop cost
     let dropCost = 0;
     let canAfford = false;
     if (planet) {
         dropCost = Math.floor(state.player.score * (planet.landingDifficulty / 100));
-        canAfford = state.player.score >= dropCost; // Should always be true since it's % based, but safe to check
+        canAfford = state.player.score >= dropCost; 
     }
 
     return (
@@ -85,19 +86,27 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                 <div className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
             </div>
 
-            {/* Full Screen Atmosphere Modal */}
-            {viewingAtmosphere && planet && (
-                <AtmosphereAnalysisModal planet={planet} onClose={() => setViewingAtmosphere(false)} t={t} />
+            {/* Full Screen Detail View */}
+            {viewingDetail && planet && (
+                <PlanetDetailScreen 
+                    planet={planet} 
+                    currentScraps={state.player.score}
+                    dropCost={dropCost}
+                    canAfford={canAfford}
+                    onClose={() => setViewingDetail(false)} 
+                    onDeploy={() => onDeployPlanet(planet.id)}
+                    t={t} 
+                />
             )}
 
-            {planet && (
+            {planet && !viewingDetail && (
                 <div className="absolute top-1/2 right-12 -translate-y-1/2 w-96 bg-gray-900/90 border border-blue-500 p-8 pointer-events-auto backdrop-blur-md">
                     <CloseButton onClick={onDeselectPlanet} colorClass="border-blue-500 text-blue-500 hover:text-white hover:bg-blue-900/50" />
                     
                     <PlanetInfoPanel 
                         planet={planet} 
                         t={t} 
-                        onShowDetail={() => setViewingAtmosphere(true)}
+                        onShowDetail={() => setViewingDetail(true)}
                     />
                     
                     {/* Landing Cost Section */}
@@ -114,15 +123,31 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                         </div>
                     </div>
 
-                    <button 
-                        onClick={() => onDeployPlanet(planet.id)}
-                        disabled={!canAfford}
-                        className={`w-full mt-2 py-4 font-bold tracking-[0.2em] transition-all
-                            ${canAfford ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-700 text-gray-500 cursor-not-allowed'}
-                        `}
-                    >
-                        {canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}
-                    </button>
+                    <div className="flex flex-col gap-3 mt-4">
+                        <button 
+                            onClick={() => onDeployPlanet(planet.id)}
+                            disabled={!canAfford}
+                            className={`
+                                w-full py-4 relative overflow-hidden group transition-all border
+                                ${canAfford 
+                                    ? 'bg-red-600 hover:bg-red-500 border-red-500 text-white' 
+                                    : 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'}
+                            `}
+                        >
+                            <div className="relative z-10 flex items-center justify-center gap-2">
+                                {canAfford && <span className="animate-pulse">⚠</span>}
+                                <span className="font-black tracking-[0.2em]">{canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}</span>
+                            </div>
+                            {canAfford && <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12"></div>}
+                        </button>
+
+                        <button 
+                            onClick={() => setViewingDetail(true)}
+                            className="w-full py-3 bg-slate-900 border border-blue-500/50 hover:border-cyan-400 hover:bg-slate-800 text-cyan-500 hover:text-white font-bold tracking-widest text-xs transition-all"
+                        >
+                            {t('FULL_ANALYSIS_BTN')}
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
