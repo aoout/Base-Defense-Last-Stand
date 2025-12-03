@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
@@ -84,7 +82,7 @@ interface UIOverlayProps {
   onCloseShipComputer: () => void;
 }
 
-const VisorOverlay: React.FC = () => (
+const VisorOverlay: React.FC = React.memo(() => (
     <div className="absolute inset-0 pointer-events-none z-[999] overflow-hidden select-none">
         {/* Vignette */}
         <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_60%,rgba(0,0,0,0.6)_100%)]"></div>
@@ -101,7 +99,7 @@ const VisorOverlay: React.FC = () => (
         <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-cyan-500/30"></div>
         <div className="absolute bottom-4 right-4 w-8 h-8 border-b-2 border-r-2 border-cyan-500/30"></div>
     </div>
-);
+));
 
 const UIOverlay: React.FC<UIOverlayProps> = ({ 
     state, 

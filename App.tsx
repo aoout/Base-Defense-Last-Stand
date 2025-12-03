@@ -1,8 +1,4 @@
 
-
-
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -113,10 +109,10 @@ const App: React.FC = () => {
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('contextmenu', handleContextMenu);
 
-    // Sync state loop
+    // Sync state loop - OPTIMIZED to 20 FPS (50ms) to reduce React Reconciliation overhead
     const interval = setInterval(() => {
         setGameState({...engine.state}); 
-    }, 1000 / 30); 
+    }, 50); 
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);

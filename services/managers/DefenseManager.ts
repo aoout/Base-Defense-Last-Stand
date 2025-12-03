@@ -1,6 +1,4 @@
 
-
-
 import { GameEngine } from '../gameService';
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
@@ -8,6 +6,7 @@ import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export class DefenseManager {
     private engine: GameEngine;
+    private targetCache: Enemy[] = []; // Reusable array for targeting
 
     constructor(engine: GameEngine) {
         this.engine = engine;
@@ -45,18 +44,23 @@ export class DefenseManager {
         // Ally Logic
         state.allies.forEach(a => {
             let target: Enemy | null = null;
-            let minDist = 400; 
-            state.enemies.forEach(e => {
-                const d = Math.sqrt((e.x - a.x)**2 + (e.y - a.y)**2);
-                if (d < minDist) {
-                    minDist = d;
+            let minDistSq = 400 * 400; // Squared distance check
+            
+            // Optimization: Query nearby enemies instead of full scan
+            this.targetCache.length = 0;
+            this.engine.spatialGrid.query(a.x, a.y, 400, this.targetCache);
+
+            for (const e of this.targetCache) {
+                const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
+                if (dSq < minDistSq) {
+                    minDistSq = dSq;
                     target = e;
                 }
-            });
+            }
 
             if (target) {
                 a.state = 'COMBAT';
-                const d = Math.sqrt((target.x - a.x)**2 + (target.y - a.y)**2);
+                const d = Math.sqrt(minDistSq); // Needed for movement logic
                 const idealDist = 200;
                 let moveAngle = Math.atan2(target.y - a.y, target.x - a.x);
                 
@@ -76,7 +80,6 @@ export class DefenseManager {
                 }
             } else {
                 a.state = 'PATROL';
-                // Return to patrol point logic could be improved here, but keeping basic for now
                 const dx = a.patrolPoint.x - a.x;
                 const dy = a.patrolPoint.y - a.y;
                 if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
@@ -112,15 +115,27 @@ export class DefenseManager {
             
             if (time - t.lastFireTime > t.fireRate) {
                 let target: Enemy | null = null;
-                let minDist = t.range;
+                let minDistSq = t.range * t.range;
                 
-                state.enemies.forEach(e => {
-                    const d = Math.sqrt((e.x - spot.x)**2 + (e.y - spot.y)**2);
-                    if (d < minDist) {
-                        minDist = d;
+                // Spatial Grid Optimization
+                
+                let possibleTargets: Enemy[] = [];
+                if (t.range > 2000) {
+                    // Global Range (Missile) - Scan all
+                    possibleTargets = state.enemies;
+                } else {
+                    this.targetCache.length = 0;
+                    this.engine.spatialGrid.query(spot.x, spot.y, t.range, this.targetCache);
+                    possibleTargets = this.targetCache;
+                }
+
+                for (const e of possibleTargets) {
+                    const dSq = (e.x - spot.x)**2 + (e.y - spot.y)**2;
+                    if (dSq < minDistSq) {
+                        minDistSq = dSq;
                         target = e;
                     }
-                });
+                }
 
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
@@ -138,11 +153,12 @@ export class DefenseManager {
         const sm = this.engine.spaceshipManager;
         
         let closestSpot = -1;
-        let minDst = 60;
+        let minDstSq = 60 * 60;
+        
         state.turretSpots.forEach((s, i) => {
-            const d = Math.sqrt((s.x - p.x)**2 + (s.y - p.y)**2);
-            if (d < minDst) {
-                minDst = d;
+            const dSq = (s.x - p.x)**2 + (s.y - p.y)**2;
+            if (dSq < minDstSq) {
+                minDstSq = dSq;
                 closestSpot = i;
             }
         });
@@ -189,6 +205,7 @@ export class DefenseManager {
                     this.engine.addMessage("INSUFFICIENT FUNDS", p.x, p.y - 50, 'red', FloatingTextType.SYSTEM);
                 }
             } else {
+                // Prevent interaction for upgrades on max level turrets
                 if (spot.builtTurret.level < 2) {
                     state.activeTurretId = closestSpot;
                 }

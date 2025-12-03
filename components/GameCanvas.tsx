@@ -1,9 +1,11 @@
+
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
 import { GameState, WeaponType, BossType, AppMode } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
 import { 
-    drawTerrain, drawBloodStains, drawToxicZones, drawTurret, 
+    renderStaticTerrainToCache, drawDynamicTerrainFeatures, drawCachedTerrain,
+    drawBloodStains, drawToxicZones, drawTurret, 
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
     drawBase, drawTurretSpot, drawProjectile,
@@ -17,6 +19,10 @@ interface GameCanvasProps {
 const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>(0);
+  
+  // Cache System Refs
+  const terrainCacheRef = useRef<HTMLCanvasElement | null>(null);
+  const lastTerrainRef = useRef<any>(null); // To detect changes in terrain object reference
 
   const render = (time: number) => {
     const canvas = canvasRef.current;
@@ -51,8 +57,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // Apply Camera Translate
     ctx.translate(-camera.x, -camera.y);
 
-    // 1. Draw Space Terrain (Background)
-    drawTerrain(ctx, state.terrain, state.gameMode, state.currentPlanet);
+    // 1. Draw Space Terrain (Background) - Optimized Cache
+    if (state.terrain !== lastTerrainRef.current) {
+        // Regenerate cache if terrain reference changed (New planet or reset)
+        terrainCacheRef.current = renderStaticTerrainToCache(state.terrain, state.gameMode, state.currentPlanet);
+        lastTerrainRef.current = state.terrain;
+    }
+
+    if (terrainCacheRef.current) {
+        drawCachedTerrain(ctx, terrainCacheRef.current);
+    }
+    // Draw only animated parts (Magma, Trees, Spores) on top of cache
+    drawDynamicTerrainFeatures(ctx, state.terrain, time);
     
     // 2. Draw Blood Stains (Under everything else)
     if (state.settings.showBlood) {
@@ -236,4 +252,4 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   );
 };
 
-export default GameCanvas;
+export default React.memo(GameCanvas);

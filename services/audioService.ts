@@ -1,6 +1,4 @@
 
-
-
 import { WeaponType } from "../types";
 
 export class AudioService {
@@ -9,6 +7,7 @@ export class AudioService {
   private bgmNodes: AudioNode[] = [];
   private isBgmPlaying: boolean = false;
   private noiseBuffer: AudioBuffer | null = null;
+  private lastPlayTime: Record<string, number> = {};
 
   constructor() {
     // Initialize AudioContext (it will be suspended initially)
@@ -137,6 +136,16 @@ export class AudioService {
   // --- SFX Methods ---
 
   public playWeaponFire(type: WeaponType) {
+    const now = Date.now();
+    const last = this.lastPlayTime[type] || 0;
+    
+    // Throttle high frequency sounds
+    if (type === WeaponType.FLAMETHROWER && now - last < 100) return;
+    if (type === WeaponType.AR && now - last < 80) return;
+    if (type === WeaponType.PULSE_RIFLE && now - last < 80) return;
+
+    this.lastPlayTime[type] = now;
+
     switch (type) {
       case WeaponType.AR:
         // Mechanical punch + noise

@@ -12,15 +12,24 @@ const pRand = (seed: number) => {
     return Math.abs(Math.sin(seed * 12.9898 + 78.233) * 43758.5453) % 1;
 };
 
-export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null) => {
+// New Optimization: Render static terrain to an off-screen canvas once
+export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null): HTMLCanvasElement => {
+    const canvas = document.createElement('canvas');
+    canvas.width = WORLD_WIDTH;
+    canvas.height = WORLD_HEIGHT;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
     let style = BIOME_STYLES[BiomeType.BARREN];
     if (gameMode === GameMode.EXPLORATION && planet) {
         style = BIOME_STYLES[planet.biome] || BIOME_STYLES[BiomeType.BARREN];
     }
 
+    // 1. Ground Color
     ctx.fillStyle = style.groundColor; 
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
+    // 2. Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -28,13 +37,16 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
     for(let i=0; i<WORLD_HEIGHT; i+=200) { ctx.moveTo(0,i); ctx.lineTo(WORLD_WIDTH, i); }
     ctx.stroke();
 
+    // 3. Static Features
     terrain.forEach((t, idx) => {
+        // Skip dynamic types
+        if ([TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
+
         ctx.save();
         ctx.translate(t.x, t.y);
         if (t.rotation) ctx.rotate(t.rotation);
         
-        const seed = t.x * t.y + idx;
-
+        // Draw logic for static types
         if (t.type === TerrainType.DUST) {
             ctx.fillStyle = t.color || style.dustColor; 
             ctx.globalAlpha = t.opacity || 0.2;
@@ -85,38 +97,6 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath(); ctx.arc(2, 2, t.radius * 0.8, 0, Math.PI*2); ctx.fill();
         }
-        else if (t.type === TerrainType.MAGMA_POOL) {
-            const pulse = Math.sin(Date.now() * 0.002 + idx) * 0.05 + 1;
-            
-            const grad = ctx.createRadialGradient(0,0, t.radius * 0.2, 0,0, t.radius);
-            grad.addColorStop(0, '#fef08a'); 
-            grad.addColorStop(0.4, '#ef4444'); 
-            grad.addColorStop(1, 'rgba(69, 10, 10, 0)'); 
-            
-            ctx.fillStyle = grad;
-            ctx.globalAlpha = 0.9;
-            
-            ctx.beginPath();
-            const segments = 12;
-            for(let i=0; i<=segments; i++) {
-                const angle = (i/segments)*Math.PI*2;
-                const offset = Math.sin(angle * 4 + seed) * 5 * pulse;
-                const r = t.radius + offset;
-                ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
-            }
-            ctx.fill();
-            
-            const bubbleTime = Date.now() * 0.001;
-            for(let j=0; j<3; j++) {
-                const bx = Math.sin(bubbleTime + j + seed) * t.radius * 0.5;
-                const by = Math.cos(bubbleTime * 0.8 + j + seed) * t.radius * 0.5;
-                const br = 2 + Math.sin(bubbleTime * 2 + j) * 1;
-                if (br > 0) {
-                    ctx.fillStyle = '#fef9c3';
-                    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.fill();
-                }
-            }
-        }
         else if (t.type === TerrainType.ICE_SPIKE) {
             ctx.fillStyle = 'rgba(0,0,0,0.3)';
             ctx.beginPath();
@@ -143,23 +123,6 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             ctx.lineTo(-t.radius * 0.35, t.radius * 0.2);
             ctx.fill();
         }
-        else if (t.type === TerrainType.ALIEN_TREE) {
-            ctx.fillStyle = '#4a044e'; 
-            ctx.beginPath();
-            ctx.moveTo(-3, 0); ctx.lineTo(-2, -t.radius); ctx.lineTo(2, -t.radius); ctx.lineTo(3, 0);
-            ctx.fill();
-            
-            const pulse = Math.sin(Date.now() * 0.001 + seed) * 0.05 + 1;
-            ctx.fillStyle = t.variant === 0 ? '#15803d' : t.variant === 1 ? '#be123c' : '#7e22ce';
-            ctx.beginPath();
-            ctx.arc(0, -t.radius, t.radius * 0.7 * pulse, 0, Math.PI*2);
-            ctx.fill();
-            
-            ctx.fillStyle = '#fff';
-            ctx.globalAlpha = 0.4;
-            ctx.beginPath(); ctx.arc(-3, -t.radius-3, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(4, -t.radius+2, 1.5, 0, Math.PI*2); ctx.fill();
-        }
         else if (t.type === TerrainType.CRYSTAL) {
             ctx.fillStyle = 'rgba(216, 180, 254, 0.4)';
             ctx.beginPath();
@@ -173,14 +136,83 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
             ctx.lineWidth = 1;
             ctx.stroke();
             
-            ctx.shadowColor = '#d8b4fe';
-            ctx.shadowBlur = 10;
+            // Removed shadowBlur from crystal for performance
             ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(0, -t.radius*0.5, 2, 0, Math.PI*2); ctx.fill();
-            ctx.shadowBlur = 0;
+        }
+
+        ctx.restore();
+    });
+
+    // 4. Atmosphere Tint
+    if (style.atmosphereColor !== 'rgba(0,0,0,0)') {
+        ctx.fillStyle = style.atmosphereColor;
+        ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    }
+
+    return canvas;
+};
+
+export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], time: number) => {
+    terrain.forEach((t, idx) => {
+        if (![TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
+
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        if (t.rotation) ctx.rotate(t.rotation);
+        const seed = t.x * t.y + idx;
+
+        if (t.type === TerrainType.MAGMA_POOL) {
+            const pulse = Math.sin(time * 0.002 + idx) * 0.05 + 1;
+            
+            const grad = ctx.createRadialGradient(0,0, t.radius * 0.2, 0,0, t.radius);
+            grad.addColorStop(0, '#fef08a'); 
+            grad.addColorStop(0.4, '#ef4444'); 
+            grad.addColorStop(1, 'rgba(69, 10, 10, 0)'); 
+            
+            ctx.fillStyle = grad;
+            ctx.globalAlpha = 0.9;
+            
+            ctx.beginPath();
+            const segments = 12;
+            for(let i=0; i<=segments; i++) {
+                const angle = (i/segments)*Math.PI*2;
+                const offset = Math.sin(angle * 4 + seed) * 5 * pulse;
+                const r = t.radius + offset;
+                ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+            }
+            ctx.fill();
+            
+            const bubbleTime = time * 0.001;
+            for(let j=0; j<3; j++) {
+                const bx = Math.sin(bubbleTime + j + seed) * t.radius * 0.5;
+                const by = Math.cos(bubbleTime * 0.8 + j + seed) * t.radius * 0.5;
+                const br = 2 + Math.sin(bubbleTime * 2 + j) * 1;
+                if (br > 0) {
+                    ctx.fillStyle = '#fef9c3';
+                    ctx.beginPath(); ctx.arc(bx, by, br, 0, Math.PI*2); ctx.fill();
+                }
+            }
+        }
+        else if (t.type === TerrainType.ALIEN_TREE) {
+            ctx.fillStyle = '#4a044e'; 
+            ctx.beginPath();
+            ctx.moveTo(-3, 0); ctx.lineTo(-2, -t.radius); ctx.lineTo(2, -t.radius); ctx.lineTo(3, 0);
+            ctx.fill();
+            
+            const pulse = Math.sin(time * 0.001 + seed) * 0.05 + 1;
+            ctx.fillStyle = t.variant === 0 ? '#15803d' : t.variant === 1 ? '#be123c' : '#7e22ce';
+            ctx.beginPath();
+            ctx.arc(0, -t.radius, t.radius * 0.7 * pulse, 0, Math.PI*2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#fff';
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath(); ctx.arc(-3, -t.radius-3, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(4, -t.radius+2, 1.5, 0, Math.PI*2); ctx.fill();
         }
         else if (t.type === TerrainType.SPORE_POD) {
-            const pulse = (Math.sin(Date.now() * 0.003 + seed) + 1) * 0.5;
+            const pulse = (Math.sin(time * 0.003 + seed) + 1) * 0.5;
             ctx.fillStyle = '#365314'; 
             ctx.beginPath(); ctx.arc(0, 0, t.radius, 0, Math.PI*2); ctx.fill();
             
@@ -190,15 +222,21 @@ export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeatu
 
         ctx.restore();
     });
+};
 
-    if (style.atmosphereColor !== 'rgba(0,0,0,0)') {
-        ctx.fillStyle = style.atmosphereColor;
-        ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    }
-}
+export const drawCachedTerrain = (ctx: CanvasRenderingContext2D, cache: HTMLCanvasElement) => {
+    ctx.drawImage(cache, 0, 0);
+};
+
+export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null) => {
+    const cache = renderStaticTerrainToCache(terrain, gameMode, planet);
+    ctx.drawImage(cache, 0, 0);
+    drawDynamicTerrainFeatures(ctx, terrain, Date.now());
+};
 
 export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[]) => {
     stains.forEach(s => {
+        // Opacity requires state change, so we must save/restore or manually reset globalAlpha
         ctx.save();
         ctx.translate(s.x, s.y);
         const opacity = Math.min(0.7, s.life / 1000); 
@@ -236,6 +274,8 @@ export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[]
     });
 }
 
+// ... (drawAR, drawSG, etc. kept as internal helpers if needed, or inline them if desired. 
+// For brevity, assuming they exist above or we just keep the file structure intact)
 const drawAR = (ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = '#374151'; ctx.fillRect(-10, -3, 8, 6);
     ctx.fillStyle = '#1F2937'; ctx.fillRect(-2, -4, 16, 8);
@@ -279,14 +319,23 @@ const drawGL = (ctx: CanvasRenderingContext2D) => {
 };
 
 const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
-    ctx.fillStyle = '#FEF08A'; ctx.shadowColor = '#F59E0B'; ctx.shadowBlur = 10;
+    // REMOVED SHADOW BLUR FOR PERFORMANCE
+    // Using Fake Glow (larger translucent circle behind)
+    
     let xOffset = 26;
     if (type === WeaponType.SR) xOffset = 42;
     if (type === WeaponType.PISTOL) xOffset = 15;
-    if (type === WeaponType.PULSE_RIFLE) { ctx.fillStyle = '#67E8F9'; ctx.shadowColor = '#06B6D4'; }
+    
+    // Fake Glow
+    ctx.fillStyle = type === WeaponType.PULSE_RIFLE ? 'rgba(6, 182, 212, 0.4)' : 'rgba(245, 158, 11, 0.4)';
+    ctx.beginPath(); ctx.arc(xOffset + 5, 0, 15, 0, Math.PI*2); ctx.fill();
+
+    // Core Flash
+    ctx.fillStyle = '#FEF08A'; 
+    if (type === WeaponType.PULSE_RIFLE) { ctx.fillStyle = '#67E8F9'; }
     const size = type === WeaponType.SG ? 12 : 8;
     ctx.beginPath(); ctx.moveTo(xOffset, 0); ctx.lineTo(xOffset + size, -size/2); ctx.lineTo(xOffset + size*0.8, 0); ctx.lineTo(xOffset + size, size/2);
-    ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.closePath(); ctx.fill(); 
 };
 
 export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number, isMoving: boolean) => {
@@ -301,8 +350,13 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
     ctx.beginPath(); ctx.ellipse(0, 11, 6, 8, 0, 0, Math.PI*2); ctx.fill(); 
 
     ctx.fillStyle = '#2563EB'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#93C5FD'; ctx.shadowColor = '#60A5FA'; ctx.shadowBlur = 5;
-    ctx.beginPath(); ctx.ellipse(4, 0, 4, 7, 0, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0;
+    
+    // Manual glow
+    ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
+    ctx.beginPath(); ctx.ellipse(4, 0, 6, 9, 0, 0, Math.PI*2); ctx.fill();
+    
+    ctx.fillStyle = '#93C5FD'; 
+    ctx.beginPath(); ctx.ellipse(4, 0, 4, 7, 0, 0, Math.PI*2); ctx.fill(); 
 
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
     const weaponState = p.weapons[currentWeaponType];
@@ -519,14 +573,21 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
 };
 
 export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => {
+    // Optimization: Manual Transform State Management
+    // REMOVED ALL SHADOWBLUR calls for massive GPU optimization
+    
+    ctx.translate(p.x, p.y);
+    
     if (p.isHoming) {
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
-        ctx.fillStyle = p.color; ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -3); ctx.lineTo(-4, 3); ctx.closePath(); ctx.fill();
-        ctx.fillStyle = '#FBBF24'; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-8, -2); ctx.lineTo(-8, 2); ctx.fill();
-        ctx.restore();
+        ctx.rotate(p.angle);
+        ctx.fillStyle = p.color; 
+        ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -3); ctx.lineTo(-4, 3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#FBBF24'; 
+        ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-8, -2); ctx.lineTo(-8, 2); ctx.fill();
+        ctx.rotate(-p.angle);
     } else if (p.createsToxicZone) {
-        ctx.fillStyle = '#A855F7'; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
-        if (Math.random() < 0.3) { ctx.fillStyle = '#D8B4FE'; ctx.beginPath(); ctx.arc(p.x, p.y, 1, 0, Math.PI*2); ctx.fill(); }
+        ctx.fillStyle = '#A855F7'; ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+        if (Math.random() < 0.3) { ctx.fillStyle = '#D8B4FE'; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI*2); ctx.fill(); }
     } else if (p.weaponType === WeaponType.FLAMETHROWER) {
          const maxRange = p.maxRange || 350;
          const lifePct = (maxRange - p.rangeRemaining) / maxRange;
@@ -536,15 +597,38 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
          if (lifePct > 0.3) color = 'rgba(255, 100, 0, 0.7)'; 
          if (lifePct > 0.6) color = 'rgba(200, 20, 20, 0.5)'; 
          if (lifePct > 0.8) color = 'rgba(50, 50, 50, 0.3)'; 
-         ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p.x, p.y, currentRadius, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+         
+         ctx.globalCompositeOperation = 'lighter'; 
+         ctx.fillStyle = color; 
+         ctx.beginPath(); ctx.arc(0, 0, currentRadius, 0, Math.PI * 2); ctx.fill(); 
+         ctx.globalCompositeOperation = 'source-over';
     } else {
-        ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx*2, p.y - p.vy*2); ctx.strokeStyle = p.color; ctx.globalAlpha = 0.5; ctx.stroke(); ctx.globalAlpha = 1.0;
+        // STANDARD BULLET OPTIMIZATION
+        
+        // FAKE GLOW for specialized weapons
+        if (p.weaponType === WeaponType.PULSE_RIFLE) {
+            ctx.fillStyle = 'rgba(34, 211, 238, 0.3)'; // Low opacity cyan
+            ctx.beginPath(); ctx.arc(0, 0, p.radius * 2.5, 0, Math.PI*2); ctx.fill();
+        } else if (p.weaponType === WeaponType.SR) {
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
+            ctx.beginPath(); ctx.arc(0, 0, p.radius * 2, 0, Math.PI*2); ctx.fill();
+        }
+
+        ctx.fillStyle = p.color; 
+        ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
+        
+        // Trail
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-p.vx*2, -p.vy*2); 
+        ctx.strokeStyle = p.color; 
+        ctx.globalAlpha = 0.5; 
+        ctx.stroke(); 
+        ctx.globalAlpha = 1.0;
     }
+
+    ctx.translate(-p.x, -p.y);
 }
 
-// ... [Keep existing Enemy renderers] ...
-// ... [drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother] ...
+// ... (drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBosses maintained below) ...
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const wiggle = Math.sin(time * 0.02) * 2;
     const breathe = Math.sin(time * 0.005) * 1;
@@ -762,10 +846,9 @@ export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number)
     ctx.fill();
 
     ctx.fillStyle = '#34d399'; 
-    ctx.shadowColor = '#34d399'; ctx.shadowBlur = 5; 
+    // shadowBlur removed for performance
     ctx.beginPath(); ctx.arc(-5, 10 + flap*5, 2, 0, Math.PI*2); ctx.fill(); 
     ctx.beginPath(); ctx.arc(-5, -10 - flap*5, 2, 0, Math.PI*2); ctx.fill(); 
-    ctx.shadowBlur = 0;
 }
 
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
@@ -824,13 +907,16 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
         }
     }
 
-    ctx.shadowColor = '#ef4444';
-    ctx.shadowBlur = 20;
+    // Fake glow instead of shadowBlur
+    ctx.fillStyle = `rgba(254, 226, 226, 0.3)`;
+    ctx.beginPath();
+    ctx.arc(0, 0, 25, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.fillStyle = '#fee2e2';
     ctx.beginPath();
     ctx.arc(0, 0, 15 + Math.sin(time * 0.01) * 5, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
     ctx.strokeStyle = '#7f1d1d';
     ctx.lineWidth = 3;
@@ -849,6 +935,7 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
     }
 }
 
+// ... (drawPlanetSprite, drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText unchanged) ...
 export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, x: number, y: number, radius: number, time: number, isSelected: boolean) => {
     ctx.save();
     ctx.translate(x, y);
@@ -917,12 +1004,10 @@ export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, 
             ctx.fill();
         }
         
-        ctx.shadowColor = '#ea580c'; 
-        ctx.shadowBlur = 20;
+        // Removed ShadowBlur
         ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
         ctx.lineWidth = 2;
         ctx.stroke(); 
-        ctx.shadowBlur = 0;
     }
     else if (planet.visualType === PlanetVisualType.TERRAN) {
         ctx.fillStyle = '#15803d'; 
@@ -1130,9 +1215,8 @@ export const drawFloatingText = (ctx: CanvasRenderingContext2D, ft: FloatingText
     ctx.textBaseline = 'middle';
     
     ctx.fillStyle = ft.color;
-    ctx.shadowColor = ft.color;
-    ctx.shadowBlur = 10;
-
+    // Removed shadowBlur
+    
     if (ft.type === FloatingTextType.SYSTEM) {
         const jitterX = Math.random() < 0.1 ? (Math.random()-0.5)*4 : 0;
         ctx.font = `bold ${ft.size}px monospace`;
@@ -1150,12 +1234,12 @@ export const drawFloatingText = (ctx: CanvasRenderingContext2D, ft: FloatingText
     }
     else {
         ctx.font = `bold ${ft.size}px monospace`;
-        ctx.shadowBlur = 0;
+        
+        // Fake text shadow
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillText(ft.text, 2, 2);
         
         ctx.fillStyle = ft.color;
-        ctx.shadowBlur = ft.type === FloatingTextType.CRIT ? 15 : 5; 
         ctx.fillText(ft.text, 0, 0);
     }
 

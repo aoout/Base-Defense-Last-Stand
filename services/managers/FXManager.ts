@@ -1,9 +1,12 @@
 
 import { GameEngine } from '../gameService';
 import { TOXIC_ZONE_STATS } from '../../data/registry';
+import { Particle, BloodStain } from '../../types';
 
 export class FXManager {
     private engine: GameEngine;
+    private particlePool: Particle[] = [];
+    private bloodPool: BloodStain[] = [];
 
     constructor(engine: GameEngine) {
         this.engine = engine;
@@ -16,26 +19,48 @@ export class FXManager {
     }
 
     private updateParticles(dt: number, timeScale: number) {
-        this.engine.state.particles.forEach(p => {
+        const particles = this.engine.state.particles;
+        for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
             p.x += p.vx * timeScale;
             p.y += p.vy * timeScale;
-            p.life -= dt * 0.05; 
-        });
-        this.engine.state.particles = this.engine.state.particles.filter(p => p.life > 0);
+            p.life -= dt * 0.05;
+
+            if (p.life <= 0) {
+                // Recycle
+                this.particlePool.push(p);
+                
+                // Swap-Pop
+                particles[i] = particles[particles.length - 1];
+                particles.pop();
+            }
+        }
     }
 
     private updateBlood(dt: number) {
-        // Fade out blood stains
-        this.engine.state.bloodStains.forEach(b => {
+        const stains = this.engine.state.bloodStains;
+        for (let i = stains.length - 1; i >= 0; i--) {
+            const b = stains[i];
             b.life -= dt;
-        });
-        this.engine.state.bloodStains = this.engine.state.bloodStains.filter(b => b.life > 0);
+            if (b.life <= 0) {
+                // Recycle
+                this.bloodPool.push(b);
+
+                // Swap-Pop
+                stains[i] = stains[stains.length - 1];
+                stains.pop();
+            }
+        }
     }
 
     private updateToxicZones(dt: number) {
         const state = this.engine.state;
-        state.toxicZones.forEach(z => {
+        const zones = state.toxicZones;
+        
+        for (let i = zones.length - 1; i >= 0; i--) {
+            const z = zones[i];
             z.life -= dt;
+            
             // Damage tick
             if (z.life % 500 < dt) { 
                 const p = state.player;
@@ -44,47 +69,85 @@ export class FXManager {
                     this.engine.playerManager.damagePlayer(z.damagePerSecond * 0.5);
                 }
             }
-        });
-        state.toxicZones = state.toxicZones.filter(z => z.life > 0);
+
+            if (z.life <= 0) {
+                zones[i] = zones[zones.length - 1];
+                zones.pop();
+            }
+        }
     }
 
     public spawnParticle(x: number, y: number, color: string, count: number, speed: number) {
         for(let i=0; i<count; i++) {
             const a = Math.random() * Math.PI*2;
             const s = Math.random() * speed;
-            this.engine.state.particles.push({
-                id: `pt-${Math.random()}`,
-                x, y,
-                vx: Math.cos(a) * s,
-                vy: Math.sin(a) * s,
-                life: 1.0,
-                maxLife: 1.0,
-                color,
-                radius: Math.random() * 3,
-                angle: 0
-            });
+            
+            let p: Particle;
+            
+            if (this.particlePool.length > 0) {
+                p = this.particlePool.pop()!;
+                // Reset
+                p.id = `pt-${Math.random()}`; // ID mainly for React key if needed, though particles aren't React
+                p.x = x; p.y = y;
+                p.vx = Math.cos(a) * s;
+                p.vy = Math.sin(a) * s;
+                p.life = 1.0;
+                p.maxLife = 1.0;
+                p.color = color;
+                p.radius = Math.random() * 3;
+                p.angle = 0;
+            } else {
+                p = {
+                    id: `pt-${Math.random()}`,
+                    x, y,
+                    vx: Math.cos(a) * s,
+                    vy: Math.sin(a) * s,
+                    life: 1.0,
+                    maxLife: 1.0,
+                    color,
+                    radius: Math.random() * 3,
+                    angle: 0
+                };
+            }
+            this.engine.state.particles.push(p);
         }
     }
 
     public spawnBloodStain(x: number, y: number, color: string, maxHp: number = 100) {
         if (!this.engine.state.settings.showBlood) return;
         
-        // Duration scales with HP. 
-        // Base 10s + 20ms per HP point. Cap at 60s.
-        // Grunt (100) -> 12s. Tank (1500) -> 40s.
         const lifeDuration = Math.min(60000, 10000 + (maxHp * 20));
+        
+        let b: BloodStain;
 
-        this.engine.state.bloodStains.push({
-            id: `bs-${Math.random()}`,
-            x, y, color,
-            life: lifeDuration,
-            maxLife: lifeDuration,
-            blotches: Array.from({length: 5}, () => ({
+        if (this.bloodPool.length > 0) {
+            b = this.bloodPool.pop()!;
+            b.id = `bs-${Math.random()}`;
+            b.x = x; b.y = y;
+            b.color = color;
+            b.life = lifeDuration;
+            b.maxLife = lifeDuration;
+            // Regenerate blotches for visual variety
+            b.blotches = Array.from({length: 5}, () => ({
                 x: (Math.random()-0.5)*20,
                 y: (Math.random()-0.5)*20,
                 r: 2 + Math.random()*8
-            }))
-        });
+            }));
+        } else {
+            b = {
+                id: `bs-${Math.random()}`,
+                x, y, color,
+                life: lifeDuration,
+                maxLife: lifeDuration,
+                blotches: Array.from({length: 5}, () => ({
+                    x: (Math.random()-0.5)*20,
+                    y: (Math.random()-0.5)*20,
+                    r: 2 + Math.random()*8
+                }))
+            };
+        }
+
+        this.engine.state.bloodStains.push(b);
     }
 
     public spawnToxicZone(x: number, y: number) {

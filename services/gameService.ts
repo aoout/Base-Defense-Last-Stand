@@ -1,6 +1,4 @@
 
-
-
 import {
   GameState,
   InputState,
@@ -69,6 +67,7 @@ import { FXManager } from './managers/FXManager';
 import { SpaceshipManager } from './managers/SpaceshipManager';
 import { TimeManager } from './managers/TimeManager';
 import { TRANSLATIONS } from '../data/locales';
+import { SpatialHashGrid } from '../utils/spatialHash';
 
 const TURRET_POSITIONS = [
   { x: -150, y: -150 },
@@ -97,6 +96,11 @@ export class GameEngine {
   fxManager: FXManager;
   spaceshipManager: SpaceshipManager;
 
+  // Shared Systems
+  public spatialGrid: SpatialHashGrid<Enemy>;
+  private floatingTextPool: FloatingText[] = [];
+  private aoeCache: Enemy[] = []; // Reusable for AoE queries
+
   private lastTime: number = 0;
 
   constructor() {
@@ -108,6 +112,7 @@ export class GameEngine {
     
     // Initialize Core Systems
     this.time = new TimeManager();
+    this.spatialGrid = new SpatialHashGrid<Enemy>(100);
 
     // Initialize temporary state
     this.reset(true); 
@@ -472,6 +477,12 @@ export class GameEngine {
 
     if (this.state.isPaused || this.state.isShopOpen || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
 
+    // --- SPATIAL PARTITIONING PREP (Optimization) ---
+    this.spatialGrid.clear();
+    for (let i = 0; i < this.state.enemies.length; i++) {
+        this.spatialGrid.insert(this.state.enemies[i]);
+    }
+
     // --- Wave Management ---
     if (!this.state.missionComplete) {
         if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
@@ -510,8 +521,10 @@ export class GameEngine {
         }
     }
 
-    // --- Message / Floating Text Lifecycle ---
-    this.state.floatingTexts.forEach(m => {
+    // --- Message / Floating Text Lifecycle (Optimized Swap-Pop with Pool) ---
+    const floatingTexts = this.state.floatingTexts;
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const m = floatingTexts[i];
         m.life -= dt;
         m.x += m.vx * timeScale;
         m.y += m.vy * timeScale;
@@ -524,8 +537,16 @@ export class GameEngine {
         } else {
             m.vy = -0.5 * timeScale; 
         }
-    });
-    this.state.floatingTexts = this.state.floatingTexts.filter(m => m.life > 0);
+
+        if (m.life <= 0) {
+            // Recycle
+            this.floatingTextPool.push(m);
+
+            // Swap-Pop
+            floatingTexts[i] = floatingTexts[floatingTexts.length - 1];
+            floatingTexts.pop();
+        }
+    }
 
     // --- Managers Update ---
     this.spaceshipManager.update(dt);
@@ -655,11 +676,18 @@ export class GameEngine {
   }
 
   public damageArea(x: number, y: number, radius: number, damage: number) {
-      this.state.enemies.forEach(e => {
-          if (Math.sqrt((e.x - x)**2 + (e.y - y)**2) < radius) {
+      const radiusSq = radius * radius;
+      
+      // Use spatial grid with cache
+      this.aoeCache.length = 0;
+      this.spatialGrid.query(x, y, radius, this.aoeCache);
+      
+      for (const e of this.aoeCache) {
+          const dSq = (e.x - x)**2 + (e.y - y)**2;
+          if (dSq < radiusSq) {
               this.damageEnemy(e, damage, DamageSource.PLAYER); 
           }
-      });
+      }
   }
 
   public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; }
@@ -703,10 +731,29 @@ export class GameEngine {
           size = 16;
       }
 
-      this.state.floatingTexts.push({ 
-          id: `ft-${Date.now()}-${Math.random()}`,
-          text, x, y, vx, vy, color, maxLife: time, type, size, life: time
-      });
+      // Reuse from Pool
+      let ft: FloatingText;
+      if (this.floatingTextPool.length > 0) {
+          ft = this.floatingTextPool.pop()!;
+          ft.id = `ft-${Date.now()}-${Math.random()}`;
+          ft.text = text;
+          ft.x = x;
+          ft.y = y;
+          ft.vx = vx;
+          ft.vy = vy;
+          ft.color = color;
+          ft.maxLife = time;
+          ft.life = time;
+          ft.type = type;
+          ft.size = size;
+      } else {
+          ft = { 
+              id: `ft-${Date.now()}-${Math.random()}`,
+              text, x, y, vx, vy, color, maxLife: time, type, size, life: time
+          };
+      }
+
+      this.state.floatingTexts.push(ft);
   }
 
   public saveGame() { this.saveManager.saveGame(); }

@@ -8,9 +8,43 @@ import { calculateEnemyStats, selectEnemyType } from '../../utils/enemyUtils';
 
 export class EnemyManager {
     private engine: GameEngine;
+    private enemyPool: Enemy[] = [];
 
     constructor(engine: GameEngine) {
         this.engine = engine;
+    }
+
+    private resetEnemy(e: Enemy, type: EnemyType, x: number, y: number): Enemy {
+        const state = this.engine.state;
+        const baseStats = ENEMY_STATS[type];
+        const stats = calculateEnemyStats(type, baseStats, state.currentPlanet, state.gameMode);
+
+        e.id = `e-${Date.now()}-${Math.random()}`; // New ID needed for react keys/collision maps
+        e.type = type;
+        e.x = x;
+        e.y = y;
+        e.angle = 0;
+        e.hp = stats.maxHp;
+        e.maxHp = stats.maxHp;
+        e.damage = stats.damage;
+        e.speed = baseStats.speed;
+        e.scoreReward = baseStats.scoreReward;
+        e.radius = baseStats.radius;
+        e.color = baseStats.color;
+        e.lastAttackTime = 0;
+        e.detectionRange = baseStats.detectionRange;
+        
+        // Reset Boss Flags
+        e.isBoss = false;
+        e.bossType = undefined;
+        e.bossSummonTimer = undefined;
+        e.bossBurstCount = undefined;
+        e.bossNextShotTime = undefined;
+        e.armorValue = undefined;
+        e.shedTimer = undefined;
+        e.shedCount = undefined;
+
+        return e;
     }
 
     public spawnEnemy() {
@@ -23,25 +57,19 @@ export class EnemyManager {
 
     public spawnSpecificEnemy(type: EnemyType, x: number, y: number) {
         const state = this.engine.state;
-        const baseStats = ENEMY_STATS[type];
-        const stats = calculateEnemyStats(type, baseStats, state.currentPlanet, state.gameMode);
+        let enemy: Enemy;
 
-        state.enemies.push({
-            id: `e-${Date.now()}-${Math.random()}`,
-            type,
-            x,
-            y,
-            angle: 0,
-            hp: stats.maxHp,
-            maxHp: stats.maxHp,
-            damage: stats.damage,
-            speed: baseStats.speed,
-            scoreReward: baseStats.scoreReward,
-            radius: baseStats.radius,
-            color: baseStats.color,
-            lastAttackTime: 0,
-            detectionRange: baseStats.detectionRange
-        });
+        if (this.enemyPool.length > 0) {
+            enemy = this.enemyPool.pop()!;
+            this.resetEnemy(enemy, type, x, y);
+        } else {
+            // Placeholder values, will be overwritten by resetEnemy immediately logic or manual assignment in fallback
+            // But we use the reset logic for consistency
+            enemy = { id: '', type: EnemyType.GRUNT } as any; 
+            this.resetEnemy(enemy, type, x, y);
+        }
+
+        state.enemies.push(enemy);
 
         if (!state.stats.encounteredEnemies.includes(type)) {
             state.stats.encounteredEnemies.push(type);
@@ -64,25 +92,40 @@ export class EnemyManager {
             hp *= this.engine.state.currentPlanet.geneStrength;
         }
 
-        this.engine.state.enemies.push({
-            id: `boss-${Date.now()}`,
-            type: EnemyType.TANK, 
-            isBoss: true,
-            bossType: bossType,
-            x, y, angle: Math.PI/2,
-            hp: hp,
-            maxHp: hp,
-            speed: stats.speed,
-            damage: stats.damage,
-            scoreReward: stats.scoreReward,
-            radius: stats.radius,
-            color: stats.color,
-            lastAttackTime: 0,
-            detectionRange: stats.detectionRange,
-            bossSummonTimer: 0,
-            bossBurstCount: 0,
-            bossNextShotTime: 0
-        });
+        // Reuse pool for boss too
+        let enemy: Enemy;
+        if (this.enemyPool.length > 0) {
+            enemy = this.enemyPool.pop()!;
+        } else {
+            enemy = { id: '', type: EnemyType.TANK } as any;
+        }
+
+        enemy.id = `boss-${Date.now()}`;
+        enemy.type = EnemyType.TANK;
+        enemy.isBoss = true;
+        enemy.bossType = bossType;
+        enemy.x = x;
+        enemy.y = y;
+        enemy.angle = Math.PI/2;
+        enemy.hp = hp;
+        enemy.maxHp = hp;
+        enemy.speed = stats.speed;
+        enemy.damage = stats.damage;
+        enemy.scoreReward = stats.scoreReward;
+        enemy.radius = stats.radius;
+        enemy.color = stats.color;
+        enemy.lastAttackTime = 0;
+        enemy.detectionRange = stats.detectionRange;
+        enemy.bossSummonTimer = 0;
+        enemy.bossBurstCount = 0;
+        enemy.bossNextShotTime = 0;
+        
+        // Ensure other boss flags are cleared
+        enemy.armorValue = undefined;
+        enemy.shedTimer = undefined;
+        enemy.shedCount = undefined;
+
+        this.engine.state.enemies.push(enemy);
 
         if (!this.engine.state.stats.encounteredEnemies.includes(bossType)) {
             this.engine.state.stats.encounteredEnemies.push(bossType);
@@ -94,27 +137,39 @@ export class EnemyManager {
         // Updated formula: 14000 * Gene * (1 + 0.08 * Sulfur)
         let hp = 14000 * planet.geneStrength * (1 + 0.08 * planet.sulfurIndex);
 
-        this.engine.state.enemies.push({
-            id: `hive-mother-${Date.now()}`,
-            type: EnemyType.TANK,
-            isBoss: true,
-            bossType: BossType.HIVE_MOTHER,
-            x: WORLD_WIDTH / 2,
-            y: 400,
-            angle: Math.PI/2,
-            hp: hp,
-            maxHp: hp,
-            speed: 0,
-            damage: stats.damage,
-            scoreReward: stats.scoreReward,
-            radius: stats.radius,
-            color: stats.color,
-            lastAttackTime: 0,
-            detectionRange: 2000,
-            armorValue: 90,
-            shedTimer: 0,
-            shedCount: 0
-        });
+        let enemy: Enemy;
+        if (this.enemyPool.length > 0) {
+            enemy = this.enemyPool.pop()!;
+        } else {
+            enemy = { id: '', type: EnemyType.TANK } as any;
+        }
+
+        enemy.id = `hive-mother-${Date.now()}`;
+        enemy.type = EnemyType.TANK;
+        enemy.isBoss = true;
+        enemy.bossType = BossType.HIVE_MOTHER;
+        enemy.x = WORLD_WIDTH / 2;
+        enemy.y = 400;
+        enemy.angle = Math.PI/2;
+        enemy.hp = hp;
+        enemy.maxHp = hp;
+        enemy.speed = 0;
+        enemy.damage = stats.damage;
+        enemy.scoreReward = stats.scoreReward;
+        enemy.radius = stats.radius;
+        enemy.color = stats.color;
+        enemy.lastAttackTime = 0;
+        enemy.detectionRange = 2000;
+        enemy.armorValue = 90;
+        enemy.shedTimer = 0;
+        enemy.shedCount = 0;
+        
+        // Clear other boss flags
+        enemy.bossSummonTimer = undefined;
+        enemy.bossBurstCount = undefined;
+        enemy.bossNextShotTime = undefined;
+
+        this.engine.state.enemies.push(enemy);
 
         if (!this.engine.state.stats.encounteredEnemies.includes(BossType.HIVE_MOTHER)) {
             this.engine.state.stats.encounteredEnemies.push(BossType.HIVE_MOTHER);
@@ -171,57 +226,75 @@ export class EnemyManager {
             }
         }
 
-        state.enemies.forEach(e => {
+        // Reverse Iteration with Swap-Pop Removal
+        const enemies = state.enemies;
+        for (let i = enemies.length - 1; i >= 0; i--) {
+            const e = enemies[i];
+
+            if (e.hp <= 0) {
+                // Recycle: Push to pool
+                this.enemyPool.push(e);
+
+                // Swap-Pop Removal
+                enemies[i] = enemies[enemies.length - 1];
+                enemies.pop();
+                continue;
+            }
+
             let target = { x: base.x, y: base.y };
             let closestUnit: Entity | null = null;
-            let minDist = e.detectionRange || 400;
+            let minDistSq = (e.detectionRange || 400) ** 2;
 
-            const distToBase = Math.sqrt((e.x - base.x)**2 + (e.y - base.y)**2);
+            // OPTIMIZATION: Squared Distance Calculation
+            const distToBaseSq = (e.x - base.x)**2 + (e.y - base.y)**2;
 
             // 1. Check Player
-            const distPlayer = Math.sqrt((e.x - player.x)**2 + (e.y - player.y)**2);
-            if (distPlayer < minDist) {
-                minDist = distPlayer;
+            const distPlayerSq = (e.x - player.x)**2 + (e.y - player.y)**2;
+            if (distPlayerSq < minDistSq) {
+                minDistSq = distPlayerSq;
                 closestUnit = player;
             }
 
             // 2. Check Allies
-            state.allies.forEach(ally => {
-                 const d = Math.sqrt((e.x - ally.x)**2 + (e.y - ally.y)**2);
-                 if (d < minDist) {
-                     minDist = d;
+            for (const ally of state.allies) {
+                 const dSq = (e.x - ally.x)**2 + (e.y - ally.y)**2;
+                 if (dSq < minDistSq) {
+                     minDistSq = dSq;
                      closestUnit = ally;
                  }
-            });
+            }
 
             // 3. Check Turrets
-            state.turretSpots.forEach(spot => {
+            for (const spot of state.turretSpots) {
                 if (spot.builtTurret) {
-                    const d = Math.sqrt((e.x - spot.builtTurret.x)**2 + (e.y - spot.builtTurret.y)**2);
-                    if (d < minDist) {
-                        minDist = d;
+                    const dSq = (e.x - spot.builtTurret.x)**2 + (e.y - spot.builtTurret.y)**2;
+                    if (dSq < minDistSq) {
+                        minDistSq = dSq;
                         closestUnit = spot.builtTurret;
                     }
                 }
-            });
+            }
 
             if (closestUnit) {
                 target = { x: closestUnit.x, y: closestUnit.y };
             }
 
-            if (e.isBoss && e.bossType === BossType.HIVE_MOTHER) return;
+            if (e.isBoss && e.bossType === BossType.HIVE_MOTHER) continue;
             
             const angle = Math.atan2(target.y - e.y, target.x - e.x);
             e.angle = angle;
             
-            const distToTarget = Math.sqrt((e.x - target.x)**2 + (e.y - target.y)**2);
+            // Only calculate actual sqrt distance when necessary for movement threshold
+            const distToTargetSq = (e.x - target.x)**2 + (e.y - target.y)**2;
             
             let stopDist = e.radius + 10;
             if (e.type === EnemyType.VIPER) stopDist = 400;
             if (e.bossType === BossType.BLUE_BURST) stopDist = 600;
             if (e.bossType === BossType.PURPLE_ACID) stopDist = 500;
             
-            if (distToTarget > stopDist) {
+            const stopDistSq = stopDist * stopDist;
+
+            if (distToTargetSq > stopDistSq) {
                 e.x += Math.cos(angle) * e.speed * timeScale;
                 e.y += Math.sin(angle) * e.speed * timeScale;
 
@@ -232,9 +305,11 @@ export class EnemyManager {
 
             const attackCooldown = e.isBoss ? (e.bossType ? 100 : 1000) : 1000;
             if (now - e.lastAttackTime > attackCooldown) {
+                 // For logic requiring actual distance, we calculate it here
+                 const distToTarget = Math.sqrt(distToTargetSq);
                  this.handleEnemyAttack(e, target, distToTarget, closestUnit || { x: base.x, y: base.y, radius: 200 } as any);
             }
-        });
+        }
     }
 
     private handleEnemyAttack(e: Enemy, targetPos: {x: number, y: number}, dist: number, targetEntity: Entity) {
@@ -304,6 +379,9 @@ export class EnemyManager {
     }
 
     public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) {
+        // Prevent double-dipping on dead entities
+        if (enemy.hp <= 0) return;
+
         let dmg = amount;
         
         if (enemy.bossType === BossType.HIVE_MOTHER && enemy.armorValue) {
@@ -326,6 +404,8 @@ export class EnemyManager {
     }
 
     public killEnemy(e: Enemy) {
+        // Just handle rewards and effects. 
+        // Removal is handled by the main loop's swap-pop to avoid array allocation during damage event.
         let score = e.scoreReward;
         
         if (e.bossType === BossType.HIVE_MOTHER) {
@@ -341,8 +421,8 @@ export class EnemyManager {
         }
   
         this.engine.state.player.score += score;
-        this.engine.state.enemies = this.engine.state.enemies.filter(en => en !== e);
         
+        // Stats
         if (e.isBoss) this.engine.state.stats.killsByType['BOSS']++;
         else this.engine.state.stats.killsByType[e.type]++;
   
