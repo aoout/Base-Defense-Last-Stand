@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -71,33 +64,40 @@ const App: React.FC = () => {
     };
 
     const handleMouseDown = (e: MouseEvent) => { 
+        // Only trigger game inputs if interacting with the Canvas directly
+        // This prevents UI clicks (e.g. Planet Panel) from selecting planets behind them
+        const target = e.target as HTMLElement;
+        const isCanvas = target.tagName === 'CANVAS';
+
         if (e.button === 0) {
-            engine.input.mouse.down = true; 
-            
-            // Map Click Logic
-            if (engine.state.appMode === AppMode.EXPLORATION_MAP) {
-                const rect = document.querySelector('canvas')?.getBoundingClientRect();
-                if (rect) {
-                    const mx = e.clientX - rect.left;
-                    const my = e.clientY - rect.top;
-                    
-                    // Check planet clicks
-                    let clickedPlanetId = null;
-                    engine.state.planets.forEach(p => {
-                        const dist = Math.sqrt(Math.pow(mx - p.x, 2) + Math.pow(my - p.y, 2));
-                        if (dist < p.radius + 10) {
-                            clickedPlanetId = p.id;
+            if (isCanvas) {
+                engine.input.mouse.down = true; 
+                
+                // Map Click Logic
+                if (engine.state.appMode === AppMode.EXPLORATION_MAP) {
+                    const rect = document.querySelector('canvas')?.getBoundingClientRect();
+                    if (rect) {
+                        const mx = e.clientX - rect.left;
+                        const my = e.clientY - rect.top;
+                        
+                        // Check planet clicks
+                        let clickedPlanetId = null;
+                        engine.state.planets.forEach(p => {
+                            const dist = Math.sqrt(Math.pow(mx - p.x, 2) + Math.pow(my - p.y, 2));
+                            if (dist < p.radius + 10) {
+                                clickedPlanetId = p.id;
+                            }
+                        });
+                        
+                        // Update selection
+                        if (clickedPlanetId) {
+                            engine.selectPlanet(clickedPlanetId);
                         }
-                    });
-                    
-                    // Update selection
-                    if (clickedPlanetId) {
-                        engine.selectPlanet(clickedPlanetId);
                     }
                 }
             }
         }
-        if (e.button === 2) engine.input.mouse.rightDown = true;
+        if (e.button === 2 && isCanvas) engine.input.mouse.rightDown = true;
     };
     const handleMouseUp = (e: MouseEvent) => { 
         if (e.button === 0) engine.input.mouse.down = false; 
