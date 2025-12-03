@@ -411,7 +411,8 @@ export class EnemyManager {
         if (e.bossType === BossType.HIVE_MOTHER) {
             const gene = this.engine.state.currentPlanet?.geneStrength || 1;
             const armor = e.armorValue || 0;
-            const bonus = Math.floor(20 * gene * (armor * armor));
+            // Updated Formula: 20 * Gene^2 * Armor^1.6
+            const bonus = Math.floor(20 * Math.pow(gene, 2) * Math.pow(armor, 1.6));
             score += bonus;
             
             this.engine.addMessage(`HIVE MOTHER ELIMINATED`, e.x, e.y, '#ffff00', FloatingTextType.SYSTEM);

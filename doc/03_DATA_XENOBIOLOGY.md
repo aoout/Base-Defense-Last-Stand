@@ -25,6 +25,15 @@
 | `PURPLE_ACID` | Plague Bringer | 12,000 | **Toxic Lob**: Arcing shot that creates large Toxic Zones. |
 | `HIVE_MOTHER` | Matriarch | 14,000 | **Stationary**. 90% Armor. Sheds armor every 30s. |
 
+### Hive Mother Bounty Analysis
+**Code Reference**: `services/managers/EnemyManager.ts` (Method `killEnemy`)
+
+Defeating the Matriarch yields a massive resource injection.
+*   **Base Reward**: 5,000 Scraps.
+*   **Dominance Bonus**: Calculated based on the difficulty of the kill.
+    *   Formula: `20 * (GeneStrength ^ 2) * (RemainingArmor ^ 1.6)`
+    *   *Logic*: Killing the boss *through* its armor (without waiting for the shedding phase) is exponentially more difficult, and thus rewards exponentially more Scraps.
+
 ## 3. Environmental Scaling Algorithms
 **Code Reference**: `utils/enemyUtils.ts`
 
