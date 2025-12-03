@@ -1,20 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -600,10 +584,14 @@ Immediate spawn of next wave. No downtime for reload or regen.
         CRITICAL_FAILURE: "CRITICAL SYSTEM FAILURE",
         SIGNAL_LOST: "SIGNAL LOST",
         BASE_COMPROMISED: "BASE COMPROMISED",
+        OPERATIVE_KIA: "OPERATIVE K.I.A.",
+        VITALS_CRITICAL: "VITALS CRITICAL",
         EMERGENCY_PROTO: "EMERGENCY PROTOCOL",
         EXECUTED: "EXECUTED",
         LOG_INTEGRITY: "Base structural integrity at 0%. Auto-destruct sequence initiated.",
+        LOG_VITALS: "Vital signs flatlined. Trauma dump complete.",
         LOG_POD: "Commander Escape Pod launched. Trajectory: High Orbit.",
+        LOG_AUTO_EVAC: "Automated Med-Evac drone deployed. Retrieving operative.",
         LOG_DOCK: "Colossus docking successful. Operative recovered.",
         FAILURE_DESC: "The planetary beachhead has been lost. Resources gathered prior to destruction have been transmitted. The sector remains hostile. Re-group and select a new drop zone.",
         RETURN_BRIDGE: "RETURN TO BRIDGE",
@@ -1252,10 +1240,14 @@ function calculateEnemyCount(Wave) {
         CRITICAL_FAILURE: "严重系统故障",
         SIGNAL_LOST: "信号丢失",
         BASE_COMPROMISED: "基地被攻破",
+        OPERATIVE_KIA: "干员阵亡",
+        VITALS_CRITICAL: "生命体征危急",
         EMERGENCY_PROTO: "紧急协议",
         EXECUTED: "已执行",
         LOG_INTEGRITY: "基地结构完整性为 0%。自毁程序已启动。",
+        LOG_VITALS: "生命体征归零。创伤数据转储完成。",
         LOG_POD: "指挥官逃生舱已发射。轨迹：高轨道。",
+        LOG_AUTO_EVAC: "自动医疗撤离无人机已部署。正在回收干员。",
         LOG_DOCK: "巨像级对接成功。干员已回收。",
         FAILURE_DESC: "行星滩头阵地已丢失。毁灭前收集的资源已传输。该扇区仍然充满敌意。重组并选择新的着陆区。",
         RETURN_BRIDGE: "返回舰桥",

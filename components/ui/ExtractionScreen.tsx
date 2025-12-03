@@ -1,12 +1,16 @@
+
 import React from 'react';
 import { GameState } from '../../types';
 
 interface ExtractionScreenProps {
     onEvac: () => void;
     t: (key: string) => string;
+    state: GameState;
 }
 
-export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t }) => {
+export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t, state }) => {
+    const isPlayerDeath = state.player.hp <= 0;
+
     return (
         <div className="absolute inset-0 z-50 bg-slate-950 flex flex-col items-center justify-center pointer-events-auto font-mono overflow-hidden">
              {/* Background Alarm Effect */}
@@ -19,20 +23,20 @@ export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t })
                  {/* Top Warning Banner */}
                  <div className="w-full bg-red-600/20 border border-red-600 p-2 mb-8 flex justify-between items-center animate-pulse">
                      <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{t('CRITICAL_FAILURE')}</span>
-                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{t('SIGNAL_LOST')}</span>
+                     <span className="text-red-500 font-bold tracking-[0.2em] text-xs">{isPlayerDeath ? t('VITALS_CRITICAL') : t('SIGNAL_LOST')}</span>
                  </div>
 
-                 <h1 className="text-7xl font-display font-black text-white tracking-wide mb-2">{t('BASE_COMPROMISED')}</h1>
+                 <h1 className="text-7xl font-display font-black text-white tracking-wide mb-2">{isPlayerDeath ? t('OPERATIVE_KIA') : t('BASE_COMPROMISED')}</h1>
                  <h2 className="text-2xl text-red-500 font-bold tracking-widest mb-12">{t('EMERGENCY_PROTO')} <span className="text-white">99-ALPHA</span> {t('EXECUTED')}</h2>
 
                  <div className="w-full border-t border-b border-red-900/50 py-8 mb-8 space-y-4">
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                         <div className="text-slate-400 text-sm">{t('LOG_INTEGRITY')}</div>
+                         <div className="text-slate-400 text-sm">{isPlayerDeath ? t('LOG_VITALS') : t('LOG_INTEGRITY')}</div>
                      </div>
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                         <div className="text-slate-400 text-sm">{t('LOG_POD')}</div>
+                         <div className="text-slate-400 text-sm">{isPlayerDeath ? t('LOG_AUTO_EVAC') : t('LOG_POD')}</div>
                      </div>
                      <div className="flex items-center gap-4 text-left">
                          <div className="w-2 h-2 bg-green-500 rounded-full animate-ping"></div>
