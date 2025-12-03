@@ -1,5 +1,7 @@
 
 
+
+
 import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES, GAS_INFO } from '../data/world';
@@ -74,7 +76,8 @@ export const generatePlanets = (): Planet[] => {
             completed: false,
             biome: biome,
             visualType: visualType,
-            atmosphere: atmosphere.sort((a,b) => b.percentage - a.percentage)
+            atmosphere: atmosphere.sort((a,b) => b.percentage - a.percentage),
+            buildings: [] // Initialize empty buildings array
         });
     }
     return planets;

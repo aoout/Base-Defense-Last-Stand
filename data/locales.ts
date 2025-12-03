@@ -4,6 +4,10 @@
 
 
 
+
+
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -267,7 +271,40 @@ Immediate spawn of next wave. No downtime for reload or regen.
         SCAN_ID: "SCAN ID",
         FULL_ANALYSIS_BTN: "FULL TACTICAL ANALYSIS",
 
+        // Planet Construction
+        PC_TITLE: "PLANETARY CONSTRUCTION",
+        PC_SUB: "COLONIAL EXTRACTION SYSTEMS",
+        PC_BTN: "PLANET CONSTRUCTION",
+        PC_SLOTS_AVAILABLE: "CONSTRUCTION SLOTS",
+        PC_BIOMASS: "BIOMASS EXTRACTOR",
+        PC_OXYGEN: "OXYGEN SIPHON",
+        PC_BIOMASS_DESC: "Harvests organic material from the ecosystem.",
+        PC_OXYGEN_DESC: "Condenses atmospheric oxygen into fuel.",
+        PC_YIELD: "YIELD",
+        PC_BUILD: "CONSTRUCT",
+        PC_PER_MISSION: "PER MISSION",
+        PC_YIELD_MSG: "PLANETARY YIELDS: +{0} SCRAPS",
+        PC_SLOT_LOCKED: "SLOT LOCKED",
+        PC_SLOT_EMPTY: "EMPTY SLOT",
+
+        // Galactic Events
+        EVENT_EXPANSION_TITLE: "SCOURGE EXPANSION DETECTED",
+        EVENT_EXPANSION_DESC: "The hive mind is reinforcing its hold on the sector. Unclaimed planets have mutated.",
+        EVENT_EXPANSION_EFFECT: "All uncolonized planets: Gene Strength +0.1 - 0.3",
+        EVENT_INVASION_TITLE: "COLONY INVASION ALERT",
+        EVENT_INVASION_DESC: "A massive swarm has overrun one of your established colonies. Infrastructure critical.",
+        EVENT_INVASION_EFFECT: "Colony Lost. Planet reverted to Hostile. Buildings Destroyed. Threat Level Increased.",
+        EVENT_SALVAGE_TITLE: "COSMIC SALVAGE",
+        EVENT_SALVAGE_DESC: "Sensors detected a derelict supply pod drifting in orbit.",
+        EVENT_SALVAGE_EFFECT: "Resources Acquired: +{0} Scraps",
+        ACKNOWLEDGE: "ACKNOWLEDGE",
+
         // Biomes
+        BIOME_Barren: "Barren",
+        BIOME_Ice: "Ice",
+        BIOME_Volcanic: "Volcanic",
+        BIOME_Desert: "Desert",
+        BIOME_Toxic: "Toxic",
         BIOME_BARREN: "Barren",
         BIOME_ICE: "Ice",
         BIOME_VOLCANIC: "Volcanic",
@@ -871,6 +908,34 @@ function calculateEnemyCount(Wave) {
         RESOURCE_DENSITY: "资源密度",
         SCAN_ID: "扫描 ID",
         FULL_ANALYSIS_BTN: "完整战术分析",
+
+        // Planet Construction
+        PC_TITLE: "行星建设",
+        PC_SUB: "殖民地开采系统",
+        PC_BTN: "行星建设",
+        PC_SLOTS_AVAILABLE: "建设槽位",
+        PC_BIOMASS: "生物质提取基地",
+        PC_OXYGEN: "氧气虹吸站",
+        PC_BIOMASS_DESC: "从生态系统中提取有机物质。",
+        PC_OXYGEN_DESC: "将大气中的氧气冷凝为燃料。",
+        PC_YIELD: "产出",
+        PC_BUILD: "建造",
+        PC_PER_MISSION: "每次任务",
+        PC_YIELD_MSG: "行星产出：+{0} 残片",
+        PC_SLOT_LOCKED: "槽位锁定",
+        PC_SLOT_EMPTY: "空闲槽位",
+
+        // Galactic Events
+        EVENT_EXPANSION_TITLE: "检测到天灾扩散",
+        EVENT_EXPANSION_DESC: "主脑正在加强对扇区的控制。未占领行星发生变异。",
+        EVENT_EXPANSION_EFFECT: "所有未殖民行星：基因强度 +0.1 - 0.3",
+        EVENT_INVASION_TITLE: "殖民地入侵警报",
+        EVENT_INVASION_DESC: "大规模虫群淹没了一个已建立的殖民地。基础设施危急。",
+        EVENT_INVASION_EFFECT: "殖民地丢失。行星恢复敌对。建筑被毁。威胁等级增加。",
+        EVENT_SALVAGE_TITLE: "宇宙打捞",
+        EVENT_SALVAGE_DESC: "传感器检测到一艘漂浮在轨道的废弃补给舱。",
+        EVENT_SALVAGE_EFFECT: "获得资源：+{0} 残片",
+        ACKNOWLEDGE: "确认",
 
         // Biomes
         BIOME_BARREN: "荒芜",

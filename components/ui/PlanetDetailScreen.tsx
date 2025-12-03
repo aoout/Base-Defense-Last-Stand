@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import * as d3 from 'd3';
 import { Planet, MissionType, AtmosphereGas } from '../../types';
@@ -12,6 +11,7 @@ interface PlanetDetailScreenProps {
     canAfford: boolean;
     onClose: () => void;
     onDeploy: () => void;
+    onOpenConstruction: () => void;
     t: (key: string, params?: any) => string;
 }
 
@@ -22,6 +22,7 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
     canAfford, 
     onClose, 
     onDeploy, 
+    onOpenConstruction,
     t 
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -239,29 +240,48 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
 
                         {/* Launch Control - Pushed to bottom but part of scroll if needed */}
                         <div className="mt-auto bg-slate-900 border border-cyan-900 p-6 flex flex-col gap-4 shrink-0">
-                            <div className="flex justify-between items-center text-sm font-bold">
-                                <span className="text-cyan-500">{t('LAUNCH_WINDOW')}</span>
-                                <span className={canAfford ? 'text-green-500' : 'text-red-500'}>{canAfford ? 'READY' : 'INSUFFICIENT FUEL'}</span>
-                            </div>
-                            
-                            <div className="flex justify-between items-center bg-black/50 p-3 border border-slate-800">
-                                <span className="text-slate-400 text-xs">{t('DROP_COST')}</span>
-                                <span className="text-yellow-400 font-mono font-bold text-lg">-{dropCost} SCRAPS</span>
-                            </div>
+                            {planet.completed ? (
+                                <>
+                                    <div className="flex justify-between items-center text-sm font-bold">
+                                        <span className="text-yellow-500">{t('PC_TITLE')}</span>
+                                        <span className="text-green-500">{t('CLEARED_TAG')}</span>
+                                    </div>
+                                    
+                                    <button 
+                                        onClick={onOpenConstruction}
+                                        className="w-full py-6 text-xl font-black tracking-[0.2em] transition-all relative overflow-hidden group bg-yellow-900/20 border border-yellow-500 hover:bg-yellow-900/40 text-yellow-400"
+                                    >
+                                        <span className="relative z-10">{t('PC_BTN')}</span>
+                                        <div className="absolute inset-0 bg-yellow-500/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12"></div>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="flex justify-between items-center text-sm font-bold">
+                                        <span className="text-cyan-500">{t('LAUNCH_WINDOW')}</span>
+                                        <span className={canAfford ? 'text-green-500' : 'text-red-500'}>{canAfford ? 'READY' : 'INSUFFICIENT FUEL'}</span>
+                                    </div>
+                                    
+                                    <div className="flex justify-between items-center bg-black/50 p-3 border border-slate-800">
+                                        <span className="text-slate-400 text-xs">{t('DROP_COST')}</span>
+                                        <span className="text-yellow-400 font-mono font-bold text-lg">-{dropCost} SCRAPS</span>
+                                    </div>
 
-                            <button 
-                                onClick={onDeploy}
-                                disabled={!canAfford}
-                                className={`
-                                    w-full py-6 text-xl font-black tracking-[0.2em] transition-all relative overflow-hidden group
-                                    ${canAfford 
-                                        ? 'bg-cyan-700 hover:bg-cyan-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]' 
-                                        : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
-                                `}
-                            >
-                                <span className="relative z-10">{t('INITIATE_DROP')}</span>
-                                {canAfford && <div className="absolute inset-0 bg-cyan-400/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>}
-                            </button>
+                                    <button 
+                                        onClick={onDeploy}
+                                        disabled={!canAfford}
+                                        className={`
+                                            w-full py-6 text-xl font-black tracking-[0.2em] transition-all relative overflow-hidden group
+                                            ${canAfford 
+                                                ? 'bg-cyan-700 hover:bg-cyan-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.4)]' 
+                                                : 'bg-slate-800 text-slate-600 cursor-not-allowed'}
+                                        `}
+                                    >
+                                        <span className="relative z-10">{t('INITIATE_DROP')}</span>
+                                        {canAfford && <div className="absolute inset-0 bg-cyan-400/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 z-0"></div>}
+                                    </button>
+                                </>
+                            )}
                         </div>
 
                     </div>

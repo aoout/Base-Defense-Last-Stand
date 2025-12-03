@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { GameState } from '../../types';
 import { CloseButton } from './Shared';
@@ -12,6 +11,7 @@ interface SectorMapUIProps {
     onDeployPlanet: (id: string) => void;
     onDeselectPlanet: () => void;
     onCheat: () => void;
+    onOpenConstruction: () => void;
     t: (key: string, params?: any) => string;
 }
 
@@ -22,6 +22,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
     onDeployPlanet, 
     onDeselectPlanet,
     onCheat,
+    onOpenConstruction,
     t
 }) => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
@@ -95,6 +96,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                     canAfford={canAfford}
                     onClose={() => setViewingDetail(false)} 
                     onDeploy={() => onDeployPlanet(planet.id)}
+                    onOpenConstruction={onOpenConstruction}
                     t={t} 
                 />
             )}
@@ -124,22 +126,32 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                     </div>
 
                     <div className="flex flex-col gap-3 mt-4">
-                        <button 
-                            onClick={() => onDeployPlanet(planet.id)}
-                            disabled={!canAfford}
-                            className={`
-                                w-full py-4 relative overflow-hidden group transition-all border
-                                ${canAfford 
-                                    ? 'bg-red-600 hover:bg-red-500 border-red-500 text-white' 
-                                    : 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'}
-                            `}
-                        >
-                            <div className="relative z-10 flex items-center justify-center gap-2">
-                                {canAfford && <span className="animate-pulse">⚠</span>}
-                                <span className="font-black tracking-[0.2em]">{canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}</span>
-                            </div>
-                            {canAfford && <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12"></div>}
-                        </button>
+                        {planet.completed ? (
+                            <button 
+                                onClick={onOpenConstruction}
+                                className="w-full py-4 bg-yellow-900/20 border border-yellow-500 hover:bg-yellow-900/40 text-yellow-400 font-black tracking-[0.2em] transition-all relative overflow-hidden group"
+                            >
+                                <span className="relative z-10">{t('PC_BTN')}</span>
+                                <div className="absolute inset-0 bg-yellow-500/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12"></div>
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => onDeployPlanet(planet.id)}
+                                disabled={!canAfford}
+                                className={`
+                                    w-full py-4 relative overflow-hidden group transition-all border
+                                    ${canAfford 
+                                        ? 'bg-red-600 hover:bg-red-500 border-red-500 text-white' 
+                                        : 'bg-slate-800 border-slate-700 text-slate-500 cursor-not-allowed'}
+                                `}
+                            >
+                                <div className="relative z-10 flex items-center justify-center gap-2">
+                                    {canAfford && <span className="animate-pulse">⚠</span>}
+                                    <span className="font-black tracking-[0.2em]">{canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}</span>
+                                </div>
+                                {canAfford && <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12"></div>}
+                            </button>
+                        )}
 
                         <button 
                             onClick={() => setViewingDetail(true)}

@@ -1,9 +1,13 @@
 
+
+
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
 import { GameEngine } from './services/gameService';
-import { GameState, AllyOrder, TurretType, AppMode, WeaponType } from './types';
+import { GameState, AllyOrder, TurretType, AppMode, WeaponType, PlanetBuildingType } from './types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from './constants';
 
 const App: React.FC = () => {
@@ -196,12 +200,20 @@ const App: React.FC = () => {
   const handleCloseInfrastructure = () => { engineRef.current.exitInfrastructureResearch(); };
   const handlePurchaseInfrastructure = (optionId: string) => { engineRef.current.purchaseInfrastructureUpgrade(optionId); };
 
+  // Planet Construction
+  const handleOpenPlanetConstruction = () => { engineRef.current.enterPlanetConstruction(); };
+  const handleClosePlanetConstruction = () => { engineRef.current.exitPlanetConstruction(); };
+  const handleConstructBuilding = (planetId: string, type: PlanetBuildingType, slotIndex: number) => { engineRef.current.constructBuilding(planetId, type, slotIndex); };
+
   // Evac
   const handleEmergencyEvac = () => { engineRef.current.emergencyEvac(); };
 
   // Ship Computer
   const handleOpenShipComputer = () => { engineRef.current.enterShipComputer(); };
   const handleCloseShipComputer = () => { engineRef.current.exitShipComputer(); };
+
+  // Event
+  const handleCloseGalacticEvent = () => { engineRef.current.closeGalacticEvent(); };
 
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
@@ -242,9 +254,13 @@ const App: React.FC = () => {
         onOpenInfrastructure={handleOpenInfrastructure}
         onCloseInfrastructure={handleCloseInfrastructure}
         onPurchaseInfrastructure={handlePurchaseInfrastructure}
+        onOpenPlanetConstruction={handleOpenPlanetConstruction}
+        onClosePlanetConstruction={handleClosePlanetConstruction}
+        onConstructBuilding={handleConstructBuilding}
         onEmergencyEvac={handleEmergencyEvac}
         onOpenShipComputer={handleOpenShipComputer}
         onCloseShipComputer={handleCloseShipComputer}
+        onCloseGalacticEvent={handleCloseGalacticEvent}
       />
     </div>
   );

@@ -1,4 +1,8 @@
 
+
+
+
+
 # 04. Exploration & Systems Architecture
 
 ## 1. Procedural Planet Generation
@@ -48,3 +52,38 @@ Planets are generated using a seed-based approach (though currently using Math.r
     *   **Success**: Keep all Scraps. Planet marked cleared.
     *   **Failure**: Keep accumulated Scraps, but mission fails.
 4.  **Reinvestment**: Spend Scraps on Ship Modules or Research to tackle harder planets.
+
+## 4. Planetary Construction & Passive Economy
+**Code Reference**: `services/gameService.ts` -> `completeMission` & `constructBuilding`
+
+Once a planet is **Cleared**, the "Initiate Drop" button is replaced by "Planet Construction".
+
+### Building Slots
+*   Capacity is determined by Planet Radius.
+*   **Formula**: 1 Slot per 1000km Radius.
+
+### Buildings
+*   **Biomass Extractor**
+    *   **Cost**: 5500 Scraps.
+    *   **Yield**: `800 * (1 + GeneStrength)`.
+    *   **Logic**: Harvests the hyper-evolved flora/fauna of high-gene worlds.
+*   **Oxygen Siphon**
+    *   **Cost**: 7000 Scraps.
+    *   **Yield**: `1500 * (1 + Oxygen%)`.
+    *   **Logic**: Condenses valuable O2 fuel from the atmosphere. High O2 worlds are gold mines.
+
+### Yield Mechanics
+*   Buildings do not produce resources in real-time.
+*   They generate resources **passively** every time the player returns from a *successful* mission elsewhere.
+*   This incentivizes clearing more sectors to trigger "Paydays" from established colonies.
+
+## 5. Galactic Events
+**Code Reference**: `services/gameService.ts` -> `triggerGalacticEvent`
+
+After every successful mission return, there is an **8% Chance** to trigger a meta-game event.
+
+| Event | Effect | Condition |
+| :--- | :--- | :--- |
+| **SCOURGE EXPANSION** | Buffs the Gene Strength of all UN-colonized planets by 0.1 - 0.3. | Always possible. |
+| **COLONY INVASION** | One of your colonized planets is overrun. It reverts to uncompleted status, Buildings are destroyed, Gene Strength increases, and Mission becomes OFFENSE. | Requires > 2 Colonized Planets. |
+| **COSMIC SALVAGE** | You find a derelict cache. Gain 3000-10000 Scraps. | Always possible. |

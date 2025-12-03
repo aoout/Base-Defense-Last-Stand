@@ -318,7 +318,8 @@ export enum AppMode {
     ORBITAL_UPGRADES = 'ORBITAL_UPGRADES',
     CARAPACE_GRID = 'CARAPACE_GRID',
     SHIP_COMPUTER = 'SHIP_COMPUTER',
-    INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH'
+    INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH',
+    PLANET_CONSTRUCTION = 'PLANET_CONSTRUCTION'
 }
 
 export enum GameMode {
@@ -357,6 +358,18 @@ export interface AtmosphereGas {
     description: string;
 }
 
+export enum PlanetBuildingType {
+    BIOMASS_EXTRACTOR = 'BIOMASS_EXTRACTOR',
+    OXYGEN_EXTRACTOR = 'OXYGEN_EXTRACTOR'
+}
+
+export interface PlanetBuilding {
+    id: string;
+    type: PlanetBuildingType;
+    slotIndex: number;
+    createdAt: number;
+}
+
 export interface Planet {
     id: string;
     name: string;
@@ -373,6 +386,7 @@ export interface Planet {
     biome: BiomeType;
     visualType: PlanetVisualType;
     atmosphere: AtmosphereGas[];
+    buildings: PlanetBuilding[];
 }
 
 export interface PersistentPlayerState {
@@ -499,6 +513,18 @@ export interface FloatingText {
     size: number;
 }
 
+export enum GalacticEventType {
+    EXPANSION = 'EXPANSION',
+    INVASION = 'INVASION',
+    SALVAGE = 'SALVAGE'
+}
+
+export interface GalacticEvent {
+    type: GalacticEventType;
+    targetPlanetId?: string; // For invasion
+    scrapsReward?: number; // For salvage
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -508,6 +534,7 @@ export interface GameState {
   currentPlanet: Planet | null;
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
+  activeGalacticEvent: GalacticEvent | null;
 
   // Spaceship
   spaceship: SpaceshipState;

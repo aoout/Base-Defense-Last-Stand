@@ -1,4 +1,8 @@
 
+
+
+
+
 import {
   GameState,
   InputState,
@@ -36,7 +40,10 @@ import {
   FloatingText,
   FloatingTextType,
   GameSettings,
-  DamageSource
+  DamageSource,
+  PlanetBuildingType,
+  GalacticEventType,
+  GalacticEvent
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -68,6 +75,7 @@ import { SpaceshipManager } from './managers/SpaceshipManager';
 import { TimeManager } from './managers/TimeManager';
 import { TRANSLATIONS } from '../data/locales';
 import { SpatialHashGrid } from '../utils/spatialHash';
+import { GAS_INFO } from '../data/world';
 
 const TURRET_POSITIONS = [
   { x: -150, y: -150 },
@@ -234,6 +242,12 @@ export class GameEngine {
     const basePos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT - 100 };
     
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets();
+    
+    // BACKWARD COMPAT: Ensure buildings array exists on planets
+    existingPlanets.forEach(p => {
+        if (!p.buildings) p.buildings = [];
+    });
+
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
     const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { 
         installedModules: [],
@@ -287,6 +301,7 @@ export class GameEngine {
       spaceship: existingSpaceship,
       orbitalSupportTimer: 0,
       saveSlots: existingSaveSlots,
+      activeGalacticEvent: null,
 
       camera: { x: 0, y: 0 },
       player: {
@@ -785,7 +800,31 @@ export class GameEngine {
   public exitShipComputer() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
   public enterInfrastructureResearch() { this.state.appMode = AppMode.INFRASTRUCTURE_RESEARCH; }
   public exitInfrastructureResearch() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
+  public enterPlanetConstruction() { this.state.appMode = AppMode.PLANET_CONSTRUCTION; }
+  public exitPlanetConstruction() { this.state.appMode = AppMode.EXPLORATION_MAP; }
   public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; }
+
+  public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) {
+      const planet = this.state.planets.find(p => p.id === planetId);
+      const player = this.state.player;
+      if (!planet) return;
+
+      const cost = type === PlanetBuildingType.BIOMASS_EXTRACTOR ? 5500 : 7000;
+      
+      if (player.score >= cost) {
+          player.score -= cost;
+          if (!planet.buildings) planet.buildings = [];
+          
+          planet.buildings.push({
+              id: `bld-${Date.now()}`,
+              type,
+              slotIndex,
+              createdAt: Date.now()
+          });
+          
+          this.audio.playTurretFire(2);
+      }
+  }
 
   public completeMission() {
       this.state.missionComplete = true;
@@ -802,9 +841,98 @@ export class GameEngine {
           this.state.spaceship.infrastructureLocked = false;
           this.state.spaceship.infrastructureOptions = []; 
       }
+
+      // --- PASSIVE INCOME FROM COLONIES ---
+      let totalYield = 0;
+      this.state.planets.forEach(p => {
+          if (p.completed && p.buildings && p.buildings.length > 0) {
+              p.buildings.forEach(b => {
+                  if (b.type === PlanetBuildingType.BIOMASS_EXTRACTOR) {
+                      // 800 * (1 + geneStrength)
+                      const amt = 800 * (1 + p.geneStrength);
+                      totalYield += amt;
+                  } else if (b.type === PlanetBuildingType.OXYGEN_EXTRACTOR) {
+                      // 1500 * (1 + oxygen%)
+                      const o2 = p.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
+                      const amt = 1500 * (1 + o2);
+                      totalYield += amt;
+                  }
+              });
+          }
+      });
+
+      if (totalYield > 0) {
+          const flooredYield = Math.floor(totalYield);
+          this.state.player.score += flooredYield;
+          
+          // Delayed message to appear on success screen
+          setTimeout(() => {
+              this.addMessage(this.t('PC_YIELD_MSG', {0: flooredYield}), WORLD_WIDTH/2, WORLD_HEIGHT/2 + 50, '#10b981', FloatingTextType.LOOT);
+          }, 1000);
+      }
+  }
+
+  private triggerGalacticEvent() {
+      // 8% chance
+      const roll = Math.random();
+      if (roll > 0.08) return;
+
+      const eventRoll = Math.random();
+      let eventType: GalacticEventType;
+
+      // Equal probability: 0-0.33, 0.33-0.66, 0.66-1.0
+      if (eventRoll < 0.33) eventType = GalacticEventType.EXPANSION;
+      else if (eventRoll < 0.66) eventType = GalacticEventType.INVASION;
+      else eventType = GalacticEventType.SALVAGE;
+
+      // Validation for INVASION
+      if (eventType === GalacticEventType.INVASION) {
+          const conqueredPlanets = this.state.planets.filter(p => p.completed);
+          if (conqueredPlanets.length <= 2) {
+              // Fallback to Expansion if not enough colonies to invade
+              eventType = GalacticEventType.EXPANSION;
+          }
+      }
+
+      const event: GalacticEvent = { type: eventType };
+
+      if (eventType === GalacticEventType.EXPANSION) {
+          // Buff uncompleted planets
+          this.state.planets.forEach(p => {
+              if (!p.completed) {
+                  p.geneStrength += 0.1 + Math.random() * 0.2;
+              }
+          });
+      } 
+      else if (eventType === GalacticEventType.INVASION) {
+          // Invade a completed planet
+          const conqueredPlanets = this.state.planets.filter(p => p.completed);
+          const target = conqueredPlanets[Math.floor(Math.random() * conqueredPlanets.length)];
+          
+          target.completed = false;
+          target.buildings = []; // Destroy infrastructure
+          target.geneStrength += 0.2 + Math.random() * 0.3; // Buff enemies
+          target.missionType = MissionType.OFFENSE; // Convert to Offense
+          
+          event.targetPlanetId = target.id;
+      } 
+      else if (eventType === GalacticEventType.SALVAGE) {
+          const reward = 3000 + Math.floor(Math.random() * 7001); // 3000-10000
+          this.state.player.score += reward;
+          event.scrapsReward = reward;
+      }
+
+      this.state.activeGalacticEvent = event;
+  }
+
+  public closeGalacticEvent() {
+      this.state.activeGalacticEvent = null;
   }
 
   public ascendToOrbit() {
+      // Check for success BEFORE resetting state variables
+      const wasSuccess = this.state.missionComplete;
+
       this.state.missionComplete = false;
       this.state.isPaused = false;
       this.state.isGameOver = false;
@@ -818,6 +946,11 @@ export class GameEngine {
       this.state.toxicZones = [];
       this.state.bloodStains = [];
       this.state.turretSpots.forEach(s => s.builtTurret = undefined);
+
+      // Trigger event logic AFTER returning to map
+      if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) {
+          this.triggerGalacticEvent();
+      }
   }
 
   public emergencyEvac() {

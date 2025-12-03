@@ -1,6 +1,10 @@
 
+
+
+
+
 import React, { useState, useEffect, useCallback } from 'react';
-import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType } from '../types';
+import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType, PlanetBuildingType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
 import { TRANSLATIONS } from '../data/locales';
 import { SpaceshipView } from './ui/SpaceshipView';
@@ -21,6 +25,8 @@ import { InteractPrompt } from './ui/InteractPrompt';
 import { CarapaceAnalyzerUI } from './ui/CarapaceAnalyzerUI';
 import { ShipComputer } from './ui/ShipComputer';
 import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
+import { PlanetConstructionUI } from './ui/PlanetConstructionUI';
+import { GalacticEventModal } from './ui/GalacticEventModal';
 
 interface UIOverlayProps {
   state: GameState;
@@ -74,12 +80,20 @@ interface UIOverlayProps {
   onCloseInfrastructure: () => void;
   onPurchaseInfrastructure: (optionId: string) => void;
 
+  // Planet Construction
+  onOpenPlanetConstruction: () => void;
+  onClosePlanetConstruction: () => void;
+  onConstructBuilding: (planetId: string, type: PlanetBuildingType, slotIndex: number) => void;
+
   // Evac
   onEmergencyEvac: () => void;
 
   // Ship Computer
   onOpenShipComputer: () => void;
   onCloseShipComputer: () => void;
+
+  // Events
+  onCloseGalacticEvent: () => void;
 }
 
 const VisorOverlay: React.FC = React.memo(() => (
@@ -137,9 +151,13 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onOpenInfrastructure,
     onCloseInfrastructure,
     onPurchaseInfrastructure,
+    onOpenPlanetConstruction,
+    onClosePlanetConstruction,
+    onConstructBuilding,
     onEmergencyEvac,
     onOpenShipComputer,
-    onCloseShipComputer
+    onCloseShipComputer,
+    onCloseGalacticEvent
 }) => {
   const t = useCallback((key: keyof typeof TRANSLATIONS.EN, params?: Record<string, any>) => {
       const lang = state.settings?.language || 'EN';
@@ -161,6 +179,16 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     <>
         <VisorOverlay />
         
+        {/* --- GLOBAL MODALS --- */}
+        {state.activeGalacticEvent && (
+            <GalacticEventModal 
+                event={state.activeGalacticEvent}
+                state={state}
+                onClose={onCloseGalacticEvent}
+                t={t}
+            />
+        )}
+
         {/* --- MODE SPECIFIC UIs --- */}
 
         {state.appMode === AppMode.START_MENU && (
@@ -219,6 +247,15 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
             />
         )}
 
+        {state.appMode === AppMode.PLANET_CONSTRUCTION && (
+            <PlanetConstructionUI 
+                state={state}
+                onClose={onClosePlanetConstruction}
+                onConstruct={onConstructBuilding}
+                t={t}
+            />
+        )}
+
         {state.appMode === AppMode.SHIP_COMPUTER && (
             <ShipComputer onClose={onCloseShipComputer} t={t} onCheat={onCheat} />
         )}
@@ -230,6 +267,7 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onOpenSpaceship={onOpenSpaceship}
                 onDeployPlanet={onDeployPlanet}
                 onDeselectPlanet={onDeselectPlanet}
+                onOpenConstruction={onOpenPlanetConstruction}
                 t={t}
                 onCheat={onCheat}
             />
