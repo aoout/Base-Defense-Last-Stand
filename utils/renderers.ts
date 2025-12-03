@@ -2,7 +2,7 @@
 import { 
     Player, Enemy, Turret, Ally, Projectile, TerrainFeature, BloodStain, ToxicZone, Planet, TurretSpot,
     WeaponType, EnemyType, BossType, TurretType, BiomeType, GameMode, GameState, PlanetVisualType, TerrainType,
-    MissionType, OrbitalBeam, FloatingText, FloatingTextType, Particle
+    MissionType, OrbitalBeam, FloatingText, FloatingTextType, Particle, ModuleType
 } from '../types';
 import { WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 import { ENEMY_STATS, BOSS_STATS, WEAPONS } from '../data/registry';
@@ -79,7 +79,6 @@ export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Par
     }
 
     // 2. Draw Batches using drawImage (Blitting)
-    // Base sprite size is 32px. We scale it down to match particle radius.
     const BASE_SPRITE_SIZE = 32; 
     
     for (const color in batches) {
@@ -88,15 +87,9 @@ export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Par
         
         for (let i = 0; i < batch.length; i++) {
             const p = batch[i];
-            
-            // Calculate scale: The sprite represents a circle of radius BASE_SPRITE_SIZE/2.
-            // We want to draw it at p.radius.
-            // Draw Size = (p.radius * 2) * (visual multiplier for glow effect)
             const drawSize = p.radius * 4; 
             
-            // Apply Alpha Fade
             ctx.globalAlpha = Math.max(0, p.life);
-            
             ctx.drawImage(
                 sprite, 
                 p.x - drawSize/2, 
@@ -107,6 +100,47 @@ export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Par
         }
     }
     ctx.globalAlpha = 1.0;
+};
+
+// BATCHED PROJECTILE RENDERER
+export const drawProjectilesBatch = (ctx: CanvasRenderingContext2D, projectiles: Projectile[], camera: {x: number, y: number}) => {
+    if (projectiles.length === 0) return;
+
+    const simpleBatches: Record<string, Projectile[]> = {};
+    const complexList: Projectile[] = [];
+    const BASE_SPRITE_SIZE = 32;
+
+    // 1. Sorting
+    for (let i = 0; i < projectiles.length; i++) {
+        const p = projectiles[i];
+        if (!isVisible(p.x, p.y, p.radius + 20, camera)) continue;
+
+        if (p.isHoming || p.createsToxicZone || p.weaponType === WeaponType.FLAMETHROWER) {
+            complexList.push(p);
+        } else {
+            if (!simpleBatches[p.color]) {
+                simpleBatches[p.color] = [];
+            }
+            simpleBatches[p.color].push(p);
+        }
+    }
+
+    // 2. Draw Simple Batches (Blitting)
+    for (const color in simpleBatches) {
+        const sprite = getSprite(color, BASE_SPRITE_SIZE);
+        const batch = simpleBatches[color];
+        
+        for (let i = 0; i < batch.length; i++) {
+            const p = batch[i];
+            const drawSize = p.radius * 4;
+            ctx.drawImage(sprite, p.x - drawSize/2, p.y - drawSize/2, drawSize, drawSize);
+        }
+    }
+
+    // 3. Draw Complex Projectiles (Legacy method)
+    for (let i = 0; i < complexList.length; i++) {
+        drawProjectile(ctx, complexList[i]);
+    }
 };
 
 // New Optimization: Render static terrain to an off-screen canvas once
@@ -136,14 +170,12 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
 
     // 3. Static Features
     terrain.forEach((t, idx) => {
-        // Skip dynamic types
         if ([TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
 
         ctx.save();
         ctx.translate(t.x, t.y);
         if (t.rotation) ctx.rotate(t.rotation);
         
-        // Draw logic for static types
         if (t.type === TerrainType.DUST) {
             ctx.fillStyle = t.color || style.dustColor; 
             ctx.globalAlpha = t.opacity || 0.2;
@@ -233,7 +265,6 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
             ctx.lineWidth = 1;
             ctx.stroke();
             
-            // Removed shadowBlur from crystal for performance
             ctx.fillStyle = '#fff';
             ctx.beginPath(); ctx.arc(0, -t.radius*0.5, 2, 0, Math.PI*2); ctx.fill();
         }
@@ -241,7 +272,6 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
         ctx.restore();
     });
 
-    // 4. Atmosphere Tint
     if (style.atmosphereColor !== 'rgba(0,0,0,0)') {
         ctx.fillStyle = style.atmosphereColor;
         ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
@@ -254,7 +284,6 @@ export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrai
     terrain.forEach((t, idx) => {
         if (![TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
         
-        // Culling
         if (!isVisible(t.x, t.y, t.radius, camera)) return;
 
         ctx.save();
@@ -330,10 +359,8 @@ export const drawCachedTerrain = (ctx: CanvasRenderingContext2D, cache: HTMLCanv
 
 export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[], camera: {x: number, y: number}) => {
     stains.forEach(s => {
-        // Culling
         if (!isVisible(s.x, s.y, 40, camera)) return;
 
-        // Opacity requires state change, so we must save/restore or manually reset globalAlpha
         ctx.save();
         ctx.translate(s.x, s.y);
         const opacity = Math.min(0.7, s.life / 1000); 
@@ -373,8 +400,6 @@ export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[]
     });
 }
 
-// ... (drawAR, drawSG, etc. kept as internal helpers if needed, or inline them if desired. 
-// For brevity, assuming they exist above or we just keep the file structure intact)
 const drawAR = (ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = '#374151'; ctx.fillRect(-10, -3, 8, 6);
     ctx.fillStyle = '#1F2937'; ctx.fillRect(-2, -4, 16, 8);
@@ -422,11 +447,9 @@ const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
     if (type === WeaponType.SR) xOffset = 42;
     if (type === WeaponType.PISTOL) xOffset = 15;
     
-    // Fake Glow
     ctx.fillStyle = type === WeaponType.PULSE_RIFLE ? 'rgba(6, 182, 212, 0.4)' : 'rgba(245, 158, 11, 0.4)';
     ctx.beginPath(); ctx.arc(xOffset + 5, 0, 15, 0, Math.PI*2); ctx.fill();
 
-    // Core Flash
     ctx.fillStyle = '#FEF08A'; 
     if (type === WeaponType.PULSE_RIFLE) { ctx.fillStyle = '#67E8F9'; }
     const size = type === WeaponType.SG ? 12 : 8;
@@ -447,7 +470,6 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
 
     ctx.fillStyle = '#2563EB'; ctx.beginPath(); ctx.arc(0, 0, 9, 0, Math.PI*2); ctx.fill();
     
-    // Manual glow
     ctx.fillStyle = 'rgba(96, 165, 250, 0.3)';
     ctx.beginPath(); ctx.ellipse(4, 0, 6, 9, 0, 0, Math.PI*2); ctx.fill();
     
@@ -509,7 +531,6 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
         const armorY = barYOffset + 1 + barHeight + spacing;
         const totalSegments = 10;
         const activeSegments = Math.ceil(totalSegments * armorPct);
-        const segWidth = (barWidth - (totalSegments - 1)) / totalSegments; 
 
         ctx.fillStyle = '#22d3ee'; 
         for(let i=0; i<activeSegments; i++) {
@@ -611,27 +632,22 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
     ctx.save();
     ctx.translate(t.x, t.y);
 
-    // --- HEALTH BAR START ---
     const hpPct = Math.max(0, t.hp / t.maxHp);
     const barH = 20;
     const barW = 4;
     const barX = -22;
     const barY = -10;
 
-    // Background
-    ctx.fillStyle = '#1f2937'; // gray-800
+    ctx.fillStyle = '#1f2937'; 
     ctx.fillRect(barX, barY, barW, barH);
 
-    // Fill
     const fillH = barH * hpPct;
     ctx.fillStyle = hpPct > 0.6 ? '#10b981' : hpPct > 0.3 ? '#facc15' : '#ef4444';
     ctx.fillRect(barX, barY + (barH - fillH), barW, fillH);
 
-    // Frame
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barW, barH);
-    // --- HEALTH BAR END ---
 
     ctx.fillStyle = '#064E3B'; 
     for(let i=0; i<3; i++) { ctx.save(); ctx.rotate(i * (Math.PI * 2 / 3)); ctx.fillRect(5, -2, 12, 4); ctx.restore(); }
@@ -669,24 +685,6 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
 };
 
 export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => {
-    // OPTIMIZATION: BATCH DRAWING USING CACHED SPRITES
-    // We check if it's a standard simple projectile that can be drawn with a sprite
-    // Homing missiles and special shapes still draw manually
-    
-    const BASE_SPRITE_SIZE = 32;
-
-    if (!p.isHoming && !p.createsToxicZone && p.weaponType !== WeaponType.FLAMETHROWER) {
-        const sprite = getSprite(p.color, BASE_SPRITE_SIZE);
-        // Scaling logic: Sprite is 32px. We want diameter = p.radius * 2
-        // But let's make bullets glow larger, so diameter = p.radius * 4
-        const drawSize = p.radius * 4;
-        
-        ctx.drawImage(sprite, p.x - drawSize/2, p.y - drawSize/2, drawSize, drawSize);
-        return;
-    }
-
-    // FALLBACK TO MANUAL DRAWING FOR COMPLEX PROJECTILES
-    
     ctx.translate(p.x, p.y);
     
     if (p.isHoming) {
@@ -713,232 +711,294 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
          ctx.fillStyle = color; 
          ctx.beginPath(); ctx.arc(0, 0, currentRadius, 0, Math.PI * 2); ctx.fill(); 
          ctx.globalCompositeOperation = 'source-over';
+    } else {
+        // Fallback for singular draws of normal bullets
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
     }
 
     ctx.translate(-p.x, -p.y);
 }
 
-// ... (drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBosses maintained below) ...
-export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const wiggle = Math.sin(time * 0.02) * 2;
-    const breathe = Math.sin(time * 0.005) * 1;
+// Enemy Renderers with LOD support
+export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const isLowDetail = lodLevel > 0;
+    const wiggle = isLowDetail ? 0 : Math.sin(time * 0.02) * 2;
+    const breathe = isLowDetail ? 0 : Math.sin(time * 0.005) * 1;
 
     ctx.strokeStyle = '#5c2b2b'; 
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
 
-    const legPairs = [
-        { x: -2, y: -4, reachX: -8, reachY: -16 }, 
-        { x: 2, y: -4, reachX: 4, reachY: -18 },   
-        { x: 6, y: -3, reachX: 14, reachY: -14 },  
-        { x: -2, y: 4, reachX: -8, reachY: 16 },   
-        { x: 2, y: 4, reachX: 4, reachY: 18 },     
-        { x: 6, y: 3, reachX: 14, reachY: 14 },    
-    ];
-
-    legPairs.forEach((leg, i) => {
-        const isLeft = leg.reachY < 0;
-        const move = isLeft ? wiggle : -wiggle;
-        const kneeX = (leg.x + leg.reachX) / 2;
-        const kneeY = (leg.y + leg.reachY) / 2 - (isLeft ? 5 : -5); 
-
+    if (isLowDetail) {
+        // Simplified Legs
         ctx.beginPath();
-        ctx.moveTo(leg.x, leg.y);
-        ctx.quadraticCurveTo(kneeX, kneeY, leg.reachX + (i%3===0 ? move : -move), leg.reachY);
-        ctx.stroke();
-    });
-
-    ctx.fillStyle = '#450a0a';
-    ctx.beginPath();
-    ctx.ellipse(-6, 0, 9, 7 + breathe, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.fillStyle = '#7f1d1d';
-    ctx.beginPath();
-    ctx.moveTo(-12, 0); ctx.lineTo(-2, 0); ctx.stroke(); 
-
-    ctx.fillStyle = '#7f1d1d'; 
-    ctx.beginPath();
-    ctx.ellipse(3, 0, 7, 6, 0, 0, Math.PI*2);
-    ctx.fill();
-
-    ctx.fillStyle = '#991b1b';
-    ctx.beginPath();
-    ctx.moveTo(-2, -4); ctx.lineTo(8, -3); ctx.lineTo(8, 3); ctx.lineTo(-2, 4);
-    ctx.fill();
-
-    ctx.fillStyle = '#b91c1c';
-    ctx.beginPath();
-    ctx.ellipse(10, 0, 5, 4, 0, 0, Math.PI*2);
-    ctx.fill();
-
-    ctx.strokeStyle = '#1a0505'; 
-    ctx.lineWidth = 2;
-    const bite = Math.sin(time * 0.015) * 2;
-    ctx.beginPath();
-    ctx.moveTo(12, -2); ctx.lineTo(18, -4 + bite); ctx.lineTo(16, -1);
-    ctx.stroke();
-    ctx.moveTo(12, 2); ctx.lineTo(18, 4 - bite); ctx.lineTo(16, 1);
-    ctx.stroke();
-
-    ctx.fillStyle = '#fca5a5'; 
-    ctx.beginPath(); ctx.arc(11, -2, 1.5, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(11, 2, 1.5, 0, Math.PI*2); ctx.fill();
-}
-
-export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const enginePulse = Math.sin(time * 0.05);
-
-    ctx.fillStyle = 'rgba(217, 119, 6, 0.3)'; 
-    ctx.beginPath(); 
-    ctx.moveTo(-5, 0); 
-    ctx.lineTo(-25 - enginePulse*5, -8); 
-    ctx.lineTo(-20, 0);
-    ctx.lineTo(-25 - enginePulse*5, 8); 
-    ctx.fill();
-
-    const grad = ctx.createLinearGradient(-10, 0, 15, 0); 
-    grad.addColorStop(0, '#7c2d12'); grad.addColorStop(1, '#f59e0b');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.moveTo(15, 0);
-    ctx.quadraticCurveTo(5, 7, -10, 4); 
-    ctx.lineTo(-12, 0);
-    ctx.quadraticCurveTo(5, -7, 15, 0); 
-    ctx.fill();
-
-    ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 2;
-    ctx.beginPath(); 
-    ctx.moveTo(5, 3); ctx.lineTo(12, 12); ctx.lineTo(20, 6); 
-    ctx.moveTo(5, -3); ctx.lineTo(12, -12); ctx.lineTo(20, -6); 
-    ctx.stroke();
-
-    ctx.fillStyle = '#78350f';
-    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-2, -5); ctx.lineTo(1, 0); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3, 5); ctx.lineTo(6, 0); ctx.fill();
-
-    ctx.fillStyle = '#10b981'; 
-    ctx.beginPath(); ctx.arc(12, -2, 1.5, 0, Math.PI*2); ctx.fill(); 
-    ctx.beginPath(); ctx.arc(12, 2, 1.5, 0, Math.PI*2); ctx.fill(); 
-}
-
-export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const walkOffset = Math.sin(time * 0.005) * 2;
-    
-    ctx.strokeStyle = '#111827'; 
-    ctx.lineWidth = 6; 
-    ctx.lineCap = 'round';
-    for(let i=0; i<4; i++) { 
-        const angle = Math.PI/4 + (i * Math.PI/6); 
-        const legX = Math.cos(angle) * 20;
-        const legY = Math.sin(angle) * 20;
-        
-        ctx.beginPath(); 
-        ctx.moveTo(5, 5); 
-        ctx.lineTo(legX + walkOffset, legY + walkOffset); 
+        ctx.moveTo(0, -4); ctx.lineTo(-8, -16);
+        ctx.moveTo(0, -4); ctx.lineTo(4, -18);
+        ctx.moveTo(0, -3); ctx.lineTo(14, -14);
+        ctx.moveTo(0, 4); ctx.lineTo(-8, 16);
+        ctx.moveTo(0, 4); ctx.lineTo(4, 18);
+        ctx.moveTo(0, 3); ctx.lineTo(14, 14);
         ctx.stroke();
         
-        ctx.beginPath(); 
-        ctx.moveTo(5, -5); 
-        ctx.lineTo(legX + walkOffset, -legY - walkOffset); 
-        ctx.stroke(); 
+        // Simplified Body
+        ctx.fillStyle = '#450a0a';
+        ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#b91c1c';
+        ctx.beginPath(); ctx.arc(5, 0, 4, 0, Math.PI*2); ctx.fill();
+    } else {
+        const legPairs = [
+            { x: -2, y: -4, reachX: -8, reachY: -16 }, 
+            { x: 2, y: -4, reachX: 4, reachY: -18 },   
+            { x: 6, y: -3, reachX: 14, reachY: -14 },  
+            { x: -2, y: 4, reachX: -8, reachY: 16 },   
+            { x: 2, y: 4, reachX: 4, reachY: 18 },     
+            { x: 6, y: 3, reachX: 14, reachY: 14 },    
+        ];
+
+        legPairs.forEach((leg, i) => {
+            const isLeft = leg.reachY < 0;
+            const move = isLeft ? wiggle : -wiggle;
+            const kneeX = (leg.x + leg.reachX) / 2;
+            const kneeY = (leg.y + leg.reachY) / 2 - (isLeft ? 5 : -5); 
+
+            ctx.beginPath();
+            ctx.moveTo(leg.x, leg.y);
+            ctx.quadraticCurveTo(kneeX, kneeY, leg.reachX + (i%3===0 ? move : -move), leg.reachY);
+            ctx.stroke();
+        });
+
+        ctx.fillStyle = '#450a0a';
+        ctx.beginPath();
+        ctx.ellipse(-6, 0, 9, 7 + breathe, 0, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#7f1d1d';
+        ctx.beginPath();
+        ctx.moveTo(-12, 0); ctx.lineTo(-2, 0); ctx.stroke(); 
+
+        ctx.fillStyle = '#7f1d1d'; 
+        ctx.beginPath();
+        ctx.ellipse(3, 0, 7, 6, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = '#991b1b';
+        ctx.beginPath();
+        ctx.moveTo(-2, -4); ctx.lineTo(8, -3); ctx.lineTo(8, 3); ctx.lineTo(-2, 4);
+        ctx.fill();
+
+        ctx.fillStyle = '#b91c1c';
+        ctx.beginPath();
+        ctx.ellipse(10, 0, 5, 4, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#1a0505'; 
+        ctx.lineWidth = 2;
+        const bite = Math.sin(time * 0.015) * 2;
+        ctx.beginPath();
+        ctx.moveTo(12, -2); ctx.lineTo(18, -4 + bite); ctx.lineTo(16, -1);
+        ctx.stroke();
+        ctx.moveTo(12, 2); ctx.lineTo(18, 4 - bite); ctx.lineTo(16, 1);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fca5a5'; 
+        ctx.beginPath(); ctx.arc(11, -2, 1.5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(11, 2, 1.5, 0, Math.PI*2); ctx.fill();
     }
-
-    ctx.fillStyle = '#1f2937'; 
-    ctx.beginPath(); ctx.arc(-5, 0, 20, 0, Math.PI*2); ctx.fill(); 
-    
-    ctx.fillStyle = '#374151'; 
-    ctx.beginPath(); ctx.arc(5, 0, 18, 0, Math.PI*2); ctx.fill(); 
-    ctx.stroke();
-
-    ctx.fillStyle = '#4b5563'; 
-    ctx.beginPath(); ctx.arc(12, 0, 14, 0, Math.PI*2); ctx.fill(); 
-    ctx.stroke();
-
-    ctx.fillStyle = '#e5e7eb';
-    ctx.beginPath(); ctx.moveTo(18, -8); ctx.quadraticCurveTo(35, -12, 30, -2); ctx.lineTo(20, -6); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(18, 8); ctx.quadraticCurveTo(35, 12, 30, 2); ctx.lineTo(20, 6); ctx.fill();
-
-    ctx.fillStyle = '#ef4444'; 
-    ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 5; 
-    ctx.beginPath(); ctx.arc(20, 0, 2, 0, Math.PI*2); ctx.fill();
-    ctx.shadowBlur = 0;
 }
 
-export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const pulse = (Math.sin(time * 0.015) + 1) * 0.5; 
-    const shake = Math.sin(time * 0.1) * 0.5;
+export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const isLowDetail = lodLevel > 0;
     
-    ctx.save(); 
-    ctx.translate(shake, shake);
-
-    const sackGrad = ctx.createRadialGradient(-5, 0, 2, -5, 0, 14); 
-    sackGrad.addColorStop(0, '#e9d5ff'); 
-    sackGrad.addColorStop(0.5, 'rgba(168, 85, 247, 0.8)'); 
-    sackGrad.addColorStop(1, 'rgba(88, 28, 135, 0.9)');
-    
-    ctx.fillStyle = sackGrad; 
-    ctx.beginPath(); 
-    ctx.ellipse(-5, 0, 12 + pulse*2, 10 + pulse*2, 0, 0, Math.PI*2); 
-    ctx.fill();
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; 
-    ctx.lineWidth = 1; 
-    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, -6 - pulse); ctx.stroke(); 
-    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, 6 + pulse); ctx.stroke(); 
-    ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-16 - pulse, 0); ctx.stroke();
-
-    ctx.fillStyle = '#4c1d95'; 
-    ctx.beginPath(); ctx.arc(8, 0, 5, 0, Math.PI*2); ctx.fill(); 
-    
-    ctx.strokeStyle = '#4c1d95'; 
-    ctx.lineWidth = 2; 
-    const legSpeed = time * 0.05; 
-    for(let i=-1; i<=1; i+=2) { 
+    if (isLowDetail) {
+        ctx.fillStyle = '#7c2d12';
+        ctx.beginPath();
+        ctx.moveTo(15, 0); ctx.lineTo(-10, -5); ctx.lineTo(-10, 5); ctx.fill();
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 2;
         ctx.beginPath(); 
-        ctx.moveTo(8, i*2); 
-        ctx.lineTo(14, i*8 + Math.sin(legSpeed)*3); 
-        ctx.stroke(); 
+        ctx.moveTo(0, 0); ctx.lineTo(10, -10);
+        ctx.moveTo(0, 0); ctx.lineTo(10, 10);
+        ctx.stroke();
+    } else {
+        const enginePulse = Math.sin(time * 0.05);
+
+        ctx.fillStyle = 'rgba(217, 119, 6, 0.3)'; 
+        ctx.beginPath(); 
+        ctx.moveTo(-5, 0); 
+        ctx.lineTo(-25 - enginePulse*5, -8); 
+        ctx.lineTo(-20, 0);
+        ctx.lineTo(-25 - enginePulse*5, 8); 
+        ctx.fill();
+
+        const grad = ctx.createLinearGradient(-10, 0, 15, 0); 
+        grad.addColorStop(0, '#7c2d12'); grad.addColorStop(1, '#f59e0b');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(15, 0);
+        ctx.quadraticCurveTo(5, 7, -10, 4); 
+        ctx.lineTo(-12, 0);
+        ctx.quadraticCurveTo(5, -7, 15, 0); 
+        ctx.fill();
+
+        ctx.strokeStyle = '#78350f';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); 
+        ctx.moveTo(5, 3); ctx.lineTo(12, 12); ctx.lineTo(20, 6); 
+        ctx.moveTo(5, -3); ctx.lineTo(12, -12); ctx.lineTo(20, -6); 
+        ctx.stroke();
+
+        ctx.fillStyle = '#78350f';
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-2, -5); ctx.lineTo(1, 0); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(3, 5); ctx.lineTo(6, 0); ctx.fill();
+
+        ctx.fillStyle = '#10b981'; 
+        ctx.beginPath(); ctx.arc(12, -2, 1.5, 0, Math.PI*2); ctx.fill(); 
+        ctx.beginPath(); ctx.arc(12, 2, 1.5, 0, Math.PI*2); ctx.fill(); 
     }
-    
-    ctx.restore();
 }
 
-export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const flap = Math.sin(time * 0.008) * 0.5;
+export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const isLowDetail = lodLevel > 0;
+    
+    if (isLowDetail) {
+        ctx.fillStyle = '#1f2937'; 
+        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#374151'; 
+        ctx.fillRect(-10, -15, 20, 30);
+    } else {
+        const walkOffset = Math.sin(time * 0.005) * 2;
+        
+        ctx.strokeStyle = '#111827'; 
+        ctx.lineWidth = 6; 
+        ctx.lineCap = 'round';
+        for(let i=0; i<4; i++) { 
+            const angle = Math.PI/4 + (i * Math.PI/6); 
+            const legX = Math.cos(angle) * 20;
+            const legY = Math.sin(angle) * 20;
+            
+            ctx.beginPath(); 
+            ctx.moveTo(5, 5); 
+            ctx.lineTo(legX + walkOffset, legY + walkOffset); 
+            ctx.stroke();
+            
+            ctx.beginPath(); 
+            ctx.moveTo(5, -5); 
+            ctx.lineTo(legX + walkOffset, -legY - walkOffset); 
+            ctx.stroke(); 
+        }
 
-    ctx.strokeStyle = '#064e3b';
-    ctx.lineWidth = 6;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(-15, 10, -25, 0); 
-    ctx.stroke();
+        ctx.fillStyle = '#1f2937'; 
+        ctx.beginPath(); ctx.arc(-5, 0, 20, 0, Math.PI*2); ctx.fill(); 
+        
+        ctx.fillStyle = '#374151'; 
+        ctx.beginPath(); ctx.arc(5, 0, 18, 0, Math.PI*2); ctx.fill(); 
+        ctx.stroke();
 
-    ctx.fillStyle = 'rgba(16, 185, 129, 0.2)'; 
-    ctx.strokeStyle = '#065f46'; 
-    ctx.lineWidth = 1;
-    ctx.save(); 
-    ctx.scale(1, 1 + flap * 0.2); 
-    ctx.beginPath(); 
-    ctx.moveTo(5, 0); 
-    ctx.bezierCurveTo(-5, 25, -20, 20, -15, 0); 
-    ctx.bezierCurveTo(-20, -20, -5, -25, 5, 0); 
-    ctx.fill(); 
-    ctx.stroke(); 
-    ctx.restore();
+        ctx.fillStyle = '#4b5563'; 
+        ctx.beginPath(); ctx.arc(12, 0, 14, 0, Math.PI*2); ctx.fill(); 
+        ctx.stroke();
 
-    ctx.fillStyle = '#064e3b'; 
-    ctx.beginPath(); 
-    ctx.moveTo(5, -4); ctx.lineTo(18, -6); ctx.lineTo(15, -2); 
-    ctx.lineTo(5, 0);
-    ctx.lineTo(15, 2); ctx.lineTo(18, 6); ctx.lineTo(5, 4); 
-    ctx.fill();
+        ctx.fillStyle = '#e5e7eb';
+        ctx.beginPath(); ctx.moveTo(18, -8); ctx.quadraticCurveTo(35, -12, 30, -2); ctx.lineTo(20, -6); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(18, 8); ctx.quadraticCurveTo(35, 12, 30, 2); ctx.lineTo(20, 6); ctx.fill();
 
-    ctx.fillStyle = '#34d399'; 
-    // shadowBlur removed for performance
-    ctx.beginPath(); ctx.arc(-5, 10 + flap*5, 2, 0, Math.PI*2); ctx.fill(); 
-    ctx.beginPath(); ctx.arc(-5, -10 - flap*5, 2, 0, Math.PI*2); ctx.fill(); 
+        ctx.fillStyle = '#ef4444'; 
+        ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 5; 
+        ctx.beginPath(); ctx.arc(20, 0, 2, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+}
+
+export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const isLowDetail = lodLevel > 0;
+    if (isLowDetail) {
+        ctx.fillStyle = '#4c1d95'; 
+        ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(168, 85, 247, 0.8)';
+        ctx.beginPath(); ctx.arc(-5, 0, 6, 0, Math.PI*2); ctx.fill();
+    } else {
+        const pulse = (Math.sin(time * 0.015) + 1) * 0.5; 
+        const shake = Math.sin(time * 0.1) * 0.5;
+        
+        ctx.save(); 
+        ctx.translate(shake, shake);
+
+        const sackGrad = ctx.createRadialGradient(-5, 0, 2, -5, 0, 14); 
+        sackGrad.addColorStop(0, '#e9d5ff'); 
+        sackGrad.addColorStop(0.5, 'rgba(168, 85, 247, 0.8)'); 
+        sackGrad.addColorStop(1, 'rgba(88, 28, 135, 0.9)');
+        
+        ctx.fillStyle = sackGrad; 
+        ctx.beginPath(); 
+        ctx.ellipse(-5, 0, 12 + pulse*2, 10 + pulse*2, 0, 0, Math.PI*2); 
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)'; 
+        ctx.lineWidth = 1; 
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, -6 - pulse); ctx.stroke(); 
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-12 - pulse, 6 + pulse); ctx.stroke(); 
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(-16 - pulse, 0); ctx.stroke();
+
+        ctx.fillStyle = '#4c1d95'; 
+        ctx.beginPath(); ctx.arc(8, 0, 5, 0, Math.PI*2); ctx.fill(); 
+        
+        ctx.strokeStyle = '#4c1d95'; 
+        ctx.lineWidth = 2; 
+        const legSpeed = time * 0.05; 
+        for(let i=-1; i<=1; i+=2) { 
+            ctx.beginPath(); 
+            ctx.moveTo(8, i*2); 
+            ctx.lineTo(14, i*8 + Math.sin(legSpeed)*3); 
+            ctx.stroke(); 
+        }
+        
+        ctx.restore();
+    }
+}
+
+export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const isLowDetail = lodLevel > 0;
+    if (isLowDetail) {
+        ctx.strokeStyle = '#064e3b';
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-20, 0); ctx.stroke();
+        ctx.fillStyle = '#34d399';
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI*2); ctx.fill();
+    } else {
+        const flap = Math.sin(time * 0.008) * 0.5;
+
+        ctx.strokeStyle = '#064e3b';
+        ctx.lineWidth = 6;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(-15, 10, -25, 0); 
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.2)'; 
+        ctx.strokeStyle = '#065f46'; 
+        ctx.lineWidth = 1;
+        ctx.save(); 
+        ctx.scale(1, 1 + flap * 0.2); 
+        ctx.beginPath(); 
+        ctx.moveTo(5, 0); 
+        ctx.bezierCurveTo(-5, 25, -20, 20, -15, 0); 
+        ctx.bezierCurveTo(-20, -20, -5, -25, 5, 0); 
+        ctx.fill(); 
+        ctx.stroke(); 
+        ctx.restore();
+
+        ctx.fillStyle = '#064e3b'; 
+        ctx.beginPath(); 
+        ctx.moveTo(5, -4); ctx.lineTo(18, -6); ctx.lineTo(15, -2); 
+        ctx.lineTo(5, 0);
+        ctx.lineTo(15, 2); ctx.lineTo(18, 6); ctx.lineTo(5, 4); 
+        ctx.fill();
+
+        ctx.fillStyle = '#34d399'; 
+        ctx.beginPath(); ctx.arc(-5, 10 + flap*5, 2, 0, Math.PI*2); ctx.fill(); 
+        ctx.beginPath(); ctx.arc(-5, -10 - flap*5, 2, 0, Math.PI*2); ctx.fill(); 
+    }
 }
 
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
@@ -997,7 +1057,6 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
         }
     }
 
-    // Fake glow instead of shadowBlur
     ctx.fillStyle = `rgba(254, 226, 226, 0.3)`;
     ctx.beginPath();
     ctx.arc(0, 0, 25, 0, Math.PI * 2);
@@ -1025,7 +1084,6 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
     }
 }
 
-// ... (drawPlanetSprite, drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText unchanged) ...
 export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, x: number, y: number, radius: number, time: number, isSelected: boolean) => {
     ctx.save();
     ctx.translate(x, y);
@@ -1094,7 +1152,6 @@ export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, 
             ctx.fill();
         }
         
-        // Removed ShadowBlur
         ctx.strokeStyle = 'rgba(251, 146, 60, 0.5)';
         ctx.lineWidth = 2;
         ctx.stroke(); 
@@ -1305,7 +1362,6 @@ export const drawFloatingText = (ctx: CanvasRenderingContext2D, ft: FloatingText
     ctx.textBaseline = 'middle';
     
     ctx.fillStyle = ft.color;
-    // Removed shadowBlur
     
     if (ft.type === FloatingTextType.SYSTEM) {
         const jitterX = Math.random() < 0.1 ? (Math.random()-0.5)*4 : 0;

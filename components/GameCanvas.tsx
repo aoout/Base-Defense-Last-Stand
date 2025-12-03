@@ -8,7 +8,7 @@ import {
     drawBloodStains, drawToxicZones, drawTurret, 
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
-    drawBase, drawTurretSpot, drawProjectile,
+    drawBase, drawTurretSpot, drawProjectilesBatch,
     drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
     isVisible, drawParticlesBatch
 } from '../utils/renderers';
@@ -126,6 +126,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         ctx.restore();
     });
 
+    // Calculate LOD Level
+    const lodLevel = state.enemies.length > 50 ? 1 : 0;
+
     // Draw Enemies
     state.enemies.forEach(e => {
       // Culling
@@ -145,11 +148,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       } else {
           // Normal Enemies
           switch(e.type) {
-              case 'GRUNT': drawGrunt(ctx, e, time); break;
-              case 'RUSHER': drawRusher(ctx, e, time); break;
-              case 'TANK': drawTank(ctx, e, time); break;
-              case 'KAMIKAZE': drawKamikaze(ctx, e, time); break;
-              case 'VIPER': drawViper(ctx, e, time); break;
+              case 'GRUNT': drawGrunt(ctx, e, time, lodLevel); break;
+              case 'RUSHER': drawRusher(ctx, e, time, lodLevel); break;
+              case 'TANK': drawTank(ctx, e, time, lodLevel); break;
+              case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
+              case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
           }
       }
       
@@ -161,20 +164,23 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       const barY = -e.radius - 15;
       const hpPct = Math.max(0, e.hp / e.maxHp);
       
-      // Brackets [ ]
-      ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      // Left Bracket
-      ctx.moveTo(-barWidth/2 + 2, barY - 2); ctx.lineTo(-barWidth/2, barY - 2); ctx.lineTo(-barWidth/2, barY + 6); ctx.lineTo(-barWidth/2 + 2, barY + 6);
-      // Right Bracket
-      ctx.moveTo(barWidth/2 - 2, barY - 2); ctx.lineTo(barWidth/2, barY - 2); ctx.lineTo(barWidth/2, barY + 6); ctx.lineTo(barWidth/2 - 2, barY + 6);
-      ctx.stroke();
+      // Skip brackets at Low LOD for small enemies to save draw calls
+      if (lodLevel === 0 || e.isBoss) {
+          // Brackets [ ]
+          ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          // Left Bracket
+          ctx.moveTo(-barWidth/2 + 2, barY - 2); ctx.lineTo(-barWidth/2, barY - 2); ctx.lineTo(-barWidth/2, barY + 6); ctx.lineTo(-barWidth/2 + 2, barY + 6);
+          // Right Bracket
+          ctx.moveTo(barWidth/2 - 2, barY - 2); ctx.lineTo(barWidth/2, barY - 2); ctx.lineTo(barWidth/2, barY + 6); ctx.lineTo(barWidth/2 - 2, barY + 6);
+          ctx.stroke();
+      }
 
       // Segments
-      const totalSegments = e.isBoss ? 20 : 5;
+      const totalSegments = e.isBoss ? 20 : (lodLevel > 0 ? 1 : 5);
       const activeSegments = Math.ceil(totalSegments * hpPct);
-      const segWidth = (barWidth - 4) / totalSegments;
+      const segWidth = (barWidth - (lodLevel > 0 ? 0 : 4)) / totalSegments;
       
       ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
       for(let i=0; i<activeSegments; i++) {
@@ -204,11 +210,8 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         ctx.stroke();
     }
 
-    // Draw Projectiles
-    state.projectiles.forEach(p => {
-        if (!isVisible(p.x, p.y, p.radius + 20, camera)) return; // Simple culling for bullets
-        drawProjectile(ctx, p);
-    });
+    // Draw Projectiles - BATCHED
+    drawProjectilesBatch(ctx, state.projectiles, camera);
 
     // Draw Particles - NEW OPTIMIZED BATCHED
     drawParticlesBatch(ctx, state.particles, camera);
