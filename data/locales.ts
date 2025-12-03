@@ -11,6 +11,8 @@
 
 
 
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -481,8 +483,7 @@ Immediate spawn of next wave. No downtime for reload or regen.
         MODULE_PRESSURIZED_BOLT_DESC: "+10% Fire Rate per shot (Stacks)",
         
         // Module Compatibility
-        COMPAT_ONLY: "ONLY: {0}",
-        COMPAT_EXCLUDE: "EXCLUDES: {0}",
+        COMPAT_LIST: "Compatible: {0}",
         COMPAT_ALL: "COMPATIBLE WITH ALL BALLISTIC WEAPONS",
         COMPAT_GRENADE: "GRENADES",
 
@@ -1130,8 +1131,7 @@ function calculateEnemyCount(Wave) {
         MODULE_PRESSURIZED_BOLT_DESC: "每发增加 +10% 射速 (可叠加)",
         
         // Module Compatibility
-        COMPAT_ONLY: "仅限：{0}",
-        COMPAT_EXCLUDE: "不兼容：{0}",
+        COMPAT_LIST: "兼容武器：{0}",
         COMPAT_ALL: "兼容所有动能武器",
         COMPAT_GRENADE: "手雷",
 

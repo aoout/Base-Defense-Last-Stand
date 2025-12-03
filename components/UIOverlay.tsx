@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType, PlanetBuildingType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
@@ -30,6 +24,7 @@ import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
 import { PlanetConstructionUI } from './ui/PlanetConstructionUI';
 import { GalacticEventModal } from './ui/GalacticEventModal';
 import { PlanetaryYieldReport } from './ui/PlanetaryYieldReport';
+import { MobileControls } from './ui/MobileControls';
 
 interface UIOverlayProps {
   state: GameState;
@@ -98,6 +93,11 @@ interface UIOverlayProps {
   // Events
   onCloseGalacticEvent: () => void;
   onClaimYield: () => void;
+
+  // Mobile
+  onJoystickMove: (side: 'LEFT' | 'RIGHT', x: number, y: number) => void;
+  onMobileButton: (action: string) => void;
+  isMobile: boolean;
 }
 
 const VisorOverlay: React.FC = React.memo(() => (
@@ -119,53 +119,12 @@ const VisorOverlay: React.FC = React.memo(() => (
     </div>
 ));
 
-const UIOverlay: React.FC<UIOverlayProps> = ({ 
-    state, 
-    onPurchase, 
-    onCloseShop, 
-    onCloseInventory,
-    onCloseTacticalMenu,
-    onClosePause,
-    onRestart, 
-    onToggleSetting, 
-    onIssueOrder, 
-    onSwapItems, 
-    onConfirmUpgrade,
-    onStartSurvival,
-    onStartExploration,
-    onDeployPlanet,
-    onReturnToMap,
-    onDeselectPlanet,
-    onOpenSpaceship,
-    onCloseSpaceship,
-    onSaveGame,
-    onLoadGame,
-    onDeleteSave,
-    onTogglePin,
-    onExportSave,
-    onImportSave,
-    onSkipWave,
-    onCheat,
-    onPurchaseOrbitalUpgrade,
-    onOpenOrbitalUpgrades,
-    onCloseOrbitalUpgrades,
-    onOpenCarapaceGrid,
-    onCloseCarapaceGrid,
-    onPurchaseCarapaceNode,
-    onOpenInfrastructure,
-    onCloseInfrastructure,
-    onPurchaseInfrastructure,
-    onOpenPlanetConstruction,
-    onClosePlanetConstruction,
-    onConstructBuilding,
-    onEmergencyEvac,
-    onOpenShipComputer,
-    onCloseShipComputer,
-    onCloseGalacticEvent,
-    onClaimYield
-}) => {
-  const t = useCallback((key: keyof typeof TRANSLATIONS.EN, params?: Record<string, any>) => {
-      const lang = state.settings?.language || 'EN';
+const UIOverlay: React.FC<UIOverlayProps> = (props) => {
+  const { state } = props;
+  
+  // Memoize translation function
+  const t = useCallback((key: string, params?: any) => {
+      const lang = state.settings.language;
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
       let str = (dict as any)[key] || key;
       if (params) {
@@ -176,167 +135,165 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
       return str;
   }, [state.settings.language]);
 
-  const handlePurchaseSpaceshipModule = (modType: SpaceshipModuleType) => {
-      onPurchase(modType);
-  }
-
   return (
-    <>
-        <VisorOverlay />
-        
-        {/* --- GLOBAL MODALS --- */}
-        {state.activeGalacticEvent && (
-            <GalacticEventModal 
-                event={state.activeGalacticEvent}
-                state={state}
-                onClose={onCloseGalacticEvent}
-                t={t}
-            />
-        )}
+    <div className="absolute inset-0 pointer-events-none select-none font-sans">
+      <VisorOverlay />
 
-        {/* --- MODE SPECIFIC UIs --- */}
+      {/* Main Menu */}
+      {state.appMode === AppMode.START_MENU && (
+          <MainMenu 
+            state={state} 
+            onStartSurvival={props.onStartSurvival}
+            onStartExploration={props.onStartExploration}
+            onLoadGame={props.onLoadGame}
+            onDeleteSave={props.onDeleteSave}
+            onTogglePin={props.onTogglePin}
+            onExportSave={props.onExportSave}
+            onImportSave={props.onImportSave}
+            onToggleSetting={props.onToggleSetting}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.START_MENU && (
-            <MainMenu 
-                state={state}
-                onStartSurvival={onStartSurvival}
-                onStartExploration={onStartExploration}
-                onLoadGame={onLoadGame}
-                onDeleteSave={onDeleteSave}
-                onTogglePin={onTogglePin}
-                onExportSave={onExportSave}
-                onImportSave={onImportSave}
-                onToggleSetting={onToggleSetting}
-                t={t}
-            />
-        )}
+      {/* Exploration Map */}
+      {state.appMode === AppMode.EXPLORATION_MAP && (
+          <SectorMapUI 
+            state={state} 
+            onSaveGame={props.onSaveGame} 
+            onOpenSpaceship={props.onOpenSpaceship}
+            onDeployPlanet={props.onDeployPlanet}
+            onDeselectPlanet={props.onDeselectPlanet}
+            onCheat={props.onCheat}
+            onOpenConstruction={props.onOpenPlanetConstruction}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.SPACESHIP_VIEW && (
-            <SpaceshipView 
-                state={state} 
-                onClose={onCloseSpaceship} 
-                onPurchaseModule={handlePurchaseSpaceshipModule}
-                onOpenUpgrades={onOpenOrbitalUpgrades}
-                onOpenCarapaceGrid={onOpenCarapaceGrid}
-                onOpenInfrastructure={onOpenInfrastructure}
-                onOpenComputer={onOpenShipComputer}
-                onCheat={onCheat}
-                t={t}
-            />
-        )}
+      {/* Spaceship View */}
+      {state.appMode === AppMode.SPACESHIP_VIEW && (
+          <SpaceshipView 
+            state={state} 
+            onClose={props.onCloseSpaceship} 
+            onPurchaseModule={(m) => props.onPurchase(m)}
+            onOpenUpgrades={props.onOpenOrbitalUpgrades}
+            onOpenCarapaceGrid={props.onOpenCarapaceGrid}
+            onOpenInfrastructure={props.onOpenInfrastructure}
+            onOpenComputer={props.onOpenShipComputer}
+            onCheat={props.onCheat}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.ORBITAL_UPGRADES && (
-            <OrbitalUpgradeUI 
-                state={state}
-                onPurchase={onPurchaseOrbitalUpgrade}
-                onClose={onCloseOrbitalUpgrades}
-                t={t}
-            />
-        )}
+      {/* Orbital Upgrade Tree */}
+      {state.appMode === AppMode.ORBITAL_UPGRADES && (
+          <OrbitalUpgradeUI 
+            state={state}
+            onPurchase={props.onPurchaseOrbitalUpgrade}
+            onClose={props.onCloseOrbitalUpgrades}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.CARAPACE_GRID && (
-            <CarapaceAnalyzerUI 
-                state={state}
-                onPurchase={onPurchaseCarapaceNode}
-                onClose={onCloseCarapaceGrid}
-                t={t}
-            />
-        )}
+      {/* Carapace Grid */}
+      {state.appMode === AppMode.CARAPACE_GRID && (
+          <CarapaceAnalyzerUI
+            state={state}
+            onPurchase={props.onPurchaseCarapaceNode}
+            onClose={props.onCloseCarapaceGrid}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.INFRASTRUCTURE_RESEARCH && (
-            <InfrastructureResearchUI 
-                state={state}
-                onPurchase={onPurchaseInfrastructure}
-                onClose={onCloseInfrastructure}
-                t={t}
-            />
-        )}
+      {/* Infrastructure Research */}
+      {state.appMode === AppMode.INFRASTRUCTURE_RESEARCH && (
+          <InfrastructureResearchUI 
+            state={state}
+            onPurchase={props.onPurchaseInfrastructure}
+            onClose={props.onCloseInfrastructure}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.PLANET_CONSTRUCTION && (
-            <PlanetConstructionUI 
-                state={state}
-                onClose={onClosePlanetConstruction}
-                onConstruct={onConstructBuilding}
-                t={t}
-            />
-        )}
+      {/* Planet Construction */}
+      {state.appMode === AppMode.PLANET_CONSTRUCTION && (
+          <PlanetConstructionUI 
+            state={state}
+            onClose={props.onClosePlanetConstruction}
+            onConstruct={props.onConstructBuilding}
+            t={t}
+          />
+      )}
 
-        {state.appMode === AppMode.SHIP_COMPUTER && (
-            <ShipComputer onClose={onCloseShipComputer} t={t} onCheat={onCheat} />
-        )}
+      {/* Ship Computer (Manual) */}
+      {state.appMode === AppMode.SHIP_COMPUTER && (
+          <ShipComputer onClose={props.onCloseShipComputer} t={t} onCheat={props.onCheat} />
+      )}
 
-        {state.appMode === AppMode.EXPLORATION_MAP && (
-            <SectorMapUI 
-                state={state}
-                onSaveGame={onSaveGame}
-                onOpenSpaceship={onOpenSpaceship}
-                onDeployPlanet={onDeployPlanet}
-                onDeselectPlanet={onDeselectPlanet}
-                onOpenConstruction={onOpenPlanetConstruction}
-                t={t}
-                onCheat={onCheat}
-            />
-        )}
+      {/* Mission Failed */}
+      {state.isGameOver && state.gameMode === GameMode.EXPLORATION ? (
+          <ExtractionScreen onEvac={props.onEmergencyEvac} t={t} />
+      ) : (
+          state.isGameOver && <MissionFailedScreen state={state} onRestart={props.onRestart} t={t} />
+      )}
 
-        {state.appMode === AppMode.YIELD_REPORT && (
-            <PlanetaryYieldReport 
-                state={state}
-                onClaim={onClaimYield}
-                t={t}
-            />
-        )}
+      {/* Mission Success */}
+      {state.missionComplete && <MissionSuccessScreen state={state} onReturn={props.onReturnToMap} t={t} />}
 
-        {state.isGameOver && (
-            state.gameMode === GameMode.EXPLORATION ? (
-                <ExtractionScreen onEvac={onEmergencyEvac} t={t} />
-            ) : (
-                <MissionFailedScreen state={state} onRestart={onRestart} t={t} />
-            )
-        )}
+      {/* Yield Report */}
+      {state.appMode === AppMode.YIELD_REPORT && (
+          <PlanetaryYieldReport state={state} onClaim={props.onClaimYield} t={t} />
+      )}
 
-        {state.missionComplete && (
-            <MissionSuccessScreen state={state} onReturn={onReturnToMap} t={t} />
-        )}
+      {/* Galactic Events */}
+      {state.activeGalacticEvent && (
+          <GalacticEventModal event={state.activeGalacticEvent} state={state} onClose={props.onCloseGalacticEvent} t={t} />
+      )}
 
-        {/* --- GAMEPLAY HUD --- */}
+      {/* Gameplay HUD & Modals */}
+      {state.appMode === AppMode.GAMEPLAY && !state.isGameOver && !state.missionComplete && (
+        <>
+          {state.settings.showHUD && <HUD state={state} t={t} onSkipWave={props.onSkipWave} />}
+          
+          <InteractPrompt state={state} t={t} />
 
-        {state.appMode === AppMode.GAMEPLAY && (
-            <div className="absolute inset-0 pointer-events-none w-full h-full overflow-hidden">
-                
-                {/* --- SPECIAL EVENT WARNING BANNER --- */}
-                {state.activeSpecialEvent !== SpecialEventType.NONE && (
-                    <div className="absolute top-32 left-1/2 -translate-x-1/2 w-full flex justify-center z-30">
-                        <div className="bg-red-950/90 border-y-2 border-red-500 w-full py-2 flex justify-center items-center shadow-[0_0_20px_rgba(220,38,38,0.5)] animate-pulse">
-                            <div className="text-white font-black text-2xl tracking-[0.3em] uppercase drop-shadow-md">
-                                {state.activeSpecialEvent === SpecialEventType.FRENZY && t('FRENZY_BANNER')}
-                                {state.activeSpecialEvent === SpecialEventType.BOSS && t('BOSS_BANNER')}
-                            </div>
-                        </div>
-                    </div>
-                )}
+          {/* Pause Menu */}
+          {state.isPaused && !state.activeTurretId && !state.isShopOpen && !state.isInventoryOpen && !state.isTacticalMenuOpen && (
+            <TacticalTerminal state={state} onToggleSetting={props.onToggleSetting} onClose={props.onClosePause} onSave={props.onSaveGame} t={t} />
+          )}
 
-                {state.activeTurretId !== undefined ? (
-                    <TurretUpgradeUI state={state} onConfirmUpgrade={onConfirmUpgrade} t={t} />
-                ) : state.isTacticalMenuOpen ? (
-                    <TacticalCallInterface state={state} onIssueOrder={onIssueOrder} onClose={onCloseTacticalMenu} t={t} />
-                ) : state.isInventoryOpen ? (
-                    <TacticalBackpack state={state} onSwapItems={onSwapItems} onClose={onCloseInventory} t={t} />
-                ) : (state.isPaused && !state.isGameOver && !state.missionComplete) ? (
-                    <TacticalTerminal state={state} onToggleSetting={onToggleSetting} onClose={onClosePause} onSave={onSaveGame} t={t} />
-                ) : (
-                    <>
-                        {state.settings.showHUD && <HUD state={state} t={t} onSkipWave={onSkipWave} />}
-                        {!state.isShopOpen && !state.isGameOver && !state.missionComplete && <InteractPrompt state={state} t={t} />}
-                    </>
-                )}
+          {/* Shop */}
+          {state.isShopOpen && (
+            <ShopModal state={state} onPurchase={props.onPurchase} onClose={props.onCloseShop} t={t} />
+          )}
 
-                {state.isShopOpen && (
-                    <ShopModal state={state} onPurchase={onPurchase} onClose={onCloseShop} t={t} />
-                )}
-            </div>
-        )}
-    </>
+          {/* Inventory */}
+          {state.isInventoryOpen && (
+              <TacticalBackpack state={state} onSwapItems={props.onSwapItems} onClose={props.onCloseInventory} t={t} />
+          )}
+
+          {/* Tactical Menu */}
+          {state.isTacticalMenuOpen && (
+              <TacticalCallInterface state={state} onIssueOrder={props.onIssueOrder} onClose={props.onCloseTacticalMenu} t={t} />
+          )}
+
+          {/* Turret Upgrade */}
+          {state.activeTurretId !== undefined && (
+              <TurretUpgradeUI state={state} onConfirmUpgrade={props.onConfirmUpgrade} t={t} />
+          )}
+
+          {/* Mobile Controls */}
+          {props.isMobile && (
+              <MobileControls 
+                  onJoystickMove={props.onJoystickMove} 
+                  onButtonPress={props.onMobileButton}
+                  currentWeaponIndex={state.player.currentWeaponIndex}
+                  loadout={state.player.loadout}
+              />
+          )}
+        </>
+      )}
+    </div>
   );
 };
 
-export default UIOverlay;
+export default React.memo(UIOverlay);

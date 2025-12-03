@@ -1,6 +1,3 @@
-
-
-
 import React, { useState } from 'react';
 import { GameState, WeaponType, ModuleType, WeaponModule, DefenseUpgradeType } from '../../types';
 import { INVENTORY_SIZE } from '../../constants';
@@ -10,7 +7,6 @@ import { CloseButton, WeaponIcon } from './Shared';
 // Helper for Assembly UI to check compat
 function checkCompatibility(modType: ModuleType, target: WeaponType | 'GRENADE'): boolean {
     const config = MODULE_STATS[modType] as any;
-    if (config.exclude && config.exclude.includes(target)) return false;
     if (config.only && !config.only.includes(target)) return false;
     return true;
 }
@@ -30,7 +26,8 @@ const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state:
     } else {
         installedModules = p.weapons[weaponType].modules;
         if (weaponType === WeaponType.PISTOL) maxSlots = 2;
-        weaponName = t(`WEAPON_${weaponType}_NAME`);
+        // Fix key generation
+        weaponName = t(`WEAPON_${weaponType.replace(/\s+/g, '_').toUpperCase()}_NAME`);
     }
 
     const handleEquip = (modId: string) => {
@@ -251,7 +248,9 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
                                     >
                                         <div className="absolute top-1 left-2 text-xs text-gray-600 font-bold">{t('SLOT')} {idx+1}</div>
                                         <WeaponIcon type={wType} className="w-16 h-16 fill-gray-400 group-hover:fill-cyan-400" />
-                                        <div className="text-xs font-bold text-white text-center px-1 mt-2">{t(`WEAPON_${wType}_NAME`)}</div>
+                                        <div className="text-xs font-bold text-white text-center px-1 mt-2">
+                                            {t(`WEAPON_${wType.replace(/\s+/g, '_').toUpperCase()}_NAME`)}
+                                        </div>
                                         <div className="text-[10px] text-gray-400">{idx === 3 ? t('SLOT_SIDEARM') : t('SLOT_MAIN')}</div>
                                         
                                         {/* Module Indicator Dots */}
@@ -286,7 +285,7 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
                                             <>
                                                 <WeaponIcon type={item.type} className="w-10 h-10 fill-gray-300" />
                                                 <div className="absolute bottom-0.5 right-1 text-[8px] text-gray-300">
-                                                    {t(`WEAPON_${item.type}_NAME`).substring(0,3).toUpperCase()}
+                                                    {t(`WEAPON_${item.type.replace(/\s+/g, '_').toUpperCase()}_NAME`).substring(0,3).toUpperCase()}
                                                 </div>
                                             </>
                                         )}

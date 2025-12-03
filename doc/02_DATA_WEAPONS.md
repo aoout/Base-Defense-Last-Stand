@@ -1,6 +1,8 @@
 
 
 
+
+
 # 02. Tactical Arsenal Data
 
 **Code Reference**: 
@@ -30,12 +32,12 @@
 
 Modules modify weapon behavior dynamically at runtime.
 
-| Module ID | Name | Effect | Logic Implementation |
+| Module ID | Name | Effect | Compatible Weapons |
 | :--- | :--- | :--- | :--- |
-| `GEL_BARREL` | Gel Penetration Diffuser | Dmg +40% | `dmgMult += 0.4` |
-| `MICRO_RUPTURER` | Micro-Vibration Rupturer | Dmg +60% | `dmgMult += 0.6` |
-| `MAG_FEED` | Efficient Stack Feed | Mag +100% | Handled in Reload Logic. |
-| `PRESSURIZED_BOLT` | Pressurized Bolt | Fire Rate +10% (Stacking) | `fireRateMod = 1 / (1 + consecutiveShots * 0.1)` |
+| `GEL_BARREL` | Gel Penetration Diffuser | Dmg +40% | AR, Shotgun, Sniper, Pistol |
+| `MAG_FEED` | Efficient Stack Feed | Mag +100% | AR, Shotgun, Sniper, Pistol |
+| `MICRO_RUPTURER` | Micro-Vibration Rupturer | Dmg +60% | Sniper, Grenade Launcher, Pulse Rifle, Grenades |
+| `PRESSURIZED_BOLT` | Pressurized Bolt | Fire Rate +10% (Stacking) | AR, Flamethrower, Pulse Rifle |
 
 ## 3. Turret Systems
 **Code Reference**: `data/registry.ts` (Const `TURRET_STATS`)

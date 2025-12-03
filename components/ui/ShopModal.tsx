@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState } from 'react';
 import { GameState, GameSettings, DefenseUpgradeType, ModuleType, WeaponType } from '../../types';
 import { PLAYER_STATS, SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS } from '../../data/registry';
@@ -44,12 +39,13 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
     const getCompatText = (modType: ModuleType) => {
         const config = MODULE_STATS[modType] as any;
         if (config.only) {
-            const names = config.only.map((w: string) => w === 'GRENADE' ? t('COMPAT_GRENADE') : t(`WEAPON_${w}_NAME`)).join(', ');
-            return t('COMPAT_ONLY', {0: names});
-        }
-        if (config.exclude) {
-            const names = config.exclude.map((w: string) => w === 'GRENADE' ? t('COMPAT_GRENADE') : t(`WEAPON_${w}_NAME`)).join(', ');
-            return t('COMPAT_EXCLUDE', {0: names});
+            const names = config.only.map((w: string) => {
+                if (w === 'GRENADE') return t('COMPAT_GRENADE');
+                // Format key: Pulse Rifle -> PULSE_RIFLE
+                const key = `WEAPON_${w.replace(/\s+/g, '_').toUpperCase()}_NAME`;
+                return t(key);
+            }).join(', ');
+            return t('COMPAT_LIST', {0: names});
         }
         return t('COMPAT_ALL');
     };

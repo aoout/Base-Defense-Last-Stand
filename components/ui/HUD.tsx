@@ -161,7 +161,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                     >
                         <div className="flex items-center gap-2">
                             <span className="animate-pulse">►►</span>
-                            <span>DEPLOY LURE</span>
+                            <span>{t('SKIP_WAVE')}</span>
                             <span className="animate-pulse">◄◄</span>
                         </div>
                         <div className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
@@ -180,7 +180,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                     </div>
                     <div className="flex items-baseline gap-2">
                         <span className="text-4xl font-display font-bold text-white tracking-wide">{Math.floor(p.score)}</span>
-                        <span className="text-xs text-slate-500 font-bold">SCRAPS</span>
+                        <span className="text-xs text-slate-500 font-bold">{t('SCRAPS')}</span>
                     </div>
                 </div>
             </div>
@@ -215,7 +215,9 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                 {/* Active Weapon Card */}
                 <div className="bg-slate-900/90 border-t-2 border-r-2 border-slate-600 p-4 min-w-[240px] relative overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 p-1 bg-slate-800">
-                        <div className="text-[12px] text-slate-400 font-display font-bold uppercase tracking-wider">{wepStats.name}</div>
+                        <div className="text-[12px] text-slate-400 font-display font-bold uppercase tracking-wider">
+                            {t(`WEAPON_${currentWeaponType.replace(/\s+/g, '_').toUpperCase()}_NAME`)}
+                        </div>
                     </div>
                     
                     <div className="mt-4 flex justify-between items-end">

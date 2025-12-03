@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
@@ -210,13 +204,13 @@ export const MODULE_STATS = {
         name: "Gel Penetration Diffuser",
         cost: 1900,
         desc: "Damage +40%",
-        exclude: [WeaponType.FLAMETHROWER, WeaponType.GRENADE_LAUNCHER, WeaponType.PULSE_RIFLE, 'GRENADE']
+        only: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL]
     },
     [ModuleType.MAG_FEED]: {
         name: "Efficient Stack Feed",
         cost: 1700,
         desc: "Mag Capacity +100%",
-        exclude: [WeaponType.FLAMETHROWER, WeaponType.GRENADE_LAUNCHER, WeaponType.PULSE_RIFLE, 'GRENADE']
+        only: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL]
     },
     [ModuleType.MICRO_RUPTURER]: {
         name: "Micro-Vibration Rupturer",

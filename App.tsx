@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -218,6 +212,23 @@ const App: React.FC = () => {
   const handleCloseGalacticEvent = () => { engineRef.current.closeGalacticEvent(); };
   const handleClaimYield = () => { engineRef.current.claimYields(); };
 
+  // Mobile Handlers
+  const handleJoystickMove = (side: 'LEFT' | 'RIGHT', x: number, y: number) => {
+      engineRef.current.updateJoystick(side, x, y);
+  };
+
+  const handleMobileButton = (action: string) => {
+      if (action === 'RELOAD') engineRef.current.reloadWeapon(engineRef.current.time.now);
+      if (action === 'GRENADE') engineRef.current.throwGrenade();
+      if (action === 'INTERACT') engineRef.current.interact(); 
+      if (action === 'SWAP') {
+          const p = engineRef.current.state.player;
+          engineRef.current.switchWeapon((p.currentWeaponIndex + 1) % 4);
+      }
+      if (action === 'SCOPE') engineRef.current.toggleScope();
+      if (action === 'TACTICAL') engineRef.current.toggleTacticalMenu();
+  };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -265,6 +276,9 @@ const App: React.FC = () => {
         onCloseShipComputer={handleCloseShipComputer}
         onCloseGalacticEvent={handleCloseGalacticEvent}
         onClaimYield={handleClaimYield}
+        onJoystickMove={handleJoystickMove}
+        onMobileButton={handleMobileButton}
+        isMobile={engineRef.current.isMobile}
       />
     </div>
   );

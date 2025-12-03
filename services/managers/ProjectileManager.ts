@@ -15,7 +15,7 @@ export class ProjectileManager {
         this.engine.state.projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY): Projectile {
         const angle = Math.atan2(ty - y, tx - x);
         let proj: Projectile;
 
@@ -45,6 +45,7 @@ export class ProjectileManager {
             proj.isPiercing = false;
             proj.weaponType = undefined;
             proj.hitIds = undefined;
+            proj.activeModules = undefined;
         } else {
             // Create New
             proj = {
@@ -67,6 +68,7 @@ export class ProjectileManager {
         }
 
         this.engine.state.projectiles.push(proj);
+        return proj;
     }
 
     public update(dt: number, timeScale: number) {

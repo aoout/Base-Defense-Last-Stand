@@ -27,7 +27,9 @@ export enum ModuleType {
   GEL_BARREL = 'GEL_BARREL', // Dmg +40%
   MAG_FEED = 'MAG_FEED', // Mag +100%
   MICRO_RUPTURER = 'MICRO_RUPTURER', // Dmg +60%
-  PRESSURIZED_BOLT = 'PRESSURIZED_BOLT' // Fire rate ramp
+  PRESSURIZED_BOLT = 'PRESSURIZED_BOLT', // Fire rate ramp
+  KINETIC_STABILIZER = 'KINETIC_STABILIZER', // Pierce once, 80% dmg on 2nd hit
+  TENSION_SPRING = 'TENSION_SPRING' // Reload -20%, Dmg +20%
 }
 
 export enum SpaceshipModuleType {
@@ -205,6 +207,9 @@ export interface Projectile extends Entity {
 
   // Boss Logic
   createsToxicZone?: boolean; // For Purple Boss
+
+  // Module Effects
+  activeModules?: ModuleType[]; // Track active effects like Kinetic Stabilizer
 }
 
 export interface ToxicZone {
@@ -549,7 +554,7 @@ export interface GameState {
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
   activeGalacticEvent: GalacticEvent | null;
-  pendingYieldReport: PlanetYieldReport | null; // New Field
+  pendingYieldReport: PlanetYieldReport | null;
 
   // Spaceship
   spaceship: SpaceshipState;
@@ -607,4 +612,7 @@ export interface GameState {
 export interface InputState {
   keys: Record<string, boolean>;
   mouse: { x: number; y: number; down: boolean; rightDown: boolean };
+  // Mobile Support
+  leftJoystick: { x: number; y: number }; // -1 to 1
+  rightJoystick: { x: number; y: number }; // -1 to 1
 }
