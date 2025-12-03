@@ -3,6 +3,8 @@
 
 
 
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -212,8 +214,9 @@ const App: React.FC = () => {
   const handleOpenShipComputer = () => { engineRef.current.enterShipComputer(); };
   const handleCloseShipComputer = () => { engineRef.current.exitShipComputer(); };
 
-  // Event
+  // Event & Reports
   const handleCloseGalacticEvent = () => { engineRef.current.closeGalacticEvent(); };
+  const handleClaimYield = () => { engineRef.current.claimYields(); };
 
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
@@ -261,6 +264,7 @@ const App: React.FC = () => {
         onOpenShipComputer={handleOpenShipComputer}
         onCloseShipComputer={handleCloseShipComputer}
         onCloseGalacticEvent={handleCloseGalacticEvent}
+        onClaimYield={handleClaimYield}
       />
     </div>
   );

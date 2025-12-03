@@ -3,6 +3,8 @@
 
 
 
+
+
 import {
   GameState,
   InputState,
@@ -43,7 +45,9 @@ import {
   DamageSource,
   PlanetBuildingType,
   GalacticEventType,
-  GalacticEvent
+  GalacticEvent,
+  PlanetYieldInfo,
+  PlanetYieldReport
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -302,6 +306,7 @@ export class GameEngine {
       orbitalSupportTimer: 0,
       saveSlots: existingSaveSlots,
       activeGalacticEvent: null,
+      pendingYieldReport: null,
 
       camera: { x: 0, y: 0 },
       player: {
@@ -842,34 +847,62 @@ export class GameEngine {
           this.state.spaceship.infrastructureOptions = []; 
       }
 
-      // --- PASSIVE INCOME FROM COLONIES ---
+      // --- CALCULATE PASSIVE INCOME (DON'T ADD YET) ---
+      const reportItems: PlanetYieldInfo[] = [];
       let totalYield = 0;
+
       this.state.planets.forEach(p => {
           if (p.completed && p.buildings && p.buildings.length > 0) {
+              let bioYield = 0;
+              let oxyYield = 0;
+
               p.buildings.forEach(b => {
                   if (b.type === PlanetBuildingType.BIOMASS_EXTRACTOR) {
-                      // 800 * (1 + geneStrength)
-                      const amt = 800 * (1 + p.geneStrength);
-                      totalYield += amt;
+                      bioYield += 800 * (1 + p.geneStrength);
                   } else if (b.type === PlanetBuildingType.OXYGEN_EXTRACTOR) {
-                      // 1500 * (1 + oxygen%)
                       const o2 = p.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
-                      const amt = 1500 * (1 + o2);
-                      totalYield += amt;
+                      oxyYield += 1500 * (1 + o2);
                   }
               });
+
+              if (bioYield > 0 || oxyYield > 0) {
+                  const planetTotal = Math.floor(bioYield + oxyYield);
+                  reportItems.push({
+                      planetId: p.id,
+                      planetName: p.name,
+                      biomassYield: Math.floor(bioYield),
+                      oxygenYield: Math.floor(oxyYield),
+                      total: planetTotal
+                  });
+                  totalYield += planetTotal;
+              }
           }
       });
 
       if (totalYield > 0) {
-          const flooredYield = Math.floor(totalYield);
-          this.state.player.score += flooredYield;
-          
-          // Delayed message to appear on success screen
-          setTimeout(() => {
-              this.addMessage(this.t('PC_YIELD_MSG', {0: flooredYield}), WORLD_WIDTH/2, WORLD_HEIGHT/2 + 50, '#10b981', FloatingTextType.LOOT);
-          }, 1000);
+          this.state.pendingYieldReport = {
+              items: reportItems,
+              totalYield
+          };
+      } else {
+          this.state.pendingYieldReport = null;
       }
+  }
+
+  // Consolidated logic for returning to map (triggers events)
+  private finalizeMissionReturn() {
+      this.state.appMode = AppMode.EXPLORATION_MAP;
+      // Trigger Event 8% chance
+      this.triggerGalacticEvent();
+  }
+
+  public claimYields() {
+      if (this.state.pendingYieldReport) {
+          this.state.player.score += this.state.pendingYieldReport.totalYield;
+          this.audio.playTurretFire(2); // Cha-ching sound placeholder
+          this.state.pendingYieldReport = null;
+      }
+      this.finalizeMissionReturn();
   }
 
   private triggerGalacticEvent() {
@@ -936,7 +969,8 @@ export class GameEngine {
       this.state.missionComplete = false;
       this.state.isPaused = false;
       this.state.isGameOver = false;
-      this.state.appMode = AppMode.EXPLORATION_MAP;
+      // DO NOT set appMode blindly yet
+      
       this.state.currentPlanet = null;
       this.state.selectedPlanetId = null;
       
@@ -947,9 +981,15 @@ export class GameEngine {
       this.state.bloodStains = [];
       this.state.turretSpots.forEach(s => s.builtTurret = undefined);
 
-      // Trigger event logic AFTER returning to map
       if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) {
-          this.triggerGalacticEvent();
+          // Check for pending yields first
+          if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) {
+              this.state.appMode = AppMode.YIELD_REPORT;
+          } else {
+              this.finalizeMissionReturn();
+          }
+      } else {
+          this.state.appMode = AppMode.EXPLORATION_MAP;
       }
   }
 

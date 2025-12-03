@@ -319,7 +319,8 @@ export enum AppMode {
     CARAPACE_GRID = 'CARAPACE_GRID',
     SHIP_COMPUTER = 'SHIP_COMPUTER',
     INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH',
-    PLANET_CONSTRUCTION = 'PLANET_CONSTRUCTION'
+    PLANET_CONSTRUCTION = 'PLANET_CONSTRUCTION',
+    YIELD_REPORT = 'YIELD_REPORT'
 }
 
 export enum GameMode {
@@ -525,6 +526,19 @@ export interface GalacticEvent {
     scrapsReward?: number; // For salvage
 }
 
+export interface PlanetYieldInfo {
+    planetId: string;
+    planetName: string;
+    biomassYield: number;
+    oxygenYield: number;
+    total: number;
+}
+
+export interface PlanetYieldReport {
+    items: PlanetYieldInfo[];
+    totalYield: number;
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -535,6 +549,7 @@ export interface GameState {
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
   activeGalacticEvent: GalacticEvent | null;
+  pendingYieldReport: PlanetYieldReport | null; // New Field
 
   // Spaceship
   spaceship: SpaceshipState;

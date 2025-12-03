@@ -3,6 +3,8 @@
 
 
 
+
+
 # 04. Exploration & Systems Architecture
 
 ## 1. Procedural Planet Generation
@@ -72,15 +74,15 @@ Once a planet is **Cleared**, the "Initiate Drop" button is replaced by "Planet 
     *   **Yield**: `1500 * (1 + Oxygen%)`.
     *   **Logic**: Condenses valuable O2 fuel from the atmosphere. High O2 worlds are gold mines.
 
-### Yield Mechanics
-*   Buildings do not produce resources in real-time.
-*   They generate resources **passively** every time the player returns from a *successful* mission elsewhere.
-*   This incentivizes clearing more sectors to trigger "Paydays" from established colonies.
+### Yield Reporting
+*   **Calculations**: Occur upon successful mission completion.
+*   **User Interface**: Instead of silently adding funds, a **Planetary Yield Report** modal appears before returning to the map.
+*   **Breakdown**: Shows specific yield per planet (Biomass vs Oxygen), total net gain, and allows the player to "Transfer Funds".
 
 ## 5. Galactic Events
 **Code Reference**: `services/gameService.ts` -> `triggerGalacticEvent`
 
-After every successful mission return, there is an **8% Chance** to trigger a meta-game event.
+After every successful mission return (and after claiming yields), there is an **8% Chance** to trigger a meta-game event.
 
 | Event | Effect | Condition |
 | :--- | :--- | :--- |

@@ -3,6 +3,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { GameState, GameSettings, AllyOrder, TurretType, SpecialEventType, AppMode, GameMode, SpaceshipModuleType, PlanetBuildingType } from '../types';
 import { PLAYER_STATS, TURRET_COSTS, WEAPONS } from '../data/registry';
@@ -27,6 +29,7 @@ import { ShipComputer } from './ui/ShipComputer';
 import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
 import { PlanetConstructionUI } from './ui/PlanetConstructionUI';
 import { GalacticEventModal } from './ui/GalacticEventModal';
+import { PlanetaryYieldReport } from './ui/PlanetaryYieldReport';
 
 interface UIOverlayProps {
   state: GameState;
@@ -94,6 +97,7 @@ interface UIOverlayProps {
 
   // Events
   onCloseGalacticEvent: () => void;
+  onClaimYield: () => void;
 }
 
 const VisorOverlay: React.FC = React.memo(() => (
@@ -157,7 +161,8 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
     onEmergencyEvac,
     onOpenShipComputer,
     onCloseShipComputer,
-    onCloseGalacticEvent
+    onCloseGalacticEvent,
+    onClaimYield
 }) => {
   const t = useCallback((key: keyof typeof TRANSLATIONS.EN, params?: Record<string, any>) => {
       const lang = state.settings?.language || 'EN';
@@ -270,6 +275,14 @@ const UIOverlay: React.FC<UIOverlayProps> = ({
                 onOpenConstruction={onOpenPlanetConstruction}
                 t={t}
                 onCheat={onCheat}
+            />
+        )}
+
+        {state.appMode === AppMode.YIELD_REPORT && (
+            <PlanetaryYieldReport 
+                state={state}
+                onClaim={onClaimYield}
+                t={t}
             />
         )}
 

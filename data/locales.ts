@@ -9,6 +9,8 @@
 
 
 
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -287,6 +289,16 @@ Immediate spawn of next wave. No downtime for reload or regen.
         PC_YIELD_MSG: "PLANETARY YIELDS: +{0} SCRAPS",
         PC_SLOT_LOCKED: "SLOT LOCKED",
         PC_SLOT_EMPTY: "EMPTY SLOT",
+
+        // Yield Report
+        REPORT_TITLE: "COLONIAL YIELD REPORT",
+        REPORT_SUB: "RESOURCE ALLOCATION SUMMARY",
+        REPORT_COL_PLANET: "COLONY",
+        REPORT_COL_BIO: "BIOMASS",
+        REPORT_COL_OXY: "OXYGEN",
+        REPORT_COL_TOTAL: "TOTAL YIELD",
+        REPORT_TRANSFER: "TRANSFER FUNDS",
+        REPORT_NET_GAIN: "NET RESOURCE GAIN",
 
         // Galactic Events
         EVENT_EXPANSION_TITLE: "SCOURGE EXPANSION DETECTED",
@@ -931,6 +943,16 @@ function calculateEnemyCount(Wave) {
         PC_YIELD_MSG: "行星产出：+{0} 残片",
         PC_SLOT_LOCKED: "槽位锁定",
         PC_SLOT_EMPTY: "空闲槽位",
+
+        // Yield Report
+        REPORT_TITLE: "殖民地生产报告",
+        REPORT_SUB: "资源分配摘要",
+        REPORT_COL_PLANET: "殖民地",
+        REPORT_COL_BIO: "生物质",
+        REPORT_COL_OXY: "氧气",
+        REPORT_COL_TOTAL: "总产出",
+        REPORT_TRANSFER: "提取资金",
+        REPORT_NET_GAIN: "净资源收益",
 
         // Galactic Events
         EVENT_EXPANSION_TITLE: "检测到天灾扩散",
