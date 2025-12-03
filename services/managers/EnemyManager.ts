@@ -393,10 +393,8 @@ export class EnemyManager {
   
         enemy.hp -= dmg;
         if (this.engine.state.settings.showDamageNumbers) {
-            const isCrit = Math.random() < 0.1;
-            const color = isCrit ? '#ef4444' : '#ffffff';
-            const type = isCrit ? FloatingTextType.CRIT : FloatingTextType.DAMAGE;
-            this.engine.addMessage(`${Math.ceil(dmg)}`, enemy.x, enemy.y, color, type);
+            // FIXED: Removed fake crit logic. All damage is standard white.
+            this.engine.addMessage(`${Math.ceil(dmg)}`, enemy.x, enemy.y, '#ffffff', FloatingTextType.DAMAGE);
         }
   
         if (enemy.hp <= 0) {
