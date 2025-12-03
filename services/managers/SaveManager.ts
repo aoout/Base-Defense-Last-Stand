@@ -1,4 +1,5 @@
 
+
 import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
@@ -139,9 +140,18 @@ export class SaveManager {
                 const currentNow = this.engine.time.now;
                 const oldSaveTime = (data as any).metaGameTime || 0; // The time when save happened
 
+                // Preserve current language preference (Global setting)
+                const currentLang = this.engine.state.settings.language;
+
                 // Apply State
                 if (!data.settings) data.settings = { ...this.engine.state.settings };
+                
+                // Force language match
+                data.settings.language = currentLang;
+
+                // Ensure data.settings.language is set just in case
                 if (!data.settings.language) data.settings.language = 'EN';
+
                 Object.assign(this.engine.state, data);
                 
                 this.engine.state.isPaused = false;

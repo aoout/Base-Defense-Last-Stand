@@ -260,11 +260,14 @@ export class GameEngine {
     };
 
     // Preserve settings (especially language) across resets
+    const savedLang = localStorage.getItem('VANGUARD_LANG_PREF');
+    const defaultLang = (savedLang === 'CN' || savedLang === 'EN') ? savedLang : 'EN';
+
     const currentSettings = this.state?.settings || {
         showHUD: true,
         showBlood: true,
         showDamageNumbers: true,
-        language: 'EN'
+        language: defaultLang as 'EN' | 'CN'
     };
 
     const initialWeapons: Record<string, WeaponState> = {};
@@ -713,7 +716,9 @@ export class GameEngine {
   
   public toggleSetting(key: keyof GameSettings) { 
       if (key === 'language') {
-          this.state.settings.language = this.state.settings.language === 'EN' ? 'CN' : 'EN';
+          const newLang = this.state.settings.language === 'EN' ? 'CN' : 'EN';
+          this.state.settings.language = newLang;
+          localStorage.setItem('VANGUARD_LANG_PREF', newLang);
       } else {
           (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
       }
