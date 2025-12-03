@@ -9,7 +9,8 @@ import {
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
     drawBase, drawTurretSpot, drawProjectile,
-    drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText
+    drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
+    isVisible, drawParticlesBatch
 } from '../utils/renderers';
 
 interface GameCanvasProps {
@@ -68,15 +69,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         drawCachedTerrain(ctx, terrainCacheRef.current);
     }
     // Draw only animated parts (Magma, Trees, Spores) on top of cache
-    drawDynamicTerrainFeatures(ctx, state.terrain, time);
+    drawDynamicTerrainFeatures(ctx, state.terrain, time, camera);
     
     // 2. Draw Blood Stains (Under everything else)
     if (state.settings.showBlood) {
-        drawBloodStains(ctx, state.bloodStains);
+        drawBloodStains(ctx, state.bloodStains, camera);
     }
 
     // Draw Toxic Zones (Purple Acid)
-    drawToxicZones(ctx, state.toxicZones, time);
+    drawToxicZones(ctx, state.toxicZones, time, camera);
 
     // Draw World Borders
     ctx.strokeStyle = '#4B5563';
@@ -85,6 +86,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Draw Turret Spots
     state.turretSpots.forEach(spot => {
+        // Culling
+        if (!isVisible(spot.x, spot.y, 20, camera)) return;
+
         if (!spot.builtTurret) {
             drawTurretSpot(ctx, spot, time);
         }
@@ -96,6 +100,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // Draw Turrets
     state.turretSpots.forEach(spot => {
         if (spot.builtTurret) {
+            if (!isVisible(spot.x, spot.y, 30, camera)) return;
             drawTurret(ctx, spot.builtTurret, time);
         }
     });
@@ -103,12 +108,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // Draw Orbital Beams (Under units but over ground)
     if (state.orbitalBeams && state.orbitalBeams.length > 0) {
         state.orbitalBeams.forEach(beam => {
-            drawOrbitalBeam(ctx, beam);
+            // Beams are tall, custom culling
+            if (beam.x + 50 > camera.x && beam.x - 50 < camera.x + CANVAS_WIDTH) {
+                drawOrbitalBeam(ctx, beam);
+            }
         });
     }
 
     // Draw Allies
     state.allies.forEach(ally => {
+        if (!isVisible(ally.x, ally.y, ally.radius, camera)) return;
         ctx.save();
         ctx.translate(ally.x, ally.y);
         ctx.rotate(ally.angle);
@@ -119,6 +128,9 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Draw Enemies
     state.enemies.forEach(e => {
+      // Culling
+      if (!isVisible(e.x, e.y, e.radius, camera)) return;
+
       ctx.save();
       ctx.translate(e.x, e.y);
       ctx.rotate(e.angle); // Enemies now face their velocity
@@ -194,18 +206,12 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Draw Projectiles
     state.projectiles.forEach(p => {
+        if (!isVisible(p.x, p.y, p.radius + 20, camera)) return; // Simple culling for bullets
         drawProjectile(ctx, p);
     });
 
-    // Draw Particles
-    state.particles.forEach(p => {
-        ctx.globalAlpha = p.life;
-        ctx.fillStyle = p.color;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
-        ctx.fill();
-        ctx.globalAlpha = 1.0;
-    });
+    // Draw Particles - NEW OPTIMIZED BATCHED
+    drawParticlesBatch(ctx, state.particles, camera);
 
     // Determine if player is moving for animation
     const isMoving = engine.input.keys['w'] || engine.input.keys['a'] || engine.input.keys['s'] || engine.input.keys['d'] || 
@@ -230,6 +236,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Floating Text (Sci-Fi Data Style)
     state.floatingTexts.forEach(ft => {
+        if (!isVisible(ft.x, ft.y, 50, camera)) return;
         drawFloatingText(ctx, ft);
     });
 

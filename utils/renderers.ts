@@ -2,7 +2,7 @@
 import { 
     Player, Enemy, Turret, Ally, Projectile, TerrainFeature, BloodStain, ToxicZone, Planet, TurretSpot,
     WeaponType, EnemyType, BossType, TurretType, BiomeType, GameMode, GameState, PlanetVisualType, TerrainType,
-    MissionType, OrbitalBeam, FloatingText, FloatingTextType
+    MissionType, OrbitalBeam, FloatingText, FloatingTextType, Particle
 } from '../types';
 import { WORLD_WIDTH, WORLD_HEIGHT, CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 import { ENEMY_STATS, BOSS_STATS, WEAPONS } from '../data/registry';
@@ -10,6 +10,103 @@ import { BIOME_STYLES } from '../data/world';
 
 const pRand = (seed: number) => {
     return Math.abs(Math.sin(seed * 12.9898 + 78.233) * 43758.5453) % 1;
+};
+
+// --- OPTIMIZATION: SPRITE CACHE SYSTEM ---
+
+const spriteCache: Record<string, HTMLCanvasElement> = {};
+
+/**
+ * Generates or retrieves a cached canvas sprite for a particle/bullet.
+ * Creates a glowing radial gradient circle.
+ */
+const getSprite = (color: string, size: number = 16): HTMLCanvasElement => {
+    const key = `${color}-${size}`;
+    if (spriteCache[key]) return spriteCache[key];
+
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const center = size / 2;
+    const radius = size / 2;
+
+    const grad = ctx.createRadialGradient(center, center, 0, center, center, radius);
+    grad.addColorStop(0, '#ffffff'); // Hot center
+    grad.addColorStop(0.4, color);   // Main color
+    grad.addColorStop(1, 'rgba(0,0,0,0)'); // Fade out
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(center, center, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    spriteCache[key] = canvas;
+    return canvas;
+};
+
+// --- OPTIMIZATION HELPERS ---
+
+// View Frustum Culling
+export const isVisible = (x: number, y: number, radius: number, camera: {x: number, y: number}) => {
+    // Add a margin to avoid popping artifacts
+    const margin = radius + 50; 
+    return (
+        x + margin > camera.x &&
+        x - margin < camera.x + CANVAS_WIDTH &&
+        y + margin > camera.y &&
+        y - margin < camera.y + CANVAS_HEIGHT
+    );
+};
+
+// BATCHED & CACHED PARTICLE RENDERER
+export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Particle[], camera: {x: number, y: number}) => {
+    if (particles.length === 0) return;
+
+    // 1. Group particles by Color to minimize Texture switching
+    const batches: Record<string, Particle[]> = {};
+
+    for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        if (!isVisible(p.x, p.y, p.radius, camera)) continue;
+
+        if (!batches[p.color]) {
+            batches[p.color] = [];
+        }
+        batches[p.color].push(p);
+    }
+
+    // 2. Draw Batches using drawImage (Blitting)
+    // Base sprite size is 32px. We scale it down to match particle radius.
+    const BASE_SPRITE_SIZE = 32; 
+    
+    for (const color in batches) {
+        const sprite = getSprite(color, BASE_SPRITE_SIZE);
+        const batch = batches[color];
+        
+        for (let i = 0; i < batch.length; i++) {
+            const p = batch[i];
+            
+            // Calculate scale: The sprite represents a circle of radius BASE_SPRITE_SIZE/2.
+            // We want to draw it at p.radius.
+            // Draw Size = (p.radius * 2) * (visual multiplier for glow effect)
+            const drawSize = p.radius * 4; 
+            
+            // Apply Alpha Fade
+            ctx.globalAlpha = Math.max(0, p.life);
+            
+            ctx.drawImage(
+                sprite, 
+                p.x - drawSize/2, 
+                p.y - drawSize/2, 
+                drawSize, 
+                drawSize
+            );
+        }
+    }
+    ctx.globalAlpha = 1.0;
 };
 
 // New Optimization: Render static terrain to an off-screen canvas once
@@ -153,9 +250,12 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
     return canvas;
 };
 
-export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], time: number) => {
+export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], time: number, camera: {x: number, y: number}) => {
     terrain.forEach((t, idx) => {
         if (![TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
+        
+        // Culling
+        if (!isVisible(t.x, t.y, t.radius, camera)) return;
 
         ctx.save();
         ctx.translate(t.x, t.y);
@@ -228,14 +328,11 @@ export const drawCachedTerrain = (ctx: CanvasRenderingContext2D, cache: HTMLCanv
     ctx.drawImage(cache, 0, 0);
 };
 
-export const drawTerrain = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null) => {
-    const cache = renderStaticTerrainToCache(terrain, gameMode, planet);
-    ctx.drawImage(cache, 0, 0);
-    drawDynamicTerrainFeatures(ctx, terrain, Date.now());
-};
-
-export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[]) => {
+export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStain[], camera: {x: number, y: number}) => {
     stains.forEach(s => {
+        // Culling
+        if (!isVisible(s.x, s.y, 40, camera)) return;
+
         // Opacity requires state change, so we must save/restore or manually reset globalAlpha
         ctx.save();
         ctx.translate(s.x, s.y);
@@ -249,8 +346,10 @@ export const drawBloodStains = (ctx: CanvasRenderingContext2D, stains: BloodStai
     });
 };
 
-export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time: number) => {
+export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[], time: number, camera: {x: number, y: number}) => {
     zones.forEach(zone => {
+        if (!isVisible(zone.x, zone.y, zone.radius, camera)) return;
+
         ctx.save();
         ctx.translate(zone.x, zone.y);
         const scale = 1 + Math.sin(time * 0.005 + parseInt(zone.id)) * 0.05;
@@ -319,9 +418,6 @@ const drawGL = (ctx: CanvasRenderingContext2D) => {
 };
 
 const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
-    // REMOVED SHADOW BLUR FOR PERFORMANCE
-    // Using Fake Glow (larger translucent circle behind)
-    
     let xOffset = 26;
     if (type === WeaponType.SR) xOffset = 42;
     if (type === WeaponType.PISTOL) xOffset = 15;
@@ -573,8 +669,23 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
 };
 
 export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => {
-    // Optimization: Manual Transform State Management
-    // REMOVED ALL SHADOWBLUR calls for massive GPU optimization
+    // OPTIMIZATION: BATCH DRAWING USING CACHED SPRITES
+    // We check if it's a standard simple projectile that can be drawn with a sprite
+    // Homing missiles and special shapes still draw manually
+    
+    const BASE_SPRITE_SIZE = 32;
+
+    if (!p.isHoming && !p.createsToxicZone && p.weaponType !== WeaponType.FLAMETHROWER) {
+        const sprite = getSprite(p.color, BASE_SPRITE_SIZE);
+        // Scaling logic: Sprite is 32px. We want diameter = p.radius * 2
+        // But let's make bullets glow larger, so diameter = p.radius * 4
+        const drawSize = p.radius * 4;
+        
+        ctx.drawImage(sprite, p.x - drawSize/2, p.y - drawSize/2, drawSize, drawSize);
+        return;
+    }
+
+    // FALLBACK TO MANUAL DRAWING FOR COMPLEX PROJECTILES
     
     ctx.translate(p.x, p.y);
     
@@ -602,27 +713,6 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
          ctx.fillStyle = color; 
          ctx.beginPath(); ctx.arc(0, 0, currentRadius, 0, Math.PI * 2); ctx.fill(); 
          ctx.globalCompositeOperation = 'source-over';
-    } else {
-        // STANDARD BULLET OPTIMIZATION
-        
-        // FAKE GLOW for specialized weapons
-        if (p.weaponType === WeaponType.PULSE_RIFLE) {
-            ctx.fillStyle = 'rgba(34, 211, 238, 0.3)'; // Low opacity cyan
-            ctx.beginPath(); ctx.arc(0, 0, p.radius * 2.5, 0, Math.PI*2); ctx.fill();
-        } else if (p.weaponType === WeaponType.SR) {
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)'; 
-            ctx.beginPath(); ctx.arc(0, 0, p.radius * 2, 0, Math.PI*2); ctx.fill();
-        }
-
-        ctx.fillStyle = p.color; 
-        ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
-        
-        // Trail
-        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-p.vx*2, -p.vy*2); 
-        ctx.strokeStyle = p.color; 
-        ctx.globalAlpha = 0.5; 
-        ctx.stroke(); 
-        ctx.globalAlpha = 1.0;
     }
 
     ctx.translate(-p.x, -p.y);
