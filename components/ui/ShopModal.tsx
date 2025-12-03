@@ -1,8 +1,10 @@
 
 
 
+
+
 import React, { useState } from 'react';
-import { GameState, GameSettings, DefenseUpgradeType, ModuleType } from '../../types';
+import { GameState, GameSettings, DefenseUpgradeType, ModuleType, WeaponType } from '../../types';
 import { PLAYER_STATS, SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
 
@@ -10,12 +12,12 @@ interface ShopModalProps {
     state: GameState;
     onPurchase: (item: string) => void;
     onClose: () => void;
-    t: (key: string) => string;
+    t: (key: string, params?: any) => string;
 }
 
 interface ShopItemProps { 
     name: string; 
-    amount?: string; 
+    amount?: React.ReactNode; 
     cost: number; 
     canAfford: boolean; 
     disabled?: boolean; 
@@ -26,7 +28,10 @@ interface ShopItemProps {
 
 const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disabled, highlight, onClick, label }) => (
     <button onClick={onClick} disabled={!canAfford || disabled} className={`p-5 rounded-xl border flex justify-between items-center transition-all group relative overflow-hidden ${disabled ? 'bg-gray-800/50 border-gray-700 text-gray-500 cursor-not-allowed opacity-60' : canAfford ? (highlight ? 'bg-gray-800 border-cyan-600 hover:border-cyan-400 text-white' : 'bg-gray-800 border-gray-600 hover:border-yellow-500 text-white') : 'bg-gray-800 border-red-900/30 text-gray-500 cursor-not-allowed'}`}>
-        <div className="flex flex-col items-start z-10 max-w-[70%]"><span className={`font-bold text-lg text-left leading-tight ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>{amount && <span className="text-xs text-gray-400 group-hover:text-gray-300 text-left mt-1">{amount}</span>}</div>
+        <div className="flex flex-col items-start z-10 max-w-[70%]">
+            <span className={`font-bold text-lg text-left leading-tight ${highlight ? 'text-cyan-200' : ''}`}>{name}</span>
+            {amount && <span className="text-xs text-gray-400 group-hover:text-gray-300 text-left mt-1 block">{amount}</span>}
+        </div>
         <div className="flex flex-col items-end z-10">{label ? (<span className="text-green-500 font-bold tracking-widest">{label}</span>) : (<><span className={`text-xl font-mono font-bold ${canAfford && !disabled ? "text-yellow-400 group-hover:text-yellow-300" : ""}`}>{cost}</span><span className="text-[10px] uppercase tracking-wider">Scraps</span></>)}</div>
         {canAfford && !disabled && (<div className={`absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ${highlight ? 'bg-cyan-500/10' : 'bg-yellow-500/5'}`}></div>)}
     </button>
@@ -35,6 +40,19 @@ const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disa
 export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose, t }) => {
     const p = state.player;
     const [activeTab, setActiveTab] = useState<'AMMO' | 'WEAPONS' | 'DEFENSE' | 'MODULES'>('AMMO');
+
+    const getCompatText = (modType: ModuleType) => {
+        const config = MODULE_STATS[modType] as any;
+        if (config.only) {
+            const names = config.only.map((w: string) => w === 'GRENADE' ? t('COMPAT_GRENADE') : t(`WEAPON_${w}_NAME`)).join(', ');
+            return t('COMPAT_ONLY', {0: names});
+        }
+        if (config.exclude) {
+            const names = config.exclude.map((w: string) => w === 'GRENADE' ? t('COMPAT_GRENADE') : t(`WEAPON_${w}_NAME`)).join(', ');
+            return t('COMPAT_EXCLUDE', {0: names});
+        }
+        return t('COMPAT_ALL');
+    };
 
     return (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-40 backdrop-blur-sm">
@@ -204,7 +222,14 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                    <ShopItem
                                         key={mType}
                                         name={t(`MODULE_${mType}_NAME`)}
-                                        amount={t(`MODULE_${mType}_DESC`)}
+                                        amount={
+                                            <>
+                                                <div>{t(`MODULE_${mType}_DESC`)}</div>
+                                                <div className="text-[10px] text-gray-500 italic mt-1 font-mono leading-tight">
+                                                    {getCompatText(mType)}
+                                                </div>
+                                            </>
+                                        }
                                         cost={stats.cost}
                                         canAfford={p.score >= stats.cost}
                                         onClick={() => onPurchase(mType)}

@@ -4,6 +4,7 @@
 
 
 
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
@@ -80,7 +81,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
   [WeaponType.SR]: {
     name: 'Sniper Rifle',
     damage: 480, 
-    fireRate: 1500,
+    fireRate: 1100, // BUFF: 1500 -> 1100
     spread: 0.01,
     magSize: 5,
     reloadTime: 2500,
@@ -89,7 +90,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
   },
   [WeaponType.PISTOL]: {
     name: 'Pistol',
-    damage: 60,
+    damage: 70, // BUFF: 60 -> 70
     fireRate: 300,
     spread: 0.05,
     magSize: 12,
@@ -99,11 +100,11 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
   },
   [WeaponType.FLAMETHROWER]: {
     name: 'Flamethrower',
-    damage: 15,
+    damage: 18, // BUFF: 15 -> 18
     fireRate: 40,
     spread: 0.15,
     magSize: 100,
-    reloadTime: 3000,
+    reloadTime: 2200, // BUFF: 3000 -> 2200
     range: 350,
     projectileSpeed: 12,
     isPiercing: true
@@ -114,18 +115,18 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     fireRate: 80,
     spread: 0.02,
     magSize: 45,
-    reloadTime: 1200,
+    reloadTime: 1300, // NERF: 1200 -> 1300
     range: 700,
     projectileSpeed: 30,
     isPiercing: true
   },
   [WeaponType.GRENADE_LAUNCHER]: {
     name: 'Grenade Launcher',
-    damage: 300,
+    damage: 360, // BUFF: 300 -> 360
     fireRate: 1200,
     spread: 0.1,
     magSize: 6,
-    reloadTime: 3500,
+    reloadTime: 3200, // BUFF: 3500 -> 3200
     range: 600,
     projectileSpeed: 15,
     isExplosive: true
