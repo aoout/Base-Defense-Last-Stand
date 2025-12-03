@@ -16,34 +16,31 @@ const Joystick: React.FC<{
     const containerRef = useRef<HTMLDivElement>(null);
     const [active, setActive] = useState(false);
     const [pos, setPos] = useState({ x: 0, y: 0 }); // Center relative
-    const [origin, setOrigin] = useState({ x: 0, y: 0 }); // Touch start pos
 
     const radius = 50; // Max stick travel
 
     const handleStart = (e: React.TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
         const touch = e.changedTouches[0];
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
         
-        // For static joystick, origin is center of container
-        const centerX = rect.left + rect.width / 2;
-        const centerY = rect.top + rect.height / 2;
-        
-        // Actually, let's make it static center for simplicity first
-        // But dynamic feeling is better. Let's do simple static anchor.
-        
         setActive(true);
-        // Initial touch sets the "zero" point relative to center? 
-        // No, standard mobile game: Center is fixed on screen.
-        handleMove(e);
+        updateMove(touch, rect);
     };
 
     const handleMove = (e: React.TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
         if (!active && e.type !== 'touchstart') return;
+        
         const touch = e.changedTouches[0];
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
 
+        updateMove(touch, rect);
+    };
+
+    const updateMove = (touch: React.Touch, rect: DOMRect) => {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + rect.height / 2;
 
@@ -70,9 +67,10 @@ const Joystick: React.FC<{
 
         setPos({ x: dx, y: dy });
         onMove(nx, ny);
-    };
+    }
 
-    const handleEnd = () => {
+    const handleEnd = (e: React.TouchEvent) => {
+        if (e.cancelable) e.preventDefault();
         setActive(false);
         setPos({ x: 0, y: 0 });
         onMove(0, 0);
@@ -89,7 +87,7 @@ const Joystick: React.FC<{
         >
             {/* Stick */}
             <div 
-                className={`w-12 h-12 rounded-full shadow-lg transition-transform duration-75 ${side === 'LEFT' ? 'bg-cyan-500/80 shadow-[0_0_10px_cyan]' : 'bg-red-500/80 shadow-[0_0_10px_red]'}`}
+                className={`w-12 h-12 rounded-full shadow-lg transition-transform duration-75 pointer-events-none ${side === 'LEFT' ? 'bg-cyan-500/80 shadow-[0_0_10px_cyan]' : 'bg-red-500/80 shadow-[0_0_10px_red]'}`}
                 style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
             ></div>
         </div>
@@ -98,7 +96,11 @@ const Joystick: React.FC<{
 
 const ActionButton: React.FC<{ label: string, onClick: () => void, className?: string }> = ({ label, onClick, className }) => (
     <button 
-        onTouchStart={(e) => { e.stopPropagation(); onClick(); }}
+        onTouchStart={(e) => { 
+            if (e.cancelable) e.preventDefault(); 
+            e.stopPropagation(); 
+            onClick(); 
+        }}
         className={`w-14 h-14 rounded-full border-2 bg-slate-800/80 text-white font-bold text-xs flex items-center justify-center active:scale-95 active:bg-slate-700 shadow-lg touch-none select-none ${className}`}
     >
         {label}
@@ -107,14 +109,14 @@ const ActionButton: React.FC<{ label: string, onClick: () => void, className?: s
 
 export const MobileControls: React.FC<MobileControlsProps> = ({ onJoystickMove, onButtonPress, currentWeaponIndex, loadout }) => {
     return (
-        <div className="absolute inset-0 pointer-events-none z-[800]">
+        <div className="absolute inset-0 pointer-events-none z-[800] touch-none">
             {/* Left Joystick - Movement */}
-            <div className="absolute bottom-0 left-0 w-1/3 h-1/2 pointer-events-auto">
+            <div className="absolute bottom-0 left-0 w-1/3 h-1/2 pointer-events-auto touch-none">
                 <Joystick side="LEFT" onMove={(x, y) => onJoystickMove('LEFT', x, y)} />
             </div>
 
             {/* Right Joystick - Aim/Fire */}
-            <div className="absolute bottom-0 right-0 w-1/3 h-1/2 pointer-events-auto">
+            <div className="absolute bottom-0 right-0 w-1/3 h-1/2 pointer-events-auto touch-none">
                 <Joystick side="RIGHT" onMove={(x, y) => onJoystickMove('RIGHT', x, y)} />
                 
                 {/* Action Arc */}
@@ -152,7 +154,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({ onJoystickMove, 
             </div>
 
             {/* Top Right - Tactical Menu */}
-            <div className="absolute top-4 right-20 pointer-events-auto">
+            <div className="absolute top-4 right-20 pointer-events-auto touch-none">
                 <ActionButton 
                     label="TAB" 
                     onClick={() => onButtonPress('TACTICAL')} 

@@ -47,12 +47,22 @@ export class PlayerManager {
         const camera = this.engine.state.camera;
         const joyAimLen = Math.sqrt(input.rightJoystick.x**2 + input.rightJoystick.y**2);
         
-        if (joyAimLen > 0.1) {
-            // Use Joystick
-            p.angle = Math.atan2(input.rightJoystick.y, input.rightJoystick.x);
+        if (this.engine.isMobile) {
+            if (joyAimLen > 0.1) {
+                // Use Right Joystick for Aiming
+                p.angle = Math.atan2(input.rightJoystick.y, input.rightJoystick.x);
+            } else if (rawLen > 0.1) {
+                // Use Left Joystick (Movement) for facing if not aiming
+                p.angle = Math.atan2(dy, dx);
+            }
+            // If neither, keep last angle
         } else {
-            // Use Mouse
-            p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
+            // Desktop: Always Use Mouse (unless controller support added later)
+            if (joyAimLen > 0.1) {
+                p.angle = Math.atan2(input.rightJoystick.y, input.rightJoystick.x);
+            } else {
+                p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
+            }
         }
         
         // Manual Scope Toggle handled by UI buttons for mobile, or right click for mouse
