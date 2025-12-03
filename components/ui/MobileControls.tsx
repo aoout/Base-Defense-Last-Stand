@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { WeaponType } from '../../types';
 
@@ -14,30 +13,48 @@ const Joystick: React.FC<{
     onMove: (x: number, y: number) => void 
 }> = ({ side, onMove }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [active, setActive] = useState(false);
-    const [pos, setPos] = useState({ x: 0, y: 0 }); // Center relative
-
+    const stickRef = useRef<HTMLDivElement>(null);
+    const touchId = useRef<number | null>(null);
+    
+    // Config
     const radius = 50; // Max stick travel
+
+    // Helper to update position without React re-renders
+    const updateStickVisual = (x: number, y: number) => {
+        if (stickRef.current) {
+            stickRef.current.style.transform = `translate(${x}px, ${y}px)`;
+        }
+    };
 
     const handleStart = (e: React.TouchEvent) => {
         if (e.cancelable) e.preventDefault();
+        
+        // If already tracking a touch, ignore new ones
+        if (touchId.current !== null) return;
+
         const touch = e.changedTouches[0];
+        touchId.current = touch.identifier;
+        
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;
         
-        setActive(true);
         updateMove(touch, rect);
     };
 
     const handleMove = (e: React.TouchEvent) => {
         if (e.cancelable) e.preventDefault();
-        if (!active && e.type !== 'touchstart') return;
-        
-        const touch = e.changedTouches[0];
-        const rect = containerRef.current?.getBoundingClientRect();
-        if (!rect) return;
+        if (touchId.current === null) return;
 
-        updateMove(touch, rect);
+        // Find our touch
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === touchId.current) {
+                const rect = containerRef.current?.getBoundingClientRect();
+                if (rect) {
+                    updateMove(e.changedTouches[i], rect);
+                }
+                break;
+            }
+        }
     };
 
     const updateMove = (touch: React.Touch, rect: DOMRect) => {
@@ -65,15 +82,22 @@ const Joystick: React.FC<{
             ny /= mag;
         }
 
-        setPos({ x: dx, y: dy });
+        updateStickVisual(dx, dy);
         onMove(nx, ny);
     }
 
     const handleEnd = (e: React.TouchEvent) => {
         if (e.cancelable) e.preventDefault();
-        setActive(false);
-        setPos({ x: 0, y: 0 });
-        onMove(0, 0);
+        if (touchId.current === null) return;
+
+        for (let i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === touchId.current) {
+                touchId.current = null;
+                updateStickVisual(0, 0);
+                onMove(0, 0);
+                break;
+            }
+        }
     };
 
     return (
@@ -87,8 +111,9 @@ const Joystick: React.FC<{
         >
             {/* Stick */}
             <div 
-                className={`w-12 h-12 rounded-full shadow-lg transition-transform duration-75 pointer-events-none ${side === 'LEFT' ? 'bg-cyan-500/80 shadow-[0_0_10px_cyan]' : 'bg-red-500/80 shadow-[0_0_10px_red]'}`}
-                style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
+                ref={stickRef}
+                className={`w-12 h-12 rounded-full shadow-lg pointer-events-none will-change-transform ${side === 'LEFT' ? 'bg-cyan-500/80 shadow-[0_0_10px_cyan]' : 'bg-red-500/80 shadow-[0_0_10px_red]'}`}
+                style={{ transform: `translate(0px, 0px)` }}
             ></div>
         </div>
     );
@@ -109,7 +134,7 @@ const ActionButton: React.FC<{ label: string, onClick: () => void, className?: s
 
 export const MobileControls: React.FC<MobileControlsProps> = ({ onJoystickMove, onButtonPress, currentWeaponIndex, loadout }) => {
     return (
-        <div className="absolute inset-0 pointer-events-none z-[800] touch-none">
+        <div className="absolute inset-0 pointer-events-none z-[800] touch-none select-none">
             {/* Left Joystick - Movement */}
             <div className="absolute bottom-0 left-0 w-1/3 h-1/2 pointer-events-auto touch-none">
                 <Joystick side="LEFT" onMove={(x, y) => onJoystickMove('LEFT', x, y)} />
