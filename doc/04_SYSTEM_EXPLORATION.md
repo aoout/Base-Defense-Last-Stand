@@ -5,6 +5,8 @@
 
 
 
+
+
 # 04. Exploration & Systems Architecture
 
 ## 1. Procedural Planet Generation
@@ -71,7 +73,7 @@ Once a planet is **Cleared**, the "Initiate Drop" button is replaced by "Planet 
     *   **Logic**: Harvests the hyper-evolved flora/fauna of high-gene worlds.
 *   **Oxygen Siphon**
     *   **Cost**: 7000 Scraps.
-    *   **Yield**: `1500 * (1 + Oxygen%)`.
+    *   **Yield**: `1700 * (1 + 1.8 * Oxygen%)`.
     *   **Logic**: Condenses valuable O2 fuel from the atmosphere. High O2 worlds are gold mines.
 
 ### Yield Reporting

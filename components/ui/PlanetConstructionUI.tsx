@@ -1,4 +1,3 @@
-
 import React, { useRef, useEffect, useState } from 'react';
 import { GameState, PlanetBuildingType, Planet } from '../../types';
 import { CloseButton } from './Shared';
@@ -49,7 +48,8 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
     const o2 = o2Gas ? o2Gas.percentage : 0;
     
     const biomassYield = Math.floor(800 * (1 + planet.geneStrength));
-    const oxygenYield = Math.floor(1500 * (1 + o2));
+    // Updated calculation for preview
+    const oxygenYield = Math.floor(1700 * (1 + 1.8 * o2));
 
     const renderBuildingCard = (type: PlanetBuildingType, cost: number, yieldVal: number) => {
         const canAfford = state.player.score >= cost;

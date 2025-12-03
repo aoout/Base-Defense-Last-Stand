@@ -1,10 +1,3 @@
-
-
-
-
-
-
-
 import {
   GameState,
   InputState,
@@ -861,7 +854,8 @@ export class GameEngine {
                       bioYield += 800 * (1 + p.geneStrength);
                   } else if (b.type === PlanetBuildingType.OXYGEN_EXTRACTOR) {
                       const o2 = p.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
-                      oxyYield += 1500 * (1 + o2);
+                      // Buffed formula: 1700 * (1 + 1.8 * O2)
+                      oxyYield += 1700 * (1 + 1.8 * o2);
                   }
               });
 
