@@ -13,6 +13,8 @@
 
 
 
+
+
 export const TRANSLATIONS = {
     EN: {
         // ... (Keep existing keys for basic game elements)
@@ -481,6 +483,10 @@ Immediate spawn of next wave. No downtime for reload or regen.
         MODULE_MICRO_RUPTURER_DESC: "Damage +60%",
         MODULE_PRESSURIZED_BOLT_NAME: "Pressurized Bolt",
         MODULE_PRESSURIZED_BOLT_DESC: "+10% Fire Rate per shot (Stacks)",
+        MODULE_KINETIC_STABILIZER_NAME: "Kinetic Stabilizer Core",
+        MODULE_KINETIC_STABILIZER_DESC: "Projectiles pierce 1 target. 2nd hit deals 80% damage.",
+        MODULE_TENSION_SPRING_NAME: "High Tension Spring",
+        MODULE_TENSION_SPRING_DESC: "Reload Time -20%, Damage +20%",
         
         // Module Compatibility
         COMPAT_LIST: "Compatible: {0}",
@@ -1129,6 +1135,10 @@ function calculateEnemyCount(Wave) {
         MODULE_MICRO_RUPTURER_DESC: "伤害 +60%",
         MODULE_PRESSURIZED_BOLT_NAME: "加压枪机",
         MODULE_PRESSURIZED_BOLT_DESC: "每发增加 +10% 射速 (可叠加)",
+        MODULE_KINETIC_STABILIZER_NAME: "动能保持稳定芯",
+        MODULE_KINETIC_STABILIZER_DESC: "子弹穿透1次，对第二个目标造成80%伤害。",
+        MODULE_TENSION_SPRING_NAME: "高张力复位弹簧",
+        MODULE_TENSION_SPRING_DESC: "装填时间 -20%，伤害 +20%",
         
         // Module Compatibility
         COMPAT_LIST: "兼容武器：{0}",

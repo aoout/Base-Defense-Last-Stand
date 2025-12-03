@@ -1,4 +1,5 @@
 
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
 
 export const PLAYER_STATS = {
@@ -223,6 +224,18 @@ export const MODULE_STATS = {
         cost: 2300,
         desc: "+10% Fire Rate per shot (Stacks)",
         only: [WeaponType.AR, WeaponType.FLAMETHROWER, WeaponType.PULSE_RIFLE]
+    },
+    [ModuleType.KINETIC_STABILIZER]: {
+        name: "Kinetic Stabilizer Core",
+        cost: 2500,
+        desc: "Pierces 1 target. 2nd hit deals 80% dmg.",
+        only: [WeaponType.SR, WeaponType.AR, WeaponType.SG, WeaponType.PISTOL]
+    },
+    [ModuleType.TENSION_SPRING]: {
+        name: "High Tension Spring",
+        cost: 1800,
+        desc: "Reload Time -20%, Damage +20%",
+        only: [WeaponType.SR, WeaponType.AR, WeaponType.SG, WeaponType.PISTOL]
     }
 };
 

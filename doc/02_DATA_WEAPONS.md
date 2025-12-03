@@ -3,6 +3,8 @@
 
 
 
+
+
 # 02. Tactical Arsenal Data
 
 **Code Reference**: 
@@ -38,6 +40,8 @@ Modules modify weapon behavior dynamically at runtime.
 | `MAG_FEED` | Efficient Stack Feed | Mag +100% | AR, Shotgun, Sniper, Pistol |
 | `MICRO_RUPTURER` | Micro-Vibration Rupturer | Dmg +60% | Sniper, Grenade Launcher, Pulse Rifle, Grenades |
 | `PRESSURIZED_BOLT` | Pressurized Bolt | Fire Rate +10% (Stacking) | AR, Flamethrower, Pulse Rifle |
+| `KINETIC_STABILIZER` | Kinetic Stabilizer Core | Pierce 1 Target (2nd Hit 80% Dmg) | AR, Shotgun, Sniper, Pistol |
+| `TENSION_SPRING` | High Tension Spring | Reload -20%, Dmg +20% | AR, Shotgun, Sniper, Pistol |
 
 ## 3. Turret Systems
 **Code Reference**: `data/registry.ts` (Const `TURRET_STATS`)

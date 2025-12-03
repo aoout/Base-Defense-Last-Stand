@@ -13,7 +13,7 @@ The `GameEngine` class is the singleton source of truth. It:
 ### State Management
 Unlike typical React apps that use `useState` for everything, this game uses a **mutable imperative state** for the game loop (performance) and syncs it to React via a `useRef` + `setInterval` bridge in `App.tsx`.
 *   **Physics Loop**: Runs on `requestAnimationFrame` inside `GameCanvas.tsx`.
-*   **UI Sync Loop**: Runs at 20FPS inside `App.tsx` to update the DOM-based UI (HUD, Menus).
+*   **UI Sync Loop**: Runs at 30FPS inside `App.tsx` to update the DOM-based UI (HUD, Menus).
 
 ## 2. The Time Consistency Protocol
 **File**: `services/managers/TimeManager.ts`
@@ -42,18 +42,9 @@ In early versions, mixing `Date.now()` (Wall Clock) and `performance.now()` (Bro
 Pure Canvas 2D API.
 1.  **Clear Screen**.
 2.  **Transform**: Apply Camera translation (`ctx.translate`).
-3.  **Layer 0**: Terrain (Cached static background + Dynamic features).
+3.  **Layer 0**: Terrain (Procedural drawing of craters, rocks).
 4.  **Layer 1**: Dead bodies/Blood stains.
 5.  **Layer 2**: Projectiles & Toxic Zones.
 6.  **Layer 3**: Entities (Player, Enemies, Turrets).
 7.  **Layer 4**: Floating Text / Particles.
-8.  **Layer 5**: Light/Glow effects (Manual alpha blending).
-
-## 5. Input System
-**File**: `App.tsx`, `services/managers/PlayerManager.ts`, `components/ui/MobileControls.tsx`
-
-The game supports a hybrid input model:
-*   **Desktop**: WASD + Mouse Aiming.
-*   **Mobile**: Touch Controls are detected via `navigator.userAgent`.
-    *   **Virtual Joysticks**: Left stick for movement, Right stick for aiming/firing.
-    *   **Logic**: `PlayerManager` aggregates inputs. Movement is a vector sum of keyboard and joystick input. Aiming prioritizes joystick if active (magnitude > 0.1), otherwise falls back to mouse coordinates.
+8.  **Layer 5**: Light/Glow effects (Global Composite Operation).

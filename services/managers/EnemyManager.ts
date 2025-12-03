@@ -307,7 +307,8 @@ export class EnemyManager {
             if (now - e.lastAttackTime > attackCooldown) {
                  // For logic requiring actual distance, we calculate it here
                  const distToTarget = Math.sqrt(distToTargetSq);
-                 this.handleEnemyAttack(e, target, distToTarget, closestUnit || { x: base.x, y: base.y, radius: 200 } as any);
+                 // PASSING STATE.BASE DIRECTLY TO FIX BASE DAMAGE BUG
+                 this.handleEnemyAttack(e, target, distToTarget, closestUnit || state.base as unknown as Entity);
             }
         }
     }

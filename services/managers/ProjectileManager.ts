@@ -1,6 +1,8 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { Projectile, WeaponType, Entity, DamageSource, Enemy } from '../../types';
+import { Projectile, WeaponType, Entity, DamageSource, Enemy, WeaponModule, ModuleType } from '../../types';
 
 export class ProjectileManager {
     private engine: GameEngine;
@@ -15,7 +17,7 @@ export class ProjectileManager {
         this.engine.state.projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY): Projectile {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) {
         const angle = Math.atan2(ty - y, tx - x);
         let proj: Projectile;
 
@@ -39,13 +41,13 @@ export class ProjectileManager {
             proj.createsToxicZone = !!createsToxicZone;
             proj.maxRange = maxRange;
             proj.source = source;
+            proj.activeModules = activeModules; // New
             
             // Clear optional flags that might persist
             proj.isExplosive = false;
             proj.isPiercing = false;
             proj.weaponType = undefined;
             proj.hitIds = undefined;
-            proj.activeModules = undefined;
         } else {
             // Create New
             proj = {
@@ -63,12 +65,12 @@ export class ProjectileManager {
                 isHoming,
                 createsToxicZone,
                 maxRange: maxRange,
-                source
+                source,
+                activeModules
             };
         }
 
         this.engine.state.projectiles.push(proj);
-        return proj;
     }
 
     public update(dt: number, timeScale: number) {
@@ -136,10 +138,26 @@ export class ProjectileManager {
                                 }
                             }
 
+                            // KINETIC STABILIZER PIERCING LOGIC
+                            if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
+                                const hitCount = p.hitIds ? p.hitIds.length : 0;
+                                if (hitCount === 1) {
+                                    finalDamage *= 0.8; // 2nd hit deals 80% damage
+                                }
+                            }
+
                             this.engine.damageEnemy(e, finalDamage, p.source);
                             
                             if (p.isPiercing) {
                                 p.hitIds!.push(e.id);
+                                
+                                // Kinetic Stabilizer Limit: Max 2 Hits
+                                if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
+                                    if (p.hitIds.length >= 2) {
+                                        shouldRemove = true;
+                                    }
+                                }
+
                             } else if (p.isExplosive) {
                                 this.engine.damageArea(p.x, p.y, 100, finalDamage);
                                 this.engine.spawnParticle(p.x, p.y, '#f87171', 10, 10);
@@ -163,6 +181,37 @@ export class ProjectileManager {
                         this.engine.damagePlayer(p.damage);
                         shouldRemove = true;
                         if (p.createsToxicZone) this.engine.spawnToxicZone(p.x, p.y);
+                    }
+
+                    // Check Allies
+                    if (!shouldRemove) {
+                        for (const ally of state.allies) {
+                            const dx = p.x - ally.x;
+                            const dy = p.y - ally.y;
+                            const distSq = dx*dx + dy*dy;
+                            if (distSq < (12 + p.radius)**2) { // Ally radius 12
+                                ally.hp -= p.damage;
+                                shouldRemove = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Check Turrets
+                    if (!shouldRemove) {
+                        for (const spot of state.turretSpots) {
+                            if (spot.builtTurret) {
+                                const t = spot.builtTurret;
+                                const dx = p.x - t.x;
+                                const dy = p.y - t.y;
+                                const distSq = dx*dx + dy*dy;
+                                if (distSq < (15 + p.radius)**2) { // Turret radius approx 15
+                                    t.hp -= p.damage;
+                                    shouldRemove = true;
+                                    break;
+                                }
+                            }
+                        }
                     }
 
                     if (!shouldRemove) {

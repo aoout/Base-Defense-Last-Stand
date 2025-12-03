@@ -1,4 +1,5 @@
 
+
 import {
   GameState,
   InputState,
@@ -108,14 +109,11 @@ export class GameEngine {
   private aoeCache: Enemy[] = []; // Reusable for AoE queries
 
   private lastTime: number = 0;
-  public isMobile: boolean = false;
 
   constructor() {
     this.input = {
       keys: {},
       mouse: { x: 0, y: 0, down: false, rightDown: false },
-      leftJoystick: { x: 0, y: 0 },
-      rightJoystick: { x: 0, y: 0 }
     };
     this.audio = new AudioService();
     
@@ -141,9 +139,6 @@ export class GameEngine {
     
     // Load saves
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
-
-    // Basic Mobile Detection
-    this.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
   }
 
   // Translation Helper
@@ -157,18 +152,6 @@ export class GameEngine {
           });
       }
       return str;
-  }
-
-  public updateJoystick(side: 'LEFT' | 'RIGHT', x: number, y: number) {
-      if (side === 'LEFT') {
-          this.input.leftJoystick = { x, y };
-      } else {
-          this.input.rightJoystick = { x, y };
-      }
-  }
-
-  public toggleScope() {
-      this.state.player.isAiming = !this.state.player.isAiming;
   }
 
   public handleInput(key: string, isDown: boolean) {
@@ -687,11 +670,8 @@ export class GameEngine {
   
   public spawnToxicZone(x: number, y: number) { this.fxManager.spawnToxicZone(x, y); }
   
-  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: ModuleType[]) {
-      const proj = this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone, maxRange, source);
-      if (proj && activeModules) {
-          proj.activeModules = activeModules;
-      }
+  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) {
+      this.projectileManager.spawnProjectile(x, y, tx, ty, speed, dmg, fromPlayer, color, homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules);
   }
   
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.fxManager.spawnParticle(x, y, color, count, speed); }

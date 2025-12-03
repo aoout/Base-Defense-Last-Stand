@@ -28,7 +28,7 @@ export enum ModuleType {
   MAG_FEED = 'MAG_FEED', // Mag +100%
   MICRO_RUPTURER = 'MICRO_RUPTURER', // Dmg +60%
   PRESSURIZED_BOLT = 'PRESSURIZED_BOLT', // Fire rate ramp
-  KINETIC_STABILIZER = 'KINETIC_STABILIZER', // Pierce once, 80% dmg on 2nd hit
+  KINETIC_STABILIZER = 'KINETIC_STABILIZER', // Pierce once, 80% dmg on 2nd
   TENSION_SPRING = 'TENSION_SPRING' // Reload -20%, Dmg +20%
 }
 
@@ -200,6 +200,9 @@ export interface Projectile extends Entity {
   maxRange?: number; // Total initial range
   hitIds?: string[]; // IDs of entities hit (for piercing)
   
+  // New: Active Modules for dynamic effects
+  activeModules?: WeaponModule[];
+
   // Missile Logic
   isHoming?: boolean;
   targetId?: string;
@@ -207,9 +210,6 @@ export interface Projectile extends Entity {
 
   // Boss Logic
   createsToxicZone?: boolean; // For Purple Boss
-
-  // Module Effects
-  activeModules?: ModuleType[]; // Track active effects like Kinetic Stabilizer
 }
 
 export interface ToxicZone {
@@ -554,7 +554,7 @@ export interface GameState {
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
   activeGalacticEvent: GalacticEvent | null;
-  pendingYieldReport: PlanetYieldReport | null;
+  pendingYieldReport: PlanetYieldReport | null; // New Field
 
   // Spaceship
   spaceship: SpaceshipState;
@@ -612,7 +612,4 @@ export interface GameState {
 export interface InputState {
   keys: Record<string, boolean>;
   mouse: { x: number; y: number; down: boolean; rightDown: boolean };
-  // Mobile Support
-  leftJoystick: { x: number; y: number }; // -1 to 1
-  rightJoystick: { x: number; y: number }; // -1 to 1
 }

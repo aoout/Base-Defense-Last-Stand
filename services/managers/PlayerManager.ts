@@ -1,4 +1,6 @@
 
+
+
 import { GameEngine } from '../gameService';
 import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile, DamageSource } from '../../types';
 import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
@@ -14,66 +16,29 @@ export class PlayerManager {
         const p = this.engine.state.player;
         const input = this.engine.input;
 
-        // 1. Movement (Keyboard + Joystick)
-        let dx = 0; 
-        let dy = 0;
-        
-        // Keyboard Input
+        // 1. Movement
+        let dx = 0; let dy = 0;
         if (input.keys['w'] || input.keys['W']) dy -= 1;
         if (input.keys['s'] || input.keys['S']) dy += 1;
         if (input.keys['a'] || input.keys['A']) dx -= 1;
         if (input.keys['d'] || input.keys['D']) dx += 1;
         
-        // Joystick Input (Merge)
-        dx += input.leftJoystick.x;
-        dy += input.leftJoystick.y;
-
-        // Clamp Magnitude
-        const rawLen = Math.sqrt(dx*dx + dy*dy);
-        if (rawLen > 0) {
-            // If length > 1 (e.g. diagonal key + joystick), normalize to max 1.
-            // If length < 1 (joystick partial push), keep it for variable speed.
-            const moveSpeed = Math.min(rawLen, 1.0);
-            const moveAngle = Math.atan2(dy, dx);
-            
-            p.x += Math.cos(moveAngle) * moveSpeed * p.speed * timeScale;
-            p.y += Math.sin(moveAngle) * moveSpeed * p.speed * timeScale;
+        if (dx !== 0 || dy !== 0) {
+            const len = Math.sqrt(dx*dx + dy*dy);
+            p.x += (dx/len) * p.speed * timeScale;
+            p.y += (dy/len) * p.speed * timeScale;
             
             p.x = Math.max(0, Math.min(WORLD_WIDTH, p.x));
             p.y = Math.max(0, Math.min(WORLD_HEIGHT, p.y));
         }
 
-        // 2. Aiming (Mouse vs Right Joystick)
+        // 2. Aiming
         const camera = this.engine.state.camera;
-        const joyAimLen = Math.sqrt(input.rightJoystick.x**2 + input.rightJoystick.y**2);
-        
-        if (this.engine.isMobile) {
-            if (joyAimLen > 0.1) {
-                // Use Right Joystick for Aiming
-                p.angle = Math.atan2(input.rightJoystick.y, input.rightJoystick.x);
-            } else if (rawLen > 0.1) {
-                // Use Left Joystick (Movement) for facing if not aiming
-                p.angle = Math.atan2(dy, dx);
-            }
-            // If neither, keep last angle
-        } else {
-            // Desktop: Always Use Mouse (unless controller support added later)
-            if (joyAimLen > 0.1) {
-                p.angle = Math.atan2(input.rightJoystick.y, input.rightJoystick.x);
-            } else {
-                p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
-            }
-        }
-        
-        // Manual Scope Toggle handled by UI buttons for mobile, or right click for mouse
-        if (!this.engine.isMobile) {
-             p.isAiming = input.mouse.rightDown;
-        }
+        p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
+        p.isAiming = input.mouse.rightDown;
 
         // 3. Combat / Weapon Logic
-        // Pass joystick magnitude to simulate trigger pressure if needed, but for now strict threshold
-        const isJoystickFiring = joyAimLen > 0.5;
-        this.updateWeapons(dt, time, isJoystickFiring);
+        this.updateWeapons(dt, time);
 
         // 4. Regeneration Logic
         // Use engine time instead of Date.now() for consistency across saves/pauses
@@ -86,7 +51,7 @@ export class PlayerManager {
         }
     }
 
-    private updateWeapons(dt: number, time: number, isJoystickFiring: boolean) {
+    private updateWeapons(dt: number, time: number) {
         const p = this.engine.state.player;
         const currentWep = p.loadout[p.currentWeaponIndex];
         const wepState = p.weapons[currentWep];
@@ -99,10 +64,10 @@ export class PlayerManager {
 
         // Reload Logic
         if (wepState.reloading) {
+            // Module: High Tension Spring (Reload -20%)
             let reloadTime = wepStats.reloadTime;
-            // Apply Tension Spring Module
             if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) {
-                reloadTime *= 0.8; // 20% faster
+                reloadTime *= 0.8;
             }
 
             if (time - wepState.reloadStartTime > reloadTime) {
@@ -121,7 +86,7 @@ export class PlayerManager {
             }
         } 
         // Firing Logic
-        else if (this.engine.input.mouse.down || isJoystickFiring) {
+        else if (this.engine.input.mouse.down) {
             if (wepState.ammoInMag <= 0) {
                 this.reloadWeapon(time);
             } else if (time - wepState.lastFireTime > wepStats.fireRate) {
@@ -140,8 +105,9 @@ export class PlayerManager {
         // Apply Modules
         if (wepState.modules.some((m: any) => m.type === ModuleType.GEL_BARREL)) dmgMult += 0.4;
         if (wepState.modules.some((m: any) => m.type === ModuleType.MICRO_RUPTURER)) dmgMult += 0.6;
-        if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) dmgMult += 0.2; // +20% Damage
-        
+        // Module: High Tension Spring (Damage +20%)
+        if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) dmgMult += 0.2;
+
         if (wepState.modules.some((m: any) => m.type === ModuleType.PRESSURIZED_BOLT)) {
             wepState.consecutiveShots = Math.min(5, wepState.consecutiveShots + 1);
             fireRateMod = 1 / (1 + wepState.consecutiveShots * 0.1);
@@ -154,19 +120,15 @@ export class PlayerManager {
 
         // Check Fire Rate (Throttle)
         if (time - wepState.lastFireTime > wepStats.fireRate * fireRateMod) {
-            // Check Kinetic Stabilizer Module
-            const hasStabilizer = wepState.modules.some((m: any) => m.type === ModuleType.KINETIC_STABILIZER);
-            const activeModules = wepState.modules.map((m: any) => m.type);
-
             if (type === WeaponType.SG) {
                 const pellets = wepStats.pellets || 8;
                 for(let i=0; i<pellets; i++) {
-                    this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, activeModules);
+                    this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, wepState.modules);
                 }
             } else if (type === WeaponType.FLAMETHROWER) {
-                this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, activeModules);
+                this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, wepState.modules);
             } else {
-                this.firePlayerProjectile(p.x, p.y, p.angle, finalDmg, wepStats, type, activeModules);
+                this.firePlayerProjectile(p.x, p.y, p.angle, finalDmg, wepStats, type, wepState.modules);
             }
             
             wepState.ammoInMag--;
@@ -176,7 +138,7 @@ export class PlayerManager {
         }
     }
 
-    private firePlayerProjectile(x: number, y: number, angle: number, dmg: number, stats: any, type: WeaponType, activeModules?: ModuleType[]) {
+    private firePlayerProjectile(x: number, y: number, angle: number, dmg: number, stats: any, type: WeaponType, modules: any[]) {
         const vx = Math.cos(angle) * stats.projectileSpeed;
         const vy = Math.sin(angle) * stats.projectileSpeed;
         
@@ -187,12 +149,9 @@ export class PlayerManager {
         if (type === WeaponType.FLAMETHROWER) color = '#F97316'; // Orange
         if (type === WeaponType.GRENADE_LAUNCHER) color = '#1F2937'; // Dark Gray (Bomb)
         
-        // Override for modules logic
-        let isPiercing = stats.isPiercing;
-        // Kinetic Stabilizer forces piercing if not already
-        if (activeModules && activeModules.includes(ModuleType.KINETIC_STABILIZER)) {
-            isPiercing = true;
-        }
+        // Module: Kinetic Stabilizer (Force Piercing)
+        const hasKineticStabilizer = modules.some(m => m.type === ModuleType.KINETIC_STABILIZER);
+        const isPiercing = stats.isPiercing || hasKineticStabilizer;
 
         const proj: Projectile = {
             id: `proj-${Date.now()}-${Math.random()}`,
@@ -211,7 +170,7 @@ export class PlayerManager {
             weaponType: type,
             maxRange: stats.range,
             source: DamageSource.PLAYER,
-            activeModules: activeModules
+            activeModules: modules // Pass modules for hit logic
         };
         
         this.engine.projectileManager.registerProjectile(proj);
