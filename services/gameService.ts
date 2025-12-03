@@ -426,6 +426,7 @@ export class GameEngine {
           freeModules: this.state.player.freeModules,
           grenadeModules: this.state.player.grenadeModules,
           grenades: this.state.player.grenades,
+          encounteredEnemies: [...this.state.stats.encounteredEnemies] // Preserve Bestiary
       };
 
       // Reset the world state
@@ -440,6 +441,7 @@ export class GameEngine {
       this.state.player.freeModules = persistentState.freeModules;
       this.state.player.grenadeModules = persistentState.grenadeModules;
       this.state.player.grenades = persistentState.grenades;
+      this.state.stats.encounteredEnemies = persistentState.encounteredEnemies; // Restore Bestiary
 
       this.state.gameMode = GameMode.EXPLORATION;
       this.state.selectedPlanetId = id;
