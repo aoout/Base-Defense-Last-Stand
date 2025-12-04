@@ -1,9 +1,13 @@
 
+
+
 import React, { useState } from 'react';
-import { GameState } from '../../types';
+import { GameState, GalaxyConfig } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { PlanetDetailScreen } from './PlanetDetailScreen';
+import { GalaxyIndexModal } from './GalaxyIndexModal';
+import { GameEngine } from '../../services/gameService';
 
 interface SectorMapUIProps {
     state: GameState;
@@ -28,6 +32,32 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
 }) => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
     const [viewingDetail, setViewingDetail] = useState(false);
+    const [showIndex, setShowIndex] = useState(false);
+
+    // This component is stateless regarding logic, but needs to call scanning. 
+    // Ideally scanSector should be passed down, but for now we can access it if we had the engine, 
+    // or we assume it's available via a prop that we'll add to App.tsx? 
+    // Actually, GalaxyManager is on engine. Let's assume we can trigger a game action event 
+    // or we need to update the interface.
+    // The "Right Way" given the structure is to dispatch a custom event that App.tsx or engine picks up, 
+    // OR we modify App.tsx to pass a handler. Since I cannot edit App.tsx in this specific block without returning it,
+    // I will assume there is a `window.gameEngine` or I dispatch an event.
+    // Wait, the prompt says "Refactor as needed". I will assume I can update App.tsx if I output it.
+    // BUT, the SectorMapUI props don't have onScan. I should add `onScan` to props in UIOverlay and App.
+    // However, to keep changes minimal, I will use the custom event pattern used elsewhere 
+    // OR just instantiate a temporary engine accessor? No, that's bad.
+    
+    // BETTER APPROACH: Add `onScan` to props. I will update UIOverlay and App.tsx in separate blocks.
+    // For now, let's pretend `onScan` exists or use a temporary workaround?
+    // No, I'll update the interface properly. 
+    
+    // Wait, I can't pass onScan here without updating UIOverlay.
+    // Let's use the `window.dispatchEvent` pattern for the scan action, similar to weapon assembly.
+    
+    const handleScan = (config: GalaxyConfig) => {
+        const event = new CustomEvent('game-action', { detail: { type: 'SCAN_SECTOR', config } });
+        window.dispatchEvent(event);
+    };
 
     // Calculate drop cost
     let dropCost = 0;
@@ -82,11 +112,32 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                 </button>
             </div>
 
+            {/* Galaxy Index Button (Bottom Right) */}
+            <div className="absolute bottom-8 right-8 pointer-events-auto">
+                <button
+                    onClick={() => setShowIndex(true)}
+                    className="group flex flex-col items-center justify-center w-24 h-24 bg-slate-900/90 border border-blue-500/50 rounded-full hover:border-cyan-400 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)] transition-all relative"
+                >
+                    <div className="absolute inset-0 rounded-full border border-blue-500/20 animate-spin-slow"></div>
+                    <div className="text-3xl text-cyan-500 group-hover:text-white mb-1">⌖</div>
+                    <div className="text-[9px] font-bold tracking-widest text-cyan-600 group-hover:text-cyan-300 text-center leading-tight">GALAXY<br/>INDEX</div>
+                </button>
+            </div>
+
             {/* Current Scraps Display */}
             <div className="absolute bottom-8 left-64 bg-slate-900/80 p-4 border border-blue-900/50">
                 <div className="text-xs text-blue-400 font-bold uppercase tracking-widest">{t('AVAILABLE_FUNDS')}</div>
                 <div className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
             </div>
+
+            {/* Modals */}
+            {showIndex && (
+                <GalaxyIndexModal 
+                    onClose={() => setShowIndex(false)}
+                    onScan={handleScan}
+                    t={t}
+                />
+            )}
 
             {/* Full Screen Detail View */}
             {viewingDetail && planet && (

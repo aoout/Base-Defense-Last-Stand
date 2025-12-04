@@ -1,8 +1,10 @@
 
+
+
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType } from '../../types';
+import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
-import { generateTerrain } from '../../utils/worldGenerator';
+import { generateTerrain, generatePlanets } from '../../utils/worldGenerator';
 import { GAS_INFO } from '../../data/world';
 
 export class GalaxyManager {
@@ -211,5 +213,11 @@ export class GalaxyManager {
         }
   
         state.activeGalacticEvent = event;
+    }
+
+    public scanSector(config: GalaxyConfig) {
+        this.engine.state.planets = generatePlanets(config);
+        this.engine.state.selectedPlanetId = null;
+        this.engine.addMessage(this.engine.t('SCAN_COMPLETE'), WORLD_WIDTH / 2, WORLD_HEIGHT / 2, '#06b6d4', FloatingTextType.SYSTEM);
     }
 }

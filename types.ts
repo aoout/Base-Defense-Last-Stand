@@ -598,6 +598,11 @@ export interface PlanetYieldReport {
     totalYield: number;
 }
 
+export interface GalaxyConfig {
+    minGeneStrength: number;
+    maxGeneStrength: number;
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;

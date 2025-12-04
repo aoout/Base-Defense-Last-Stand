@@ -1,4 +1,6 @@
 
+
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -30,6 +32,9 @@ const App: React.FC = () => {
         }
         if (detail.type === 'UNEQUIP_MODULE') {
             engine.unequipModule(detail.target, detail.modId);
+        }
+        if (detail.type === 'SCAN_SECTOR') {
+            engine.galaxyManager.scanSector(detail.config);
         }
     };
 

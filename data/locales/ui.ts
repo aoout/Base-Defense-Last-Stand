@@ -1,4 +1,6 @@
 
+
+
 export const UI_EN = {
     // --- CORE UI ---
     GAME_TITLE: "VANGUARD",
@@ -122,6 +124,19 @@ export const UI_EN = {
     CMD_ASSAULT_DESC: "Units hunt enemies freely.",
     CLOSE_CHANNEL: "CLOSE CHANNEL [TAB]",
     ACKNOWLEDGE: "ACKNOWLEDGE",
+
+    // --- GALAXY INDEX ---
+    GALAXY_INDEX_TITLE: "GALAXY INDEX",
+    GALAXY_INDEX_SUB: "SECTOR NAVIGATION SYSTEM",
+    SCAN_COMPLETE: "SECTOR SCAN COMPLETE",
+    DIFF_LOW: "LOW THREAT",
+    DIFF_MED: "STANDARD",
+    DIFF_HIGH: "HIGH THREAT",
+    DIFF_CUSTOM: "CUSTOM",
+    INDEX_DEF: "INDEX DEFINITION",
+    AVG_GENE_STR: "AVG GENE STRENGTH",
+    INITIATE_SCAN: "INITIATE SCAN",
+    GENE_RANGE: "GENE RANGE",
 };
 
 export const UI_CN = {
@@ -247,4 +262,17 @@ export const UI_CN = {
     CMD_ASSAULT_DESC: "单位自由猎杀敌人。",
     CLOSE_CHANNEL: "关闭频道 [TAB]",
     ACKNOWLEDGE: "确认",
+
+    // --- GALAXY INDEX ---
+    GALAXY_INDEX_TITLE: "星系索引",
+    GALAXY_INDEX_SUB: "星区导航系统",
+    SCAN_COMPLETE: "星区扫描完成",
+    DIFF_LOW: "低威胁",
+    DIFF_MED: "标准",
+    DIFF_HIGH: "高威胁",
+    DIFF_CUSTOM: "自定义",
+    INDEX_DEF: "索引定义",
+    AVG_GENE_STR: "平均基因强度",
+    INITIATE_SCAN: "开始扫描",
+    GENE_RANGE: "基因范围",
 };

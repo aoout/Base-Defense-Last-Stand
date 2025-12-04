@@ -3,14 +3,19 @@
 
 
 
-import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType } from '../types';
+
+
+import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType, GalaxyConfig } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES, GAS_INFO } from '../data/world';
 
-export const generatePlanets = (): Planet[] => {
+export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
     const planets: Planet[] = [];
     const biomes = Object.values(BiomeType);
     
+    const minGene = config ? config.minGeneStrength : 1.0;
+    const maxGene = config ? config.maxGeneStrength : 3.0;
+
     for(let i=0; i<12; i++) {
         const x = (Math.random() * (CANVAS_WIDTH - 200)) + 100;
         const y = (Math.random() * (CANVAS_HEIGHT - 200)) + 100;
@@ -62,8 +67,8 @@ export const generatePlanets = (): Planet[] => {
         // 70% Defense, 30% Offense
         const missionType = Math.random() > 0.3 ? MissionType.DEFENSE : MissionType.OFFENSE;
         
-        // Clean gene strength to 2 decimal places to avoid confusion with reductions
-        const rawGeneStrength = 1 + Math.random() * 2;
+        // Configurable Gene Strength
+        const rawGeneStrength = minGene + Math.random() * (maxGene - minGene);
         const geneStrength = Math.round(rawGeneStrength * 100) / 100;
 
         planets.push({
