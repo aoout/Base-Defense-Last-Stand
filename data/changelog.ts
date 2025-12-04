@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.3";
+export const CURRENT_VERSION = "0.9.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.4",
+        date: "2248.05.28",
+        title: "LOW-SPEC OPTIMIZATION",
+        titleCN: "低配机型优化",
+        changes: [
+            "OPT: Added Resolution Scaling (50%, 75%, 100%) for massive FPS gains on older GPUs.",
+            "OPT: Added Shadow Toggle to reduce draw calls.",
+            "UI: Moved 'Damage Numbers' toggle to Main Menu settings for easier access.",
+            "FIX: Resolved rendering module conflicts causing crashes on startup.",
+            "FIX: Optimized base drawing routines."
+        ],
+        changesCN: [
+            "优化：添加渲染分辨率选项 (50%, 75%, 100%)，大幅提升旧显卡帧率。",
+            "优化：添加阴影开关以减少绘制调用。",
+            "界面：将“伤害数字”开关移至主菜单设置，便于访问。",
+            "修复：解决了导致启动崩溃的渲染模块冲突。",
+            "修复：优化了基地绘制例程。"
+        ]
+    },
     {
         version: "0.9.3",
         date: "2248.05.25",
