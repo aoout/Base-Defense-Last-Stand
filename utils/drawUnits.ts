@@ -3,6 +3,7 @@ import { Player, Enemy, Ally, Turret, WeaponType, TurretType, BossType } from '.
 import { WEAPONS } from '../data/registry';
 import { isVisible } from './drawHelpers';
 
+// ... (Keep existing weapon draw functions: drawAR, drawSG, etc.)
 const drawAR = (ctx: CanvasRenderingContext2D) => {
     ctx.fillStyle = '#374151'; ctx.fillRect(-10, -3, 8, 6);
     ctx.fillStyle = '#1F2937'; ctx.fillRect(-2, -4, 16, 8);
@@ -60,6 +61,7 @@ const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
     ctx.closePath(); ctx.fill(); 
 };
 
+// ... (drawPlayerSprite, drawAllySprite, drawTurret logic remains the same)
 export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number, isMoving: boolean) => {
     const stride = isMoving ? Math.sin(time * 0.015) * 4 : 0;
     ctx.fillStyle = '#111827'; 
@@ -225,9 +227,17 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
     ctx.restore();
 };
 
-// Enemy Renderers with LOD support
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const isLowDetail = lodLevel > 0;
+    // SUPER LOW LOD (Level 2) - Minimal Geometry, no strokes
+    if (lodLevel >= 2) {
+        ctx.fillStyle = '#7f1d1d';
+        ctx.fillRect(-8, -8, 16, 16); // Simple Box
+        ctx.fillStyle = '#fca5a5';
+        ctx.fillRect(4, -2, 4, 4); // Head indicator
+        return;
+    }
+
+    const isLowDetail = lodLevel === 1;
     const wiggle = isLowDetail ? 0 : Math.sin(time * 0.02) * 2;
     const breathe = isLowDetail ? 0 : Math.sin(time * 0.005) * 1;
 
@@ -236,7 +246,6 @@ export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
     ctx.lineCap = 'round';
 
     if (isLowDetail) {
-        // Simplified Legs
         ctx.beginPath();
         ctx.moveTo(0, -4); ctx.lineTo(-8, -16);
         ctx.moveTo(0, -4); ctx.lineTo(4, -18);
@@ -246,7 +255,6 @@ export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
         ctx.moveTo(0, 3); ctx.lineTo(14, 14);
         ctx.stroke();
         
-        // Simplified Body
         ctx.fillStyle = '#450a0a';
         ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = '#b91c1c';
@@ -312,8 +320,16 @@ export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
 }
 
 export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const isLowDetail = lodLevel > 0;
-    
+    // SUPER LOW LOD
+    if (lodLevel >= 2) {
+        ctx.fillStyle = '#d97706'; // Amber-600
+        ctx.beginPath();
+        ctx.moveTo(10, 0); ctx.lineTo(-5, -5); ctx.lineTo(-5, 5);
+        ctx.fill();
+        return;
+    }
+
+    const isLowDetail = lodLevel === 1;
     if (isLowDetail) {
         ctx.fillStyle = '#7c2d12';
         ctx.beginPath();
@@ -363,8 +379,16 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
 }
 
 export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const isLowDetail = lodLevel > 0;
-    
+    // SUPER LOW LOD
+    if (lodLevel >= 2) {
+        ctx.fillStyle = '#1f2937';
+        ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#4b5563';
+        ctx.fillRect(-5, -5, 10, 10);
+        return;
+    }
+
+    const isLowDetail = lodLevel === 1;
     if (isLowDetail) {
         ctx.fillStyle = '#1f2937'; 
         ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
@@ -415,7 +439,14 @@ export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, 
 }
 
 export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const isLowDetail = lodLevel > 0;
+    // SUPER LOW LOD
+    if (lodLevel >= 2) {
+        ctx.fillStyle = '#9333ea';
+        ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI*2); ctx.fill();
+        return;
+    }
+
+    const isLowDetail = lodLevel === 1;
     if (isLowDetail) {
         ctx.fillStyle = '#4c1d95'; 
         ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI*2); ctx.fill();
@@ -462,7 +493,15 @@ export const drawKamikaze = (ctx: CanvasRenderingContext2D, e: Enemy, time: numb
 }
 
 export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const isLowDetail = lodLevel > 0;
+    // SUPER LOW LOD
+    if (lodLevel >= 2) {
+        ctx.fillStyle = '#059669';
+        ctx.beginPath();
+        ctx.moveTo(10, 0); ctx.lineTo(-10, -5); ctx.lineTo(-10, 5); ctx.fill();
+        return;
+    }
+
+    const isLowDetail = lodLevel === 1;
     if (isLowDetail) {
         ctx.strokeStyle = '#064e3b';
         ctx.lineWidth = 6;
@@ -506,6 +545,7 @@ export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
     }
 }
 
+// ... (Keep existing Boss draw functions: drawBossRed, drawBossBlue, etc.)
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const pulse = Math.sin(time * 0.003) * 3;
     ctx.strokeStyle = '#7f1d1d'; ctx.lineWidth = 4;

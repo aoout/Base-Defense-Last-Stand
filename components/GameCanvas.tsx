@@ -126,8 +126,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         ctx.restore();
     });
 
-    // Calculate LOD Level
-    const lodLevel = state.enemies.length > 50 ? 1 : 0;
+    // Dynamic Level-of-Detail Calculation
+    // > 100 enemies: Super Low (2)
+    // > 50 enemies: Low (1)
+    // < 50 enemies: High (0)
+    let lodLevel = 0;
+    if (state.enemies.length > 100) lodLevel = 2;
+    else if (state.enemies.length > 50) lodLevel = 1;
 
     // Draw Enemies
     state.enemies.forEach(e => {
@@ -164,7 +169,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       const barY = -e.radius - 15;
       const hpPct = Math.max(0, e.hp / e.maxHp);
       
-      // Skip brackets at Low LOD for small enemies to save draw calls
+      // Skip brackets at Low LOD to save draw calls
       if (lodLevel === 0 || e.isBoss) {
           // Brackets [ ]
           ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
@@ -178,13 +183,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       }
 
       // Segments
-      const totalSegments = e.isBoss ? 20 : (lodLevel > 0 ? 1 : 5);
-      const activeSegments = Math.ceil(totalSegments * hpPct);
-      const segWidth = (barWidth - (lodLevel > 0 ? 0 : 4)) / totalSegments;
-      
-      ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
-      for(let i=0; i<activeSegments; i++) {
-          ctx.fillRect(-barWidth/2 + 2 + (i * segWidth), barY, segWidth - 1, 4);
+      // Super Low LOD (2): No health bars for non-bosses to maximize FPS
+      if (lodLevel < 2 || e.isBoss) {
+          const totalSegments = e.isBoss ? 20 : (lodLevel > 0 ? 1 : 5);
+          const activeSegments = Math.ceil(totalSegments * hpPct);
+          const segWidth = (barWidth - (lodLevel > 0 ? 0 : 4)) / totalSegments;
+          
+          ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
+          for(let i=0; i<activeSegments; i++) {
+              ctx.fillRect(-barWidth/2 + 2 + (i * segWidth), barY, segWidth - 1, 4);
+          }
       }
 
       // Boss Name Tag
