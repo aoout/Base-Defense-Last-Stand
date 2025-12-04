@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.2";
+export const CURRENT_VERSION = "0.9.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.3",
+        date: "2248.05.25",
+        title: "SYSTEM UI OVERHAUL",
+        titleCN: "系统界面重构",
+        changes: [
+            "UI: Unified design language across all spaceship modules (Orbital, Bio, Tech, Xeno).",
+            "UI: Added real-time 3D model previews to Carapace Analyzer and Bio-Sequencing.",
+            "UX: Optimized layout for Orbital Upgrade tree to fit without scrolling.",
+            "UX: Added detailed statistical breakdowns for Infrastructure and Orbital modules.",
+            "FIX: Resolved reactivity issues in Bio-Sequencing active buff display."
+        ],
+        changesCN: [
+            "界面：统一了所有飞船模块（轨道、生物、科技、异种）的设计语言。",
+            "界面：为异种分析仪和生物序列添加了实时3D模型预览。",
+            "体验：优化了轨道升级树布局，无需滚动即可完整显示。",
+            "体验：为基础设施和轨道模块添加了详细的统计数据细分。",
+            "修复：解决了生物序列激活增益显示的响应性问题。"
+        ]
+    },
     {
         version: "0.9.2",
         date: "2248.05.22",
