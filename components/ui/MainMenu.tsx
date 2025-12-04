@@ -1,6 +1,8 @@
-import React, { useRef } from 'react';
+
+import React, { useRef, useState } from 'react';
 import { GameState, GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
+import { CloseButton } from './Shared';
 
 interface MainMenuProps {
     state: GameState;
@@ -15,6 +17,21 @@ interface MainMenuProps {
     t: (key: string) => string;
 }
 
+const SettingRow: React.FC<{ label: string, value: string, onClick: () => void, description?: string }> = ({ label, value, onClick, description }) => (
+    <div 
+        className="flex items-center justify-between p-3 border border-slate-700 bg-slate-900/50 hover:bg-slate-800 hover:border-cyan-500 cursor-pointer group transition-all"
+        onClick={onClick}
+    >
+        <div className="flex flex-col">
+            <span className="text-xs font-bold text-slate-400 group-hover:text-cyan-400 tracking-widest">{label}</span>
+            {description && <span className="text-[10px] text-slate-600 font-mono">{description}</span>}
+        </div>
+        <div className="px-3 py-1 bg-black border border-slate-600 text-cyan-500 text-xs font-mono font-bold min-w-[60px] text-center group-hover:border-cyan-500 group-hover:text-cyan-300">
+            {value}
+        </div>
+    </div>
+);
+
 export const MainMenu: React.FC<MainMenuProps> = ({ 
     state, 
     onStartSurvival, 
@@ -28,6 +45,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
     t 
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [showSettings, setShowSettings] = useState(false);
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -132,20 +150,80 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
             </div>
 
-            {/* Language Toggle (Bottom Right) */}
+            {/* Settings Toggle (Bottom Right) */}
             <div className="absolute bottom-8 right-8">
                 <button 
-                    onClick={() => onToggleSetting('language')}
-                    className="flex items-center gap-3 px-4 py-2 bg-slate-900/80 border border-slate-600 hover:border-cyan-500 hover:text-cyan-400 text-slate-400 transition-all rounded group"
+                    onClick={() => setShowSettings(true)}
+                    className="flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-600 hover:border-cyan-500 hover:text-cyan-400 text-slate-400 transition-all rounded group shadow-lg"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:animate-spin-slow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span className="font-mono font-bold text-xs tracking-widest">
-                        {state.settings.language === 'EN' ? 'ENGLISH' : '中文 (CHINESE)'}
-                    </span>
+                    <span className="font-mono font-bold text-xs tracking-widest">{t('SETTINGS_BTN')}</span>
                 </button>
             </div>
+
+            {/* Settings Modal */}
+            {showSettings && (
+                <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-[500px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative p-8">
+                        <CloseButton onClick={() => setShowSettings(false)} colorClass="border-cyan-600 text-cyan-500 hover:text-white hover:bg-cyan-900" />
+                        
+                        <div className="border-b border-cyan-800 pb-4 mb-6 text-center">
+                            <h2 className="text-2xl font-display font-black text-white tracking-widest uppercase">{t('SETTINGS_TITLE')}</h2>
+                            <p className="text-[10px] text-cyan-500 font-mono tracking-[0.2em]">{t('SETTINGS_HINT')}</p>
+                        </div>
+
+                        <div className="space-y-3">
+                            <SettingRow 
+                                label={t('SETTING_LANGUAGE')} 
+                                value={state.settings.language === 'EN' ? 'EN' : 'CN'} 
+                                onClick={() => onToggleSetting('language')} 
+                            />
+                            
+                            <div className="h-px bg-slate-800 my-4"></div>
+                            
+                            <SettingRow 
+                                label={t('SETTING_LOD_LABEL')} 
+                                value={t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)} 
+                                onClick={() => onToggleSetting('performanceMode')}
+                                description="Adjust Model LOD thresholds."
+                            />
+
+                            <SettingRow 
+                                label={t('SETTING_PARTICLES')} 
+                                value={state.settings.particleIntensity === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
+                                onClick={() => onToggleSetting('particleIntensity')}
+                                description="Reduce debris/explosion effects."
+                            />
+                            
+                            <SettingRow 
+                                label={t('SETTING_LIGHTING')} 
+                                value={state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
+                                onClick={() => onToggleSetting('lightingQuality')}
+                                description="Toggle glows and bloom effects."
+                            />
+                            
+                            <SettingRow 
+                                label={t('SETTING_ANIM_BG')} 
+                                value={state.settings.animatedBackground ? t('SETTING_ON') : t('SETTING_OFF')} 
+                                onClick={() => onToggleSetting('animatedBackground')}
+                                description="Toggle terrain animations (Magma, Trees)."
+                            />
+                        </div>
+
+                        <div className="mt-8 text-center">
+                            <button 
+                                onClick={() => setShowSettings(false)}
+                                className="px-8 py-2 bg-cyan-900/50 hover:bg-cyan-700 text-cyan-200 text-xs font-bold tracking-widest border border-cyan-600 transition-all"
+                            >
+                                {t('OS_WINDOW_CLOSE')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

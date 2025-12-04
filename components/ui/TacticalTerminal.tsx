@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import * as d3 from 'd3';
 import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
@@ -258,6 +259,7 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                     {activeTab === 'CONFIG' && (
                         <div className="space-y-4">
                             <h3 className="text-green-400 border-b border-green-900 pb-2 mb-4">{t('VISUAL_SETTINGS')}</h3>
+                            <ToggleRow label={`${t('SETTING_LOD_LABEL')} : ${t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}`} active={true} onClick={() => onToggleSetting('performanceMode')} />
                             <ToggleRow label={t('HUD_OVERLAY')} active={state.settings.showHUD} onClick={() => onToggleSetting('showHUD')} />
                             <ToggleRow label={t('GORE')} active={state.settings.showBlood} onClick={() => onToggleSetting('showBlood')} />
                             <ToggleRow label={t('DMG_TEXT')} active={state.settings.showDamageNumbers} onClick={() => onToggleSetting('showDamageNumbers')} />

@@ -1,6 +1,4 @@
-
-
-import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig } from "../types";
+import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig, PerformanceMode } from "../types";
 
 export const PLAYER_STATS = {
   maxHp: 200,
@@ -20,6 +18,12 @@ export const BASE_STATS = {
   maxHp: 5000,
   width: 200,
   height: 100,
+};
+
+export const LOD_THRESHOLDS: Record<PerformanceMode, { low: number, superLow: number }> = {
+    QUALITY: { low: 120, superLow: 250 },
+    BALANCED: { low: 60, superLow: 120 },
+    PERFORMANCE: { low: 30, superLow: 60 }
 };
 
 export const TURRET_COSTS = {

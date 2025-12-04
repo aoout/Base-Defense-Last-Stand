@@ -78,7 +78,15 @@ export class FXManager {
     }
 
     public spawnParticle(x: number, y: number, color: string, count: number, speed: number) {
-        for(let i=0; i<count; i++) {
+        const intensity = this.engine.state.settings.particleIntensity;
+        let actualCount = count;
+        
+        if (intensity === 'LOW') {
+            actualCount = Math.floor(count * 0.3); // Reduce by 70%
+            if (actualCount < 1 && Math.random() < 0.3) actualCount = 1; // Minimum chance
+        }
+
+        for(let i=0; i<actualCount; i++) {
             const a = Math.random() * Math.PI*2;
             const s = Math.random() * speed;
             
@@ -115,6 +123,12 @@ export class FXManager {
 
     public spawnBloodStain(x: number, y: number, color: string, maxHp: number = 100) {
         if (!this.engine.state.settings.showBlood) return;
+        
+        // Performance reduction: fewer blood stains on low
+        if (this.engine.state.settings.particleIntensity === 'LOW') {
+            // 50% chance to skip blood stain creation entirely to save draw calls
+            if (Math.random() > 0.5) return;
+        }
         
         const lifeDuration = Math.min(60000, 10000 + (maxHp * 20));
         

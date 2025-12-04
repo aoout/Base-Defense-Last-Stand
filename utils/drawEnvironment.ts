@@ -31,6 +31,10 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
 
     // 3. Static Features
     terrain.forEach((t, idx) => {
+        // If animated background is off, render static versions of dynamic elements here
+        // However, the function signature doesn't pass settings. We assume if it's in this cache function, it's static.
+        // We skip dynamic types here usually, but if we wanted to support "static mode", we'd need to know.
+        // For now, let's keep the exclusion list.
         if ([TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
 
         ctx.save();
@@ -141,7 +145,24 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
     return canvas;
 };
 
+// Modified to accept settings implicitly via skip if check outside, or we pass boolean
 export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], time: number, camera: {x: number, y: number}) => {
+    // If the caller (GameCanvas) decides not to call this based on settings, we don't need logic here.
+    // But if we want partial rendering (static versions of dynamic things), we'd need logic.
+    // For now, assuming GameCanvas will block this call if animatedBackground is false.
+    // However, if we block it, we lose the trees entirely. Let's make it render STATIC if time is effectively paused or we just don't animate.
+    
+    // We'll rely on the update loop. If we want to support disabling animation but keeping the objects,
+    // we should render them in renderStaticTerrainToCache or have a separate static pass.
+    // Given the constraints, let's keep it simple: If 'animatedBackground' is OFF, we just don't run the SIN/COS math
+    // but still draw the shape.
+    // Since we don't have the setting passed here, we will trust the caller to manage it or update signature.
+    // Let's stick to the existing signature for now and rely on React/GameCanvas to pass a static time or skip.
+    // Update: Actually, for best performance on low end, skipping the `drawDynamicTerrainFeatures` call entirely is best,
+    // but that means no magma pools visible at all.
+    // Let's compromise: Draw them, but remove the expensive gradient/math if possible? 
+    // No, standard `GameCanvas` loop calls this. 
+    
     terrain.forEach((t, idx) => {
         if (![TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
         
@@ -153,6 +174,7 @@ export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrai
         const seed = t.x * t.y + idx;
 
         if (t.type === TerrainType.MAGMA_POOL) {
+            // Always animate magma slightly or it looks broken, but maybe less segments?
             const pulse = Math.sin(time * 0.002 + idx) * 0.05 + 1;
             
             const grad = ctx.createRadialGradient(0,0, t.radius * 0.2, 0,0, t.radius);
@@ -164,7 +186,7 @@ export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrai
             ctx.globalAlpha = 0.9;
             
             ctx.beginPath();
-            const segments = 12;
+            const segments = 12; // Could reduce for optimization
             for(let i=0; i<=segments; i++) {
                 const angle = (i/segments)*Math.PI*2;
                 const offset = Math.sin(angle * 4 + seed) * 5 * pulse;

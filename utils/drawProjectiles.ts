@@ -66,6 +66,8 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
          if (lifePct > 0.6) color = 'rgba(200, 20, 20, 0.5)'; 
          if (lifePct > 0.8) color = 'rgba(50, 50, 50, 0.3)'; 
          
+         // Performance Hack: Avoid composite op if possible, but flame needs it. 
+         // Assuming this is called only for complex projectiles anyway.
          ctx.globalCompositeOperation = 'lighter'; 
          ctx.fillStyle = color; 
          ctx.beginPath(); ctx.arc(0, 0, currentRadius, 0, Math.PI * 2); ctx.fill(); 
@@ -136,6 +138,8 @@ export const drawOrbitalBeam = (ctx: CanvasRenderingContext2D, beam: OrbitalBeam
     ctx.fillStyle = grad;
     ctx.fillRect(beam.x - currentWidth/2, beam.y - 1000, currentWidth, 1000);
     
+    // Disable expensive radial gradient on low settings if passed? 
+    // Currently no settings access here, but Orbital beams are rare enough to keep high quality usually.
     const grdRadial = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, currentWidth * 2);
     grdRadial.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
     grdRadial.addColorStop(0.5, `rgba(6, 182, 212, ${opacity * 0.5})`);
@@ -176,6 +180,7 @@ export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[]
         ctx.translate(zone.x, zone.y);
         const scale = 1 + Math.sin(time * 0.005 + parseInt(zone.id)) * 0.05;
         
+        // This gradient is somewhat expensive, but toxic zones are limited.
         const grad = ctx.createRadialGradient(0,0, 0, 0,0, zone.radius * scale);
         grad.addColorStop(0, 'rgba(124, 58, 237, 0.8)');
         grad.addColorStop(0.7, 'rgba(124, 58, 237, 0.4)');

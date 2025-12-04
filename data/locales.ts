@@ -10,6 +10,23 @@ export const TRANSLATIONS = {
         EXPLORE_MODE: "EXPLORE",
         EXPLORE_DESC: "Campaign Mode // Deployment",
         
+        // Settings / Main Menu
+        SETTINGS_TITLE: "SYSTEM CONFIGURATION",
+        SETTING_LANGUAGE: "LANGUAGE",
+        SETTING_PARTICLES: "PARTICLE DENSITY",
+        SETTING_LIGHTING: "LIGHTING QUALITY",
+        SETTING_ANIM_BG: "DYNAMIC TERRAIN",
+        SETTING_LOD_LABEL: "MODEL DETAIL",
+        SETTING_HIGH: "HIGH",
+        SETTING_LOW: "LOW",
+        SETTING_ON: "ON",
+        SETTING_OFF: "OFF",
+        SETTING_QUALITY: "QUALITY",
+        SETTING_BALANCED: "BALANCED",
+        SETTING_PERFORMANCE: "LOW QUALITY",
+        SETTINGS_HINT: "ADJUST FOR OPTIMAL PERFORMANCE",
+        SETTINGS_BTN: "SETTINGS",
+
         // OS Interface
         OS_BOOT: "INITIALIZING VANGUARD KERNEL v44.2...",
         OS_CHECK_MEM: "CHECKING MEMORY INTEGRITY... [OK]",
@@ -345,7 +362,7 @@ Immediate spawn of next wave. No downtime for reload or regen.
         PINNED: "PINNED",
         PIN: "PIN",
         UNPIN: "UNPIN",
-        LOAD: "EXTRACT",
+        LOAD: "LOAD",
         DELETE: "PURGE",
         EMPTY_SLOT: "EMPTY SLOT",
         SAVE_SUCCESS: "STATE ARCHIVED SUCCESSFULLY",
@@ -671,6 +688,23 @@ Immediate spawn of next wave. No downtime for reload or regen.
         SURVIVAL_DESC: "无尽波次 // 模拟训练",
         EXPLORE_MODE: "探索模式",
         EXPLORE_DESC: "战役模式 // 实地部署",
+
+        // Settings
+        SETTINGS_TITLE: "系统配置",
+        SETTING_LANGUAGE: "系统语言",
+        SETTING_PARTICLES: "粒子密度",
+        SETTING_LIGHTING: "光照质量",
+        SETTING_ANIM_BG: "动态地形",
+        SETTING_LOD_LABEL: "模型精度",
+        SETTING_HIGH: "高",
+        SETTING_LOW: "低",
+        SETTING_ON: "开启",
+        SETTING_OFF: "关闭",
+        SETTING_QUALITY: "高质量",
+        SETTING_BALANCED: "平衡",
+        SETTING_PERFORMANCE: "低质量",
+        SETTINGS_HINT: "调整以获得最佳性能表现",
+        SETTINGS_BTN: "系统设置",
 
         // OS Interface
         OS_BOOT: "正在初始化先锋操作系统...",

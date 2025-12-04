@@ -41,7 +41,8 @@ import {
   GalacticEventType,
   GalacticEvent,
   PlanetYieldInfo,
-  PlanetYieldReport
+  PlanetYieldReport,
+  PerformanceMode
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -256,7 +257,11 @@ export class GameEngine {
         showHUD: true,
         showBlood: true,
         showDamageNumbers: true,
-        language: defaultLang as 'EN' | 'CN'
+        language: defaultLang as 'EN' | 'CN',
+        lightingQuality: 'HIGH',
+        particleIntensity: 'HIGH',
+        animatedBackground: true,
+        performanceMode: 'BALANCED'
     };
 
     const initialWeapons: Record<string, WeaponState> = {};
@@ -560,6 +565,14 @@ export class GameEngine {
           const newLang = this.state.settings.language === 'EN' ? 'CN' : 'EN';
           this.state.settings.language = newLang;
           localStorage.setItem('VANGUARD_LANG_PREF', newLang);
+      } else if (key === 'lightingQuality') {
+          this.state.settings.lightingQuality = this.state.settings.lightingQuality === 'HIGH' ? 'LOW' : 'HIGH';
+      } else if (key === 'particleIntensity') {
+          this.state.settings.particleIntensity = this.state.settings.particleIntensity === 'HIGH' ? 'LOW' : 'HIGH';
+      } else if (key === 'performanceMode') {
+          const modes: PerformanceMode[] = ['QUALITY', 'BALANCED', 'PERFORMANCE'];
+          const idx = modes.indexOf(this.state.settings.performanceMode || 'BALANCED');
+          this.state.settings.performanceMode = modes[(idx + 1) % modes.length];
       } else {
           (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
       }

@@ -1,5 +1,4 @@
 
-
 export enum WeaponType {
   AR = 'AR',
   SG = 'SG',
@@ -293,11 +292,18 @@ export interface BloodStain {
   blotches: {x: number, y: number, r: number}[]; // Array of circles composing the stain
 }
 
+export type PerformanceMode = 'QUALITY' | 'BALANCED' | 'PERFORMANCE';
+
 export interface GameSettings {
   showHUD: boolean;
   showBlood: boolean;
   showDamageNumbers: boolean;
   language: 'EN' | 'CN';
+  // Performance Settings
+  lightingQuality: 'HIGH' | 'LOW'; // Low disables blur/glow
+  particleIntensity: 'HIGH' | 'LOW'; // Low reduces particle counts by 70%
+  animatedBackground: boolean; // False disables terrain updates
+  performanceMode: PerformanceMode; // New LOD control
 }
 
 export interface GameStats {

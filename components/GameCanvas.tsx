@@ -1,8 +1,9 @@
 
 import React, { useEffect, useRef } from 'react';
 import { GameEngine } from '../services/gameService';
-import { GameState, WeaponType, BossType, AppMode } from '../types';
+import { GameState, WeaponType, BossType, AppMode, PerformanceMode } from '../types';
 import { CANVAS_HEIGHT, CANVAS_WIDTH, WORLD_HEIGHT, WORLD_WIDTH } from '../constants';
+import { LOD_THRESHOLDS } from '../data/registry';
 import { 
     renderStaticTerrainToCache, drawDynamicTerrainFeatures, drawCachedTerrain,
     drawBloodStains, drawToxicZones, drawTurret, 
@@ -68,8 +69,11 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     if (terrainCacheRef.current) {
         drawCachedTerrain(ctx, terrainCacheRef.current);
     }
-    // Draw only animated parts (Magma, Trees, Spores) on top of cache
-    drawDynamicTerrainFeatures(ctx, state.terrain, time, camera);
+    
+    // Draw only animated parts if setting is enabled
+    if (state.settings.animatedBackground) {
+        drawDynamicTerrainFeatures(ctx, state.terrain, time, camera);
+    }
     
     // 2. Draw Blood Stains (Under everything else)
     if (state.settings.showBlood) {
@@ -126,13 +130,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         ctx.restore();
     });
 
-    // Dynamic Level-of-Detail Calculation
-    // > 100 enemies: Super Low (2)
-    // > 50 enemies: Low (1)
-    // < 50 enemies: High (0)
+    // Dynamic Level-of-Detail Calculation based on Settings
+    const perfMode = state.settings.performanceMode || 'BALANCED';
+    const thresholds = LOD_THRESHOLDS[perfMode];
+    
     let lodLevel = 0;
-    if (state.enemies.length > 100) lodLevel = 2;
-    else if (state.enemies.length > 50) lodLevel = 1;
+    const count = state.enemies.length;
+    
+    if (count > thresholds.superLow) lodLevel = 2; // Super Low
+    else if (count > thresholds.low) lodLevel = 1; // Low
 
     // Draw Enemies
     state.enemies.forEach(e => {
