@@ -1,6 +1,4 @@
 
-
-
 export const UI_EN = {
     // --- CORE UI ---
     GAME_TITLE: "VANGUARD",

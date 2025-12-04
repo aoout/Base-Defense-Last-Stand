@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.4";
+export const CURRENT_VERSION = "0.9.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.5",
+        date: "2248.06.01",
+        title: "GALAXY INDEX",
+        titleCN: "星系索引",
+        changes: [
+            "NEW: Added Galaxy Index Navigation System to Exploration Map.",
+            "NEW: Difficulty presets (Low, Medium, High) for sector generation.",
+            "NEW: Custom 'Index Definition' allows manual gene strength configuration.",
+            "UI: Added Navigation Button to Sector Map interface."
+        ],
+        changesCN: [
+            "新增：探索星图添加了星系索引导航系统。",
+            "新增：星区生成的难度预设（低、中、高）。",
+            "新增：自定义“索引定义”允许手动配置基因强度。",
+            "界面：星图界面添加了导航按钮。"
+        ]
+    },
     {
         version: "0.9.4",
         date: "2248.05.28",

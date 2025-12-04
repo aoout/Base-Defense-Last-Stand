@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType, GalaxyConfig } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES, GAS_INFO } from '../data/world';

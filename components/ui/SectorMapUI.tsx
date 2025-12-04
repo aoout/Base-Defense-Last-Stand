@@ -1,6 +1,4 @@
 
-
-
 import React, { useState } from 'react';
 import { GameState, GalaxyConfig } from '../../types';
 import { CloseButton } from './Shared';
