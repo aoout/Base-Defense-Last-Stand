@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 import { GameState, GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
 import { CloseButton } from './Shared';
+import { CHANGELOG, CURRENT_VERSION } from '../../data/changelog';
 
 interface MainMenuProps {
     state: GameState;
@@ -46,6 +47,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
 }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showSettings, setShowSettings] = useState(false);
+    const [showChangelog, setShowChangelog] = useState(false);
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -66,6 +68,8 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         // Reset so same file can be selected again if needed
         e.target.value = '';
     };
+
+    const isCN = state.settings.language === 'CN';
 
     return (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
@@ -150,6 +154,17 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
             </div>
 
+            {/* Version / Changelog Trigger */}
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <button 
+                    onClick={() => setShowChangelog(true)}
+                    className="text-slate-600 hover:text-cyan-400 text-xs font-mono tracking-widest uppercase transition-colors p-2"
+                >
+                    {isCN ? `系统版本 v${CURRENT_VERSION}` : `SYSTEM VERSION ${CURRENT_VERSION}`}
+                </button>
+                <div className="w-16 h-px bg-slate-800"></div>
+            </div>
+
             {/* Settings Toggle (Bottom Right) */}
             <div className="absolute bottom-8 right-8">
                 <button 
@@ -163,6 +178,57 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                     <span className="font-mono font-bold text-xs tracking-widest">{t('SETTINGS_BTN')}</span>
                 </button>
             </div>
+
+            {/* Changelog Modal */}
+            {showChangelog && (
+                <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center backdrop-blur-sm">
+                    <div className="w-[600px] h-[70vh] bg-slate-900 border-2 border-slate-600 shadow-[0_0_50px_rgba(255,255,255,0.1)] relative flex flex-col">
+                        <CloseButton onClick={() => setShowChangelog(false)} colorClass="border-slate-600 text-slate-500 hover:text-white hover:bg-slate-800 z-50" />
+                        
+                        <div className="p-6 border-b border-slate-700 bg-slate-950">
+                            <h2 className="text-xl font-display font-black text-white tracking-widest uppercase">{isCN ? '系统更新日志' : 'SYSTEM PATCH LOG'}</h2>
+                            <p className="text-[10px] text-slate-500 font-mono tracking-[0.2em] mt-1">{isCN ? `当前版本: v${CURRENT_VERSION}` : `CURRENT BUILD: v${CURRENT_VERSION}`}</p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-8 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+                            {CHANGELOG.map((entry, idx) => {
+                                const displayTitle = (isCN && entry.titleCN) ? entry.titleCN : entry.title;
+                                const displayChanges = (isCN && entry.changesCN) ? entry.changesCN : entry.changes;
+
+                                return (
+                                    <div key={entry.version} className={`relative pl-4 border-l-2 ${idx === 0 ? 'border-cyan-500' : 'border-slate-700'}`}>
+                                        <div className={`absolute -left-[5px] top-0 w-2 h-2 rounded-full ${idx === 0 ? 'bg-cyan-500 shadow-[0_0_10px_cyan]' : 'bg-slate-700'}`}></div>
+                                        
+                                        <div className="flex justify-between items-baseline mb-2">
+                                            <div className={`font-mono text-xl font-bold ${idx === 0 ? 'text-white' : 'text-slate-500'}`}>v{entry.version}</div>
+                                            <div className="text-xs font-mono text-slate-600">{entry.date}</div>
+                                        </div>
+                                        
+                                        {displayTitle && (
+                                            <div className={`text-xs font-bold tracking-widest uppercase mb-3 ${idx === 0 ? 'text-cyan-400' : 'text-slate-600'}`}>
+                                                {displayTitle}
+                                            </div>
+                                        )}
+
+                                        <ul className="space-y-2">
+                                            {displayChanges && displayChanges.map((change, cIdx) => (
+                                                <li key={cIdx} className="text-xs font-mono text-slate-400 leading-relaxed pl-2 flex">
+                                                    <span className="mr-2 text-slate-700">➜</span>
+                                                    {change}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <div className="p-4 border-t border-slate-800 text-center text-[10px] text-slate-600 font-mono uppercase bg-slate-950">
+                            {isCN ? '先锋操作系统内核更新器' : 'VANGUARD OS KERNEL UPDATER'}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Settings Modal */}
             {showSettings && (
@@ -188,28 +254,28 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 label={t('SETTING_LOD_LABEL')} 
                                 value={t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)} 
                                 onClick={() => onToggleSetting('performanceMode')}
-                                description="Adjust Model LOD thresholds."
+                                description={isCN ? "调整模型细节阈值。" : "Adjust Model LOD thresholds."}
                             />
 
                             <SettingRow 
                                 label={t('SETTING_PARTICLES')} 
                                 value={state.settings.particleIntensity === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
                                 onClick={() => onToggleSetting('particleIntensity')}
-                                description="Reduce debris/explosion effects."
+                                description={isCN ? "减少碎片/爆炸特效。" : "Reduce debris/explosion effects."}
                             />
                             
                             <SettingRow 
                                 label={t('SETTING_LIGHTING')} 
                                 value={state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
                                 onClick={() => onToggleSetting('lightingQuality')}
-                                description="Toggle glows and bloom effects."
+                                description={isCN ? "切换光晕和泛光效果。" : "Toggle glows and bloom effects."}
                             />
                             
                             <SettingRow 
                                 label={t('SETTING_ANIM_BG')} 
                                 value={state.settings.animatedBackground ? t('SETTING_ON') : t('SETTING_OFF')} 
                                 onClick={() => onToggleSetting('animatedBackground')}
-                                description="Toggle terrain animations (Magma, Trees)."
+                                description={isCN ? "切换地形动画 (岩浆, 树木)。" : "Toggle terrain animations (Magma, Trees)."}
                             />
                         </div>
 
