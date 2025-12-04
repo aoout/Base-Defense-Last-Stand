@@ -36,8 +36,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     engine.update(time);
     const state = engine.state;
 
+    // --- Resolution Scaling Logic ---
+    const scale = state.settings.resolutionScale || 1.0;
+    // We scale the context to match the lower internal resolution,
+    // so all drawing commands (which use 0-1200) still work.
+    ctx.setTransform(scale, 0, 0, scale, 0, 0); 
+
     // Clear Screen (Screen coordinates)
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    // Note: Since we applied scale, we clear based on WORLD coords relative to screen
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
     // MODE SWITCHING RENDER
@@ -55,10 +61,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Don't render gameplay in specific UI modes that cover full screen opaque
     if ([AppMode.SPACESHIP_VIEW, AppMode.ORBITAL_UPGRADES, AppMode.CARAPACE_GRID, AppMode.SHIP_COMPUTER, AppMode.INFRASTRUCTURE_RESEARCH, AppMode.PLANET_CONSTRUCTION, AppMode.YIELD_REPORT, AppMode.BIO_SEQUENCING].includes(state.appMode)) {
-        // Just clear or maybe draw a generic background?
-        // Actually, spaceships view has its own opaque div, so canvas can be empty or paused.
-        // We'll just continue requestAnimationFrame to keep game loop active (time updates), but skip drawing
-        // to save GPU if hidden.
         requestRef.current = requestAnimationFrame(render);
         return;
     }
@@ -66,7 +68,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // GAMEPLAY RENDER
     const { camera } = state;
 
-    // Apply Camera Translate
+    // Apply Camera Translate (cumulative to scale)
     ctx.translate(-camera.x, -camera.y);
 
     // 1. Draw Space Terrain (Background) - Optimized Cache
@@ -109,13 +111,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     });
 
     // Draw Base
-    drawBase(ctx, state.base);
+    drawBase(ctx, state.base, state.settings.showShadows);
 
     // Draw Turrets
     state.turretSpots.forEach(spot => {
         if (spot.builtTurret) {
             if (!isVisible(spot.x, spot.y, 30, camera)) return;
-            drawTurret(ctx, spot.builtTurret, time);
+            drawTurret(ctx, spot.builtTurret, time, state.settings.showShadows);
         }
     });
 
@@ -136,7 +138,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         ctx.translate(ally.x, ally.y);
         ctx.rotate(ally.angle);
         const isMoving = ally.speed > 0; // Simplified
-        drawAllySprite(ctx, ally, time, isMoving);
+        drawAllySprite(ctx, ally, time, isMoving, state.settings.showShadows);
         ctx.restore();
     });
 
@@ -157,6 +159,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
       ctx.save();
       ctx.translate(e.x, e.y);
+      
+      // Shadow (Manual, efficient)
+      if (state.settings.showShadows) {
+          ctx.fillStyle = 'rgba(0,0,0,0.3)';
+          ctx.beginPath();
+          ctx.ellipse(0, 5, e.radius, e.radius*0.6, 0, 0, Math.PI*2);
+          ctx.fill();
+      }
+
       ctx.rotate(e.angle); // Enemies now face their velocity
 
       if (e.isBoss && e.bossType) {
@@ -248,6 +259,15 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     const p = state.player;
     ctx.save();
     ctx.translate(p.x, p.y);
+    
+    // Shadow
+    if (state.settings.showShadows) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(0, 5, p.radius, p.radius*0.6, 0, 0, Math.PI*2);
+        ctx.fill();
+    }
+
     ctx.rotate(p.angle); // Rotated to face mouse
     drawPlayerSprite(ctx, p, time, !!isMoving);
     ctx.restore();
@@ -276,12 +296,20 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Use current resolution scale to set attribute size, 
+  // ensuring the internal buffer matches the requested resolution
+  const resScale = engine.state.settings.resolutionScale || 1.0;
+
   return (
     <canvas
       ref={canvasRef}
-      width={CANVAS_WIDTH}
-      height={CANVAS_HEIGHT}
-      className="border border-gray-700 shadow-2xl bg-gray-900 cursor-crosshair mx-auto"
+      width={CANVAS_WIDTH * resScale}
+      height={CANVAS_HEIGHT * resScale}
+      style={{
+          width: `${CANVAS_WIDTH}px`,
+          height: `${CANVAS_HEIGHT}px`
+      }}
+      className="border border-gray-700 shadow-2xl bg-gray-900 cursor-crosshair mx-auto block"
     />
   );
 };

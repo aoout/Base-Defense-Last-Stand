@@ -1,19 +1,28 @@
 
+import { WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
+
 export class SpatialHashGrid<T extends { x: number, y: number, radius: number, id: string }> {
     private cellSize: number;
-    private cells: Map<string, T[]>;
+    private cols: number;
+    private rows: number;
+    private cells: T[][]; // Flat array of buckets
     private queryIds: Set<string>; // Reusable set for deduplication
 
     constructor(cellSize: number) {
         this.cellSize = cellSize;
-        this.cells = new Map();
+        this.cols = Math.ceil(WORLD_WIDTH / cellSize);
+        this.rows = Math.ceil(WORLD_HEIGHT / cellSize);
+        
+        // Pre-allocate all buckets once
+        this.cells = new Array(this.cols * this.rows).fill(null).map(() => []);
         this.queryIds = new Set();
     }
 
     public clear() {
-        // Zero-Allocation Clear: Reuse the arrays in the map
-        for (const cell of this.cells.values()) {
-            cell.length = 0;
+        // Zero-Allocation Clear: Reuse the existing arrays, just reset length
+        // This is much faster than creating new arrays or deleting keys from a Map
+        for (let i = 0; i < this.cells.length; i++) {
+            this.cells[i].length = 0;
         }
         this.queryIds.clear();
     }
@@ -24,15 +33,17 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
         const startY = Math.floor((item.y - item.radius) / this.cellSize);
         const endY = Math.floor((item.y + item.radius) / this.cellSize);
 
-        for (let x = startX; x <= endX; x++) {
-            for (let y = startY; y <= endY; y++) {
-                const key = `${x}:${y}`;
-                let cell = this.cells.get(key);
-                if (!cell) {
-                    cell = [];
-                    this.cells.set(key, cell);
-                }
-                cell.push(item);
+        // Clamp values to grid boundaries to avoid out-of-bounds access
+        const iStartX = Math.max(0, startX);
+        const iEndX = Math.min(this.cols - 1, endX);
+        const iStartY = Math.max(0, startY);
+        const iEndY = Math.min(this.rows - 1, endY);
+
+        for (let y = iStartY; y <= iEndY; y++) {
+            for (let x = iStartX; x <= iEndX; x++) {
+                // Integer math index calculation instead of string allocation "${x}:${y}"
+                const index = x + y * this.cols;
+                this.cells[index].push(item);
             }
         }
     }
@@ -43,21 +54,26 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
         const startY = Math.floor((y - range) / this.cellSize);
         const endY = Math.floor((y + range) / this.cellSize);
 
-        this.queryIds.clear();
-        // We do not clear outResults here; the caller is responsible for resetting length if they want a fresh list.
-        // Usually caller does: cache.length = 0; grid.query(..., cache);
+        // Clamp values
+        const iStartX = Math.max(0, startX);
+        const iEndX = Math.min(this.cols - 1, endX);
+        const iStartY = Math.max(0, startY);
+        const iEndY = Math.min(this.rows - 1, endY);
 
-        for (let cx = startX; cx <= endX; cx++) {
-            for (let cy = startY; cy <= endY; cy++) {
-                const cell = this.cells.get(`${cx}:${cy}`);
-                if (cell) {
-                    // Standard for loop is slightly faster than for..of for simple arrays in hot paths
-                    for (let i = 0; i < cell.length; i++) {
-                        const item = cell[i];
-                        if (!this.queryIds.has(item.id)) {
-                            this.queryIds.add(item.id);
-                            outResults.push(item);
-                        }
+        this.queryIds.clear();
+        // Caller is responsible for resetting outResults length (cache reuse pattern)
+
+        for (let y = iStartY; y <= iEndY; y++) {
+            for (let x = iStartX; x <= iEndX; x++) {
+                const index = x + y * this.cols;
+                const cell = this.cells[index];
+                
+                // Hot path optimization: simple for loop
+                for (let i = 0; i < cell.length; i++) {
+                    const item = cell[i];
+                    if (!this.queryIds.has(item.id)) {
+                        this.queryIds.add(item.id);
+                        outResults.push(item);
                     }
                 }
             }

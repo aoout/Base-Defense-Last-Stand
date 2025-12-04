@@ -233,7 +233,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
             {/* Settings Modal */}
             {showSettings && (
                 <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
-                    <div className="w-[500px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative p-8">
+                    <div className="w-[600px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative p-8">
                         <CloseButton onClick={() => setShowSettings(false)} colorClass="border-cyan-600 text-cyan-500 hover:text-white hover:bg-cyan-900" />
                         
                         <div className="border-b border-cyan-800 pb-4 mb-6 text-center">
@@ -251,10 +251,24 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <div className="h-px bg-slate-800 my-4"></div>
                             
                             <SettingRow 
+                                label={t('SETTING_RESOLUTION')} 
+                                value={`${(state.settings.resolutionScale || 1.0) * 100}%`}
+                                onClick={() => onToggleSetting('resolutionScale')}
+                                description={isCN ? "降低渲染分辨率以显著提高性能。" : "Lower internal resolution for massive FPS boost."}
+                            />
+
+                            <SettingRow 
                                 label={t('SETTING_LOD_LABEL')} 
                                 value={t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)} 
                                 onClick={() => onToggleSetting('performanceMode')}
                                 description={isCN ? "调整模型细节阈值。" : "Adjust Model LOD thresholds."}
+                            />
+
+                            <SettingRow 
+                                label={t('SETTING_SHADOWS')} 
+                                value={state.settings.showShadows ? t('SETTING_ON') : t('SETTING_OFF')} 
+                                onClick={() => onToggleSetting('showShadows')}
+                                description={isCN ? "切换单位阴影投射。" : "Toggle unit drop shadows."}
                             />
 
                             <SettingRow 
@@ -276,6 +290,13 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                                 value={state.settings.animatedBackground ? t('SETTING_ON') : t('SETTING_OFF')} 
                                 onClick={() => onToggleSetting('animatedBackground')}
                                 description={isCN ? "切换地形动画 (岩浆, 树木)。" : "Toggle terrain animations (Magma, Trees)."}
+                            />
+
+                            <SettingRow 
+                                label={t('DMG_TEXT')} 
+                                value={state.settings.showDamageNumbers ? t('SETTING_ON') : t('SETTING_OFF')} 
+                                onClick={() => onToggleSetting('showDamageNumbers')} 
+                                description={isCN ? "显示/隐藏伤害数字浮动文本。" : "Toggle floating damage numbers."}
                             />
                         </div>
 

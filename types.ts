@@ -341,6 +341,10 @@ export interface GameSettings {
   particleIntensity: 'HIGH' | 'LOW'; // Low reduces particle counts by 70%
   animatedBackground: boolean; // False disables terrain updates
   performanceMode: PerformanceMode; // New LOD control
+  
+  // New Low-Spec Options
+  resolutionScale: number; // 1.0, 0.75, 0.5
+  showShadows: boolean; // Toggle drop shadows
 }
 
 export interface GameStats {

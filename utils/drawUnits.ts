@@ -146,7 +146,15 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
     }
 };
 
-export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean) => {
+export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean, showShadows: boolean) => {
+    if (showShadows) {
+        ctx.save();
+        ctx.rotate(-ally.angle);
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.beginPath(); ctx.ellipse(0, 5, 12, 8, 0, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+    }
+
     const stride = isMoving ? Math.sin(time * 0.015) * 4 : 0;
     ctx.fillStyle = '#1F2937'; 
     ctx.beginPath(); ctx.ellipse(-5 + stride, -10, 6, 4, 0, 0, Math.PI*2); ctx.fill(); 
@@ -171,9 +179,14 @@ export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: 
     ctx.restore();
 };
 
-export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number) => {
+export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number, showShadows: boolean) => {
     ctx.save();
     ctx.translate(t.x, t.y);
+
+    if (showShadows) {
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(0, 8, 15, 10, 0, 0, Math.PI*2); ctx.fill();
+    }
 
     const hpPct = Math.max(0, t.hp / t.maxHp);
     const barH = 20;
@@ -225,6 +238,59 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
     }
     
     ctx.restore();
+};
+
+export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }, showShadows: boolean) => {
+    if (showShadows) {
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width, base.height);
+    }
+
+    ctx.fillStyle = '#0F172A';
+    ctx.fillRect(base.x - base.width/2, base.y - base.height/2, base.width, base.height);
+    ctx.fillStyle = '#1E293B';
+    ctx.fillRect(base.x - base.width/2 - 5, base.y - base.height/2 - 5, 20, 20);
+    ctx.fillRect(base.x + base.width/2 - 15, base.y - base.height/2 - 5, 20, 20);
+    ctx.fillRect(base.x - base.width/2 - 5, base.y + base.height/2 - 15, 20, 20);
+    ctx.fillRect(base.x + base.width/2 - 15, base.y + base.height/2 - 15, 20, 20);
+    ctx.fillStyle = '#172554';
+    ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width - 20, base.height - 20);
+    ctx.fillStyle = '#2563EB';
+    ctx.beginPath(); ctx.arc(base.x, base.y, 20, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#60A5FA'; ctx.lineWidth = 2; ctx.stroke();
+
+    const time = Date.now();
+    drawCloneCenter(ctx, base.x - base.width/2 - 35, base.y, time); 
+    drawCloneCenter(ctx, base.x + base.width/2 + 35, base.y, time); 
+
+    const bHpPct = base.hp / base.maxHp;
+    ctx.fillStyle = '#7F1D1D';
+    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width, 6);
+    ctx.fillStyle = '#10B981';
+    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width * bHpPct, 6);
+}
+
+const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, time: number) => {
+    ctx.fillStyle = '#1e293b';
+    ctx.fillRect(x - 25, y - 25, 50, 50);
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - 25, y - 25, 50, 50);
+    ctx.fillStyle = '#0c4a6e';
+    ctx.fillRect(x - 15, y - 15, 30, 30);
+    const liquidLevel = Math.sin(time * 0.002) * 2;
+    ctx.fillStyle = '#0ea5e9';
+    ctx.beginPath();
+    ctx.rect(x - 15, y - 5 + liquidLevel, 30, 20 - liquidLevel);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(x - 15, y - 15, 30, 10);
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillRect(x - 28, y - 10, 3, 20); 
+    ctx.fillRect(x + 25, y - 10, 3, 20); 
+    const pulse = Math.sin(time * 0.005) > 0;
+    ctx.fillStyle = pulse ? '#22c55e' : '#14532d';
+    ctx.beginPath(); ctx.arc(x, y - 20, 2, 0, Math.PI*2); ctx.fill();
 };
 
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {

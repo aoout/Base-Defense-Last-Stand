@@ -1,3 +1,4 @@
+
 import {
   GameState,
   InputState,
@@ -247,7 +248,9 @@ export class GameEngine {
           lightingQuality: 'HIGH',
           particleIntensity: 'HIGH',
           animatedBackground: true,
-          performanceMode: 'BALANCED'
+          performanceMode: 'BALANCED',
+          resolutionScale: 1.0,
+          showShadows: true
       };
 
       try {
@@ -611,6 +614,12 @@ export class GameEngine {
           const modes: PerformanceMode[] = ['QUALITY', 'BALANCED', 'PERFORMANCE'];
           const idx = modes.indexOf(this.state.settings.performanceMode || 'BALANCED');
           this.state.settings.performanceMode = modes[(idx + 1) % modes.length];
+      } else if (key === 'resolutionScale') {
+          // Cycle: 1.0 -> 0.75 -> 0.5 -> 1.0
+          const cur = this.state.settings.resolutionScale || 1.0;
+          if (cur === 1.0) this.state.settings.resolutionScale = 0.75;
+          else if (cur === 0.75) this.state.settings.resolutionScale = 0.5;
+          else this.state.settings.resolutionScale = 1.0;
       } else {
           (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
       }
@@ -618,6 +627,8 @@ export class GameEngine {
   }
 
   public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
+      if (!this.state.settings.showDamageNumbers && (type === FloatingTextType.DAMAGE || type === FloatingTextType.CRIT)) return;
+
       let vx = 0; let vy = -0.5; let size = 12;
       if (type === FloatingTextType.DAMAGE) { vx = (Math.random() - 0.5) * 4; vy = (Math.random() * -2) - 1; time = 600; size = 14; } 
       else if (type === FloatingTextType.CRIT) { vx = (Math.random() - 0.5) * 6; vy = -3; time = 1000; size = 20; } 

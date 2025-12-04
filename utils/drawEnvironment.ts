@@ -148,20 +148,6 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
 // Modified to accept settings implicitly via skip if check outside, or we pass boolean
 export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrain: TerrainFeature[], time: number, camera: {x: number, y: number}) => {
     // If the caller (GameCanvas) decides not to call this based on settings, we don't need logic here.
-    // But if we want partial rendering (static versions of dynamic things), we'd need logic.
-    // For now, assuming GameCanvas will block this call if animatedBackground is false.
-    // However, if we block it, we lose the trees entirely. Let's make it render STATIC if time is effectively paused or we just don't animate.
-    
-    // We'll rely on the update loop. If we want to support disabling animation but keeping the objects,
-    // we should render them in renderStaticTerrainToCache or have a separate static pass.
-    // Given the constraints, let's keep it simple: If 'animatedBackground' is OFF, we just don't run the SIN/COS math
-    // but still draw the shape.
-    // Since we don't have the setting passed here, we will trust the caller to manage it or update signature.
-    // Let's stick to the existing signature for now and rely on React/GameCanvas to pass a static time or skip.
-    // Update: Actually, for best performance on low end, skipping the `drawDynamicTerrainFeatures` call entirely is best,
-    // but that means no magma pools visible at all.
-    // Let's compromise: Draw them, but remove the expensive gradient/math if possible? 
-    // No, standard `GameCanvas` loop calls this. 
     
     terrain.forEach((t, idx) => {
         if (![TerrainType.MAGMA_POOL, TerrainType.ALIEN_TREE, TerrainType.SPORE_POD].includes(t.type)) return;
@@ -252,54 +238,6 @@ export const drawTurretSpot = (ctx: CanvasRenderingContext2D, spot: TurretSpot, 
     ctx.beginPath();
     ctx.arc(spot.x, spot.y, 10, 0, Math.PI*2);
     ctx.fill();
-}
-
-const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, time: number) => {
-    ctx.fillStyle = '#1e293b';
-    ctx.fillRect(x - 25, y - 25, 50, 50);
-    ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x - 25, y - 25, 50, 50);
-    ctx.fillStyle = '#0c4a6e';
-    ctx.fillRect(x - 15, y - 15, 30, 30);
-    const liquidLevel = Math.sin(time * 0.002) * 2;
-    ctx.fillStyle = '#0ea5e9';
-    ctx.beginPath();
-    ctx.rect(x - 15, y - 5 + liquidLevel, 30, 20 - liquidLevel);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(x - 15, y - 15, 30, 10);
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillRect(x - 28, y - 10, 3, 20); 
-    ctx.fillRect(x + 25, y - 10, 3, 20); 
-    const pulse = Math.sin(time * 0.005) > 0;
-    ctx.fillStyle = pulse ? '#22c55e' : '#14532d';
-    ctx.beginPath(); ctx.arc(x, y - 20, 2, 0, Math.PI*2); ctx.fill();
-};
-
-export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }) => {
-    ctx.fillStyle = '#0F172A';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2, base.width, base.height);
-    ctx.fillStyle = '#1E293B';
-    ctx.fillRect(base.x - base.width/2 - 5, base.y - base.height/2 - 5, 20, 20);
-    ctx.fillRect(base.x + base.width/2 - 15, base.y - base.height/2 - 5, 20, 20);
-    ctx.fillRect(base.x - base.width/2 - 5, base.y + base.height/2 - 15, 20, 20);
-    ctx.fillRect(base.x + base.width/2 - 15, base.y + base.height/2 - 15, 20, 20);
-    ctx.fillStyle = '#172554';
-    ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width - 20, base.height - 20);
-    ctx.fillStyle = '#2563EB';
-    ctx.beginPath(); ctx.arc(base.x, base.y, 20, 0, Math.PI*2); ctx.fill();
-    ctx.strokeStyle = '#60A5FA'; ctx.lineWidth = 2; ctx.stroke();
-
-    const time = Date.now();
-    drawCloneCenter(ctx, base.x - base.width/2 - 35, base.y, time); 
-    drawCloneCenter(ctx, base.x + base.width/2 + 35, base.y, time); 
-
-    const bHpPct = base.hp / base.maxHp;
-    ctx.fillStyle = '#7F1D1D';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width, 6);
-    ctx.fillStyle = '#10B981';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width * bHpPct, 6);
 }
 
 export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, x: number, y: number, radius: number, time: number, isSelected: boolean) => {
