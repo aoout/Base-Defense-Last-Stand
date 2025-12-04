@@ -232,6 +232,42 @@ export class GameEngine {
       }
   }
 
+  private loadSettings(): GameSettings {
+      const defaultSettings: GameSettings = {
+          showHUD: true,
+          showBlood: true,
+          showDamageNumbers: true,
+          language: 'EN',
+          lightingQuality: 'HIGH',
+          particleIntensity: 'HIGH',
+          animatedBackground: true,
+          performanceMode: 'BALANCED'
+      };
+
+      try {
+          const raw = localStorage.getItem('VANGUARD_SETTINGS_V1');
+          if (raw) {
+              const parsed = JSON.parse(raw);
+              return { ...defaultSettings, ...parsed };
+          }
+          
+          // Legacy Fallback for Language
+          const legacyLang = localStorage.getItem('VANGUARD_LANG_PREF');
+          if (legacyLang === 'CN' || legacyLang === 'EN') {
+              defaultSettings.language = legacyLang;
+          }
+      } catch (e) {
+          console.error("Failed to load settings:", e);
+      }
+      return defaultSettings;
+  }
+
+  private persistSettings() {
+      if (this.state && this.state.settings) {
+          localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings));
+      }
+  }
+
   public reset(fullReset: boolean = false) {
     const basePos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT - 100 };
     
@@ -250,19 +286,12 @@ export class GameEngine {
         infrastructureLocked: false
     };
 
-    const savedLang = localStorage.getItem('VANGUARD_LANG_PREF');
-    const defaultLang = (savedLang === 'CN' || savedLang === 'EN') ? savedLang : 'EN';
-
-    const currentSettings = this.state?.settings || {
-        showHUD: true,
-        showBlood: true,
-        showDamageNumbers: true,
-        language: defaultLang as 'EN' | 'CN',
-        lightingQuality: 'HIGH',
-        particleIntensity: 'HIGH',
-        animatedBackground: true,
-        performanceMode: 'BALANCED'
-    };
+    let currentSettings: GameSettings;
+    if (!fullReset && this.state?.settings) {
+        currentSettings = this.state.settings;
+    } else {
+        currentSettings = this.loadSettings();
+    }
 
     const initialWeapons: Record<string, WeaponState> = {};
     Object.values(WeaponType).forEach(type => {
@@ -564,7 +593,6 @@ export class GameEngine {
       if (key === 'language') {
           const newLang = this.state.settings.language === 'EN' ? 'CN' : 'EN';
           this.state.settings.language = newLang;
-          localStorage.setItem('VANGUARD_LANG_PREF', newLang);
       } else if (key === 'lightingQuality') {
           this.state.settings.lightingQuality = this.state.settings.lightingQuality === 'HIGH' ? 'LOW' : 'HIGH';
       } else if (key === 'particleIntensity') {
@@ -576,6 +604,7 @@ export class GameEngine {
       } else {
           (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
       }
+      this.persistSettings();
   }
 
   public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
