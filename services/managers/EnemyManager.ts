@@ -393,7 +393,6 @@ export class EnemyManager {
   
         enemy.hp -= dmg;
         if (this.engine.state.settings.showDamageNumbers) {
-            // FIXED: Removed fake crit logic. All damage is standard white.
             this.engine.addMessage(`${Math.ceil(dmg)}`, enemy.x, enemy.y, '#ffffff', FloatingTextType.DAMAGE);
         }
   
@@ -425,6 +424,9 @@ export class EnemyManager {
         // Stats
         if (e.isBoss) this.engine.state.stats.killsByType['BOSS']++;
         else this.engine.state.stats.killsByType[e.type]++;
+        
+        // Bio Task Progress
+        this.engine.spaceshipManager.checkBioTaskProgress(e.type);
   
         this.engine.spawnBloodStain(e.x, e.y, e.color, e.maxHp);
         this.engine.audio.playEnemyDeath(e.isBoss);

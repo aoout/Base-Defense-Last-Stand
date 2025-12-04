@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, SpecialEventType, FloatingTextType } from '../../types';
+import { GameMode, MissionType, SpecialEventType, FloatingTextType, BioBuffType } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export class MissionManager {
@@ -119,10 +119,20 @@ export class MissionManager {
         
         if (elapsed >= 10000) { // Can only skip after 10s
             const remainingSeconds = Math.max(0, Math.floor(state.waveTimeRemaining / 1000));
-            const reward = remainingSeconds * state.wave;
+            const baseReward = remainingSeconds * state.wave;
             
-            state.player.score += reward;
-            this.engine.addMessage(this.engine.t('LURE_REWARD', {0: reward}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
+            // Apply Bio-Sequencing Bonus
+            const bioBonus = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.LURE_BONUS);
+            const finalReward = Math.floor(baseReward * (1 + bioBonus));
+            
+            state.player.score += finalReward;
+            this.engine.addMessage(this.engine.t('LURE_REWARD', {0: finalReward}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
+            
+            if (bioBonus > 0) {
+                // Optional: Show bonus breakdown
+                // this.engine.addMessage(`(BIO-BONUS +${Math.round(bioBonus*100)}%)`, state.player.x, state.player.y - 100, '#4ade80', FloatingTextType.SYSTEM);
+            }
+
             this.engine.audio.playBaseDamage(); 
             
             this.nextWave();

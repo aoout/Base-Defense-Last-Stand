@@ -53,6 +53,16 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         return;
     }
 
+    // Don't render gameplay in specific UI modes that cover full screen opaque
+    if ([AppMode.SPACESHIP_VIEW, AppMode.ORBITAL_UPGRADES, AppMode.CARAPACE_GRID, AppMode.SHIP_COMPUTER, AppMode.INFRASTRUCTURE_RESEARCH, AppMode.PLANET_CONSTRUCTION, AppMode.YIELD_REPORT, AppMode.BIO_SEQUENCING].includes(state.appMode)) {
+        // Just clear or maybe draw a generic background?
+        // Actually, spaceships view has its own opaque div, so canvas can be empty or paused.
+        // We'll just continue requestAnimationFrame to keep game loop active (time updates), but skip drawing
+        // to save GPU if hidden.
+        requestRef.current = requestAnimationFrame(render);
+        return;
+    }
+
     // GAMEPLAY RENDER
     const { camera } = state;
 

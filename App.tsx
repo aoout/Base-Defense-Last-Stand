@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import GameCanvas from './components/GameCanvas';
 import UIOverlay from './components/UIOverlay';
@@ -218,6 +219,17 @@ const App: React.FC = () => {
   const handleCloseGalacticEvent = () => { engineRef.current.closeGalacticEvent(); };
   const handleClaimYield = () => { engineRef.current.claimYields(); };
 
+  // Bio Sequencing
+  const handleOpenBioSequencing = () => {
+      engineRef.current.generateBioGrid();
+      engineRef.current.enterBioSequencing();
+  };
+  const handleCloseBioSequencing = () => { engineRef.current.exitBioSequencing(); };
+  const handleBioResearch = () => { engineRef.current.conductBioResearch(); };
+  const handleUnlockBioNode = (id: number) => { engineRef.current.unlockBioNode(id); };
+  const handleAcceptBioTask = (id: string) => { engineRef.current.acceptBioTask(id); };
+  const handleAbortBioTask = () => { engineRef.current.abortBioTask(); };
+
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
       <GameCanvas engine={engineRef.current} />
@@ -265,6 +277,13 @@ const App: React.FC = () => {
         onCloseShipComputer={handleCloseShipComputer}
         onCloseGalacticEvent={handleCloseGalacticEvent}
         onClaimYield={handleClaimYield}
+        
+        onOpenBioSequencing={handleOpenBioSequencing}
+        onCloseBioSequencing={handleCloseBioSequencing}
+        onBioResearch={handleBioResearch}
+        onUnlockBioNode={handleUnlockBioNode}
+        onAcceptBioTask={handleAcceptBioTask}
+        onAbortBioTask={handleAbortBioTask}
       />
     </div>
   );

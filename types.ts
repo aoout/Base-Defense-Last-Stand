@@ -35,7 +35,44 @@ export enum SpaceshipModuleType {
   BASE_REINFORCEMENT = 'BASE_REINFORCEMENT', // Base HP +3000
   CARAPACE_ANALYZER = 'CARAPACE_ANALYZER', // Damage +20%
   ORBITAL_CANNON = 'ORBITAL_CANNON', // Auto attack every 8s
-  ATMOSPHERIC_DEFLECTOR = 'ATMOSPHERIC_DEFLECTOR' // Drop cost -50%
+  ATMOSPHERIC_DEFLECTOR = 'ATMOSPHERIC_DEFLECTOR', // Drop cost -50%
+  BIO_SEQUENCING = 'BIO_SEQUENCING' // New Module
+}
+
+export enum BioBuffType {
+    ALLY_HP = 'ALLY_HP',
+    ALLY_DMG = 'ALLY_DMG',
+    LURE_BONUS = 'LURE_BONUS',
+    GENE_REDUCTION = 'GENE_REDUCTION',
+    ALPHA_YIELD = 'ALPHA_YIELD',
+    BETA_YIELD = 'BETA_YIELD',
+    GAMMA_YIELD = 'GAMMA_YIELD'
+}
+
+export enum BioResource {
+    ALPHA = 'ALPHA',
+    BETA = 'BETA',
+    GAMMA = 'GAMMA'
+}
+
+export interface BioNode {
+    id: number;
+    q: number;
+    r: number;
+    buffType: BioBuffType;
+    buffValue: number;
+    isUnlocked: boolean;
+    cost: Record<BioResource, number>;
+    connections: number[]; // IDs of connected nodes
+}
+
+export interface BioTask {
+    id: string;
+    targetEnemy: EnemyType;
+    count: number;
+    progress: number;
+    rewardResource: BioResource;
+    rewardAmount: number;
 }
 
 export interface WeaponModule {
@@ -331,7 +368,8 @@ export enum AppMode {
     SHIP_COMPUTER = 'SHIP_COMPUTER',
     INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH',
     PLANET_CONSTRUCTION = 'PLANET_CONSTRUCTION',
-    YIELD_REPORT = 'YIELD_REPORT'
+    YIELD_REPORT = 'YIELD_REPORT',
+    BIO_SEQUENCING = 'BIO_SEQUENCING'
 }
 
 export enum GameMode {
@@ -502,6 +540,12 @@ export interface SpaceshipState {
     infrastructureUpgrades: InfrastructureOption[];
     infrastructureOptions: InfrastructureOption[]; // Current 3 choices
     infrastructureLocked: boolean; // True after picking, resets on mission success
+
+    // Bio Sequencing
+    bioNodes: BioNode[];
+    bioResources: Record<BioResource, number>;
+    bioTasks: BioTask[]; // 3 available options
+    activeBioTask: BioTask | null;
 }
 
 export enum FloatingTextType {

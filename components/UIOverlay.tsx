@@ -22,6 +22,7 @@ import { MissionFailedScreen } from './ui/MissionFailed';
 import { ExtractionScreen } from './ui/ExtractionScreen';
 import { MissionSuccessScreen } from './ui/MissionSuccessScreen';
 import { GalacticEventModal } from './ui/GalacticEventModal';
+import { BioSequencingUI } from './ui/BioSequencingUI';
 
 interface UIOverlayProps {
     state: GameState;
@@ -67,6 +68,14 @@ interface UIOverlayProps {
     onCloseShipComputer: () => void;
     onCloseGalacticEvent: () => void;
     onClaimYield: () => void;
+    
+    // Bio Sequencing Props
+    onOpenBioSequencing: () => void;
+    onCloseBioSequencing: () => void;
+    onBioResearch: () => void;
+    onUnlockBioNode: (id: number) => void;
+    onAcceptBioTask: (id: string) => void;
+    onAbortBioTask: () => void;
 }
 
 const UIOverlay: React.FC<UIOverlayProps> = (props) => {
@@ -134,6 +143,7 @@ const UIOverlay: React.FC<UIOverlayProps> = (props) => {
             onOpenCarapaceGrid={props.onOpenCarapaceGrid}
             onOpenInfrastructure={props.onOpenInfrastructure}
             onOpenComputer={props.onOpenShipComputer}
+            onOpenBioSequencing={props.onOpenBioSequencing}
             onCheat={props.onCheat}
             t={t}
         />;
@@ -161,6 +171,18 @@ const UIOverlay: React.FC<UIOverlayProps> = (props) => {
 
     if (state.appMode === AppMode.YIELD_REPORT) {
         return <PlanetaryYieldReport state={state} onClaim={props.onClaimYield} t={t} />;
+    }
+
+    if (state.appMode === AppMode.BIO_SEQUENCING) {
+        return <BioSequencingUI 
+            state={state} 
+            onClose={props.onCloseBioSequencing} 
+            onConductResearch={props.onBioResearch} 
+            onUnlockNode={props.onUnlockBioNode}
+            onAcceptTask={props.onAcceptBioTask}
+            onAbortTask={props.onAbortBioTask}
+            t={t} 
+        />;
     }
 
     // GAMEPLAY

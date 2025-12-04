@@ -1,3 +1,4 @@
+
 import { WeaponType, WeaponStats, EnemyType, BossType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, TurretType, EnemyStatsConfig, PerformanceMode } from "../types";
 
 export const PLAYER_STATS = {
@@ -44,7 +45,7 @@ export const TURRET_STATS = {
 export const ALLY_STATS = {
   hp: 200,
   speed: 1.44, 
-  damage: 20,
+  damage: 60,
   range: 400,
   maxCount: 5,
 };
@@ -263,6 +264,11 @@ export const SPACESHIP_MODULES = {
         name: "Atmospheric Drag Adaptive Deflector",
         cost: 4700,
         desc: "Orbital Drop Cost -50%"
+    },
+    [SpaceshipModuleType.BIO_SEQUENCING]: {
+        name: "Bio-Sequencing Laboratory",
+        cost: 5100,
+        desc: "Unlock advanced biological augmentations via research and field data."
     }
 };
 

@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useRef } from 'react';
 import { GameState, SpaceshipModuleType } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
@@ -13,11 +11,12 @@ interface SpaceshipViewProps {
     onOpenCarapaceGrid: () => void;
     onOpenInfrastructure: () => void;
     onOpenComputer?: () => void;
+    onOpenBioSequencing?: () => void;
     onCheat?: () => void;
     t: (key: string) => string;
 }
 
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenInfrastructure, onOpenComputer, onCheat, t }) => {
+export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenInfrastructure, onOpenComputer, onOpenBioSequencing, onCheat, t }) => {
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
     const [clickCount, setClickCount] = useState(0);
@@ -129,38 +128,55 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                 <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div>
                             ) : (
                                 <div className="space-y-2">
-                                    {installed.map((modType) => (
-                                        <div key={modType} className="flex flex-col gap-1 text-xs text-white bg-cyan-900/30 p-2 border-l-2 border-cyan-500">
-                                            <div className="flex items-center gap-2">
-                                                <span>✔️</span>
-                                                <span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span>
+                                    {installed.map((modType) => {
+                                        let btnColorClass = "bg-slate-700 border-slate-600";
+                                        // Define accent colors per module
+                                        if (modType === SpaceshipModuleType.ORBITAL_CANNON) btnColorClass = "bg-cyan-900 hover:bg-cyan-700 text-cyan-100 border-cyan-600";
+                                        if (modType === SpaceshipModuleType.CARAPACE_ANALYZER) btnColorClass = "bg-emerald-900 hover:bg-emerald-700 text-emerald-100 border-emerald-600";
+                                        if (modType === SpaceshipModuleType.BASE_REINFORCEMENT) btnColorClass = "bg-yellow-900 hover:bg-yellow-700 text-yellow-100 border-yellow-600";
+                                        if (modType === SpaceshipModuleType.BIO_SEQUENCING) btnColorClass = "bg-purple-900 hover:bg-purple-700 text-purple-100 border-purple-600";
+
+                                        return (
+                                            <div key={modType} className={`flex flex-col gap-1 text-xs text-white p-2 border-l-2 ${btnColorClass.replace('bg-', 'border-').replace('text-', 'bg-').split(' ')[0]} bg-opacity-10 bg-slate-800`}>
+                                                <div className="flex items-center gap-2">
+                                                    <span>✔️</span>
+                                                    <span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span>
+                                                </div>
+                                                {modType === SpaceshipModuleType.ORBITAL_CANNON && (
+                                                    <button 
+                                                        onClick={onOpenUpgrades}
+                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
+                                                    >
+                                                        {t('SYSTEM_UPGRADE')}
+                                                    </button>
+                                                )}
+                                                {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
+                                                    <button 
+                                                        onClick={onOpenCarapaceGrid}
+                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
+                                                    >
+                                                        {t('XENO_MATRIX')}
+                                                    </button>
+                                                )}
+                                                {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
+                                                    <button 
+                                                        onClick={onOpenInfrastructure}
+                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
+                                                    >
+                                                        {t('RESEARCH_BTN')}
+                                                    </button>
+                                                )}
+                                                {modType === SpaceshipModuleType.BIO_SEQUENCING && (
+                                                    <button 
+                                                        onClick={onOpenBioSequencing}
+                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
+                                                    >
+                                                        {t('BIO_TITLE')}
+                                                    </button>
+                                                )}
                                             </div>
-                                            {modType === SpaceshipModuleType.ORBITAL_CANNON && (
-                                                <button 
-                                                    onClick={onOpenUpgrades}
-                                                    className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
-                                                >
-                                                    {t('SYSTEM_UPGRADE')}
-                                                </button>
-                                            )}
-                                            {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
-                                                <button 
-                                                    onClick={onOpenCarapaceGrid}
-                                                    className="mt-1 w-full text-[10px] bg-cyan-800 hover:bg-cyan-600 text-cyan-100 py-1 font-bold uppercase tracking-wide border border-cyan-600 transition-colors"
-                                                >
-                                                    {t('XENO_MATRIX')}
-                                                </button>
-                                            )}
-                                            {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
-                                                <button 
-                                                    onClick={onOpenInfrastructure}
-                                                    className="mt-1 w-full text-[10px] bg-yellow-800 hover:bg-yellow-600 text-yellow-100 py-1 font-bold uppercase tracking-wide border border-yellow-600 transition-colors"
-                                                >
-                                                    {t('RESEARCH_BTN')}
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>

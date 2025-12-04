@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, BioBuffType } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
@@ -21,17 +21,26 @@ export class DefenseManager {
 
     private updateAllies(dt: number, time: number, timeScale: number) {
         const state = this.engine.state;
+        const player = state.player;
         
         // Spawn Reinforcements
         if (Date.now() - state.lastAllySpawnTime > 60000 && state.allies.length < ALLY_STATS.maxCount) {
             const spawnX = state.base.x + (Math.random() > 0.5 ? 60 : -60);
+            
+            // Calculate Bio-Sequencing Buffs
+            const hpBuff = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.ALLY_HP);
+            const dmgBuff = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.ALLY_DMG);
+            
+            const finalMaxHp = ALLY_STATS.hp * (1 + hpBuff);
+            const finalDamage = ALLY_STATS.damage * (1 + dmgBuff);
+
             state.allies.push({
                 id: `ally-${Date.now()}`,
                 x: spawnX, y: state.base.y,
                 radius: 12, angle: -Math.PI/2, color: '#3b82f6',
-                hp: ALLY_STATS.hp, maxHp: ALLY_STATS.hp,
+                hp: finalMaxHp, maxHp: finalMaxHp,
                 speed: ALLY_STATS.speed,
-                damage: ALLY_STATS.damage,
+                damage: finalDamage,
                 currentOrder: 'PATROL',
                 state: 'PATROL',
                 lastFireTime: 0,
@@ -44,45 +53,94 @@ export class DefenseManager {
         // Ally Logic
         state.allies.forEach(a => {
             let target: Enemy | null = null;
-            let minDistSq = 400 * 400; // Squared distance check
+            let minDistSq = Infinity;
             
-            // Optimization: Query nearby enemies instead of full scan
-            this.targetCache.length = 0;
-            this.engine.spatialGrid.query(a.x, a.y, 400, this.targetCache);
+            // 1. Determine Behavior Params
+            let scanRange = 400;
+            if (a.currentOrder === 'FOLLOW') scanRange = 500;
+            if (a.currentOrder === 'ATTACK') scanRange = 3000; // Effective Global
 
-            for (const e of this.targetCache) {
-                const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
-                if (dSq < minDistSq) {
-                    minDistSq = dSq;
-                    target = e;
+            // 2. Find Target
+            if (scanRange > 1000) {
+                // Global Scan (Iterate all enemies for ATTACK mode)
+                // Filter by simple distance to avoid checking everything if extremely far, but 3000 covers most valid targets
+                for (const e of state.enemies) {
+                    const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
+                    if (dSq < scanRange**2 && dSq < minDistSq) {
+                        minDistSq = dSq;
+                        target = e;
+                    }
+                }
+            } else {
+                // Local Scan (Spatial Grid)
+                this.targetCache.length = 0;
+                this.engine.spatialGrid.query(a.x, a.y, scanRange, this.targetCache);
+
+                for (const e of this.targetCache) {
+                    const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
+                    if (dSq < scanRange**2 && dSq < minDistSq) {
+                        minDistSq = dSq;
+                        target = e;
+                    }
                 }
             }
 
-            if (target) {
+            // 3. Order Override Logic
+            let shouldEngage = !!target;
+
+            // FOLLOW TETHER: If too far from player, ignore combat and run to player
+            if (a.currentOrder === 'FOLLOW') {
+                const distToPlayerSq = (a.x - player.x)**2 + (a.y - player.y)**2;
+                if (distToPlayerSq > 600 * 600) {
+                    shouldEngage = false;
+                }
+            }
+
+            if (shouldEngage && target) {
                 a.state = 'COMBAT';
-                const d = Math.sqrt(minDistSq); // Needed for movement logic
+                const d = Math.sqrt(minDistSq);
                 const idealDist = 200;
+                
+                // Combat Movement (Kiting/Chasing)
                 let moveAngle = Math.atan2(target.y - a.y, target.x - a.x);
                 
-                // Kite logic
                 if (d < idealDist) {
-                    moveAngle += Math.PI; 
+                    moveAngle += Math.PI; // Back away
                 }
                 
-                a.x += Math.cos(moveAngle) * a.speed * timeScale;
-                a.y += Math.sin(moveAngle) * a.speed * timeScale;
+                // Only move if not in sweet spot
+                if (Math.abs(d - idealDist) > 30) {
+                    a.x += Math.cos(moveAngle) * a.speed * timeScale;
+                    a.y += Math.sin(moveAngle) * a.speed * timeScale;
+                }
+                
                 a.angle = Math.atan2(target.y - a.y, target.x - a.x);
 
-                if (time - a.lastFireTime > 500) {
-                    this.engine.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa', undefined, false, false, 1000, DamageSource.ALLY);
+                // Only shoot if actually in range (prevent cross-map shooting during approach)
+                if (d < ALLY_STATS.range && time - a.lastFireTime > 500) {
+                    this.engine.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa', undefined, false, false, ALLY_STATS.range + 50, DamageSource.ALLY);
                     a.lastFireTime = time;
                     this.engine.audio.playAllyFire();
                 }
             } else {
-                a.state = 'PATROL';
-                const dx = a.patrolPoint.x - a.x;
-                const dy = a.patrolPoint.y - a.y;
-                if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+                // Non-Combat Movement
+                a.state = a.currentOrder === 'ATTACK' ? 'ATTACK' : a.currentOrder === 'FOLLOW' ? 'FOLLOW' : 'PATROL';
+                
+                let destX = a.patrolPoint.x;
+                let destY = a.patrolPoint.y;
+                let stopDist = 10;
+
+                if (a.currentOrder === 'FOLLOW') {
+                    destX = player.x;
+                    destY = player.y;
+                    stopDist = 120; // Don't sit exactly on player
+                }
+
+                const dx = destX - a.x;
+                const dy = destY - a.y;
+                const distSq = dx*dx + dy*dy;
+
+                if (distSq > stopDist * stopDist) {
                     const angle = Math.atan2(dy, dx);
                     a.x += Math.cos(angle) * a.speed * timeScale;
                     a.y += Math.sin(angle) * a.speed * timeScale;

@@ -1,4 +1,3 @@
-
 import {
   GameState,
   InputState,
@@ -42,7 +41,8 @@ import {
   GalacticEvent,
   PlanetYieldInfo,
   PlanetYieldReport,
-  PerformanceMode
+  PerformanceMode,
+  BioResource
 } from '../types';
 import {
   CANVAS_WIDTH,
@@ -147,11 +147,17 @@ export class GameEngine {
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
   }
 
-  // Translation Helper
+  // Translation Helper with Fallback Logic
   public t(key: string, params?: Record<string, any>): string {
       const lang = this.state.settings.language;
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
-      let str = (dict as any)[key] || key;
+      
+      // Fallback: If key missing in target lang, check English, then key itself
+      let str = (dict as any)[key];
+      if (str === undefined) {
+          str = (TRANSLATIONS.EN as any)[key] || key;
+      }
+
       if (params) {
           Object.entries(params).forEach(([k, v]) => {
               str = str.replace(`{${k}}`, String(v));
@@ -283,7 +289,11 @@ export class GameEngine {
         carapaceGrid: null,
         infrastructureUpgrades: [],
         infrastructureOptions: [],
-        infrastructureLocked: false
+        infrastructureLocked: false,
+        bioNodes: [],
+        bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 },
+        bioTasks: [],
+        activeBioTask: null
     };
 
     let currentSettings: GameSettings;
@@ -649,6 +659,15 @@ export class GameEngine {
   public exitPlanetConstruction() { this.state.appMode = AppMode.EXPLORATION_MAP; }
   public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; }
   public closeGalacticEvent() { this.state.activeGalacticEvent = null; }
+
+  // Bio Sequencing Hooks
+  public enterBioSequencing() { this.state.appMode = AppMode.BIO_SEQUENCING; }
+  public exitBioSequencing() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
+  public generateBioGrid() { this.spaceshipManager.generateBioGrid(); }
+  public conductBioResearch() { this.spaceshipManager.conductBioResearch(); }
+  public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); }
+  public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); }
+  public abortBioTask() { this.spaceshipManager.abortBioTask(); }
 
   public ascendToOrbit() {
       const wasSuccess = this.state.missionComplete;

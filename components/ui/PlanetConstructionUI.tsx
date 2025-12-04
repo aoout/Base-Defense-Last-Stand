@@ -1,6 +1,7 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { GameState, PlanetBuildingType, Planet } from '../../types';
-import { CloseButton } from './Shared';
+import { ModuleWindow } from './ModuleWindow';
 import { drawPlanetSprite } from '../../utils/renderers';
 import { GAS_INFO } from '../../data/world';
 
@@ -56,7 +57,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
         const isBiomass = type === PlanetBuildingType.BIOMASS_EXTRACTOR;
         
         return (
-            <div className={`p-4 border ${isBiomass ? 'border-green-500/50 bg-green-900/10' : 'border-blue-500/50 bg-blue-900/10'} mb-4 relative overflow-hidden group`}>
+            <div className={`p-4 border ${isBiomass ? 'border-green-500/50 bg-green-900/10' : 'border-blue-500/50 bg-blue-900/10'} mb-4 relative overflow-hidden group rounded`}>
                 <div className="flex justify-between items-start mb-2">
                     <h4 className={`text-sm font-bold ${isBiomass ? 'text-green-400' : 'text-blue-400'}`}>{t(isBiomass ? 'PC_BIOMASS' : 'PC_OXYGEN')}</h4>
                     <div className="text-xs text-white font-mono">{cost} SCRAPS</div>
@@ -76,7 +77,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                         }
                     }}
                     disabled={!canAfford || selectedSlot === null}
-                    className={`w-full py-2 text-[10px] font-bold tracking-widest uppercase transition-all
+                    className={`w-full py-2 text-[10px] font-bold tracking-widest uppercase transition-all rounded
                         ${canAfford && selectedSlot !== null
                             ? (isBiomass ? 'bg-green-600 hover:bg-green-500 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white')
                             : 'bg-slate-800 text-slate-500 cursor-not-allowed'}
@@ -89,18 +90,16 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
     }
 
     return (
-        <div className="absolute inset-0 z-[250] bg-slate-950 flex items-center justify-center pointer-events-auto font-mono">
-            {/* Background */}
-            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(16,185,129,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.1)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-            
-            <div className="w-full max-w-6xl h-[85vh] bg-slate-900 border border-slate-700 shadow-2xl relative flex overflow-hidden rounded-xl">
-                <CloseButton onClick={onClose} colorClass="absolute top-6 right-6 border-slate-600 text-slate-500 hover:text-white hover:bg-slate-800 z-50" />
-
+        <ModuleWindow
+            title={t('PC_TITLE')}
+            subtitle={t('PC_SUB')}
+            theme="blue"
+            onClose={onClose}
+            maxWidth="max-w-[1350px]"
+        >
+            <div className="flex-1 flex gap-0 h-full w-full">
                 {/* Left Panel: Construction Shop */}
-                <div className="w-80 bg-black/40 border-r border-slate-800 p-6 flex flex-col overflow-y-auto">
-                    <h2 className="text-xl font-display font-black text-white mb-1">{t('PC_TITLE')}</h2>
-                    <p className="text-[10px] text-slate-500 tracking-widest uppercase mb-8">{t('PC_SUB')}</p>
-                    
+                <div className="w-80 bg-black/40 border-r border-blue-900/30 p-6 flex flex-col overflow-y-auto rounded-l-lg">
                     {/* Planet Stats */}
                     <div className="mb-8 space-y-2">
                         <div className="flex justify-between text-xs text-slate-400">
@@ -124,19 +123,19 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                 </div>
 
                 {/* Center: Planet Viz */}
-                <div className="flex-1 relative flex items-center justify-center bg-slate-950">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(16,185,129,0.05)_0%,transparent_70%)]"></div>
+                <div className="flex-1 relative flex items-center justify-center bg-slate-950/50">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(59,130,246,0.05)_0%,transparent_70%)]"></div>
                     <canvas ref={canvasRef} width={500} height={500} className="relative z-10" />
                     
-                    <div className="absolute bottom-8 left-8 text-xs text-green-500 font-mono">
+                    <div className="absolute bottom-8 left-8 text-xs text-blue-500 font-mono">
                         <div>RADIUS: {radiusKm} KM</div>
                         <div>SLOTS: {buildings.length} / {totalSlots}</div>
                     </div>
                 </div>
 
                 {/* Right Panel: Slots */}
-                <div className="w-80 bg-black/40 border-l border-slate-800 p-6 overflow-y-auto">
-                    <h3 className="text-white font-bold tracking-widest text-sm mb-6 border-b border-slate-800 pb-2">{t('PC_SLOTS_AVAILABLE')}</h3>
+                <div className="w-80 bg-black/40 border-l border-blue-900/30 p-6 overflow-y-auto rounded-r-lg">
+                    <h3 className="text-white font-bold tracking-widest text-sm mb-6 border-b border-blue-900/50 pb-2">{t('PC_SLOTS_AVAILABLE')}</h3>
                     
                     <div className="space-y-3">
                         {Array.from({length: totalSlots}).map((_, i) => {
@@ -152,7 +151,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                                         ${building 
                                             ? 'bg-slate-800 border-slate-600' 
                                             : isSelected 
-                                                ? 'bg-green-900/20 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.3)]' 
+                                                ? 'bg-blue-900/20 border-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' 
                                                 : 'bg-black/20 border-slate-700 hover:border-slate-500'}
                                     `}
                                 >
@@ -167,7 +166,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                                         </div>
                                     ) : (
                                         <div className="flex justify-end mt-4">
-                                            <div className={`text-xs ${isSelected ? 'text-green-500' : 'text-slate-600'}`}>{t('PC_SLOT_EMPTY')}</div>
+                                            <div className={`text-xs ${isSelected ? 'text-blue-500' : 'text-slate-600'}`}>{t('PC_SLOT_EMPTY')}</div>
                                         </div>
                                     )}
                                 </div>
@@ -175,8 +174,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                         })}
                     </div>
                 </div>
-
             </div>
-        </div>
+        </ModuleWindow>
     );
 };
