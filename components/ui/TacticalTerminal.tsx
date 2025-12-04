@@ -287,7 +287,7 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                         </div>
                     )}
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
-                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} t={t} onShowDetail={() => {}} />}
+                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} t={t} onShowDetail={() => {}} />}
                     {activeTab === 'MEMORY' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-8">
                             <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">

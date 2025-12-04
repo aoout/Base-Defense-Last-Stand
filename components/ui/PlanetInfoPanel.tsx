@@ -1,15 +1,16 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Planet, MissionType } from '../../types';
+import { Planet, MissionType, SpaceshipState, BioBuffType } from '../../types';
 import { drawPlanetSprite } from '../../utils/renderers';
 
 interface PlanetInfoPanelProps {
     planet: Planet;
+    spaceship?: SpaceshipState; // Pass spaceship to calculate reductions
     t: (key: string) => string;
     onShowDetail: () => void;
 }
 
-export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onShowDetail }) => {
+export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, spaceship, t, onShowDetail }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const requestRef = useRef<number>(0);
 
@@ -29,6 +30,16 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
         requestRef.current = requestAnimationFrame(renderPreview);
         return () => cancelAnimationFrame(requestRef.current);
     }, [planet]);
+
+    // Calculate Reduction
+    let reduction = 0;
+    if (spaceship && spaceship.bioNodes) {
+        reduction = spaceship.bioNodes.reduce((acc, node) => {
+            if (node.isUnlocked && node.buffType === BioBuffType.GENE_REDUCTION) return acc + node.buffValue;
+            return acc;
+        }, 0);
+    }
+    const effectiveGeneStrength = Math.max(0.5, planet.geneStrength - reduction);
 
     const mainGases = planet.atmosphere.slice(0, 3);
 
@@ -56,7 +67,16 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, t, onS
                  </div>
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50">
                      <div className="text-blue-500 mb-1">{t('GENE_MODIFIER')}</div>
-                     <div className={`text-lg font-bold ${planet.geneStrength > 2 ? 'text-red-400' : 'text-yellow-400'}`}>x{planet.geneStrength.toFixed(1)}</div>
+                     {reduction > 0 ? (
+                         <div>
+                             <div className="text-lg font-bold text-green-400">x{effectiveGeneStrength.toFixed(2)}</div>
+                             <div className="text-[9px] text-slate-400">
+                                 (Base {planet.geneStrength.toFixed(2)} - {reduction.toFixed(2)})
+                             </div>
+                         </div>
+                     ) : (
+                         <div className={`text-lg font-bold ${planet.geneStrength > 2 ? 'text-red-400' : 'text-yellow-400'}`}>x{planet.geneStrength.toFixed(1)}</div>
+                     )}
                  </div>
                  <div className="bg-blue-950/30 p-3 border border-blue-900/50 col-span-2">
                      <div className="text-blue-500 mb-1 flex justify-between">

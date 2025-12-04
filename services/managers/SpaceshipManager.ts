@@ -612,6 +612,10 @@ export class SpaceshipManager {
         }, 0);
     }
 
+    public getGeneReduction(): number {
+        return this.getBioBuffTotal(BioBuffType.GENE_REDUCTION);
+    }
+
     public applyPassiveBonuses() {
         const s = this.engine.state.spaceship;
         const p = this.engine.state.player;

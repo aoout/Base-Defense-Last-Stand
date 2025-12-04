@@ -23,7 +23,8 @@ export const calculateEnemyStats = (
     type: EnemyType, 
     baseStats: EnemyBaseStats, 
     planet: Planet | null, 
-    gameMode: GameMode
+    gameMode: GameMode,
+    effectiveGeneStrength?: number // Optional override for Bio-Sequencing reduction
 ): CalculatedStats => {
     // Default fallback for Survival Mode (Standard Stats)
     if (gameMode === GameMode.SURVIVAL || !planet) {
@@ -34,7 +35,8 @@ export const calculateEnemyStats = (
     }
 
     // Exploration Mode Logic
-    let hpMultiplier = planet.geneStrength;
+    // Use effective strength if provided, otherwise base planet strength
+    let hpMultiplier = effectiveGeneStrength !== undefined ? effectiveGeneStrength : planet.geneStrength;
     let damageMultiplier = 1.0;
 
     // Extract Environmental Variables

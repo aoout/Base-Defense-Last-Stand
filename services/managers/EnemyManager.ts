@@ -17,7 +17,15 @@ export class EnemyManager {
     private resetEnemy(e: Enemy, type: EnemyType, x: number, y: number): Enemy {
         const state = this.engine.state;
         const baseStats = ENEMY_STATS[type];
-        const stats = calculateEnemyStats(type, baseStats, state.currentPlanet, state.gameMode);
+        
+        // Calculate Effective Gene Strength (Base - BioReduction)
+        let effectiveGeneStrength = state.currentPlanet ? state.currentPlanet.geneStrength : 1;
+        if (state.currentPlanet && state.gameMode === GameMode.EXPLORATION) {
+            const reduction = this.engine.spaceshipManager.getGeneReduction();
+            effectiveGeneStrength = Math.max(0.5, effectiveGeneStrength - reduction);
+        }
+
+        const stats = calculateEnemyStats(type, baseStats, state.currentPlanet, state.gameMode, effectiveGeneStrength);
 
         e.id = `e-${Date.now()}-${Math.random()}`; // New ID needed for react keys/collision maps
         e.type = type;
@@ -89,7 +97,10 @@ export class EnemyManager {
         
         let hp = stats.hp;
         if (this.engine.state.gameMode === GameMode.EXPLORATION && this.engine.state.currentPlanet) {
-            hp *= this.engine.state.currentPlanet.geneStrength;
+            let effectiveStr = this.engine.state.currentPlanet.geneStrength;
+            const reduction = this.engine.spaceshipManager.getGeneReduction();
+            effectiveStr = Math.max(0.5, effectiveStr - reduction);
+            hp *= effectiveStr;
         }
 
         // Reuse pool for boss too
@@ -134,8 +145,13 @@ export class EnemyManager {
 
     public spawnHiveMother(planet: Planet) {
         const stats = BOSS_STATS[BossType.HIVE_MOTHER];
+        // Calculate Effective Gene Strength
+        let effectiveStr = planet.geneStrength;
+        const reduction = this.engine.spaceshipManager.getGeneReduction();
+        effectiveStr = Math.max(0.5, effectiveStr - reduction);
+
         // Updated formula: 14000 * Gene * (1 + 0.08 * Sulfur)
-        let hp = 14000 * planet.geneStrength * (1 + 0.08 * planet.sulfurIndex);
+        let hp = 14000 * effectiveStr * (1 + 0.08 * planet.sulfurIndex);
 
         let enemy: Enemy;
         if (this.enemyPool.length > 0) {
@@ -179,8 +195,12 @@ export class EnemyManager {
     private spawnHiveMinions(mother: Enemy) {
         const shedCount = mother.shedCount || 0;
         const simulatedWave = Math.max(1, shedCount);
-        const geneStrength = this.engine.state.currentPlanet?.geneStrength || 1;
-        const count = Math.ceil(12 * (geneStrength + shedCount));
+        
+        let effectiveGeneStrength = this.engine.state.currentPlanet?.geneStrength || 1;
+        const reduction = this.engine.spaceshipManager.getGeneReduction();
+        effectiveGeneStrength = Math.max(0.5, effectiveGeneStrength - reduction);
+
+        const count = Math.ceil(12 * (effectiveGeneStrength + shedCount));
 
         for (let i = 0; i < count; i++) {
             const angle = Math.random() * Math.PI * 2;

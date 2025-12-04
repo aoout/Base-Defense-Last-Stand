@@ -2,6 +2,7 @@
 
 
 
+
 import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES, GAS_INFO } from '../data/world';
@@ -61,6 +62,10 @@ export const generatePlanets = (): Planet[] => {
         // 70% Defense, 30% Offense
         const missionType = Math.random() > 0.3 ? MissionType.DEFENSE : MissionType.OFFENSE;
         
+        // Clean gene strength to 2 decimal places to avoid confusion with reductions
+        const rawGeneStrength = 1 + Math.random() * 2;
+        const geneStrength = Math.round(rawGeneStrength * 100) / 100;
+
         planets.push({
             id: `planet-${i}`,
             name: `${style.name.split(' ')[0]}-${Math.floor(Math.random()*999)}`,
@@ -70,7 +75,7 @@ export const generatePlanets = (): Planet[] => {
             color: style.planetColor,
             missionType,
             totalWaves: missionType === MissionType.OFFENSE ? 0 : 5 + Math.floor(Math.random() * 10),
-            geneStrength: 1 + Math.random() * 2,
+            geneStrength: geneStrength,
             sulfurIndex: Math.floor(Math.random() * 10),
             landingDifficulty: landingDifficulty,
             completed: false,

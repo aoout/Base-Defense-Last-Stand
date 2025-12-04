@@ -97,7 +97,10 @@ export class MissionManager {
         
         // Exploration Scaling
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {
-            newEnemies = Math.ceil(newEnemies * state.currentPlanet.geneStrength);
+            let effectiveStr = state.currentPlanet.geneStrength;
+            const reduction = this.engine.spaceshipManager.getGeneReduction();
+            effectiveStr = Math.max(0.5, effectiveStr - reduction);
+            newEnemies = Math.ceil(newEnemies * effectiveStr);
         }
 
         if (isFrenzy) {
