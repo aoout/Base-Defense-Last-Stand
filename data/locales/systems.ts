@@ -299,7 +299,7 @@ export const SYSTEMS_CN = {
     PLANETARY_SCAN: "地表数据",
     SCAN_ID: "卫星ID",
     HAZARD_ASSESSMENT: "威胁矩阵",
-    GENE_MODIFIER: "基因复杂度",
+    GENE_MODIFIER: "基因强度",
     SULFUR_INDEX: "毒性",
     ATMOSPHERIC_BREAKDOWN: "大气层",
     VIEW_ANALYSIS: "深度扫描",
