@@ -192,7 +192,7 @@ export const SYSTEMS_CN = {
     SHIP_MOD_CARAPACE_ANALYZER_DESC: "分析敌人弱点。伤害 +20%。解锁弱点矩阵。",
     SHIP_MOD_ORBITAL_CANNON_NAME: "轨道动能打击阵列",
     SHIP_MOD_ORBITAL_CANNON_DESC: "卫星上行链路，每8秒提供一次自动火力支援。",
-    SHIP_MOD_ATMOSPHERIC_DEFLECTOR_NAME: "热盾发生器",
+    SHIP_MOD_ATMOSPHERIC_DEFLECTOR_NAME: "行星级气流解构板",
     SHIP_MOD_ATMOSPHERIC_DEFLECTOR_DESC: "减少再入大气层的热摩擦。空投成本 -50%。",
     SHIP_MOD_BIO_SEQUENCING_NAME: "基因测序舱",
     SHIP_MOD_BIO_SEQUENCING_DESC: "将原始生物质加工成战斗增强剂。",
