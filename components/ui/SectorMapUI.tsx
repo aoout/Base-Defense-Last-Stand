@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { GalaxyConfig, GameMode } from '../../types';
+import { GalaxyConfig, GameMode, StatId } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { PlanetDetailScreen } from './PlanetDetailScreen';
@@ -32,11 +32,15 @@ export const SectorMapUI: React.FC = () => {
         engine.deployToPlanet(id);
     };
 
-    // Calculate drop cost
+    // Calculate drop cost with stats applied
     let dropCost = 0;
     let canAfford = false;
     if (planet) {
-        dropCost = Math.floor(state.player.score * (planet.landingDifficulty / 100));
+        const reduction = engine.statManager.get(StatId.DROP_COST_REDUCTION, 0);
+        const basePct = planet.landingDifficulty / 100;
+        // Apply reduction (e.g. 0.5 reduction means cost is 50% of base)
+        const effectivePct = basePct * (1 - reduction);
+        dropCost = Math.floor(state.player.score * effectivePct);
         canAfford = state.player.score >= dropCost; 
     }
 

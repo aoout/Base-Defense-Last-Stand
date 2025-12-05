@@ -21,8 +21,19 @@ export class MissionManager {
         }
 
         // Defense Mode (Survival & Defense Missions)
+        const previousTime = state.waveTimeRemaining;
         state.waveTimeRemaining -= dt;
         state.spawnTimer += dt;
+        
+        // Check Lure Availability Threshold (10s elapsed)
+        const duration = state.waveDuration;
+        const elapsed = duration - state.waveTimeRemaining;
+        const prevElapsed = duration - previousTime;
+        
+        // If we just crossed the 10,000ms mark, notify UI to show the button
+        if (prevElapsed < 10000 && elapsed >= 10000) {
+            this.engine.notifyUI('LURE_READY');
+        }
         
         let spawnInterval = 500;
         if (state.activeSpecialEvent === SpecialEventType.FRENZY) spawnInterval = 250;
