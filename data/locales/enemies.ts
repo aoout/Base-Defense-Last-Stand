@@ -39,7 +39,7 @@ export const ENEMIES_CN = {
     ENEMY_TANK_DESC: "重装甲生物。具有特化的甲壳，对子弹效果奇佳。",
     ENEMY_KAMIKAZE_NAME: "腔爆孢囊",
     ENEMY_KAMIKAZE_CLASS: "不稳定体",
-    ENEMY_KAMIKAZE_DESC: "携带挥发性酸液的不稳定变异体。通常状况下是软体，最大生命值很低。然而在高硫化指数环境下会特化出软甲。",
+    ENEMY_KAMIKAZE_DESC: "携带挥发性酸液的不稳定变异体。通常状况下是软体，最大生命值很低。然而在高硫化指数环境下会特化出软甲，提升最大生命值。",
     ENEMY_VIPER_NAME: "滑膜喷蚀者",
     ENEMY_VIPER_CLASS: "远程伤害",
     ENEMY_VIPER_DESC: "能够发射腐蚀性喷射物的单位。在高硫化指数环境下会进一步强化喷射物伤害。",
