@@ -117,6 +117,8 @@ export class GameEngine {
   private loopListeners: Set<(dt: number, time: number) => void> = new Set();
 
   private lastTime: number = 0;
+  private accumulator: number = 0;
+  private readonly FIXED_STEP: number = 1000 / 60;
 
   constructor() {
     this.inputManager = new InputManager();
@@ -159,8 +161,6 @@ export class GameEngine {
     this.state.appMode = AppMode.START_MENU;
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
   }
-
-  // ... (Rest of the class methods remain largely unchanged, just removing manual grid updates) ...
 
   public registerLoopListener(cb: (dt: number, time: number) => void) {
       this.loopListeners.add(cb);
@@ -244,7 +244,6 @@ export class GameEngine {
   public handleInput(code: string, isDown: boolean) {
       const action = isDown ? this.inputManager.handleKeyDown(code) : this.inputManager.handleKeyUp(code);
       if (isDown && action && this.state.appMode === AppMode.GAMEPLAY) {
-          // ... (Input switch case same as before) ...
           switch (action) {
               case UserAction.WEAPON_1: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 0 }); break;
               case UserAction.WEAPON_2: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 1 }); break;
@@ -280,7 +279,6 @@ export class GameEngine {
       }
   }
 
-  // ... (Settings loading/persistence logic same) ...
   private loadSettings(): GameSettings {
       const defaultSettings: GameSettings = { showHUD: true, showBlood: true, showDamageNumbers: true, language: 'EN', lightingQuality: 'HIGH', particleIntensity: 'HIGH', animatedBackground: true, performanceMode: 'BALANCED', resolutionScale: 1.0, showShadows: true };
       try { const raw = localStorage.getItem('VANGUARD_SETTINGS_V1'); if (raw) { const parsed = JSON.parse(raw); return { ...defaultSettings, ...parsed }; } } catch (e) { console.error("Failed to load settings:", e); }
@@ -315,21 +313,48 @@ export class GameEngine {
     };
 
     if (!fullReset) { if (this.spaceshipManager) this.spaceshipManager.registerModifiers(); }
+    
+    // Reset Timing
+    this.lastTime = 0;
+    this.accumulator = 0;
+    this.time.sync(performance.now());
+    
     this.notifyUI('RESET');
   }
 
   public update(time: number) {
-    this.time.update(time);
-    if (this.lastTime === 0) { this.lastTime = time; return; }
-    let dt = time - this.lastTime;
+    if (this.lastTime === 0) { 
+        this.lastTime = time; 
+        this.time.sync(time); // Sync simulation time to initial real time
+        return; 
+    }
+    
+    let frameTime = time - this.lastTime;
     this.lastTime = time;
-    if (dt > 100) dt = 100;
-    const TARGET_MS_PER_FRAME = 1000 / 60; 
-    const timeScale = dt / TARGET_MS_PER_FRAME;
+    
+    // Cap frame time to prevent spiral of death on lag spikes
+    if (frameTime > 250) frameTime = 250;
 
-    this.loopListeners.forEach(cb => cb(dt, time));
+    // Transient UI updates run every render frame
+    this.loopListeners.forEach(cb => cb(frameTime, time));
 
-    if (this.state.isPaused || this.state.isShopOpen || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
+    if (this.state.isPaused || this.state.isShopOpen || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) {
+        return;
+    }
+
+    this.accumulator += frameTime;
+
+    while (this.accumulator >= this.FIXED_STEP) {
+        this.time.advance(this.FIXED_STEP);
+        this.fixedUpdate(this.FIXED_STEP);
+        this.accumulator -= this.FIXED_STEP;
+    }
+  }
+
+  private fixedUpdate(dt: number) {
+    // Fixed Time Step Logic (dt is always ~16.66ms)
+    // Scale is 1.0 because we are running at target speed
+    const timeScale = 1.0; 
 
     // --- PHYSICS UPDATE (Centralized Collision) ---
     this.physics.update(dt);

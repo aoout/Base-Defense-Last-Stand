@@ -151,7 +151,7 @@ export class SaveManager {
 
                 // 3. Hydrate State
                 // Sync Time Manager to current fresh time
-                this.engine.time.sync();
+                this.engine.time.sync(performance.now());
                 const currentNow = this.engine.time.now;
                 const oldSaveTime = (data as any).metaGameTime || 0; // The time when save happened
 

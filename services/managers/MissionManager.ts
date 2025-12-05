@@ -33,7 +33,8 @@ export class MissionManager {
                 this.engine.enemyManager.spawnEnemy();
                 state.enemiesPendingSpawn--;
             }
-            state.spawnTimer = 0;
+            // FIX: Subtract interval instead of resetting to 0 to prevent drift during fixed steps
+            state.spawnTimer -= spawnInterval; 
         }
 
         if (state.waveTimeRemaining <= 0) {

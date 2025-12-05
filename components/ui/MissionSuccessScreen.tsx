@@ -103,4 +103,11 @@ export const MissionSuccessScreen: React.FC = () => {
                          <span className="text-emerald-100 font-black tracking-[0.2em] text-xl">{t('INITIATE_ASCENT')}</span>
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-400 group-hover:text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                         
+                         </svg>
+                     </div>
+                 </button>
+
+             </div>
+        </div>
+    );
+};
