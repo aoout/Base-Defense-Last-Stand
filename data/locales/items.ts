@@ -174,7 +174,7 @@ export const ITEMS_CN = {
     SNIPER_NAME: "轨道炮塔",
     SNIPER_DESC: "超高速弹丸。射程很远。",
     MISSILE_NAME: "九头蛇导弹仓",
-    MISSILE_DESC: "蜂群导弹。全球锁定。",
+    MISSILE_DESC: "蜂群导弹。伤害高，全球锁定，射速较低。",
     DMG: "伤害",
     RNG: "射程",
     SPD: "射速",

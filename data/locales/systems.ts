@@ -288,7 +288,7 @@ export const SYSTEMS_CN = {
     INFRA_TURRET_MISSILE_DMG_DESC: "九头蛇导弹伤害 +{0}%",
     INFRA_GLOBAL_TURRET_DMG_DESC: "全种类炮塔伤害 +{0}%",
     INFRA_GLOBAL_TURRET_RATE_DESC: "全种类炮塔攻速 +{0}%",
-    INFRA_TURRET_L1_COST_DESC: "level1 炮塔制造成本 -{0}%",
+    INFRA_TURRET_L1_COST_DESC: "level 1 炮塔制造成本 -{0}%",
 
     // --- SECTOR MAP & PLANETS ---
     PLANET_ANALYSIS: "行星扫描",
@@ -315,7 +315,7 @@ export const SYSTEMS_CN = {
     LANDING_DIFFICULTY: "燃料成本",
     DROP_COST: "所需燃料",
     FULL_ANALYSIS_BTN: "完整报告",
-    PC_TITLE: "殖民地建设",
+    PC_TITLE: "星球建设",
     PC_SUB: "被动提取",
     PC_BTN: "建设",
     CLEARED_TAG: "已平定",
