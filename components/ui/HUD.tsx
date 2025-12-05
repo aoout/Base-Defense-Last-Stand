@@ -14,6 +14,7 @@ export const HUD: React.FC = () => {
     // Direct DOM Refs for High Frequency Updates
     const waveTimerRef = useRef<HTMLSpanElement>(null);
     const waveProgressRef = useRef<HTMLDivElement>(null);
+    const waveNumberRef = useRef<HTMLSpanElement>(null); // New Ref for Wave Number
     const healthBarRef = useRef<HTMLDivElement>(null);
     const healthTextRef = useRef<HTMLSpanElement>(null);
     const armorBarRef = useRef<HTMLDivElement>(null);
@@ -76,7 +77,7 @@ export const HUD: React.FC = () => {
             ammoBarRef.current.style.width = `${pct * 100}%`;
         }
 
-        // 4. Wave Timer
+        // 4. Wave Timer & Number
         if (waveTimerRef.current) {
             const sec = Math.ceil(s.waveTimeRemaining / 1000);
             const fmt = `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
@@ -85,6 +86,9 @@ export const HUD: React.FC = () => {
         if (waveProgressRef.current) {
             const pct = s.waveTimeRemaining / s.waveDuration;
             waveProgressRef.current.style.width = `${pct * 100}%`;
+        }
+        if (waveNumberRef.current) {
+            waveNumberRef.current.innerText = `${s.wave}`;
         }
 
         // 5. Boss HP
@@ -191,7 +195,7 @@ export const HUD: React.FC = () => {
                                 <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
-                                    <span className="text-2xl font-display font-black text-white leading-none">{state.wave}</span>
+                                    <span ref={waveNumberRef} className="text-2xl font-display font-black text-white leading-none">{state.wave}</span>
                                 </div>
                             </div>
 

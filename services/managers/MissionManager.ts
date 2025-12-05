@@ -107,6 +107,9 @@ export class MissionManager {
         }
         
         state.enemiesPendingSpawn += newEnemies;
+        
+        // Notify UI to ensure React state (e.g. for Menus) is synced, though HUD uses Ref for speed
+        this.engine.notifyUI('WAVE_UPDATE');
     }
 
     public skipWave() {
