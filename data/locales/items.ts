@@ -91,8 +91,8 @@ export const ITEMS_CN = {
     // --- SHOP & INVENTORY ---
     DEPOT_TITLE: "后勤中心",
     DEPOT_SUBTITLE: "分子打印机权限 // 已授权",
-    FUNDS: "资源点",
-    SCRAPS: "生物回收质",
+    FUNDS: "可用资源",
+    SCRAPS: "生物质",
     TAB_AMMO: "弹药",
     TAB_WEAPONS: "武器库",
     TAB_DEFENSE: "防御",
