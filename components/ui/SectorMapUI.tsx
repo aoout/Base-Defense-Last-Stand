@@ -1,60 +1,27 @@
 
 import React, { useState } from 'react';
-import { GameState, GalaxyConfig } from '../../types';
+import { GalaxyConfig, GameMode } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { PlanetDetailScreen } from './PlanetDetailScreen';
 import { GalaxyIndexModal } from './GalaxyIndexModal';
-import { GameEngine } from '../../services/gameService';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface SectorMapUIProps {
-    state: GameState;
-    onSaveGame: () => void;
-    onOpenSpaceship: () => void;
-    onDeployPlanet: (id: string) => void;
-    onDeselectPlanet: () => void;
-    onCheat: () => void;
-    onOpenConstruction: () => void;
-    t: (key: string, params?: any) => string;
-}
-
-export const SectorMapUI: React.FC<SectorMapUIProps> = ({ 
-    state, 
-    onSaveGame, 
-    onOpenSpaceship, 
-    onDeployPlanet, 
-    onDeselectPlanet,
-    onCheat,
-    onOpenConstruction,
-    t
-}) => {
+export const SectorMapUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
     const [viewingDetail, setViewingDetail] = useState(false);
     const [showIndex, setShowIndex] = useState(false);
 
-    // This component is stateless regarding logic, but needs to call scanning. 
-    // Ideally scanSector should be passed down, but for now we can access it if we had the engine, 
-    // or we assume it's available via a prop that we'll add to App.tsx? 
-    // Actually, GalaxyManager is on engine. Let's assume we can trigger a game action event 
-    // or we need to update the interface.
-    // The "Right Way" given the structure is to dispatch a custom event that App.tsx or engine picks up, 
-    // OR we modify App.tsx to pass a handler. Since I cannot edit App.tsx in this specific block without returning it,
-    // I will assume there is a `window.gameEngine` or I dispatch an event.
-    // Wait, the prompt says "Refactor as needed". I will assume I can update App.tsx if I output it.
-    // BUT, the SectorMapUI props don't have onScan. I should add `onScan` to props in UIOverlay and App.
-    // However, to keep changes minimal, I will use the custom event pattern used elsewhere 
-    // OR just instantiate a temporary engine accessor? No, that's bad.
-    
-    // BETTER APPROACH: Add `onScan` to props. I will update UIOverlay and App.tsx in separate blocks.
-    // For now, let's pretend `onScan` exists or use a temporary workaround?
-    // No, I'll update the interface properly. 
-    
-    // Wait, I can't pass onScan here without updating UIOverlay.
-    // Let's use the `window.dispatchEvent` pattern for the scan action, similar to weapon assembly.
-    
     const handleScan = (config: GalaxyConfig) => {
         const event = new CustomEvent('game-action', { detail: { type: 'SCAN_SECTOR', config } });
         window.dispatchEvent(event);
+    };
+
+    const handleDeploy = (id: string) => {
+        engine.deployToPlanet(id);
     };
 
     // Calculate drop cost
@@ -69,12 +36,13 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
         <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-8 left-8">
                 <h1 className="text-5xl font-display font-bold text-white tracking-widest">{t('PLANET_ANALYSIS')}</h1>
-                <p className="text-blue-400 font-mono text-sm">{t('SECTOR_NAME')}</p>
+                {/* Use the dynamic sector name from state */}
+                <p className="text-blue-400 font-mono text-sm">{state.sectorName || t('SECTOR_NAME')}</p>
             </div>
 
             <div className="absolute top-8 right-8 pointer-events-auto flex gap-4">
                 <button 
-                onClick={onSaveGame}
+                onClick={() => engine.saveGame()}
                 className="w-12 h-12 bg-gray-900/80 border border-blue-500/50 hover:bg-blue-900/50 text-blue-400 flex items-center justify-center rounded transition-all"
                 title={t('SAVE_STATE')}
                 >
@@ -87,7 +55,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
             {/* Spaceship Button (Bottom Left) */}
             <div className="absolute bottom-8 left-8 pointer-events-auto">
                 <button 
-                onClick={onOpenSpaceship}
+                onClick={() => engine.enterSpaceshipView()}
                 className="group relative flex items-center gap-4 pl-4 pr-8 py-4 bg-slate-900/90 border border-cyan-500/50 hover:border-cyan-400 hover:bg-slate-800 transition-all overflow-hidden"
                 style={{ clipPath: 'polygon(0 0, 100% 0, 95% 100%, 0% 100%)' }}
                 >
@@ -133,7 +101,6 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                 <GalaxyIndexModal 
                     onClose={() => setShowIndex(false)}
                     onScan={handleScan}
-                    t={t}
                 />
             )}
 
@@ -145,20 +112,18 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                     dropCost={dropCost}
                     canAfford={canAfford}
                     onClose={() => setViewingDetail(false)} 
-                    onDeploy={() => onDeployPlanet(planet.id)}
-                    onOpenConstruction={onOpenConstruction}
-                    t={t} 
+                    onDeploy={() => handleDeploy(planet.id)}
+                    onOpenConstruction={() => engine.enterPlanetConstruction()}
                 />
             )}
 
             {planet && !viewingDetail && (
                 <div className="absolute top-1/2 right-12 -translate-y-1/2 w-96 bg-gray-900/90 border border-blue-500 p-8 pointer-events-auto backdrop-blur-md">
-                    <CloseButton onClick={onDeselectPlanet} colorClass="border-blue-500 text-blue-500 hover:text-white hover:bg-blue-900/50" />
+                    <CloseButton onClick={() => engine.selectPlanet(null)} colorClass="border-blue-500 text-blue-500 hover:text-white hover:bg-blue-900/50" />
                     
                     <PlanetInfoPanel 
                         planet={planet} 
                         spaceship={state.spaceship}
-                        t={t} 
                         onShowDetail={() => setViewingDetail(true)}
                     />
                     
@@ -179,7 +144,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                     <div className="flex flex-col gap-3 mt-4">
                         {planet.completed ? (
                             <button 
-                                onClick={onOpenConstruction}
+                                onClick={() => engine.enterPlanetConstruction()}
                                 className="w-full py-4 bg-yellow-900/20 border border-yellow-500 hover:bg-yellow-900/40 text-yellow-400 font-black tracking-[0.2em] transition-all relative overflow-hidden group"
                             >
                                 <span className="relative z-10">{t('PC_BTN')}</span>
@@ -187,7 +152,7 @@ export const SectorMapUI: React.FC<SectorMapUIProps> = ({
                             </button>
                         ) : (
                             <button 
-                                onClick={() => onDeployPlanet(planet.id)}
+                                onClick={() => handleDeploy(planet.id)}
                                 disabled={!canAfford}
                                 className={`
                                     w-full py-4 relative overflow-hidden group transition-all border

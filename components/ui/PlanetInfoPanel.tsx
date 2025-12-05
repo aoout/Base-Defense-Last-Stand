@@ -1,34 +1,24 @@
 
-import React, { useRef, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { Planet, MissionType, SpaceshipState, BioBuffType } from '../../types';
 import { drawPlanetSprite } from '../../utils/renderers';
+import { useLocale } from '../contexts/LocaleContext';
+import { CanvasView } from './common/CanvasView';
+import { GAS_INFO } from '../../data/world';
 
 interface PlanetInfoPanelProps {
     planet: Planet;
     spaceship?: SpaceshipState; // Pass spaceship to calculate reductions
-    t: (key: string) => string;
     onShowDetail: () => void;
 }
 
-export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, spaceship, t, onShowDetail }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
+export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, spaceship, onShowDetail }) => {
+    const { t } = useLocale();
 
-    useEffect(() => {
-        const renderPreview = (time: number) => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            const w = canvasRef.current.width; 
-            const h = canvasRef.current.height; 
-            ctx.clearRect(0, 0, w, h); 
-            ctx.fillStyle = '#020617'; 
-            ctx.fillRect(0, 0, w, h);
-            drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
-            requestRef.current = requestAnimationFrame(renderPreview);
-        };
-        requestRef.current = requestAnimationFrame(renderPreview);
-        return () => cancelAnimationFrame(requestRef.current);
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        ctx.fillStyle = '#020617'; 
+        ctx.fillRect(0, 0, w, h);
+        drawPlanetSprite(ctx, planet, w/2, h/2, 80, time, false);
     }, [planet]);
 
     // Calculate Reduction
@@ -54,7 +44,12 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, spaces
                      {planet.completed && <span className="bg-green-600 text-white text-[10px] px-2 py-0.5 font-bold tracking-widest uppercase inline-block mt-1">{t('CLEARED_TAG')}</span>}
                  </div>
                  <div className="w-24 h-24 border border-blue-900/50 rounded-full overflow-hidden relative shadow-[0_0_20px_rgba(0,0,0,0.5)]">
-                     <canvas ref={canvasRef} width={96} height={96} className="w-full h-full"></canvas>
+                     <CanvasView 
+                        width={96} 
+                        height={96} 
+                        className="w-full h-full" 
+                        draw={handleDraw}
+                     />
                      <div className="absolute inset-0 rounded-full shadow-[inset_0_0_10px_rgba(0,0,0,0.8)] pointer-events-none"></div>
                  </div>
              </div>

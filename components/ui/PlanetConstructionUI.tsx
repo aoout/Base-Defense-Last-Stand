@@ -1,38 +1,30 @@
 
-import React, { useRef, useEffect, useState } from 'react';
-import { GameState, PlanetBuildingType, Planet } from '../../types';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { PlanetBuildingType } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawPlanetSprite } from '../../utils/renderers';
 import { GAS_INFO } from '../../data/world';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
+import { CanvasView } from './common/CanvasView';
 
-interface PlanetConstructionUIProps {
-    state: GameState;
-    onClose: () => void;
-    onConstruct: (planetId: string, type: PlanetBuildingType, slotIndex: number) => void;
-    t: (key: string, params?: any) => string;
-}
-
-export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ state, onClose, onConstruct, t }) => {
+export const PlanetConstructionUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
-    // Planet Animation
-    useEffect(() => {
+    const handleConstruct = (planetId: string, type: PlanetBuildingType, slotIndex: number) => {
+        engine.constructBuilding(planetId, type, slotIndex);
+    }
+
+    const handleClose = () => {
+        engine.exitPlanetConstruction();
+    }
+
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
         if (!planet) return;
-        const renderPreview = (time: number) => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            const w = canvasRef.current.width; 
-            const h = canvasRef.current.height; 
-            ctx.clearRect(0, 0, w, h); 
-            drawPlanetSprite(ctx, planet, w/2, h/2, 120, time, false);
-            requestRef.current = requestAnimationFrame(renderPreview);
-        };
-        requestRef.current = requestAnimationFrame(renderPreview);
-        return () => cancelAnimationFrame(requestRef.current);
+        drawPlanetSprite(ctx, planet, w/2, h/2, 120, time, false);
     }, [planet]);
 
     if (!planet) return null;
@@ -72,7 +64,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                 <button 
                     onClick={() => {
                         if (selectedSlot !== null && canAfford) {
-                            onConstruct(planet.id, type, selectedSlot);
+                            handleConstruct(planet.id, type, selectedSlot);
                             setSelectedSlot(null);
                         }
                     }}
@@ -94,7 +86,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
             title={t('PC_TITLE')}
             subtitle={t('PC_SUB')}
             theme="blue"
-            onClose={onClose}
+            onClose={handleClose}
             maxWidth="max-w-[1350px]"
         >
             <div className="flex-1 flex gap-0 h-full w-full">
@@ -125,7 +117,7 @@ export const PlanetConstructionUI: React.FC<PlanetConstructionUIProps> = ({ stat
                 {/* Center: Planet Viz */}
                 <div className="flex-1 relative flex items-center justify-center bg-slate-950/50">
                     <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(59,130,246,0.05)_0%,transparent_70%)]"></div>
-                    <canvas ref={canvasRef} width={500} height={500} className="relative z-10" />
+                    <CanvasView width={500} height={500} className="relative z-10" draw={handleDraw} />
                     
                     <div className="absolute bottom-8 left-8 text-xs text-blue-500 font-mono">
                         <div>RADIUS: {radiusKm} KM</div>

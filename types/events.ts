@@ -1,0 +1,150 @@
+
+import { DamageSource, FloatingTextType, WeaponType, AllyOrder, TurretType } from './enums';
+import { WeaponModule } from './items';
+import { GalaxyConfig } from './world';
+
+export enum GameEventType {
+    // Spawning
+    SPAWN_PROJECTILE = 'SPAWN_PROJECTILE',
+    SPAWN_PARTICLE = 'SPAWN_PARTICLE',
+    SPAWN_TOXIC_ZONE = 'SPAWN_TOXIC_ZONE',
+    SPAWN_BLOOD_STAIN = 'SPAWN_BLOOD_STAIN',
+    
+    // Combat
+    DAMAGE_PLAYER = 'DAMAGE_PLAYER',
+    DAMAGE_BASE = 'DAMAGE_BASE',
+    DAMAGE_ENEMY = 'DAMAGE_ENEMY',
+    DAMAGE_AREA = 'DAMAGE_AREA',
+    
+    // Audio & UI
+    PLAY_SOUND = 'PLAY_SOUND',
+    SHOW_FLOATING_TEXT = 'SHOW_FLOATING_TEXT',
+    
+    // Game State
+    MISSION_COMPLETE = 'MISSION_COMPLETE',
+
+    // Player Actions (Input)
+    PLAYER_SWITCH_WEAPON = 'PLAYER_SWITCH_WEAPON',
+    PLAYER_RELOAD = 'PLAYER_RELOAD',
+    PLAYER_THROW_GRENADE = 'PLAYER_THROW_GRENADE',
+
+    // Shop & Inventory Actions
+    SHOP_PURCHASE = 'SHOP_PURCHASE',
+    SHOP_EQUIP_MODULE = 'SHOP_EQUIP_MODULE',
+    SHOP_UNEQUIP_MODULE = 'SHOP_UNEQUIP_MODULE',
+    SHOP_SWAP_LOADOUT = 'SHOP_SWAP_LOADOUT',
+
+    // Defense & Tactical Actions
+    DEFENSE_ISSUE_ORDER = 'DEFENSE_ISSUE_ORDER',
+    DEFENSE_INTERACT = 'DEFENSE_INTERACT',
+    DEFENSE_UPGRADE_TURRET = 'DEFENSE_UPGRADE_TURRET',
+    DEFENSE_CLOSE_MENU = 'DEFENSE_CLOSE_MENU'
+}
+
+export interface SpawnProjectileEvent {
+    x: number;
+    y: number;
+    targetX: number;
+    targetY: number;
+    speed: number;
+    damage: number;
+    fromPlayer: boolean;
+    color: string;
+    homingTargetId?: string;
+    isHoming?: boolean;
+    createsToxicZone?: boolean;
+    maxRange?: number;
+    source: DamageSource;
+    activeModules?: WeaponModule[];
+}
+
+export interface SpawnParticleEvent {
+    x: number;
+    y: number;
+    color: string;
+    count: number;
+    speed: number;
+}
+
+export interface SpawnToxicZoneEvent {
+    x: number;
+    y: number;
+}
+
+export interface SpawnBloodStainEvent {
+    x: number;
+    y: number;
+    color: string;
+    maxHp: number;
+}
+
+export interface DamagePlayerEvent {
+    amount: number;
+}
+
+export interface DamageBaseEvent {
+    amount: number;
+}
+
+export interface DamageEnemyEvent {
+    targetId: string;
+    amount: number;
+    source: DamageSource;
+}
+
+export interface DamageAreaEvent {
+    x: number;
+    y: number;
+    radius: number;
+    damage: number;
+}
+
+export interface PlaySoundEvent {
+    type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE';
+    variant?: WeaponType | number | boolean; // WeaponType, TurretLevel, isBoss
+}
+
+export interface ShowFloatingTextEvent {
+    text: string;
+    x: number;
+    y: number;
+    color: string;
+    type: FloatingTextType;
+    time?: number;
+}
+
+// Action Payloads
+export interface PlayerSwitchWeaponEvent {
+    index: number;
+}
+
+export interface PlayerReloadEvent {
+    time: number;
+}
+
+export interface ShopPurchaseEvent {
+    itemId: string;
+}
+
+export interface ShopEquipModuleEvent {
+    target: WeaponType | 'GRENADE';
+    moduleId: string;
+}
+
+export interface ShopUnequipModuleEvent {
+    target: WeaponType | 'GRENADE';
+    moduleId: string;
+}
+
+export interface ShopSwapLoadoutEvent {
+    loadoutIndex: number;
+    inventoryIndex: number;
+}
+
+export interface DefenseIssueOrderEvent {
+    order: AllyOrder;
+}
+
+export interface DefenseUpgradeTurretEvent {
+    type: TurretType;
+}

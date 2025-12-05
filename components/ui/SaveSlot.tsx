@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { SaveFile } from '../../types';
+import { useLocale } from '../contexts/LocaleContext';
 
 interface SaveSlotItemProps {
     save: SaveFile;
@@ -8,10 +9,10 @@ interface SaveSlotItemProps {
     onDelete: () => void;
     onPin: () => void;
     onExport: () => void;
-    t: (key: string) => string;
 }
 
-export const SaveSlotItem: React.FC<SaveSlotItemProps> = ({ save, onLoad, onDelete, onPin, onExport, t }) => {
+export const SaveSlotItem: React.FC<SaveSlotItemProps> = ({ save, onLoad, onDelete, onPin, onExport }) => {
+    const { t } = useLocale();
     return (
         <div className={`p-4 border-l-2 flex flex-col gap-2 transition-all relative group ${save.isPinned ? 'bg-blue-900/20 border-blue-400' : 'bg-gray-900/40 border-gray-700 hover:border-blue-500/50'}`}>
             <div className="flex justify-between items-start">

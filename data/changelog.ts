@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.5";
+export const CURRENT_VERSION = "0.9.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.6",
+        date: "2248.06.05",
+        title: "SYSTEM ARCHITECTURE UPDATE",
+        titleCN: "系统架构更新",
+        changes: [
+            "CORE: Major refactor of GameService into modular Managers.",
+            "CORE: Implemented EventBus for decoupled communication.",
+            "SYS: Added StatManager for centralized modifier calculations.",
+            "OPT: Improved Spatial Hashing for collision detection.",
+            "FIX: Resolved state synchronization issues."
+        ],
+        changesCN: [
+            "核心：将 GameService 重构为模块化管理器。",
+            "核心：实现了用于解耦通信的 EventBus。",
+            "系统：添加了 StatManager 用于集中修饰符计算。",
+            "优化：改进了用于碰撞检测的空间哈希算法。",
+            "修复：解决了状态同步问题。"
+        ]
+    },
     {
         version: "0.9.5",
         date: "2248.06.01",

@@ -1,21 +1,23 @@
 
 import React from 'react';
-import { GameState, TurretType } from '../../types';
+import { TurretType, GameEventType, DefenseUpgradeTurretEvent } from '../../types';
 import { TURRET_COSTS, TURRET_STATS } from '../../data/registry';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface TurretUpgradeUIProps {
-    state: GameState;
-    onConfirmUpgrade: (type: TurretType) => void;
-    t: (key: string) => string;
-}
-
-export const TurretUpgradeUI: React.FC<TurretUpgradeUIProps> = ({ state, onConfirmUpgrade, t }) => {
+export const TurretUpgradeUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const p = state.player;
     const turretId = state.activeTurretId;
     
     if (turretId === undefined) return null;
     const turret = state.turretSpots[turretId]?.builtTurret;
     if (!turret) return null;
+
+    const handleConfirmUpgrade = (type: TurretType) => {
+        engine.eventBus.emit<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, { type });
+    };
 
     const upgrades = [
         { type: TurretType.GAUSS, name: t('GAUSS_NAME'), cost: TURRET_COSTS.upgrade_gauss, desc: t('GAUSS_DESC') },
@@ -36,7 +38,7 @@ export const TurretUpgradeUI: React.FC<TurretUpgradeUIProps> = ({ state, onConfi
                             <button 
                                 key={u.type} 
                                 disabled={!canAfford} 
-                                onClick={() => onConfirmUpgrade(u.type)} 
+                                onClick={() => handleConfirmUpgrade(u.type)} 
                                 className={`border-2 p-6 rounded-lg flex flex-col items-center transition-all group ${canAfford ? 'border-gray-700 bg-gray-800 hover:border-emerald-500 hover:bg-gray-700' : 'border-red-900/30 bg-gray-900 opacity-50 cursor-not-allowed'}`}
                             >
                                 <div className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300">{u.name}</div>

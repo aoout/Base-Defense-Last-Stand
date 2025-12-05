@@ -1,27 +1,38 @@
 
-
-
-import { GameEngine } from '../gameService';
-import { WeaponType, ModuleType, DefenseUpgradeType, SpaceshipModuleType, Projectile, DamageSource } from '../../types';
+import { WeaponType, ModuleType, DefenseUpgradeType, GameState, Projectile, DamageSource, GameEventType, SpawnProjectileEvent, PlaySoundEvent, PlayerSwitchWeaponEvent, PlayerReloadEvent, UserAction, StatId } from '../../types';
 import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
+import { EventBus } from '../EventBus';
+import { InputManager } from '../InputManager';
+import { StatManager } from './StatManager';
 
 export class PlayerManager {
-    private engine: GameEngine;
+    private getState: () => GameState;
+    private events: EventBus;
+    private input: InputManager;
+    private stats: StatManager;
 
-    constructor(engine: GameEngine) {
-        this.engine = engine;
+    constructor(getState: () => GameState, eventBus: EventBus, inputManager: InputManager, statManager: StatManager) {
+        this.getState = getState;
+        this.events = eventBus;
+        this.input = inputManager;
+        this.stats = statManager;
+
+        // Subscribe to Input Events
+        this.events.on<PlayerSwitchWeaponEvent>(GameEventType.PLAYER_SWITCH_WEAPON, (e) => this.switchWeapon(e.index));
+        this.events.on<PlayerReloadEvent>(GameEventType.PLAYER_RELOAD, (e) => this.reloadWeapon(e.time));
+        this.events.on(GameEventType.PLAYER_THROW_GRENADE, () => this.throwGrenade());
     }
 
     public update(dt: number, time: number, timeScale: number) {
-        const p = this.engine.state.player;
-        const input = this.engine.input;
+        const p = this.getState().player;
+        const input = this.input;
 
         // 1. Movement
         let dx = 0; let dy = 0;
-        if (input.keys['w'] || input.keys['W']) dy -= 1;
-        if (input.keys['s'] || input.keys['S']) dy += 1;
-        if (input.keys['a'] || input.keys['A']) dx -= 1;
-        if (input.keys['d'] || input.keys['D']) dx += 1;
+        if (input.isActive(UserAction.MOVE_UP)) dy -= 1;
+        if (input.isActive(UserAction.MOVE_DOWN)) dy += 1;
+        if (input.isActive(UserAction.MOVE_LEFT)) dx -= 1;
+        if (input.isActive(UserAction.MOVE_RIGHT)) dx += 1;
         
         if (dx !== 0 || dy !== 0) {
             const len = Math.sqrt(dx*dx + dy*dy);
@@ -33,15 +44,14 @@ export class PlayerManager {
         }
 
         // 2. Aiming
-        const camera = this.engine.state.camera;
+        const camera = this.getState().camera;
         p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
-        p.isAiming = input.mouse.rightDown;
+        p.isAiming = input.isActive(UserAction.ALT_FIRE);
 
         // 3. Combat / Weapon Logic
         this.updateWeapons(dt, time);
 
         // 4. Regeneration Logic
-        // Use engine time instead of Date.now() for consistency across saves/pauses
         if (time - p.lastHitTime > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
             p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
         }
@@ -52,7 +62,7 @@ export class PlayerManager {
     }
 
     private updateWeapons(dt: number, time: number) {
-        const p = this.engine.state.player;
+        const p = this.getState().player;
         const currentWep = p.loadout[p.currentWeaponIndex];
         const wepState = p.weapons[currentWep];
         const wepStats = WEAPONS[currentWep];
@@ -64,7 +74,6 @@ export class PlayerManager {
 
         // Reload Logic
         if (wepState.reloading) {
-            // Module: High Tension Spring (Reload -20%)
             let reloadTime = wepStats.reloadTime;
             if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) {
                 reloadTime *= 0.8;
@@ -72,10 +81,7 @@ export class PlayerManager {
 
             if (time - wepState.reloadStartTime > reloadTime) {
                 wepState.reloading = false;
-                
-                // Calculate ammo needed
                 const needed = wepStats.magSize - wepState.ammoInMag;
-                
                 if (wepState.ammoReserve === Infinity) {
                     wepState.ammoInMag = wepStats.magSize;
                 } else {
@@ -86,14 +92,13 @@ export class PlayerManager {
             }
         } 
         // Firing Logic
-        else if (this.engine.input.mouse.down) {
+        else if (this.input.isActive(UserAction.FIRE)) {
             if (wepState.ammoInMag <= 0) {
                 this.reloadWeapon(time);
             } else if (time - wepState.lastFireTime > wepStats.fireRate) {
                  this.fireWeapon(time, p, wepState, wepStats);
             }
         } else {
-            // Decay consecutive shots (for spool-up mechanics)
             if (time - wepState.lastFireTime > 500) wepState.consecutiveShots = 0;
         }
     }
@@ -105,7 +110,6 @@ export class PlayerManager {
         // Apply Modules
         if (wepState.modules.some((m: any) => m.type === ModuleType.GEL_BARREL)) dmgMult += 0.4;
         if (wepState.modules.some((m: any) => m.type === ModuleType.MICRO_RUPTURER)) dmgMult += 0.6;
-        // Module: High Tension Spring (Damage +20%)
         if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) dmgMult += 0.2;
 
         if (wepState.modules.some((m: any) => m.type === ModuleType.PRESSURIZED_BOLT)) {
@@ -115,10 +119,15 @@ export class PlayerManager {
             wepState.consecutiveShots = 0;
         }
 
-        const finalDmg = wepStats.damage * dmgMult;
+        // Base damage including modules
+        let baseDmg = wepStats.damage * dmgMult;
+        
+        // Apply Global Damage Buffs (Carapace Row Bonuses, Bio Buffs, Modules)
+        // StatManager query for PLAYER_DAMAGE
+        const finalDmg = this.stats.get(StatId.PLAYER_DAMAGE, baseDmg);
+
         const type = wepState.type; 
 
-        // Check Fire Rate (Throttle)
         if (time - wepState.lastFireTime > wepStats.fireRate * fireRateMod) {
             if (type === WeaponType.SG) {
                 const pellets = wepStats.pellets || 8;
@@ -133,51 +142,45 @@ export class PlayerManager {
             
             wepState.ammoInMag--;
             wepState.lastFireTime = time;
-            this.engine.state.stats.shotsFired++;
-            this.engine.audio.playWeaponFire(type);
+            this.getState().stats.shotsFired++;
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: type });
         }
     }
 
     private firePlayerProjectile(x: number, y: number, angle: number, dmg: number, stats: any, type: WeaponType, modules: any[]) {
-        const vx = Math.cos(angle) * stats.projectileSpeed;
-        const vy = Math.sin(angle) * stats.projectileSpeed;
+        const speed = stats.projectileSpeed;
         
-        let color = '#FBBF24'; // Default Yellow-400 (AR/Pistol)
-        if (type === WeaponType.SG) color = '#FCD34D'; // Lighter Yellow
-        if (type === WeaponType.SR) color = '#FFFFFF'; // White tracer
-        if (type === WeaponType.PULSE_RIFLE) color = '#22D3EE'; // Cyan
-        if (type === WeaponType.FLAMETHROWER) color = '#F97316'; // Orange
-        if (type === WeaponType.GRENADE_LAUNCHER) color = '#1F2937'; // Dark Gray (Bomb)
+        let color = '#FBBF24'; 
+        if (type === WeaponType.SG) color = '#FCD34D';
+        if (type === WeaponType.SR) color = '#FFFFFF';
+        if (type === WeaponType.PULSE_RIFLE) color = '#22D3EE';
+        if (type === WeaponType.FLAMETHROWER) color = '#F97316';
+        if (type === WeaponType.GRENADE_LAUNCHER) color = '#1F2937';
         
-        // Module: Kinetic Stabilizer (Force Piercing)
-        const hasKineticStabilizer = modules.some(m => m.type === ModuleType.KINETIC_STABILIZER);
-        const isPiercing = stats.isPiercing || hasKineticStabilizer;
+        const dist = 1000;
+        const targetX = x + Math.cos(angle) * dist;
+        const targetY = y + Math.sin(angle) * dist;
 
-        const proj: Projectile = {
-            id: `proj-${Date.now()}-${Math.random()}`,
-            x: x + Math.cos(angle) * 20, 
-            y: y + Math.sin(angle) * 20,
-            vx,
-            vy,
-            damage: dmg,
-            color,
-            radius: type === WeaponType.GRENADE_LAUNCHER ? 6 : 4,
-            rangeRemaining: stats.range,
-            fromPlayer: true,
-            angle,
-            isExplosive: stats.isExplosive,
-            isPiercing: isPiercing,
-            weaponType: type,
-            maxRange: stats.range,
+        const spawnX = x + Math.cos(angle) * 20;
+        const spawnY = y + Math.sin(angle) * 20;
+
+        this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+            x: spawnX, 
+            y: spawnY, 
+            targetX, 
+            targetY, 
+            speed, 
+            damage: dmg, 
+            fromPlayer: true, 
+            color, 
+            maxRange: stats.range, 
             source: DamageSource.PLAYER,
-            activeModules: modules // Pass modules for hit logic
-        };
-        
-        this.engine.projectileManager.registerProjectile(proj);
+            activeModules: modules
+        });
     }
 
     public reloadWeapon(time: number) {
-        const p = this.engine.state.player;
+        const p = this.getState().player;
         const w = p.weapons[p.loadout[p.currentWeaponIndex]];
         
         if (!w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
@@ -190,37 +193,51 @@ export class PlayerManager {
 
     public switchWeapon(index: number) {
         if (index >= 0 && index < 4) {
-            this.engine.state.player.currentWeaponIndex = index;
-            const p = this.engine.state.player;
+            this.getState().player.currentWeaponIndex = index;
+            const p = this.getState().player;
             Object.values(p.weapons).forEach(w => w.reloading = false);
         }
     }
 
     public throwGrenade() {
-        const p = this.engine.state.player;
+        const p = this.getState().player;
         if (p.grenades > 0) {
             p.grenades--;
             const targetX = p.x + Math.cos(p.angle) * 300;
             const targetY = p.y + Math.sin(p.angle) * 300;
             
-            this.engine.spawnProjectile(p.x, p.y, targetX, targetY, 12, PLAYER_STATS.grenadeDamage, true, '#f97316', undefined, false, false, 1000, DamageSource.PLAYER);
-            const proj = this.engine.state.projectiles[this.engine.state.projectiles.length-1];
-            if(proj) proj.isExplosive = true;
-            this.engine.audio.playGrenadeThrow();
+            // Grenade damage could also be boosted by stats
+            const dmg = this.stats.get(StatId.PLAYER_DAMAGE, PLAYER_STATS.grenadeDamage);
+
+            this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                x: p.x, 
+                y: p.y, 
+                targetX, 
+                targetY, 
+                speed: 12, 
+                damage: dmg, 
+                fromPlayer: true, 
+                color: '#f97316', 
+                maxRange: 1000, 
+                source: DamageSource.PLAYER,
+            });
+            
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'GRENADE' });
         }
     }
 
     public damagePlayer(amount: number) {
-        const p = this.engine.state.player;
+        const state = this.getState();
+        const p = state.player;
         
-        if (p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)) {
-            amount *= 0.8; 
-        }
+        // Apply Global Damage Taken Multiplier (Impact Plate)
+        const mult = this.stats.get(StatId.PLAYER_DMG_TAKEN_MULT, 1.0);
+        amount *= mult;
         
         let actualDmg = amount;
         
         if (p.armor > 0) {
-            let mitigation = 0.8; // Default 80% mitigation
+            let mitigation = 0.8; 
             if (p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)) mitigation = 0.9;
             
             const armorDmg = amount * mitigation;
@@ -236,11 +253,11 @@ export class PlayerManager {
         }
 
         p.hp -= actualDmg;
-        p.lastHitTime = this.engine.time.now; // FIXED: Using unified time
+        p.lastHitTime = Date.now(); 
         
         if (p.hp <= 0) {
-            this.engine.state.isGameOver = true;
-            this.engine.state.isPaused = true;
+            state.isGameOver = true;
+            state.isPaused = true;
         }
     }
 }

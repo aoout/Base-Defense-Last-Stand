@@ -1,16 +1,17 @@
 
 import React, { useEffect, useState } from 'react';
-import { GameState } from '../../types';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface PlanetaryYieldReportProps {
-    state: GameState;
-    onClaim: () => void;
-    t: (key: string, params?: any) => string;
-}
-
-export const PlanetaryYieldReport: React.FC<PlanetaryYieldReportProps> = ({ state, onClaim, t }) => {
+export const PlanetaryYieldReport: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const report = state.pendingYieldReport;
     const [animatedTotal, setAnimatedTotal] = useState(0);
+
+    const handleClaim = () => {
+        engine.claimYields();
+    }
 
     useEffect(() => {
         if (!report) return;
@@ -86,7 +87,7 @@ export const PlanetaryYieldReport: React.FC<PlanetaryYieldReportProps> = ({ stat
                 </div>
 
                 <button 
-                    onClick={onClaim}
+                    onClick={handleClaim}
                     className="group w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-[0.2em] text-lg uppercase transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] relative overflow-hidden"
                 >
                     <span className="relative z-10">{t('REPORT_TRANSFER')}</span>

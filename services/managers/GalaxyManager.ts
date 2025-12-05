@@ -1,8 +1,9 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig } from '../../types';
+import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { generateTerrain, generatePlanets } from '../../utils/worldGenerator';
+import { generateSectorName } from '../../utils/nameGenerator';
 import { GAS_INFO } from '../../data/world';
 
 export class GalaxyManager {
@@ -13,7 +14,6 @@ export class GalaxyManager {
     }
 
     public deployToPlanet(id: string) {
-        // Access state fresh to find the planet (before reset)
         const planets = this.engine.state.planets;
         const targetPlanet = planets.find(p => p.id === id);
         
@@ -25,14 +25,13 @@ export class GalaxyManager {
         const currentScraps = this.engine.state.player.score;
         let dropCostPercent = targetPlanet.landingDifficulty / 100;
   
-        if (this.engine.state.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
-            dropCostPercent *= 0.5;
-        }
+        // Apply Reductions via StatManager
+        const reductionMod = this.engine.statManager.get(StatId.DROP_COST_REDUCTION, 0);
+        dropCostPercent = dropCostPercent * (1 - reductionMod);
   
         const dropCost = Math.floor(currentScraps * dropCostPercent);
         const remainingScraps = Math.max(0, currentScraps - dropCost);
   
-        // Preserve persistent state BEFORE reset
         const oldState = this.engine.state;
         const persistentState = {
             weapons: oldState.player.weapons,
@@ -42,16 +41,13 @@ export class GalaxyManager {
             freeModules: oldState.player.freeModules,
             grenadeModules: oldState.player.grenadeModules,
             grenades: oldState.player.grenades,
-            encounteredEnemies: [...oldState.stats.encounteredEnemies]
+            encounteredEnemies: [...oldState.stats.encounteredEnemies],
+            sectorName: oldState.sectorName
         };
   
-        // Reset the world state (this replaces this.engine.state with a new object)
         this.engine.reset(false);
         
-        // CRITICAL: Get the NEW state object after reset
         const newState = this.engine.state;
-
-        // Restore player state & set new score on the NEW state
         newState.player.score = remainingScraps;
         newState.player.weapons = persistentState.weapons;
         newState.player.loadout = persistentState.loadout;
@@ -61,15 +57,15 @@ export class GalaxyManager {
         newState.player.grenadeModules = persistentState.grenadeModules;
         newState.player.grenades = persistentState.grenades;
         newState.stats.encounteredEnemies = persistentState.encounteredEnemies;
+        newState.sectorName = persistentState.sectorName;
   
         newState.gameMode = GameMode.EXPLORATION;
         newState.selectedPlanetId = id;
         newState.currentPlanet = targetPlanet;
         newState.appMode = AppMode.GAMEPLAY;
         
-        this.engine.spaceshipManager.applyPassiveBonuses();
+        this.engine.spaceshipManager.registerModifiers();
         
-        // Full heal the base
         newState.base.hp = newState.base.maxHp;
   
         if (targetPlanet.missionType === MissionType.OFFENSE) {
@@ -77,11 +73,9 @@ export class GalaxyManager {
             newState.wave = 0; 
             this.engine.enemyManager.spawnHiveMother(targetPlanet);
         } else {
-            // Initial wave spawn calculation for Exploration
             newState.enemiesPendingSpawn = Math.ceil((12 + 5 * 1) * targetPlanet.geneStrength); 
         }
   
-        // UI Messages
         setTimeout(() => {
           this.engine.addMessage(this.engine.t('ORBITAL_DROP_COST', {0: dropCost}), newState.player.x, newState.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
           
@@ -98,7 +92,6 @@ export class GalaxyManager {
           }
         }, 1000);
         
-        // Generate Terrain
         newState.terrain = generateTerrain(targetPlanet.visualType, targetPlanet.biome);
     }
 
@@ -160,7 +153,6 @@ export class GalaxyManager {
 
     public triggerGalacticEvent() {
         const state = this.engine.state;
-        // 8% chance
         const roll = Math.random();
         if (roll > 0.08) return;
   
@@ -171,7 +163,6 @@ export class GalaxyManager {
         else if (eventRoll < 0.66) eventType = GalacticEventType.INVASION;
         else eventType = GalacticEventType.SALVAGE;
   
-        // Validation for INVASION
         if (eventType === GalacticEventType.INVASION) {
             const conqueredPlanets = state.planets.filter(p => p.completed);
             if (conqueredPlanets.length <= 2) {
@@ -197,10 +188,8 @@ export class GalaxyManager {
                 target.buildings = []; 
                 target.geneStrength += 0.2 + Math.random() * 0.3; 
                 target.missionType = MissionType.OFFENSE; 
-                
                 event.targetPlanetId = target.id;
             } else {
-                // Fallback if filtering failed weirdly
                 return;
             }
         } 
@@ -215,6 +204,7 @@ export class GalaxyManager {
 
     public scanSector(config: GalaxyConfig) {
         this.engine.state.planets = generatePlanets(config);
+        this.engine.state.sectorName = generateSectorName(); 
         this.engine.state.selectedPlanetId = null;
         this.engine.addMessage(this.engine.t('SCAN_COMPLETE'), WORLD_WIDTH / 2, WORLD_HEIGHT / 2, '#06b6d4', FloatingTextType.SYSTEM);
     }

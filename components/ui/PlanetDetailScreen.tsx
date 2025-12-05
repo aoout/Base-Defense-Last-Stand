@@ -1,8 +1,12 @@
-import React, { useRef, useEffect, useState } from 'react';
+
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import { Planet, MissionType, AtmosphereGas } from '../../types';
 import { CloseButton } from './Shared';
 import { drawPlanetSprite } from '../../utils/renderers';
+import { useLocale } from '../contexts/LocaleContext';
+import { CanvasView } from './common/CanvasView';
+import { GAS_INFO } from '../../data/world';
 
 interface PlanetDetailScreenProps {
     planet: Planet;
@@ -12,7 +16,6 @@ interface PlanetDetailScreenProps {
     onClose: () => void;
     onDeploy: () => void;
     onOpenConstruction: () => void;
-    t: (key: string, params?: any) => string;
 }
 
 export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({ 
@@ -22,29 +25,15 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
     canAfford, 
     onClose, 
     onDeploy, 
-    onOpenConstruction,
-    t 
+    onOpenConstruction
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
+    const { t } = useLocale();
     const chartRef = useRef<SVGSVGElement>(null);
     const [hoveredGas, setHoveredGas] = useState<AtmosphereGas | null>(null);
 
-    // Planet Animation Loop
-    useEffect(() => {
-        const renderPreview = (time: number) => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            const w = canvasRef.current.width; 
-            const h = canvasRef.current.height; 
-            ctx.clearRect(0, 0, w, h); 
-            // Transparent background for canvas itself
-            drawPlanetSprite(ctx, planet, w/2, h/2, 120, time, false);
-            requestRef.current = requestAnimationFrame(renderPreview);
-        };
-        requestRef.current = requestAnimationFrame(renderPreview);
-        return () => cancelAnimationFrame(requestRef.current);
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        // Transparent background used here so it blends with UI bg
+        drawPlanetSprite(ctx, planet, w/2, h/2, 120, time, false);
     }, [planet]);
 
     // D3 Atmosphere Chart
@@ -139,7 +128,12 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
                     <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-slate-900">
                         <div className="aspect-square bg-black/40 border border-cyan-900/30 flex items-center justify-center relative overflow-hidden shrink-0">
                             <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_20%,rgba(0,0,0,0.8)_100%)] z-10 pointer-events-none"></div>
-                            <canvas ref={canvasRef} width={400} height={400} className="relative z-0 w-full h-full" />
+                            <CanvasView 
+                                width={400} 
+                                height={400} 
+                                className="relative z-0 w-full h-full" 
+                                draw={handleDraw}
+                            />
                             
                             {/* Overlay Stats */}
                             <div className="absolute bottom-4 left-4 z-20 text-xs font-mono text-cyan-300">

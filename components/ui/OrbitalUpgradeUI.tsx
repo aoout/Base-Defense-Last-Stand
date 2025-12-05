@@ -1,19 +1,24 @@
 
 import React, { useState } from 'react';
-import { GameState, OrbitalUpgradeEffect, OrbitalUpgradeNode } from '../../types';
+import { OrbitalUpgradeEffect, OrbitalUpgradeNode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface OrbitalUpgradeUIProps {
-    state: GameState;
-    onPurchase: (nodeId: string) => void;
-    onClose: () => void;
-    t: (key: string) => string;
-}
-
-export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPurchase, onClose, t }) => {
+export const OrbitalUpgradeUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const s = state.spaceship;
     const tree = s.orbitalUpgradeTree;
     const [hoveredNode, setHoveredNode] = useState<OrbitalUpgradeNode | null>(null);
+
+    const handlePurchase = (nodeId: string) => {
+        engine.purchaseOrbitalUpgrade(nodeId);
+    }
+
+    const handleClose = () => {
+        engine.exitOrbitalUpgradeMenu();
+    }
 
     // Calculate detailed stats
     const baseDamage = 400;
@@ -43,7 +48,7 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
             title={`${t('ORBITAL_TITLE')} ${t('CALIBRATION')}`}
             subtitle={t('ORBITAL_SUB')}
             theme="cyan"
-            onClose={onClose}
+            onClose={handleClose}
             headerRight={headerRight}
             maxWidth="max-w-[1350px]"
         >
@@ -143,7 +148,7 @@ export const OrbitalUpgradeUI: React.FC<OrbitalUpgradeUIProps> = ({ state, onPur
                                                 key={node.id}
                                                 onMouseEnter={() => setHoveredNode(node)}
                                                 onMouseLeave={() => setHoveredNode(null)}
-                                                onClick={() => !isLocked && !node.purchased && isAffordable && onPurchase(node.id)}
+                                                onClick={() => !isLocked && !node.purchased && isAffordable && handlePurchase(node.id)}
                                                 className={`
                                                     w-10 h-10 rotate-45 border-2 transition-all duration-300 flex items-center justify-center relative group
                                                     ${statusColor}

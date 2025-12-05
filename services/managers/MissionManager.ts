@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, SpecialEventType, FloatingTextType, BioBuffType } from '../../types';
+import { GameMode, MissionType, SpecialEventType, FloatingTextType, StatId } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export class MissionManager {
@@ -17,7 +17,6 @@ export class MissionManager {
 
         // Offense Mode (No waves, just boss)
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE) {
-            // Logic handled via EnemyManager boss death triggers
             return;
         }
 
@@ -25,7 +24,6 @@ export class MissionManager {
         state.waveTimeRemaining -= dt;
         state.spawnTimer += dt;
         
-        // Dynamic Spawn Rate based on wave intensity
         let spawnInterval = 500;
         if (state.activeSpecialEvent === SpecialEventType.FRENZY) spawnInterval = 250;
         else if (state.wave > 10) spawnInterval = 400;
@@ -44,7 +42,6 @@ export class MissionManager {
             const isLastWave = isExplorationDefense && state.wave >= (state.currentPlanet?.totalWaves || 0);
 
             if (isLastWave) {
-                // VICTORY CONDITION CHECK
                 const allEnemiesSpawned = state.enemiesPendingSpawn <= 0;
                 const allEnemiesDefeated = state.enemies.length === 0;
 
@@ -98,7 +95,8 @@ export class MissionManager {
         // Exploration Scaling
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {
             let effectiveStr = state.currentPlanet.geneStrength;
-            const reduction = this.engine.spaceshipManager.getGeneReduction();
+            // Use StatManager instead of helper
+            const reduction = this.engine.statManager.get(StatId.GENE_REDUCTION, 0);
             effectiveStr = Math.max(0.5, effectiveStr - reduction);
             newEnemies = Math.ceil(newEnemies * effectiveStr);
         }
@@ -116,28 +114,23 @@ export class MissionManager {
                                      state.currentPlanet?.missionType === MissionType.DEFENSE;
         const isLastWave = isExplorationDefense && state.wave >= (state.currentPlanet?.totalWaves || 0);
 
-        if (isLastWave) return; // Cannot skip logic on last wave wait
+        if (isLastWave) return;
 
         const elapsed = state.waveDuration - state.waveTimeRemaining;
         
-        if (elapsed >= 10000) { // Can only skip after 10s
+        if (elapsed >= 10000) { 
             const remainingSeconds = Math.max(0, Math.floor(state.waveTimeRemaining / 1000));
             const baseReward = remainingSeconds * state.wave;
             
-            // Apply Bio-Sequencing Bonus
-            const bioBonus = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.LURE_BONUS);
-            const finalReward = Math.floor(baseReward * (1 + bioBonus));
+            // Apply Bio-Sequencing Bonus using StatManager
+            // Note: StatManager uses multipliers on Base Value.
+            // Lure Bonus is Percent Additive. E.g. +30% -> 1.3
+            const finalReward = this.engine.statManager.get(StatId.LURE_BONUS, baseReward);
             
-            state.player.score += finalReward;
-            this.engine.addMessage(this.engine.t('LURE_REWARD', {0: finalReward}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
+            state.player.score += Math.floor(finalReward);
+            this.engine.addMessage(this.engine.t('LURE_REWARD', {0: Math.floor(finalReward)}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
             
-            if (bioBonus > 0) {
-                // Optional: Show bonus breakdown
-                // this.engine.addMessage(`(BIO-BONUS +${Math.round(bioBonus*100)}%)`, state.player.x, state.player.y - 100, '#4ade80', FloatingTextType.SYSTEM);
-            }
-
             this.engine.audio.playBaseDamage(); 
-            
             this.nextWave();
         } else {
             this.engine.addMessage(this.engine.t('LURE_PENDING'), state.player.x, state.player.y - 80, 'red', FloatingTextType.SYSTEM);

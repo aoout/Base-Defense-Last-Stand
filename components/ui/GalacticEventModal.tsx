@@ -1,15 +1,16 @@
 
 import React from 'react';
-import { GalacticEvent, GalacticEventType, GameState } from '../../types';
+import { GalacticEventType } from '../../types';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface GalacticEventModalProps {
-    event: GalacticEvent;
-    state: GameState;
-    onClose: () => void;
-    t: (key: string, params?: any) => string;
-}
+export const GalacticEventModal: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
+    const event = state.activeGalacticEvent;
 
-export const GalacticEventModal: React.FC<GalacticEventModalProps> = ({ event, state, onClose, t }) => {
+    if (!event) return null;
+
     let titleKey = '';
     let descKey = '';
     let effectKey = '';
@@ -74,7 +75,7 @@ export const GalacticEventModal: React.FC<GalacticEventModalProps> = ({ event, s
                 </div>
 
                 <button 
-                    onClick={onClose}
+                    onClick={() => engine.closeGalacticEvent()}
                     className="px-12 py-3 bg-black/60 border-2 border-white/50 hover:bg-white hover:text-black transition-all font-black tracking-[0.2em] uppercase text-sm"
                 >
                     {t('ACKNOWLEDGE')}

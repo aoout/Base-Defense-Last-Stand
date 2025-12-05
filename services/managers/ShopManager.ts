@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, WeaponModule } from '../../types';
+import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, WeaponModule, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent } from '../../types';
 import { SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS, SPACESHIP_MODULES } from '../../data/registry';
 
 export class ShopManager {
@@ -8,6 +8,12 @@ export class ShopManager {
 
     constructor(engine: GameEngine) {
         this.engine = engine;
+        
+        // Subscribe to Shop Events
+        this.engine.eventBus.on<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, (e) => this.purchaseItem(e.itemId));
+        this.engine.eventBus.on<ShopEquipModuleEvent>(GameEventType.SHOP_EQUIP_MODULE, (e) => this.equipModule(e.target, e.moduleId));
+        this.engine.eventBus.on<ShopUnequipModuleEvent>(GameEventType.SHOP_UNEQUIP_MODULE, (e) => this.unequipModule(e.target, e.moduleId));
+        this.engine.eventBus.on<ShopSwapLoadoutEvent>(GameEventType.SHOP_SWAP_LOADOUT, (e) => this.swapLoadoutAndInventory(e.loadoutIndex, e.inventoryIndex));
     }
 
     public purchaseItem(itemKey: string) {

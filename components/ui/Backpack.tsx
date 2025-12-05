@@ -1,8 +1,11 @@
+
 import React, { useState } from 'react';
-import { GameState, WeaponType, ModuleType, WeaponModule, DefenseUpgradeType } from '../../types';
+import { WeaponType, ModuleType, WeaponModule, DefenseUpgradeType, GameEventType, ShopSwapLoadoutEvent } from '../../types';
 import { INVENTORY_SIZE } from '../../constants';
-import { WEAPONS, PLAYER_STATS, MODULE_STATS, DEFENSE_UPGRADE_INFO } from '../../data/registry';
+import { MODULE_STATS, PLAYER_STATS } from '../../data/registry';
 import { CloseButton, WeaponIcon } from './Shared';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
 // Helper for Assembly UI to check compat
 function checkCompatibility(modType: ModuleType, target: WeaponType | 'GRENADE'): boolean {
@@ -11,7 +14,9 @@ function checkCompatibility(modType: ModuleType, target: WeaponType | 'GRENADE')
     return true;
 }
 
-const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state: GameState, onClose: () => void, t: any }> = ({ weaponType, state, onClose, t }) => {
+const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', onClose: () => void }> = ({ weaponType, onClose }) => {
+    const { state } = useGame();
+    const { t } = useLocale();
     const p = state.player;
     
     // Determine target modules array and slots
@@ -126,10 +131,20 @@ const WeaponAssemblyModal: React.FC<{ weaponType: WeaponType | 'GRENADE', state:
     );
 };
 
-export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: number, iIdx: number) => void, onClose: () => void, t: any }> = ({ state, onSwapItems, onClose, t }) => {
+export const TacticalBackpack: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const p = state.player;
     const [draggedItemIdx, setDraggedItemIdx] = useState<number | null>(null);
     const [assemblyTarget, setAssemblyTarget] = useState<WeaponType | 'GRENADE' | null>(null);
+
+    const handleSwapItems = (lIdx: number, iIdx: number) => {
+        engine.eventBus.emit<ShopSwapLoadoutEvent>(GameEventType.SHOP_SWAP_LOADOUT, { loadoutIndex: lIdx, inventoryIndex: iIdx });
+    };
+
+    const handleClose = () => {
+        engine.toggleInventory();
+    }
 
     const handleDragStart = (e: React.DragEvent, idx: number) => {
         setDraggedItemIdx(idx);
@@ -139,7 +154,7 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
     const handleDrop = (e: React.DragEvent, loadoutIdx: number) => {
         e.preventDefault();
         if (draggedItemIdx !== null) {
-            onSwapItems(loadoutIdx, draggedItemIdx);
+            handleSwapItems(loadoutIdx, draggedItemIdx);
             setDraggedItemIdx(null);
         }
     };
@@ -156,16 +171,14 @@ export const TacticalBackpack: React.FC<{ state: GameState, onSwapItems: (lIdx: 
             {assemblyTarget && (
                 <WeaponAssemblyModal 
                     weaponType={assemblyTarget} 
-                    state={state} 
                     onClose={() => setAssemblyTarget(null)} 
-                    t={t}
                 />
             )}
 
             <div className="relative w-[900px] bg-gray-800 border-2 border-gray-600 shadow-2xl p-8 flex gap-8 rounded-lg">
                 
                 {/* Close Button */}
-                <CloseButton onClick={onClose} colorClass="border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" />
+                <CloseButton onClick={handleClose} colorClass="border-gray-500 text-gray-400 hover:text-white hover:bg-gray-700" />
 
                 {/* Left Column: Stats */}
                 <div className="w-1/4 flex flex-col gap-4">

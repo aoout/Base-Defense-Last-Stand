@@ -1,14 +1,10 @@
+
 import React, { useState } from 'react';
-import { GameState, GameSettings, DefenseUpgradeType, ModuleType, WeaponType } from '../../types';
+import { DefenseUpgradeType, ModuleType, WeaponType, GameEventType, ShopPurchaseEvent } from '../../types';
 import { PLAYER_STATS, SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
-
-interface ShopModalProps {
-    state: GameState;
-    onPurchase: (item: string) => void;
-    onClose: () => void;
-    t: (key: string, params?: any) => string;
-}
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
 interface ShopItemProps { 
     name: string; 
@@ -32,9 +28,19 @@ const ShopItem: React.FC<ShopItemProps> = ({ name, amount, cost, canAfford, disa
     </button>
 );
 
-export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose, t }) => {
+export const ShopModal: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const p = state.player;
     const [activeTab, setActiveTab] = useState<'AMMO' | 'WEAPONS' | 'DEFENSE' | 'MODULES'>('AMMO');
+
+    const handlePurchase = (item: string) => {
+        engine.eventBus.emit<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, { itemId: item });
+    };
+
+    const handleClose = () => {
+        engine.state.isShopOpen = false;
+    };
 
     const getCompatText = (modType: ModuleType) => {
         const config = MODULE_STATS[modType] as any;
@@ -57,7 +63,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                <div className="absolute top-0 right-0 p-32 bg-yellow-600/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
 
                {/* Close Button Top Right (Fixed) */}
-               <CloseButton onClick={onClose} colorClass="border-yellow-600 text-yellow-500 hover:bg-yellow-900/40 hover:text-yellow-300" />
+               <CloseButton onClick={handleClose} colorClass="border-yellow-600 text-yellow-500 hover:bg-yellow-900/40 hover:text-yellow-300" />
 
                {/* Header */}
                <div className="flex justify-between items-end mb-6 border-b border-gray-800 pb-4 mt-8">
@@ -96,28 +102,28 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 amount={t('AMMO_AR_DESC')}
                                 cost={SHOP_PRICES.AR_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.AR_AMMO}
-                                onClick={() => onPurchase('AR_AMMO')}
+                                onClick={() => handlePurchase('AR_AMMO')}
                             />
                             <ShopItem 
                                 name={t('AMMO_SG_NAME')}
                                 amount={t('AMMO_SG_DESC')}
                                 cost={SHOP_PRICES.SG_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.SG_AMMO}
-                                onClick={() => onPurchase('SG_AMMO')}
+                                onClick={() => handlePurchase('SG_AMMO')}
                             />
                             <ShopItem 
                                 name={t('AMMO_SR_NAME')} 
                                 amount={t('AMMO_SR_DESC')}
                                 cost={SHOP_PRICES.SR_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.SR_AMMO}
-                                onClick={() => onPurchase('SR_AMMO')}
+                                onClick={() => handlePurchase('SR_AMMO')}
                             />
                             <ShopItem 
                                 name={t('AMMO_GRENADE_NAME')}
                                 amount={t('AMMO_GRENADE_DESC')}
                                 cost={SHOP_PRICES.GRENADE} 
                                 canAfford={p.score >= SHOP_PRICES.GRENADE && p.grenades < PLAYER_STATS.maxGrenades}
-                                onClick={() => onPurchase('GRENADE')}
+                                onClick={() => handlePurchase('GRENADE')}
                                 disabled={p.grenades >= PLAYER_STATS.maxGrenades}
                             />
                             
@@ -127,21 +133,21 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 amount={t('AMMO_PULSE_DESC')}
                                 cost={SHOP_PRICES.PULSE_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.PULSE_AMMO}
-                                onClick={() => onPurchase('PULSE_AMMO')}
+                                onClick={() => handlePurchase('PULSE_AMMO')}
                             />
                             <ShopItem 
                                 name={t('AMMO_FLAME_NAME')}
                                 amount={t('AMMO_FLAME_DESC')}
                                 cost={SHOP_PRICES.FLAME_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.FLAME_AMMO}
-                                onClick={() => onPurchase('FLAME_AMMO')}
+                                onClick={() => handlePurchase('FLAME_AMMO')}
                             />
                              <ShopItem 
                                 name={t('AMMO_GL_NAME')}
                                 amount={t('AMMO_GL_DESC')}
                                 cost={SHOP_PRICES.GL_AMMO} 
                                 canAfford={p.score >= SHOP_PRICES.GL_AMMO}
-                                onClick={() => onPurchase('GL_AMMO')}
+                                onClick={() => handlePurchase('GL_AMMO')}
                             />
                         </div>
                    )}
@@ -153,7 +159,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 amount={t('WEAPON_PULSE_DESC')}
                                 cost={SHOP_PRICES.WEAPON_PULSE} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_PULSE}
-                                onClick={() => onPurchase('WEAPON_PULSE')}
+                                onClick={() => handlePurchase('WEAPON_PULSE')}
                                 highlight
                             />
                             <ShopItem 
@@ -161,7 +167,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 amount={t('WEAPON_FLAME_DESC')}
                                 cost={SHOP_PRICES.WEAPON_FLAME} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_FLAME}
-                                onClick={() => onPurchase('WEAPON_FLAME')}
+                                onClick={() => handlePurchase('WEAPON_FLAME')}
                                 highlight
                             />
                             <ShopItem 
@@ -169,7 +175,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 amount={t('WEAPON_GL_DESC')}
                                 cost={SHOP_PRICES.WEAPON_GL} 
                                 canAfford={p.score >= SHOP_PRICES.WEAPON_GL}
-                                onClick={() => onPurchase('WEAPON_GL')}
+                                onClick={() => handlePurchase('WEAPON_GL')}
                                 highlight
                             />
                         </div>
@@ -183,7 +189,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL].cost}
                                 canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.INFECTION_DISPOSAL].cost}
                                 disabled={p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL)}
-                                onClick={() => onPurchase(DefenseUpgradeType.INFECTION_DISPOSAL)}
+                                onClick={() => handlePurchase(DefenseUpgradeType.INFECTION_DISPOSAL)}
                                 label={p.upgrades.includes(DefenseUpgradeType.INFECTION_DISPOSAL) ? t('OWNED') : undefined}
                                 highlight
                             />
@@ -193,7 +199,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.SPORE_BARRIER].cost}
                                 canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.SPORE_BARRIER].cost}
                                 disabled={p.upgrades.includes(DefenseUpgradeType.SPORE_BARRIER)}
-                                onClick={() => onPurchase(DefenseUpgradeType.SPORE_BARRIER)}
+                                onClick={() => handlePurchase(DefenseUpgradeType.SPORE_BARRIER)}
                                 label={p.upgrades.includes(DefenseUpgradeType.SPORE_BARRIER) ? t('OWNED') : undefined}
                                 highlight
                             />
@@ -203,7 +209,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                 cost={DEFENSE_UPGRADE_INFO[DefenseUpgradeType.IMPACT_PLATE].cost}
                                 canAfford={p.score >= DEFENSE_UPGRADE_INFO[DefenseUpgradeType.IMPACT_PLATE].cost}
                                 disabled={p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)}
-                                onClick={() => onPurchase(DefenseUpgradeType.IMPACT_PLATE)}
+                                onClick={() => handlePurchase(DefenseUpgradeType.IMPACT_PLATE)}
                                 label={p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE) ? t('OWNED') : undefined}
                                 highlight
                             />
@@ -228,7 +234,7 @@ export const ShopModal: React.FC<ShopModalProps> = ({ state, onPurchase, onClose
                                         }
                                         cost={stats.cost}
                                         canAfford={p.score >= stats.cost}
-                                        onClick={() => onPurchase(mType)}
+                                        onClick={() => handlePurchase(mType)}
                                         highlight
                                    />
                                );

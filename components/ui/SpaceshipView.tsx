@@ -1,22 +1,13 @@
 
 import React, { useState, useRef } from 'react';
-import { GameState, SpaceshipModuleType } from '../../types';
+import { SpaceshipModuleType, GameEventType, ShopPurchaseEvent } from '../../types';
 import { SPACESHIP_MODULES } from '../../data/registry';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface SpaceshipViewProps {
-    state: GameState;
-    onClose: () => void;
-    onPurchaseModule: (modType: SpaceshipModuleType) => void;
-    onOpenUpgrades: () => void;
-    onOpenCarapaceGrid: () => void;
-    onOpenInfrastructure: () => void;
-    onOpenComputer?: () => void;
-    onOpenBioSequencing?: () => void;
-    onCheat?: () => void;
-    t: (key: string) => string;
-}
-
-export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, onPurchaseModule, onOpenUpgrades, onOpenCarapaceGrid, onOpenInfrastructure, onOpenComputer, onOpenBioSequencing, onCheat, t }) => {
+export const SpaceshipView: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const installed = state.spaceship.installedModules;
     const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
     const [clickCount, setClickCount] = useState(0);
@@ -29,7 +20,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
         setClickCount(newCount);
         
         if (newCount >= 10) {
-            if (onCheat) onCheat();
+            engine.activateBackdoor();
             setClickCount(0);
         } else {
             clickTimerRef.current = setTimeout(() => {
@@ -37,6 +28,25 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
             }, 500); // 0.5s window between clicks
         }
     };
+
+    const handlePurchase = (modType: SpaceshipModuleType) => {
+        engine.eventBus.emit<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, { itemId: modType });
+    };
+
+    const handleOpenBioSequencing = () => {
+        engine.generateBioGrid();
+        engine.enterBioSequencing();
+    }
+
+    const handleOpenInfrastructure = () => {
+        engine.generateInfrastructureOptions();
+        engine.enterInfrastructureResearch();
+    }
+
+    const handleOpenCarapace = () => {
+        engine.generateCarapaceGrid();
+        engine.enterCarapaceGrid();
+    }
 
     return (
         <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col overflow-hidden pointer-events-auto select-none">
@@ -144,7 +154,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                 </div>
                                                 {modType === SpaceshipModuleType.ORBITAL_CANNON && (
                                                     <button 
-                                                        onClick={onOpenUpgrades}
+                                                        onClick={() => engine.enterOrbitalUpgradeMenu()}
                                                         className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
                                                     >
                                                         {t('SYSTEM_UPGRADE')}
@@ -152,7 +162,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                 )}
                                                 {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
                                                     <button 
-                                                        onClick={onOpenCarapaceGrid}
+                                                        onClick={handleOpenCarapace}
                                                         className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
                                                     >
                                                         {t('XENO_MATRIX')}
@@ -160,7 +170,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                 )}
                                                 {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
                                                     <button 
-                                                        onClick={onOpenInfrastructure}
+                                                        onClick={handleOpenInfrastructure}
                                                         className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
                                                     >
                                                         {t('RESEARCH_BTN')}
@@ -168,7 +178,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                                 )}
                                                 {modType === SpaceshipModuleType.BIO_SEQUENCING && (
                                                     <button 
-                                                        onClick={onOpenBioSequencing}
+                                                        onClick={handleOpenBioSequencing}
                                                         className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
                                                     >
                                                         {t('BIO_TITLE')}
@@ -186,7 +196,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                     {/* CORE COMPUTER TERMINAL BUTTON */}
                     <div className="mt-8">
                         <button 
-                            onClick={onOpenComputer}
+                            onClick={() => engine.enterShipComputer()}
                             className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden"
                         >
                             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#00ff00_2px,#00ff00_4px)] opacity-5 pointer-events-none"></div>
@@ -218,7 +228,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
                                     <div className="flex justify-between items-center">
                                         <div className="text-yellow-400 font-mono text-sm font-bold">{mod.cost}</div>
                                         <button 
-                                            onClick={() => onPurchaseModule(modType)}
+                                            onClick={() => handlePurchase(modType)}
                                             disabled={!canAfford}
                                             className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase transition-all
                                                 ${canAfford 
@@ -239,7 +249,7 @@ export const SpaceshipView: React.FC<SpaceshipViewProps> = ({ state, onClose, on
             {/* Bottom Controls */}
             <div className="absolute bottom-8 left-8 z-20 pointer-events-auto">
                 <button 
-                    onClick={onClose}
+                    onClick={() => engine.exitSpaceshipView()}
                     className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white"
                 >
                     <span className="text-xl">«</span>

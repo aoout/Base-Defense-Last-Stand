@@ -1,9 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { CloseButton } from './Shared';
+import { useLocale } from '../contexts/LocaleContext';
 
 interface ShipComputerProps {
     onClose: () => void;
-    t: (key: string) => string;
     onCheat?: () => void;
 }
 
@@ -63,7 +64,8 @@ const Window: React.FC<{
     </div>
 );
 
-export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, t, onCheat }) => {
+export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) => {
+    const { t } = useLocale();
     const [booting, setBooting] = useState(true);
     const [bootLog, setBootLog] = useState<string[]>([]);
     const [windows, setWindows] = useState<WindowState[]>([]);

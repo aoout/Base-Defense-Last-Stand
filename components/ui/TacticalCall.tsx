@@ -1,14 +1,28 @@
 
 import React from 'react';
-import { GameState, AllyOrder } from '../../types';
+import { AllyOrder, GameEventType, DefenseIssueOrderEvent } from '../../types';
 import { CloseButton } from './Shared';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-export const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (o: AllyOrder) => void, onClose: () => void, t: any }> = ({ state, onIssueOrder, onClose, t }) => {
+export const TacticalCallInterface: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
+
+    const handleIssueOrder = (order: AllyOrder) => {
+        engine.eventBus.emit<DefenseIssueOrderEvent>(GameEventType.DEFENSE_ISSUE_ORDER, { order });
+        engine.toggleTacticalMenu(); 
+    };
+
+    const handleClose = () => {
+        engine.toggleTacticalMenu();
+    }
+
     return (
         <div className="absolute inset-0 z-[100] bg-cyan-900/90 pointer-events-auto font-mono flex items-center justify-center">
              <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:20px_20px]"></div>
              <div className="w-[900px] h-[600px] bg-black/80 border-2 border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)] flex relative overflow-hidden">
-                 <CloseButton onClick={onClose} colorClass="border-cyan-500 text-cyan-500 hover:text-white hover:bg-cyan-900/50" />
+                 <CloseButton onClick={handleClose} colorClass="border-cyan-500 text-cyan-500 hover:text-white hover:bg-cyan-900/50" />
                  <div className="w-1/3 border-r border-cyan-800 p-6 bg-cyan-950/20">
                      <h2 className="text-cyan-400 font-bold text-xl mb-6 tracking-widest border-b border-cyan-800 pb-2">{t('UNIT_STATUS')}</h2>
                      <div className="space-y-4">
@@ -27,19 +41,19 @@ export const TacticalCallInterface: React.FC<{ state: GameState, onIssueOrder: (
                  </div>
                  <div className="flex-1 p-10 flex flex-col justify-center items-center relative">
                      <h1 className="text-3xl font-black text-white tracking-[0.2em] mb-2 text-center drop-shadow-[0_0_10px_rgba(6,182,212,0.8)]">{t('TACTICAL_COMMAND')}</h1>
-                     <p className="text-cyan-500 mb-12 text-sm tracking-widest">{t('PRIORITY_OVERRIDE')}</p>
+                     <p className="text-cyan-500 mb-12 text-sm tracking-widest">{t('PRIORITY_OVERRIDE')} </p>
                      <div className="grid grid-cols-1 gap-6 w-full max-w-md">
-                         <button onClick={() => onIssueOrder('PATROL')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
+                         <button onClick={() => handleIssueOrder('PATROL')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4"><span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_DEFEND')}</span><span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_DEFEND_DESC')}</span></div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F1</div>
                          </button>
-                         <button onClick={() => onIssueOrder('FOLLOW')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
+                         <button onClick={() => handleIssueOrder('FOLLOW')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4"><span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_FOLLOW')}</span><span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_FOLLOW_DESC')}</span></div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F2</div>
                          </button>
-                         <button onClick={() => onIssueOrder('ATTACK')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
+                         <button onClick={() => handleIssueOrder('ATTACK')} className="group relative h-20 bg-cyan-950/40 border border-cyan-600 hover:bg-cyan-600 hover:text-black transition-all overflow-hidden flex items-center px-6">
                              <div className="absolute left-0 top-0 bottom-0 w-2 bg-cyan-600 group-hover:bg-white"></div>
                              <div className="flex flex-col items-start ml-4"><span className="text-2xl font-bold tracking-tighter text-cyan-100 group-hover:text-black">{t('CMD_ASSAULT')}</span><span className="text-xs text-cyan-400 group-hover:text-cyan-900">{t('CMD_ASSAULT_DESC')}</span></div>
                              <div className="ml-auto text-4xl font-black text-cyan-800 group-hover:text-cyan-900 opacity-50">F3</div>

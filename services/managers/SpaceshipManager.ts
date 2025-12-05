@@ -1,21 +1,26 @@
 
-import { GameEngine } from '../gameService';
-import { GameMode, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource, InfrastructureOption, InfrastructureUpgradeType, TurretType, BioNode, BioResource, BioBuffType, BioTask } from '../../types';
-import { PLAYER_STATS, ALLY_STATS } from '../../data/registry';
+import { GameState, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource, InfrastructureOption, InfrastructureUpgradeType, TurretType, BioNode, BioResource, BioBuffType, BioTask, GameEventType, DamageEnemyEvent, ShowFloatingTextEvent, PlaySoundEvent, SpawnParticleEvent, StatModifier, StatId, ModifierType } from '../../types';
+import { PLAYER_STATS, ALLY_STATS, BASE_STATS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
+import { EventBus } from '../EventBus';
+import { StatManager } from './StatManager';
 
 export class SpaceshipManager {
-    private engine: GameEngine;
+    private getState: () => GameState;
+    private events: EventBus;
+    private stats: StatManager;
 
-    constructor(engine: GameEngine) {
-        this.engine = engine;
+    constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
+        this.getState = getState;
+        this.events = eventBus;
+        this.stats = statManager;
     }
 
     public update(dt: number) {
-        const state = this.engine.state;
+        const state = this.getState();
         
         // Orbital Cannon Logic
-        if (state.gameMode === GameMode.EXPLORATION && state.spaceship.installedModules.includes(SpaceshipModuleType.ORBITAL_CANNON)) {
+        if (state.gameMode === 'EXPLORATION' && state.spaceship.installedModules.includes(SpaceshipModuleType.ORBITAL_CANNON)) {
             state.orbitalSupportTimer += dt;
             
             const baseRate = 8000;
@@ -38,10 +43,18 @@ export class SpaceshipManager {
                 if (closest) {
                     const baseDamage = 400;
                     const damageMultiplier = state.spaceship.orbitalDamageMultiplier || 1;
+                    
+                    // Carapace logic is now handled in getCarapaceDamageMultiplier or via stats
+                    // For now, let's keep direct logic for Orbital since it's unique
+                    // BUT ideally, we query stats. For simplicity, we keep internal multiplier state for orbital
                     const carapaceMult = this.getCarapaceDamageMultiplier(closest.type);
                     const finalDamage = baseDamage * damageMultiplier * carapaceMult;
 
-                    this.engine.damageEnemy(closest, finalDamage, DamageSource.ORBITAL);
+                    this.events.emit<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, {
+                        targetId: closest.id,
+                        amount: finalDamage,
+                        source: DamageSource.ORBITAL
+                    });
                     
                     const beam: OrbitalBeam = {
                         id: `beam-${Date.now()}`,
@@ -54,11 +67,14 @@ export class SpaceshipManager {
                     };
                     state.orbitalBeams.push(beam);
 
-                    this.engine.spawnParticle(closest.x, closest.y, '#06b6d4', 15, 6);
-                    this.engine.spawnParticle(closest.x, closest.y, '#ffffff', 8, 3);
+                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#06b6d4', count: 15, speed: 6 });
+                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#ffffff', count: 8, speed: 3 });
                     
-                    this.engine.addMessage(`ORBITAL STRIKE: ${Math.floor(finalDamage)}`, closest.x, closest.y - 40, '#06b6d4', FloatingTextType.SYSTEM);
-                    this.engine.audio.playTurretFire(2); 
+                    this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                        text: `ORBITAL STRIKE: ${Math.floor(finalDamage)}`,
+                        x: closest.x, y: closest.y - 40, color: '#06b6d4', type: FloatingTextType.SYSTEM
+                    });
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 }); 
                 }
                 
                 state.orbitalSupportTimer = 0;
@@ -74,7 +90,7 @@ export class SpaceshipManager {
     }
 
     public generateOrbitalUpgradeTree() {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (s.orbitalUpgradeTree && s.orbitalUpgradeTree.length > 0) return;
   
         const tree: OrbitalUpgradeNode[][] = [];
@@ -118,8 +134,9 @@ export class SpaceshipManager {
     }
   
     public purchaseOrbitalUpgrade(nodeId: string) {
-        const p = this.engine.state.player;
-        const s = this.engine.state.spaceship;
+        const state = this.getState();
+        const p = state.player;
+        const s = state.spaceship;
         
         let node: OrbitalUpgradeNode | null = null;
         let layerIndex = -1;
@@ -134,17 +151,12 @@ export class SpaceshipManager {
         }
   
         if (!node || node.purchased) return;
-  
         if (p.score < node.cost) return;
-  
         if (layerIndex > 0) {
             const prevLayer = s.orbitalUpgradeTree[layerIndex - 1];
             const purchasedCount = prevLayer.filter(n => n.purchased).length;
             const required = Math.ceil(prevLayer.length / 2);
-            
-            if (purchasedCount < required) {
-                return;
-            }
+            if (purchasedCount < required) return;
         }
   
         p.score -= node.cost;
@@ -156,11 +168,11 @@ export class SpaceshipManager {
             s.orbitalRateMultiplier += node.effectValue;
         }
         
-        this.engine.audio.playTurretFire(2);
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
     }
 
     public generateCarapaceGrid() {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (s.carapaceGrid) return; 
 
         const nodes: CarapaceNode[][] = [];
@@ -210,8 +222,9 @@ export class SpaceshipManager {
     }
 
     public purchaseCarapaceNode(row: number, col: number) {
-        const s = this.engine.state.spaceship;
-        const p = this.engine.state.player;
+        const state = this.getState();
+        const s = state.spaceship;
+        const p = state.player;
         if (!s.carapaceGrid) return;
         
         const node = s.carapaceGrid.nodes[row][col];
@@ -220,12 +233,15 @@ export class SpaceshipManager {
 
         p.score -= node.cost;
         node.purchased = true;
-        this.engine.audio.playTurretFire(1);
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 1 });
 
         const rowNodes = s.carapaceGrid.nodes[row];
         if (rowNodes.every(n => n.purchased)) {
             s.carapaceGrid.rowBonuses[row].unlocked = true;
-            this.engine.addMessage(`ROW BONUS UNLOCKED: DAMAGE +${Math.round(s.carapaceGrid.rowBonuses[row].damageBonus * 100)}%`, WORLD_WIDTH/2, WORLD_HEIGHT/2, '#06b6d4', FloatingTextType.SYSTEM);
+            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                text: `ROW BONUS UNLOCKED: DAMAGE +${Math.round(s.carapaceGrid.rowBonuses[row].damageBonus * 100)}%`,
+                x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, color: '#06b6d4', type: FloatingTextType.SYSTEM
+            });
         }
 
         let colComplete = true;
@@ -237,46 +253,43 @@ export class SpaceshipManager {
         }
         if (colComplete) {
             s.carapaceGrid.colBonuses[col].unlocked = true;
-            this.applyPassiveBonuses(); 
-            this.engine.addMessage(`COL BONUS UNLOCKED: ARMOR +${s.carapaceGrid.colBonuses[col].armorBonus}`, WORLD_WIDTH/2, WORLD_HEIGHT/2, '#06b6d4', FloatingTextType.SYSTEM);
+            this.registerModifiers(); 
+            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                text: `COL BONUS UNLOCKED: ARMOR +${s.carapaceGrid.colBonuses[col].armorBonus}`,
+                x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, color: '#06b6d4', type: FloatingTextType.SYSTEM
+            });
         }
     }
 
     public getCarapaceDamageMultiplier(enemyType: EnemyType): number {
-        const s = this.engine.state.spaceship;
+        // This logic is now handled by StatManager mostly, but we can query StatManager here or construct the specific ID
+        // StatManager query:
+        // base = 1.0 (Module unlocked check below)
+        const s = this.getState().spaceship;
         if (!s.installedModules.includes(SpaceshipModuleType.CARAPACE_ANALYZER)) return 1.0;
-
-        let mult = 1.2; 
-
-        if (s.carapaceGrid) {
-            s.carapaceGrid.nodes.forEach(row => {
-                row.forEach(node => {
-                    if (node.purchased && node.targetEnemy === enemyType) {
-                        mult += node.damageBonus;
-                    }
-                });
-            });
-
-            s.carapaceGrid.rowBonuses.forEach(rb => {
-                if (rb.unlocked) {
-                    mult += rb.damageBonus;
-                }
-            });
-        }
-
-        return mult;
+        
+        const base = 1.2; // Base buff for having the module
+        // We can query specific stats if we want detailed breakdown, or rely on this legacy method
+        // For consistency, let's keep using the internal state for this specific logic 
+        // as converting the dynamic grid to individual StatModifiers is complex but doable in registerModifiers
+        
+        // HOWEVER, to be truly unified, we should use StatManager. 
+        // Let's defer to the StatManager in registerModifiers
+        
+        const statKey = `DMG_VS_${enemyType}` as StatId;
+        // This requires StatManager to know about dynamic keys if we used enum strings
+        return this.stats.get(statKey, base);
     }
 
     public generateInfrastructureOptions() {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (s.infrastructureLocked) return;
-        if (s.infrastructureOptions && s.infrastructureOptions.length > 0) return; // Keep existing options if generated
+        if (s.infrastructureOptions && s.infrastructureOptions.length > 0) return; 
         if ((s.infrastructureUpgrades?.length || 0) >= 9) return;
 
         const options: InfrastructureOption[] = [];
         const availableTypes = Object.values(InfrastructureUpgradeType);
         
-        // Pick 3 unique random types
         const selectedTypes: InfrastructureUpgradeType[] = [];
         while (selectedTypes.length < 3) {
             const t = availableTypes[Math.floor(Math.random() * availableTypes.length)];
@@ -285,7 +298,7 @@ export class SpaceshipManager {
 
         selectedTypes.forEach(type => {
             let value = 0;
-            const cost = 3000 + Math.floor(Math.random() * 5001); // 3000-8000
+            const cost = 3000 + Math.floor(Math.random() * 5001);
 
             switch (type) {
                 case InfrastructureUpgradeType.BASE_HP: value = 800 + Math.floor(Math.random() * 1801); break;
@@ -299,20 +312,16 @@ export class SpaceshipManager {
                 case InfrastructureUpgradeType.TURRET_L1_COST: value = 0.08 + Math.random() * 0.08; break;
             }
 
-            options.push({
-                id: `infra-${Date.now()}-${Math.random()}`,
-                type,
-                value,
-                cost
-            });
+            options.push({ id: `infra-${Date.now()}-${Math.random()}`, type, value, cost });
         });
 
         s.infrastructureOptions = options;
     }
 
     public purchaseInfrastructureUpgrade(optionId: string) {
-        const s = this.engine.state.spaceship;
-        const p = this.engine.state.player;
+        const state = this.getState();
+        const s = state.spaceship;
+        const p = state.player;
         const option = s.infrastructureOptions.find(o => o.id === optionId);
 
         if (!option) return;
@@ -323,18 +332,20 @@ export class SpaceshipManager {
         s.infrastructureUpgrades.push(option);
         
         s.infrastructureLocked = true;
-        s.infrastructureOptions = []; // Clear options for next cycle
+        s.infrastructureOptions = []; 
         
-        this.applyPassiveBonuses();
-        this.engine.audio.playTurretFire(2);
+        this.registerModifiers();
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
     }
 
     public getInfrastructureBonus(target: 'HP' | 'DMG' | 'RATE' | 'RANGE' | 'COST', turretType?: TurretType): number {
-        const s = this.engine.state.spaceship;
+        // Legacy accessor for UI, now we should probably use StatManager or keep this as helper
+        // Since StatManager stores aggregate, getting specific *Infrastructure* contribution 
+        // implies we should filter modifiers by source 'INFRASTRUCTURE'
+        // For simplicity, we keep this logic for UI display only, or refactor UI to use StatManager
+        const s = this.getState().spaceship;
         if (!s.infrastructureUpgrades) return 0;
-
         let total = 0;
-        
         s.infrastructureUpgrades.forEach(upg => {
             switch (target) {
                 case 'HP':
@@ -364,52 +375,33 @@ export class SpaceshipManager {
     // --- BIO SEQUENCING LOGIC ---
 
     public generateBioGrid() {
-        const s = this.engine.state.spaceship;
-        // Don't regenerate if already exists and has proper structure (check cost existence to detect legacy migration)
+        const s = this.getState().spaceship;
         if (s.bioNodes && s.bioNodes.length > 0 && s.bioResources) return;
 
-        // Initialize Resources if missing
-        if (!s.bioResources) {
-            s.bioResources = { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 };
-        }
+        if (!s.bioResources) s.bioResources = { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 };
         if (!s.bioTasks) s.bioTasks = [];
 
         const nodes: BioNode[] = [];
-        
-        // Correct approach for spiral coords:
-        nodes.length = 0;
         let idCounter = 0;
-        nodes.push(this.createBioNode(idCounter++, 0, 0, true)); // Center
+        nodes.push(this.createBioNode(idCounter++, 0, 0, true)); 
         
-        for (let k = 1; k <= 4; k++) { // 4 Rings
-            let curQ = -k; 
-            let curR = 0; 
-            
-            for (let j = 0; j < 6; j++) { // 6 sides
+        for (let k = 1; k <= 4; k++) {
+            let curQ = -k; let curR = 0; 
+            for (let j = 0; j < 6; j++) {
                 for (let step = 0; step < k; step++) {
-                    if (nodes.length < 40) {
-                        nodes.push(this.createBioNode(idCounter++, curQ, curR, false));
-                    }
-                    // Move to next in ring
-                    const dirs = [
-                        {dq: 1, dr: -1}, {dq: 1, dr: 0}, {dq: 0, dr: 1}, 
-                        {dq: -1, dr: 1}, {dq: -1, dr: 0}, {dq: 0, dr: -1}
-                    ];
-                    curQ += dirs[j].dq;
-                    curR += dirs[j].dr;
+                    if (nodes.length < 40) nodes.push(this.createBioNode(idCounter++, curQ, curR, false));
+                    const dirs = [{dq: 1, dr: -1}, {dq: 1, dr: 0}, {dq: 0, dr: 1}, {dq: -1, dr: 1}, {dq: -1, dr: 0}, {dq: 0, dr: -1}];
+                    curQ += dirs[j].dq; curR += dirs[j].dr;
                 }
             }
         }
 
-        // Generate Connectivity
-        // 1. Geometric Neighbors
         nodes.forEach(node => {
             const neighbors = [
                 {q: node.q+1, r: node.r}, {q: node.q-1, r: node.r},
                 {q: node.q, r: node.r+1}, {q: node.q, r: node.r-1},
                 {q: node.q+1, r: node.r-1}, {q: node.q-1, r: node.r+1}
             ];
-            
             neighbors.forEach(n => {
                 const target = nodes.find(t => t.q === n.q && t.r === n.r);
                 if (target) {
@@ -419,13 +411,11 @@ export class SpaceshipManager {
             });
         });
 
-        // 2. Random extra "Neural Links" (8 links)
         for (let i = 0; i < 8; i++) {
             const n1 = nodes[Math.floor(Math.random() * nodes.length)];
             const n2 = nodes[Math.floor(Math.random() * nodes.length)];
             if (n1.id !== n2.id && !n1.connections.includes(n2.id)) {
-                n1.connections.push(n2.id);
-                n2.connections.push(n1.id);
+                n1.connections.push(n2.id); n2.connections.push(n1.id);
             }
         }
 
@@ -434,38 +424,21 @@ export class SpaceshipManager {
     }
 
     private createBioNode(id: number, q: number, r: number, isCenter: boolean): BioNode {
-        // Weighted Buff Generation
         const totalWeight = 4+5+4+1+1+1+1;
         const roll = Math.random() * totalWeight;
         let buffType = BioBuffType.ALLY_HP;
         let buffValue = 0;
 
         let w = 0;
-        if (roll < (w+=4)) { 
-            buffType = BioBuffType.ALLY_HP; 
-            buffValue = 0.08 + Math.random() * 0.14; // 8-22%
-        } else if (roll < (w+=5)) { 
-            buffType = BioBuffType.ALLY_DMG; 
-            buffValue = 0.10 + Math.random() * 0.14; // 10-24%
-        } else if (roll < (w+=4)) { 
-            buffType = BioBuffType.LURE_BONUS; 
-            buffValue = 0.30 + Math.random() * 0.48; // 30-78%
-        } else if (roll < (w+=1)) { 
-            buffType = BioBuffType.GENE_REDUCTION; 
-            buffValue = 0.1; // Flat
-        } else if (roll < (w+=1)) { 
-            buffType = BioBuffType.ALPHA_YIELD; 
-            buffValue = 0.10 + Math.random() * 0.15; 
-        } else if (roll < (w+=1)) { 
-            buffType = BioBuffType.BETA_YIELD; 
-            buffValue = 0.10 + Math.random() * 0.15; 
-        } else { 
-            buffType = BioBuffType.GAMMA_YIELD; 
-            buffValue = 0.10 + Math.random() * 0.15; 
-        }
+        if (roll < (w+=4)) { buffType = BioBuffType.ALLY_HP; buffValue = 0.08 + Math.random() * 0.14; } 
+        else if (roll < (w+=5)) { buffType = BioBuffType.ALLY_DMG; buffValue = 0.10 + Math.random() * 0.14; } 
+        else if (roll < (w+=4)) { buffType = BioBuffType.LURE_BONUS; buffValue = 0.30 + Math.random() * 0.48; } 
+        else if (roll < (w+=1)) { buffType = BioBuffType.GENE_REDUCTION; buffValue = 0.1; } 
+        else if (roll < (w+=1)) { buffType = BioBuffType.ALPHA_YIELD; buffValue = 0.10 + Math.random() * 0.15; } 
+        else if (roll < (w+=1)) { buffType = BioBuffType.BETA_YIELD; buffValue = 0.10 + Math.random() * 0.15; } 
+        else { buffType = BioBuffType.GAMMA_YIELD; buffValue = 0.10 + Math.random() * 0.15; }
 
-        // Cost Generation
-        const totalCost = 2000 + Math.floor(Math.random() * 2001); // 2000-4000
+        const totalCost = 2000 + Math.floor(Math.random() * 2001);
         const parts = [Math.random(), Math.random(), Math.random()];
         const sumParts = parts.reduce((a, b) => a + b, 0);
         
@@ -475,23 +448,17 @@ export class SpaceshipManager {
             [BioResource.GAMMA]: isCenter ? 0 : Math.floor((parts[2] / sumParts) * totalCost)
         };
 
-        return {
-            id, q, r,
-            buffType, buffValue,
-            isUnlocked: false,
-            cost,
-            connections: []
-        };
+        return { id, q, r, buffType, buffValue, isUnlocked: false, cost, connections: [] };
     }
 
     public conductBioResearch() {
-        const s = this.engine.state.spaceship;
-        const p = this.engine.state.player;
+        const state = this.getState();
+        const s = state.spaceship;
+        const p = state.player;
         if (p.score < 1000) return;
 
         p.score -= 1000;
 
-        // Base 1000 points
         const basePoints = 1000;
         const parts = [Math.random(), Math.random(), Math.random()];
         const sumParts = parts.reduce((a, b) => a + b, 0);
@@ -500,10 +467,9 @@ export class SpaceshipManager {
         let beta = Math.floor((parts[1] / sumParts) * basePoints);
         let gamma = Math.floor((parts[2] / sumParts) * basePoints);
 
-        // Apply Yield Buffs
-        const alphaBuff = this.getBioBuffTotal(BioBuffType.ALPHA_YIELD);
-        const betaBuff = this.getBioBuffTotal(BioBuffType.BETA_YIELD);
-        const gammaBuff = this.getBioBuffTotal(BioBuffType.GAMMA_YIELD);
+        const alphaBuff = this.stats.get(StatId.YIELD_ALPHA, 0);
+        const betaBuff = this.stats.get(StatId.YIELD_BETA, 0);
+        const gammaBuff = this.stats.get(StatId.YIELD_GAMMA, 0);
 
         alpha = Math.floor(alpha * (1 + alphaBuff));
         beta = Math.floor(beta * (1 + betaBuff));
@@ -513,15 +479,14 @@ export class SpaceshipManager {
         s.bioResources[BioResource.BETA] += beta;
         s.bioResources[BioResource.GAMMA] += gamma;
 
-        this.engine.audio.playTurretFire(2);
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
     }
 
     public unlockBioNode(nodeId: number) {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         const node = s.bioNodes.find(n => n.id === nodeId);
         if (!node || node.isUnlocked) return;
 
-        // Check reachability
         const isReachable = node.id === 0 || node.connections.some(cid => {
             const neighbor = s.bioNodes.find(n => n.id === cid);
             return neighbor && neighbor.isUnlocked;
@@ -529,25 +494,23 @@ export class SpaceshipManager {
 
         if (!isReachable) return;
 
-        // Check Cost
         if (s.bioResources[BioResource.ALPHA] < node.cost[BioResource.ALPHA] ||
             s.bioResources[BioResource.BETA] < node.cost[BioResource.BETA] ||
             s.bioResources[BioResource.GAMMA] < node.cost[BioResource.GAMMA]) {
             return;
         }
 
-        // Pay
         s.bioResources[BioResource.ALPHA] -= node.cost[BioResource.ALPHA];
         s.bioResources[BioResource.BETA] -= node.cost[BioResource.BETA];
         s.bioResources[BioResource.GAMMA] -= node.cost[BioResource.GAMMA];
 
         node.isUnlocked = true;
-        this.applyPassiveBonuses();
-        this.engine.audio.playTurretFire(1);
+        this.registerModifiers();
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 1 });
     }
 
     public generateBioTasks() {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (s.bioTasks.length > 0) return;
 
         const enemyTypes = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER];
@@ -555,9 +518,9 @@ export class SpaceshipManager {
 
         for (let i = 0; i < 3; i++) {
             const target = enemyTypes[Math.floor(Math.random() * enemyTypes.length)];
-            const count = 200 + Math.floor(Math.random() * 601); // 200 - 800
+            const count = 200 + Math.floor(Math.random() * 601);
             const rewardType = resourceTypes[Math.floor(Math.random() * resourceTypes.length)];
-            const rewardAmt = 500 + Math.floor(Math.random() * 1101); // 500 - 1600
+            const rewardAmt = 500 + Math.floor(Math.random() * 1101);
 
             s.bioTasks.push({
                 id: `bio-task-${Date.now()}-${i}`,
@@ -571,32 +534,34 @@ export class SpaceshipManager {
     }
 
     public acceptBioTask(taskId: string) {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         const task = s.bioTasks.find(t => t.id === taskId);
         if (task) {
             s.activeBioTask = task;
-            s.bioTasks = []; // Clear options
+            s.bioTasks = []; 
         }
     }
 
     public abortBioTask() {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (s.activeBioTask) {
             s.activeBioTask = null;
-            this.generateBioTasks(); // Reroll
+            this.generateBioTasks(); 
         }
     }
 
     public checkBioTaskProgress(killedType: EnemyType) {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (!s.activeBioTask) return;
 
         if (s.activeBioTask.targetEnemy === killedType) {
             s.activeBioTask.progress++;
             if (s.activeBioTask.progress >= s.activeBioTask.count) {
-                // Complete
                 s.bioResources[s.activeBioTask.rewardResource] += s.activeBioTask.rewardAmount;
-                this.engine.addMessage(`BIO PROTOCOL COMPLETE: +${s.activeBioTask.rewardAmount} ${s.activeBioTask.rewardResource}`, WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10b981', FloatingTextType.SYSTEM);
+                this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                    text: `BIO PROTOCOL COMPLETE: +${s.activeBioTask.rewardAmount} ${s.activeBioTask.rewardResource}`,
+                    x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, color: '#10b981', type: FloatingTextType.SYSTEM
+                });
                 s.activeBioTask = null;
                 this.generateBioTasks();
             }
@@ -604,7 +569,7 @@ export class SpaceshipManager {
     }
 
     public getBioBuffTotal(type: BioBuffType): number {
-        const s = this.engine.state.spaceship;
+        const s = this.getState().spaceship;
         if (!s.bioNodes) return 0;
         return s.bioNodes.reduce((acc, node) => {
             if (node.isUnlocked && node.buffType === type) return acc + node.buffValue;
@@ -613,54 +578,146 @@ export class SpaceshipManager {
     }
 
     public getGeneReduction(): number {
-        return this.getBioBuffTotal(BioBuffType.GENE_REDUCTION);
+        // Query from StatManager
+        return this.stats.get(StatId.GENE_REDUCTION, 0);
     }
 
-    public applyPassiveBonuses() {
-        const s = this.engine.state.spaceship;
-        const p = this.engine.state.player;
-        
-        let maxArmor = PLAYER_STATS.maxArmor;
+    /**
+     * Replaces applyPassiveBonuses.
+     * Iterates all upgrade systems and registers their modifiers with StatManager.
+     */
+    public registerModifiers() {
+        const state = this.getState();
+        const s = state.spaceship;
+        const p = state.player;
 
+        // Clear existing modifiers from this manager's sources
+        this.stats.removeSource('BIO');
+        this.stats.removeSource('CARAPACE');
+        this.stats.removeSource('INFRASTRUCTURE');
+        this.stats.removeSource('SPACESHIP_MODULES');
+        this.stats.removeSource('PLAYER_UPGRADES');
+
+        // 1. Player Upgrades (Defense Upgrade Type)
         if (p.upgrades.includes(DefenseUpgradeType.SPORE_BARRIER)) {
-            maxArmor += 100;
+            this.stats.add({ statId: StatId.PLAYER_MAX_ARMOR, value: 100, type: ModifierType.FLAT, source: 'PLAYER_UPGRADES' });
+        }
+        if (p.upgrades.includes(DefenseUpgradeType.IMPACT_PLATE)) {
+            this.stats.add({ statId: StatId.PLAYER_DMG_TAKEN_MULT, value: -0.2, type: ModifierType.PERCENT_ADD, source: 'PLAYER_UPGRADES' });
+        }
+        // Infection Disposal is handled logic-side in damagePlayer via type check or new stat if desired. 
+        // Let's keep it logic-side for now as it's mechanics change (mitigation split).
+
+        // 2. Spaceship Modules
+        if (s.installedModules.includes(SpaceshipModuleType.BASE_REINFORCEMENT)) {
+            this.stats.add({ statId: StatId.BASE_MAX_HP, value: 3000, type: ModifierType.FLAT, source: 'SPACESHIP_MODULES' });
+        }
+        if (s.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
+            this.stats.add({ statId: StatId.DROP_COST_REDUCTION, value: 0.5, type: ModifierType.PERCENT_ADD, source: 'SPACESHIP_MODULES' });
         }
 
-        if (s.carapaceGrid) {
-            s.carapaceGrid.colBonuses.forEach(cb => {
-                if (cb.unlocked) {
-                    maxArmor += cb.armorBonus;
+        // 3. Bio Sequencing
+        if (s.bioNodes) {
+            s.bioNodes.forEach(node => {
+                if (node.isUnlocked) {
+                    let statId: string | null = null;
+                    switch(node.buffType) {
+                        case BioBuffType.ALLY_HP: statId = StatId.ALLY_MAX_HP; break;
+                        case BioBuffType.ALLY_DMG: statId = StatId.ALLY_DAMAGE; break;
+                        case BioBuffType.LURE_BONUS: statId = StatId.LURE_BONUS; break;
+                        case BioBuffType.GENE_REDUCTION: statId = StatId.GENE_REDUCTION; break;
+                        case BioBuffType.ALPHA_YIELD: statId = StatId.YIELD_ALPHA; break;
+                        case BioBuffType.BETA_YIELD: statId = StatId.YIELD_BETA; break;
+                        case BioBuffType.GAMMA_YIELD: statId = StatId.YIELD_GAMMA; break;
+                    }
+                    if (statId) {
+                        // Gene Reduction is Flat, others are Percent Add
+                        const modType = statId === StatId.GENE_REDUCTION ? ModifierType.FLAT : ModifierType.PERCENT_ADD;
+                        this.stats.add({ statId, value: node.buffValue, type: modType, source: 'BIO' });
+                    }
                 }
             });
         }
 
-        p.maxArmor = maxArmor;
-        if (p.armor > p.maxArmor) p.armor = p.maxArmor;
-        
-        let baseMaxHp = 5000;
-        if (s.installedModules.includes(SpaceshipModuleType.BASE_REINFORCEMENT)) {
-             baseMaxHp += 3000;
-             // Add Infrastructure Bonus
-             baseMaxHp += this.getInfrastructureBonus('HP');
+        // 4. Carapace Analyzer
+        if (s.carapaceGrid) {
+            // Row Bonuses (Global Damage)
+            s.carapaceGrid.rowBonuses.forEach(rb => {
+                if (rb.unlocked) {
+                    // Global Player Damage
+                    this.stats.add({ statId: StatId.PLAYER_DAMAGE, value: rb.damageBonus, type: ModifierType.PERCENT_ADD, source: 'CARAPACE' });
+                }
+            });
+            // Col Bonuses (Player Armor)
+            s.carapaceGrid.colBonuses.forEach(cb => {
+                if (cb.unlocked) {
+                    this.stats.add({ statId: StatId.PLAYER_MAX_ARMOR, value: cb.armorBonus, type: ModifierType.FLAT, source: 'CARAPACE' });
+                }
+            });
+            // Nodes (Specific Enemy Damage)
+            s.carapaceGrid.nodes.flat().forEach(node => {
+                if (node.purchased) {
+                    const statKey = `DMG_VS_${node.targetEnemy}` as StatId;
+                    this.stats.add({ statId: statKey, value: node.damageBonus, type: ModifierType.PERCENT_ADD, source: 'CARAPACE' });
+                }
+            });
         }
-        this.engine.state.base.maxHp = baseMaxHp;
-        if (this.engine.state.base.hp > baseMaxHp) this.engine.state.base.hp = baseMaxHp;
 
-        // Apply Bio-Sequencing Buffs to EXISTING Allies (Real-time update)
-        const activeAllies = this.engine.state.allies;
+        // 5. Infrastructure
+        if (s.infrastructureUpgrades) {
+            s.infrastructureUpgrades.forEach(upg => {
+                if (upg.type === InfrastructureUpgradeType.BASE_HP) {
+                    this.stats.add({ statId: StatId.BASE_MAX_HP, value: upg.value, type: ModifierType.FLAT, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_HP) {
+                    this.stats.add({ statId: StatId.TURRET_HP, value: upg.value, type: ModifierType.FLAT, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_DMG) {
+                    this.stats.add({ statId: StatId.TURRET_DAMAGE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_RATE) {
+                    this.stats.add({ statId: StatId.TURRET_RATE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_DMG) {
+                    this.stats.add({ statId: StatId.TURRET_L1_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_COST) {
+                    this.stats.add({ statId: StatId.TURRET_COST, value: -upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_GAUSS_RATE) {
+                    this.stats.add({ statId: StatId.TURRET_GAUSS_RATE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_SNIPER_RANGE) {
+                    this.stats.add({ statId: StatId.TURRET_SNIPER_RANGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_MISSILE_DMG) {
+                    this.stats.add({ statId: StatId.TURRET_MISSILE_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
+                }
+            });
+        }
+
+        // --- APPLY TO STATE PROPERTIES ---
+        // After calculating stats, update persistent state values (MaxHP, etc.)
+        
+        // Player Max Armor
+        p.maxArmor = this.stats.get(StatId.PLAYER_MAX_ARMOR, PLAYER_STATS.maxArmor);
+        if (p.armor > p.maxArmor) p.armor = p.maxArmor;
+
+        // Base Max HP
+        state.base.maxHp = this.stats.get(StatId.BASE_MAX_HP, BASE_STATS.maxHp);
+        if (state.base.hp > state.base.maxHp) state.base.hp = state.base.maxHp;
+
+        // Update Active Allies (Live updates)
+        const activeAllies = state.allies;
         if (activeAllies.length > 0) {
-            const hpBuff = this.getBioBuffTotal(BioBuffType.ALLY_HP);
-            const dmgBuff = this.getBioBuffTotal(BioBuffType.ALLY_DMG);
-            
-            const newMaxHp = ALLY_STATS.hp * (1 + hpBuff);
-            const newDamage = ALLY_STATS.damage * (1 + dmgBuff);
+            const finalMaxHp = this.stats.get(StatId.ALLY_MAX_HP, ALLY_STATS.hp);
+            const finalDmg = this.stats.get(StatId.ALLY_DAMAGE, ALLY_STATS.damage);
 
             activeAllies.forEach(ally => {
-                // Maintain HP percentage when scaling maxHP
                 const hpPct = ally.hp / ally.maxHp;
-                ally.maxHp = newMaxHp;
-                ally.hp = newMaxHp * hpPct;
-                ally.damage = newDamage;
+                ally.maxHp = finalMaxHp;
+                ally.hp = finalMaxHp * hpPct;
+                ally.damage = finalDmg;
             });
         }
     }

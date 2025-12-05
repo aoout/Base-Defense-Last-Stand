@@ -1,75 +1,55 @@
 
-import React, { useState, useEffect, useRef } from 'react';
-import { GameState, BioResource, BioBuffType, BioTask, EnemyType } from '../../types';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BioResource, BioBuffType, EnemyType } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper } from '../../utils/renderers';
-
-interface BioSequencingUIProps {
-    state: GameState;
-    onClose: () => void;
-    onConductResearch: () => void;
-    onUnlockNode: (id: number) => void;
-    onAcceptTask: (id: string) => void;
-    onAbortTask: (id: string) => void; 
-    t: (key: string, params?: any) => string;
-}
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
+import { CanvasView } from './common/CanvasView';
 
 // Reusable Enemy Preview Component
 const EnemyPreview: React.FC<{ type: EnemyType, size?: number }> = ({ type, size = 100 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
-
-    useEffect(() => {
-        const render = (time: number) => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            
-            const w = canvasRef.current.width;
-            const h = canvasRef.current.height;
-            
-            ctx.clearRect(0, 0, w, h);
-            
-            // Mock Enemy for Rendering
-            const e: any = {
-                x: w/2,
-                y: h/2,
-                angle: -Math.PI/2, // Facing up
-                radius: 15, 
-                color: '#fff', 
-                type: type,
-                hp: 100, maxHp: 100
-            };
-
-            ctx.save();
-            ctx.translate(e.x, e.y);
-            ctx.rotate(e.angle);
-            
-            // Scale based on size prop to keep it fitting
-            let scale = size / 40; 
-            if (type === EnemyType.TANK) scale *= 0.8;
-            
-            ctx.scale(scale, scale);
-
-            switch(type) {
-                case EnemyType.GRUNT: drawGrunt(ctx, e, time); break;
-                case EnemyType.RUSHER: drawRusher(ctx, e, time); break;
-                case EnemyType.TANK: drawTank(ctx, e, time); break;
-                case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
-                case EnemyType.VIPER: drawViper(ctx, e, time); break;
-            }
-            
-            ctx.restore();
-            requestRef.current = requestAnimationFrame(render);
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        ctx.clearRect(0, 0, w, h);
+        
+        // Mock Enemy for Rendering
+        const e: any = {
+            x: w/2,
+            y: h/2,
+            angle: -Math.PI/2, // Facing up
+            radius: 15, 
+            color: '#fff', 
+            type: type,
+            hp: 100, maxHp: 100
         };
-        requestRef.current = requestAnimationFrame(render);
-        return () => cancelAnimationFrame(requestRef.current);
+
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(e.angle);
+        
+        // Scale based on size prop to keep it fitting
+        let scale = size / 40; 
+        if (type === EnemyType.TANK) scale *= 0.8;
+        
+        ctx.scale(scale, scale);
+
+        switch(type) {
+            case EnemyType.GRUNT: drawGrunt(ctx, e, time); break;
+            case EnemyType.RUSHER: drawRusher(ctx, e, time); break;
+            case EnemyType.TANK: drawTank(ctx, e, time); break;
+            case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
+            case EnemyType.VIPER: drawViper(ctx, e, time); break;
+        }
+        
+        ctx.restore();
     }, [type, size]);
 
-    return <canvas ref={canvasRef} width={size} height={size} />;
+    return <CanvasView width={size} height={size} draw={handleDraw} />;
 };
 
-export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose, onConductResearch, onUnlockNode, onAcceptTask, onAbortTask, t }) => {
+export const BioSequencingUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const [hoveredNode, setHoveredNode] = useState<number | null>(null);
     const s = state.spaceship;
     
@@ -79,6 +59,26 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
             // This assumes the parent component triggers generation or engine handles it.
         }
     }, [s.bioNodes]);
+
+    const handleClose = () => {
+        engine.exitBioSequencing();
+    }
+
+    const handleResearch = () => {
+        engine.conductBioResearch();
+    }
+
+    const handleUnlockNode = (id: number) => {
+        engine.unlockBioNode(id);
+    }
+
+    const handleAcceptTask = (id: string) => {
+        engine.acceptBioTask(id);
+    }
+
+    const handleAbortTask = () => {
+        engine.abortBioTask();
+    }
 
     // Calculate Total Buffs
     const totalBuffs: Record<string, number> = {};
@@ -148,7 +148,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
             title={t('BIO_TITLE')}
             subtitle={t('BIO_SUB')}
             theme="purple"
-            onClose={onClose}
+            onClose={handleClose}
             headerRight={headerRight}
             maxWidth="max-w-[1350px]"
         >
@@ -179,7 +179,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
                         </div>
 
                         <button 
-                            onClick={onConductResearch}
+                            onClick={handleResearch}
                             disabled={state.player.score < 1000}
                             className={`w-full mt-3 py-2 font-bold tracking-widest text-[10px] uppercase border transition-all
                                 ${state.player.score >= 1000 
@@ -287,7 +287,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
                                         ) : isReachable ? (
                                             <button 
                                                 disabled={!isAffordable}
-                                                onClick={() => onUnlockNode(node.id)}
+                                                onClick={() => handleUnlockNode(node.id)}
                                                 className={`w-full py-3 text-xs font-bold tracking-widest border transition-all relative overflow-hidden group
                                                     ${isAffordable 
                                                         ? 'bg-purple-600 text-white border-purple-400 hover:bg-purple-500 shadow-[0_0_20px_rgba(192,132,252,0.4)] animate-pulse' 
@@ -397,7 +397,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
                             return (
                                 <g 
                                     key={node.id} 
-                                    onClick={() => onUnlockNode(node.id)}
+                                    onClick={() => handleUnlockNode(node.id)}
                                     onMouseEnter={() => setHoveredNode(node.id)}
                                     onMouseLeave={() => setHoveredNode(null)}
                                     className="cursor-pointer transition-all duration-300"
@@ -479,7 +479,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
                                     <span className="font-bold bg-yellow-900/20 px-2 py-1 rounded border border-yellow-700/30">+{activeTask.rewardAmount} {t(`BIO_RES_${activeTask.rewardResource}`)}</span>
                                 </div>
 
-                                <button onClick={() => onAbortTask(activeTask.id)} className="w-full py-2 border border-red-900/50 text-red-500 hover:bg-red-900/20 text-xs font-bold transition-colors uppercase tracking-wider">
+                                <button onClick={handleAbortTask} className="w-full py-2 border border-red-900/50 text-red-500 hover:bg-red-900/20 text-xs font-bold transition-colors uppercase tracking-wider">
                                     {t('BIO_ABORT')}
                                 </button>
                             </div>
@@ -503,7 +503,7 @@ export const BioSequencingUI: React.FC<BioSequencingUIProps> = ({ state, onClose
                                         </div>
                                         
                                         <button 
-                                            onClick={() => onAcceptTask(task.id)}
+                                            onClick={() => handleAcceptTask(task.id)}
                                             className="w-full py-1.5 bg-slate-800 text-slate-400 text-[10px] font-bold uppercase hover:bg-purple-700 hover:text-white transition-all border border-slate-700 hover:border-purple-500"
                                         >
                                             {t('BIO_ACCEPT')}

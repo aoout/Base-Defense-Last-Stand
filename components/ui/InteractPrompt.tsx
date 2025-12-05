@@ -1,16 +1,15 @@
 
-
-
 import React from 'react';
 import { GameState, AppMode } from '../../types';
 import { TURRET_COSTS } from '../../data/registry';
+import { useLocale } from '../contexts/LocaleContext';
 
 interface InteractPromptProps {
     state: GameState;
-    t: (key: string) => string;
 }
 
-export const InteractPrompt: React.FC<InteractPromptProps> = ({ state, t }) => {
+export const InteractPrompt: React.FC<InteractPromptProps> = ({ state }) => {
+    const { t } = useLocale();
     if (state.appMode !== AppMode.GAMEPLAY) return null;
     const p = state.player;
     

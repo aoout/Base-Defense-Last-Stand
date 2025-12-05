@@ -1,13 +1,11 @@
+
 import React, { useEffect, useState } from 'react';
-import { GameState } from '../../types';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface MissionSuccessScreenProps {
-    state: GameState;
-    onReturn: () => void;
-    t: (key: string) => string;
-}
-
-export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ state, onReturn, t }) => {
+export const MissionSuccessScreen: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const [tallyScore, setTallyScore] = useState(0);
     
     useEffect(() => {
@@ -97,7 +95,7 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                  </p>
 
                  <button 
-                    onClick={onReturn}
+                    onClick={() => engine.ascendToOrbit()}
                     className="group relative px-16 py-5 bg-emerald-950 border border-emerald-500 hover:bg-emerald-900 transition-all overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.3)]"
                  >
                      <div className="absolute inset-0 bg-emerald-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
@@ -105,23 +103,4 @@ export const MissionSuccessScreen: React.FC<MissionSuccessScreenProps> = ({ stat
                          <span className="text-emerald-100 font-black tracking-[0.2em] text-xl">{t('INITIATE_ASCENT')}</span>
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-emerald-400 group-hover:text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                         </svg>
-                     </div>
-                 </button>
-
-             </div>
-
-             {/* Footer Tech Text */}
-             <div className="absolute bottom-8 text-emerald-900 font-mono text-xs tracking-[0.5em]">
-                 {t('NET_SECURE')}
-             </div>
-             
-             <style>{`
-                @keyframes scrollUp {
-                    from { background-position: 0 0; }
-                    to { background-position: 0 -50px; }
-                }
-             `}</style>
-        </div>
-    );
-};
+                         

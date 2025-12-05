@@ -1,14 +1,15 @@
 
 import React from 'react';
 import { GameState } from '../../types';
+import { useLocale } from '../contexts/LocaleContext';
 
 interface ExtractionScreenProps {
     onEvac: () => void;
-    t: (key: string) => string;
     state: GameState;
 }
 
-export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, t, state }) => {
+export const ExtractionScreen: React.FC<ExtractionScreenProps> = ({ onEvac, state }) => {
+    const { t } = useLocale();
     const isPlayerDeath = state.player.hp <= 0;
 
     return (

@@ -2,6 +2,7 @@
 import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType, GalaxyConfig } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES, GAS_INFO } from '../data/world';
+import { generatePlanetName } from './nameGenerator';
 
 export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
     const planets: Planet[] = [];
@@ -9,8 +10,11 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
     
     const minGene = config ? config.minGeneStrength : 1.0;
     const maxGene = config ? config.maxGeneStrength : 3.0;
+    const maxSulfur = config && config.maxSulfur !== undefined ? config.maxSulfur : 10;
+    const maxOxygen = config && config.maxOxygen !== undefined ? config.maxOxygen : 1.0;
+    const count = config && config.planetCount ? config.planetCount : 12;
 
-    for(let i=0; i<12; i++) {
+    for(let i=0; i<count; i++) {
         const x = (Math.random() * (CANVAS_WIDTH - 200)) + 100;
         const y = (Math.random() * (CANVAS_HEIGHT - 200)) + 100;
         const biome = biomes[Math.floor(Math.random() * biomes.length)];
@@ -29,9 +33,14 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
             visualType = Math.random() > 0.5 ? PlanetVisualType.BARREN : PlanetVisualType.TERRAN;
         }
 
+        // Atmosphere Generation with Constraint
+        let oxygenPct = 0.1 + Math.random() * 0.2;
+        // Cap oxygen if config exists
+        oxygenPct = Math.min(oxygenPct, maxOxygen);
+
         const atmosphere: AtmosphereGas[] = [
             { ...GAS_INFO.NITROGEN, percentage: 0.4 + Math.random() * 0.3 },
-            { ...GAS_INFO.OXYGEN, percentage: 0.1 + Math.random() * 0.2 },
+            { ...GAS_INFO.OXYGEN, percentage: oxygenPct },
         ];
         if (biome === BiomeType.TOXIC) atmosphere.push({ ...GAS_INFO.METHANE, percentage: 0.1 + Math.random() * 0.1 });
         if (biome === BiomeType.VOLCANIC) atmosphere.push({ ...GAS_INFO.SULFUR, percentage: 0.1 + Math.random() * 0.15 });
@@ -65,9 +74,12 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
         const rawGeneStrength = minGene + Math.random() * (maxGene - minGene);
         const geneStrength = Math.round(rawGeneStrength * 100) / 100;
 
+        // Configurable Sulfur Index
+        const sulfurIndex = Math.floor(Math.random() * (maxSulfur + 1));
+
         planets.push({
             id: `planet-${i}`,
-            name: `${style.name.split(' ')[0]}-${Math.floor(Math.random()*999)}`,
+            name: generatePlanetName(), // Use procedural name generator
             x,
             y,
             radius: visualType === PlanetVisualType.GAS_GIANT ? 50 + Math.random() * 30 : 30 + Math.random() * 30,
@@ -75,7 +87,7 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
             missionType,
             totalWaves: missionType === MissionType.OFFENSE ? 0 : 5 + Math.floor(Math.random() * 10),
             geneStrength: geneStrength,
-            sulfurIndex: Math.floor(Math.random() * 10),
+            sulfurIndex: sulfurIndex,
             landingDifficulty: landingDifficulty,
             completed: false,
             biome: biome,

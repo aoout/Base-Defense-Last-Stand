@@ -1,79 +1,70 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { GameState, CarapaceNode, EnemyType } from '../../types';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { CarapaceNode, EnemyType } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper } from '../../utils/renderers';
-
-interface CarapaceAnalyzerUIProps {
-    state: GameState;
-    onPurchase: (row: number, col: number) => void;
-    onClose: () => void;
-    t: (key: string, params?: any) => string;
-}
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
+import { CanvasView } from './common/CanvasView';
 
 const EnemyPreview: React.FC<{ type: EnemyType }> = ({ type }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
-
-    useEffect(() => {
-        const render = (time: number) => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (!ctx) return;
-            
-            const w = canvasRef.current.width;
-            const h = canvasRef.current.height;
-            
-            ctx.clearRect(0, 0, w, h);
-            
-            // Mock Enemy for Rendering
-            const e: any = {
-                x: w/2,
-                y: h/2,
-                angle: -Math.PI/2, // Facing up
-                radius: 20, // Base scale
-                color: '#fff', // Fallback
-                type: type,
-                // Add minimal required props for renderers to avoid crashes
-                hp: 100, maxHp: 100
-            };
-
-            ctx.save();
-            ctx.translate(e.x, e.y);
-            ctx.rotate(e.angle);
-            
-            // Adjust scale based on enemy type to fit the large box nicely
-            let scale = 3.5; // Larger scale for the main preview
-            if (type === EnemyType.TANK) scale = 2.5;
-            if (type === EnemyType.GRUNT) scale = 4.0;
-            if (type === EnemyType.VIPER) scale = 3.0;
-            if (type === EnemyType.KAMIKAZE) scale = 3.5;
-            
-            ctx.scale(scale, scale);
-
-            switch(type) {
-                case EnemyType.GRUNT: drawGrunt(ctx, e, time); break;
-                case EnemyType.RUSHER: drawRusher(ctx, e, time); break;
-                case EnemyType.TANK: drawTank(ctx, e, time); break;
-                case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
-                case EnemyType.VIPER: drawViper(ctx, e, time); break;
-            }
-            
-            ctx.restore();
-            requestRef.current = requestAnimationFrame(render);
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        ctx.clearRect(0, 0, w, h);
+        
+        // Mock Enemy for Rendering
+        const e: any = {
+            x: w/2,
+            y: h/2,
+            angle: -Math.PI/2, // Facing up
+            radius: 20, // Base scale
+            color: '#fff', // Fallback
+            type: type,
+            // Add minimal required props for renderers to avoid crashes
+            hp: 100, maxHp: 100
         };
-        requestRef.current = requestAnimationFrame(render);
-        return () => cancelAnimationFrame(requestRef.current);
+
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        ctx.rotate(e.angle);
+        
+        // Adjust scale based on enemy type to fit the large box nicely
+        let scale = 3.5; // Larger scale for the main preview
+        if (type === EnemyType.TANK) scale = 2.5;
+        if (type === EnemyType.GRUNT) scale = 4.0;
+        if (type === EnemyType.VIPER) scale = 3.0;
+        if (type === EnemyType.KAMIKAZE) scale = 3.5;
+        
+        ctx.scale(scale, scale);
+
+        switch(type) {
+            case EnemyType.GRUNT: drawGrunt(ctx, e, time); break;
+            case EnemyType.RUSHER: drawRusher(ctx, e, time); break;
+            case EnemyType.TANK: drawTank(ctx, e, time); break;
+            case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
+            case EnemyType.VIPER: drawViper(ctx, e, time); break;
+        }
+        
+        ctx.restore();
     }, [type]);
 
-    return <canvas ref={canvasRef} width={300} height={300} className="w-full h-full object-contain" />;
+    return <CanvasView width={300} height={300} className="w-full h-full object-contain" draw={handleDraw} />;
 };
 
-export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, onPurchase, onClose, t }) => {
+export const CarapaceAnalyzerUI: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const grid = state.spaceship.carapaceGrid;
     const [hoveredNode, setHoveredNode] = useState<CarapaceNode | null>(null);
 
     if (!grid) return null;
+
+    const handlePurchase = (row: number, col: number) => {
+        engine.purchaseCarapaceNode(row, col);
+    }
+
+    const handleClose = () => {
+        engine.exitCarapaceGrid();
+    }
 
     // Calculate Totals (Directly in render to ensure fresh data from mutable state)
     let spent = 0;
@@ -121,7 +112,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
             title={`${t('XENO_TITLE')} ${t('ANALYSIS')}`}
             subtitle={t('WEAKNESS_MATRIX')}
             theme="emerald"
-            onClose={onClose}
+            onClose={handleClose}
             headerRight={headerRight}
             maxWidth="max-w-[1350px]"
         >
@@ -194,7 +185,7 @@ export const CarapaceAnalyzerUI: React.FC<CarapaceAnalyzerUIProps> = ({ state, o
                                             key={node.id}
                                             onMouseEnter={() => setHoveredNode(node)}
                                             onMouseLeave={() => setHoveredNode(null)}
-                                            onClick={() => !node.purchased && isAffordable && onPurchase(rIndex, cIndex)}
+                                            onClick={() => !node.purchased && isAffordable && handlePurchase(rIndex, cIndex)}
                                             className={`w-24 h-24 border-2 rounded flex flex-col items-center justify-center transition-all relative group ${bgClass}`}
                                         >
                                             <div className="absolute top-1 left-2 text-[10px] text-slate-500">#{rIndex}-{cIndex}</div>

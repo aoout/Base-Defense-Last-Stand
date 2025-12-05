@@ -1,38 +1,45 @@
 
-import { GameEngine } from '../gameService';
-import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, BioBuffType } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
+import { EventBus } from '../EventBus';
+import { SpatialHashGrid } from '../../utils/spatialHash';
+import { StatManager } from './StatManager';
 
 export class DefenseManager {
-    private engine: GameEngine;
-    private targetCache: Enemy[] = []; // Reusable array for targeting
+    private getState: () => GameState;
+    private events: EventBus;
+    private spatialGrid: SpatialHashGrid<Enemy>;
+    private stats: StatManager;
+    private targetCache: Enemy[] = [];
 
-    constructor(engine: GameEngine) {
-        this.engine = engine;
+    constructor(getState: () => GameState, eventBus: EventBus, spatialGrid: SpatialHashGrid<Enemy>, statManager: StatManager) {
+        this.getState = getState;
+        this.events = eventBus;
+        this.spatialGrid = spatialGrid;
+        this.stats = statManager;
+
+        // Subscribe to events
+        this.events.on<DefenseIssueOrderEvent>(GameEventType.DEFENSE_ISSUE_ORDER, (e) => this.issueOrder(e.order));
+        this.events.on(GameEventType.DEFENSE_INTERACT, () => this.interact());
+        this.events.on<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, (e) => this.confirmTurretUpgrade(e.type));
+        this.events.on(GameEventType.DEFENSE_CLOSE_MENU, () => this.closeTurretUpgrade());
     }
 
     public update(dt: number, time: number, timeScale: number) {
-        // Use engine time instead of generic time for consistency
-        const gameTime = this.engine.time.now;
-        this.updateAllies(dt, gameTime, timeScale);
-        this.updateTurrets(gameTime);
+        this.updateAllies(dt, time, timeScale);
+        this.updateTurrets(time);
     }
 
     private updateAllies(dt: number, time: number, timeScale: number) {
-        const state = this.engine.state;
+        const state = this.getState();
         const player = state.player;
         
-        // Spawn Reinforcements
         if (Date.now() - state.lastAllySpawnTime > 60000 && state.allies.length < ALLY_STATS.maxCount) {
             const spawnX = state.base.x + (Math.random() > 0.5 ? 60 : -60);
             
-            // Calculate Bio-Sequencing Buffs
-            const hpBuff = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.ALLY_HP);
-            const dmgBuff = this.engine.spaceshipManager.getBioBuffTotal(BioBuffType.ALLY_DMG);
-            
-            const finalMaxHp = ALLY_STATS.hp * (1 + hpBuff);
-            const finalDamage = ALLY_STATS.damage * (1 + dmgBuff);
+            const finalMaxHp = this.stats.get(StatId.ALLY_MAX_HP, ALLY_STATS.hp);
+            const finalDamage = this.stats.get(StatId.ALLY_DAMAGE, ALLY_STATS.damage);
 
             state.allies.push({
                 id: `ally-${Date.now()}`,
@@ -47,23 +54,21 @@ export class DefenseManager {
                 patrolPoint: { x: spawnX, y: state.base.y - 100 }
             });
             state.lastAllySpawnTime = Date.now();
-            this.engine.addMessage("REINFORCEMENTS ARRIVED", spawnX, state.base.y - 20, '#3b82f6', FloatingTextType.SYSTEM);
+            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                text: "REINFORCEMENTS ARRIVED", x: spawnX, y: state.base.y - 20, color: '#3b82f6', type: FloatingTextType.SYSTEM
+            });
         }
 
-        // Ally Logic
+        // Ally Logic (Movement & Combat)
         state.allies.forEach(a => {
+            // ... (Target finding logic remains same)
             let target: Enemy | null = null;
             let minDistSq = Infinity;
-            
-            // 1. Determine Behavior Params
             let scanRange = 400;
             if (a.currentOrder === 'FOLLOW') scanRange = 500;
-            if (a.currentOrder === 'ATTACK') scanRange = 3000; // Effective Global
+            if (a.currentOrder === 'ATTACK') scanRange = 3000;
 
-            // 2. Find Target
             if (scanRange > 1000) {
-                // Global Scan (Iterate all enemies for ATTACK mode)
-                // Filter by simple distance to avoid checking everything if extremely far, but 3000 covers most valid targets
                 for (const e of state.enemies) {
                     const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
                     if (dSq < scanRange**2 && dSq < minDistSq) {
@@ -72,10 +77,8 @@ export class DefenseManager {
                     }
                 }
             } else {
-                // Local Scan (Spatial Grid)
                 this.targetCache.length = 0;
-                this.engine.spatialGrid.query(a.x, a.y, scanRange, this.targetCache);
-
+                this.spatialGrid.query(a.x, a.y, scanRange, this.targetCache);
                 for (const e of this.targetCache) {
                     const dSq = (e.x - a.x)**2 + (e.y - a.y)**2;
                     if (dSq < scanRange**2 && dSq < minDistSq) {
@@ -85,61 +88,40 @@ export class DefenseManager {
                 }
             }
 
-            // 3. Order Override Logic
             let shouldEngage = !!target;
-
-            // FOLLOW TETHER: If too far from player, ignore combat and run to player
             if (a.currentOrder === 'FOLLOW') {
                 const distToPlayerSq = (a.x - player.x)**2 + (a.y - player.y)**2;
-                if (distToPlayerSq > 600 * 600) {
-                    shouldEngage = false;
-                }
+                if (distToPlayerSq > 600 * 600) shouldEngage = false;
             }
 
             if (shouldEngage && target) {
                 a.state = 'COMBAT';
                 const d = Math.sqrt(minDistSq);
                 const idealDist = 200;
-                
-                // Combat Movement (Kiting/Chasing)
                 let moveAngle = Math.atan2(target.y - a.y, target.x - a.x);
-                
-                if (d < idealDist) {
-                    moveAngle += Math.PI; // Back away
-                }
-                
-                // Only move if not in sweet spot
+                if (d < idealDist) moveAngle += Math.PI;
                 if (Math.abs(d - idealDist) > 30) {
                     a.x += Math.cos(moveAngle) * a.speed * timeScale;
                     a.y += Math.sin(moveAngle) * a.speed * timeScale;
                 }
-                
                 a.angle = Math.atan2(target.y - a.y, target.x - a.x);
 
-                // Only shoot if actually in range (prevent cross-map shooting during approach)
                 if (d < ALLY_STATS.range && time - a.lastFireTime > 500) {
-                    this.engine.spawnProjectile(a.x, a.y, target.x, target.y, 15, a.damage, true, '#60a5fa', undefined, false, false, ALLY_STATS.range + 50, DamageSource.ALLY);
+                    this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                        x: a.x, y: a.y, targetX: target.x, targetY: target.y, speed: 15, damage: a.damage, fromPlayer: true, color: '#60a5fa', maxRange: ALLY_STATS.range + 50, source: DamageSource.ALLY
+                    });
                     a.lastFireTime = time;
-                    this.engine.audio.playAllyFire();
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ALLY' });
                 }
             } else {
-                // Non-Combat Movement
                 a.state = a.currentOrder === 'ATTACK' ? 'ATTACK' : a.currentOrder === 'FOLLOW' ? 'FOLLOW' : 'PATROL';
-                
                 let destX = a.patrolPoint.x;
                 let destY = a.patrolPoint.y;
                 let stopDist = 10;
-
                 if (a.currentOrder === 'FOLLOW') {
-                    destX = player.x;
-                    destY = player.y;
-                    stopDist = 120; // Don't sit exactly on player
+                    destX = player.x; destY = player.y; stopDist = 120;
                 }
-
-                const dx = destX - a.x;
-                const dy = destY - a.y;
-                const distSq = dx*dx + dy*dy;
-
+                const dx = destX - a.x; const dy = destY - a.y; const distSq = dx*dx + dy*dy;
                 if (distSq > stopDist * stopDist) {
                     const angle = Math.atan2(dy, dx);
                     a.x += Math.cos(angle) * a.speed * timeScale;
@@ -147,8 +129,6 @@ export class DefenseManager {
                     a.angle = angle;
                 }
             }
-
-            // Clamp to Map Boundaries
             a.x = Math.max(0, Math.min(WORLD_WIDTH, a.x));
             a.y = Math.max(0, Math.min(WORLD_HEIGHT, a.y));
         });
@@ -157,16 +137,15 @@ export class DefenseManager {
     }
 
     private updateTurrets(time: number) {
-        const state = this.engine.state;
+        const state = this.getState();
         state.turretSpots.forEach(spot => {
             const t = spot.builtTurret;
             if (!t) return;
 
-            // Check for destruction
             if (t.hp <= 0) {
-                this.engine.spawnParticle(spot.x, spot.y, '#ef4444', 10, 5);
-                this.engine.spawnParticle(spot.x, spot.y, '#9ca3af', 8, 3); // Debris
-                this.engine.audio.playExplosion();
+                this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: spot.x, y: spot.y, color: '#ef4444', count: 10, speed: 5 });
+                this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: spot.x, y: spot.y, color: '#9ca3af', count: 8, speed: 3 });
+                this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION' });
                 spot.builtTurret = undefined;
                 return;
             }
@@ -174,16 +153,11 @@ export class DefenseManager {
             if (time - t.lastFireTime > t.fireRate) {
                 let target: Enemy | null = null;
                 let minDistSq = t.range * t.range;
-                
-                // Spatial Grid Optimization
-                
                 let possibleTargets: Enemy[] = [];
-                if (t.range > 2000) {
-                    // Global Range (Missile) - Scan all
-                    possibleTargets = state.enemies;
-                } else {
+                if (t.range > 2000) possibleTargets = state.enemies;
+                else {
                     this.targetCache.length = 0;
-                    this.engine.spatialGrid.query(spot.x, spot.y, t.range, this.targetCache);
+                    this.spatialGrid.query(spot.x, spot.y, t.range, this.targetCache);
                     possibleTargets = this.targetCache;
                 }
 
@@ -197,18 +171,30 @@ export class DefenseManager {
 
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
-                    this.engine.spawnProjectile(spot.x, spot.y, target.x, target.y, 20, t.damage, true, '#10b981', t.type === TurretType.MISSILE ? target.id : undefined, t.type === TurretType.MISSILE, undefined, t.range, DamageSource.TURRET);
+                    this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                        x: spot.x, 
+                        y: spot.y, 
+                        targetX: target.x, 
+                        targetY: target.y, 
+                        speed: 20, 
+                        damage: t.damage, 
+                        fromPlayer: true, 
+                        color: '#10b981', 
+                        homingTargetId: t.type === TurretType.MISSILE ? target.id : undefined, 
+                        isHoming: t.type === TurretType.MISSILE, 
+                        maxRange: t.range, 
+                        source: DamageSource.TURRET
+                    });
                     t.lastFireTime = time;
-                    this.engine.audio.playTurretFire(t.level);
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: t.level });
                 }
             }
         });
     }
 
     public interact() {
-        const p = this.engine.state.player;
-        const state = this.engine.state;
-        const sm = this.engine.spaceshipManager;
+        const state = this.getState();
+        const p = state.player;
         
         let closestSpot = -1;
         let minDstSq = 60 * 60;
@@ -228,42 +214,37 @@ export class DefenseManager {
                 let cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
                 
                 // Apply Infrastructure Cost Reduction
-                const costReduction = sm.getInfrastructureBonus('COST', TurretType.STANDARD);
-                cost = Math.floor(cost * (1 - costReduction));
+                cost = this.stats.get(StatId.TURRET_COST, cost);
+                cost = Math.floor(cost);
 
                 if (p.score >= cost) {
                     p.score -= cost;
                     
-                    // Apply Bonuses
-                    const hpBonus = sm.getInfrastructureBonus('HP', TurretType.STANDARD);
-                    const dmgBonusPct = sm.getInfrastructureBonus('DMG', TurretType.STANDARD);
-                    const rateBonusPct = sm.getInfrastructureBonus('RATE', TurretType.STANDARD); // Probably 0 for standard
-
                     const baseStats = TURRET_STATS[TurretType.STANDARD];
-                    const finalHp = baseStats.hp + hpBonus;
-                    const finalDmg = baseStats.damage * (1 + dmgBonusPct);
-                    const finalRate = baseStats.fireRate / (1 + rateBonusPct);
+                    
+                    // Apply Modifiers
+                    const finalHp = this.stats.get(StatId.TURRET_HP, baseStats.hp);
+                    let finalDmg = this.stats.get(StatId.TURRET_DAMAGE_GLOBAL, baseStats.damage);
+                    finalDmg = this.stats.get(StatId.TURRET_L1_DAMAGE, finalDmg);
+                    
+                    let finalRate = this.stats.get(StatId.TURRET_RATE_GLOBAL, baseStats.fireRate);
+                    finalRate = this.stats.get(StatId.TURRET_L1_RATE, finalRate);
 
                     spot.builtTurret = {
                         id: `t-${Date.now()}`,
-                        x: spot.x,
-                        y: spot.y,
-                        radius: 12, angle: 0, color: '', 
-                        level: 1,
-                        type: TurretType.STANDARD,
-                        lastFireTime: 0,
+                        x: spot.x, y: spot.y, radius: 12, angle: 0, color: '', level: 1,
+                        type: TurretType.STANDARD, lastFireTime: 0,
                         range: baseStats.range,
-                        hp: finalHp,
-                        maxHp: finalHp,
-                        damage: finalDmg,
-                        fireRate: finalRate
+                        hp: finalHp, maxHp: finalHp,
+                        damage: finalDmg, fireRate: finalRate
                     };
-                    this.engine.audio.playTurretFire(1); 
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 1 });
                 } else {
-                    this.engine.addMessage("INSUFFICIENT FUNDS", p.x, p.y - 50, 'red', FloatingTextType.SYSTEM);
+                    this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                        text: "INSUFFICIENT FUNDS", x: p.x, y: p.y - 50, color: 'red', type: FloatingTextType.SYSTEM
+                    });
                 }
             } else {
-                // Prevent interaction for upgrades on max level turrets
                 if (spot.builtTurret.level < 2) {
                     state.activeTurretId = closestSpot;
                 }
@@ -272,8 +253,7 @@ export class DefenseManager {
     }
 
     public confirmTurretUpgrade(type: TurretType) {
-        const state = this.engine.state;
-        const sm = this.engine.spaceshipManager;
+        const state = this.getState();
         if (state.activeTurretId === undefined) return;
         const spot = state.turretSpots[state.activeTurretId];
         if (!spot.builtTurret) return;
@@ -289,22 +269,54 @@ export class DefenseManager {
             spot.builtTurret.level = 2;
             const baseStats = TURRET_STATS[type];
 
-            // Apply Bonuses
-            const hpBonus = sm.getInfrastructureBonus('HP', type);
-            const dmgBonusPct = sm.getInfrastructureBonus('DMG', type);
-            const rateBonusPct = sm.getInfrastructureBonus('RATE', type);
-            const rangeBonusPct = sm.getInfrastructureBonus('RANGE', type);
-
-            spot.builtTurret.maxHp = baseStats.hp + hpBonus;
+            // Apply Stats
+            spot.builtTurret.maxHp = this.stats.get(StatId.TURRET_HP, baseStats.hp);
             spot.builtTurret.hp = spot.builtTurret.maxHp;
-            spot.builtTurret.damage = baseStats.damage * (1 + dmgBonusPct);
-            spot.builtTurret.range = baseStats.range * (1 + rangeBonusPct);
-            spot.builtTurret.fireRate = baseStats.fireRate / (1 + rateBonusPct);
+            
+            // Damage
+            let dmg = this.stats.get(StatId.TURRET_DAMAGE_GLOBAL, baseStats.damage);
+            if (type === TurretType.MISSILE) dmg = this.stats.get(StatId.TURRET_MISSILE_DAMAGE, dmg);
+            spot.builtTurret.damage = dmg;
+
+            // Range
+            let range = baseStats.range;
+            if (type === TurretType.SNIPER) range = this.stats.get(StatId.TURRET_SNIPER_RANGE, range);
+            spot.builtTurret.range = range;
+
+            // Rate (Rate is delay ms, so division is correct for acceleration)
+            // But StatManager multiplies. Rate "increase" usually means faster fire, so lower delay.
+            // My StatManager is additive percent. +10% rate means delay / 1.1
+            // Let's check how Infra modifiers were added. 
+            // In SpaceshipManager: TURRET_GAUSS_RATE adds value.
+            // So get() returns (base) * (1 + 0.1).
+            // We want delay / multiplier.
+            
+            // Re-evaluating StatManager usage for Rate (Delay).
+            // The StatId is TURRET_RATE_GLOBAL. A higher stat means FASTER fire rate (more shots per sec).
+            // So Delay = BaseDelay / Multiplier.
+            
+            // We calculate the multiplier separately by getting (1 + modifiers) from a base of 1.
+            const rateMult = this.stats.get(StatId.TURRET_RATE_GLOBAL, 1.0);
+            
+            // Apply specific rate buffs
+            let specificMult = 1.0;
+            if (type === TurretType.GAUSS) specificMult = this.stats.get(StatId.TURRET_GAUSS_RATE, 1.0);
+            
+            // Note: The above `get(ID, 1.0)` works if the mods are PERCENT_ADD. 
+            // If there are FLAT modifiers on Rate, this logic breaks.
+            // Assuming rate mods are only percentage based for now.
+            
+            spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
             
             this.closeTurretUpgrade();
         }
     }
 
-    public closeTurretUpgrade() { this.engine.state.activeTurretId = undefined; }
-    public issueOrder(order: AllyOrder) { this.engine.state.allies.forEach(a => a.currentOrder = order); }
+    public closeTurretUpgrade() { 
+        this.getState().activeTurretId = undefined; 
+    }
+    
+    public issueOrder(order: AllyOrder) { 
+        this.getState().allies.forEach(a => a.currentOrder = order); 
+    }
 }

@@ -1,22 +1,11 @@
 
 import React, { useRef, useState } from 'react';
-import { GameState, GameSettings } from '../../types';
+import { GameSettings } from '../../types';
 import { SaveSlotItem } from './SaveSlot';
 import { CloseButton } from './Shared';
 import { CHANGELOG, CURRENT_VERSION } from '../../data/changelog';
-
-interface MainMenuProps {
-    state: GameState;
-    onStartSurvival: () => void;
-    onStartExploration: () => void;
-    onLoadGame: (id: string) => void;
-    onDeleteSave: (id: string) => void;
-    onTogglePin: (id: string) => void;
-    onExportSave: (id: string) => void;
-    onImportSave: (json: string) => void;
-    onToggleSetting: (key: keyof GameSettings) => void;
-    t: (key: string) => string;
-}
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
 const SettingRow: React.FC<{ label: string, value: string, onClick: () => void, description?: string }> = ({ label, value, onClick, description }) => (
     <div 
@@ -33,18 +22,9 @@ const SettingRow: React.FC<{ label: string, value: string, onClick: () => void, 
     </div>
 );
 
-export const MainMenu: React.FC<MainMenuProps> = ({ 
-    state, 
-    onStartSurvival, 
-    onStartExploration, 
-    onLoadGame, 
-    onDeleteSave, 
-    onTogglePin, 
-    onExportSave,
-    onImportSave,
-    onToggleSetting,
-    t 
-}) => {
+export const MainMenu: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showSettings, setShowSettings] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
@@ -61,19 +41,30 @@ export const MainMenu: React.FC<MainMenuProps> = ({
         reader.onload = (ev) => {
             const content = ev.target?.result as string;
             if (content) {
-                onImportSave(content);
+                engine.importSave(content);
             }
         };
         reader.readAsText(file);
-        // Reset so same file can be selected again if needed
         e.target.value = '';
+    };
+
+    const handleExportSave = (id: string) => {
+        const json = engine.exportSave(id);
+        if (json) {
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Vanguard_Save_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
     };
 
     const isCN = state.settings.language === 'CN';
 
     return (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-auto">
-            {/* Hidden Input for Import */}
             <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -82,7 +73,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 onChange={handleFileChange} 
             />
 
-            {/* Floating Cryo Storage (Left) */}
             <div className="absolute top-12 bottom-12 left-12 w-96 flex flex-col justify-center">
                 <div className="mb-6 border-b border-blue-500/30 pb-2 flex justify-between items-center">
                     <h2 className="text-blue-400 font-mono text-sm tracking-[0.3em] uppercase drop-shadow-[0_0_5px_rgba(59,130,246,0.8)] animate-pulse">{t('EXTRACTABLE_MEMORIES')}</h2>
@@ -103,17 +93,15 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         <SaveSlotItem 
                         key={save.id} 
                         save={save} 
-                        onLoad={() => onLoadGame(save.id)}
-                        onDelete={() => onDeleteSave(save.id)}
-                        onPin={() => onTogglePin(save.id)}
-                        onExport={() => onExportSave(save.id)}
-                        t={t}
+                        onLoad={() => engine.loadGame(save.id)}
+                        onDelete={() => engine.deleteSave(save.id)}
+                        onPin={() => engine.togglePin(save.id)}
+                        onExport={() => handleExportSave(save.id)}
                         />
                     ))}
                 </div>
             </div>
 
-            {/* Main Menu (Right Side) */}
             <div className="absolute right-24 flex flex-col items-end space-y-12">
                 <div className="text-right">
                     <h1 className="text-8xl font-black font-display text-transparent bg-clip-text bg-gradient-to-b from-white to-slate-400 tracking-wider drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">
@@ -126,7 +114,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
                 
                 <div className="flex flex-col gap-6">
-                    <button onClick={onStartSurvival} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-cyan-500/50 hover:border-cyan-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <button onClick={() => engine.enterSurvivalMode()} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-cyan-500/50 hover:border-cyan-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                         <div className="absolute inset-0 bg-cyan-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
@@ -139,7 +127,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                         </div>
                     </button>
 
-                    <button onClick={onStartExploration} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-purple-500/50 hover:border-purple-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <button onClick={() => engine.enterExplorationMode()} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-purple-500/50 hover:border-purple-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                         <div className="absolute inset-0 bg-purple-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
                         
                         <div className="relative z-10 flex flex-col items-start">
@@ -154,7 +142,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
             </div>
 
-            {/* Version / Changelog Trigger */}
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center">
                 <button 
                     onClick={() => setShowChangelog(true)}
@@ -165,7 +152,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 <div className="w-16 h-px bg-slate-800"></div>
             </div>
 
-            {/* Settings Toggle (Bottom Right) */}
             <div className="absolute bottom-8 right-8">
                 <button 
                     onClick={() => setShowSettings(true)}
@@ -179,7 +165,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </button>
             </div>
 
-            {/* Changelog Modal */}
             {showChangelog && (
                 <div className="absolute inset-0 z-50 bg-black/90 flex items-center justify-center backdrop-blur-sm">
                     <div className="w-[600px] h-[70vh] bg-slate-900 border-2 border-slate-600 shadow-[0_0_50px_rgba(255,255,255,0.1)] relative flex flex-col">
@@ -230,7 +215,6 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                 </div>
             )}
 
-            {/* Settings Modal */}
             {showSettings && (
                 <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
                     <div className="w-[600px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative p-8">
@@ -245,7 +229,7 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <SettingRow 
                                 label={t('SETTING_LANGUAGE')} 
                                 value={state.settings.language === 'EN' ? 'EN' : 'CN'} 
-                                onClick={() => onToggleSetting('language')} 
+                                onClick={() => engine.toggleSetting('language')} 
                             />
                             
                             <div className="h-px bg-slate-800 my-4"></div>
@@ -253,49 +237,49 @@ export const MainMenu: React.FC<MainMenuProps> = ({
                             <SettingRow 
                                 label={t('SETTING_RESOLUTION')} 
                                 value={`${(state.settings.resolutionScale || 1.0) * 100}%`}
-                                onClick={() => onToggleSetting('resolutionScale')}
+                                onClick={() => engine.toggleSetting('resolutionScale')}
                                 description={isCN ? "降低渲染分辨率以显著提高性能。" : "Lower internal resolution for massive FPS boost."}
                             />
 
                             <SettingRow 
                                 label={t('SETTING_LOD_LABEL')} 
                                 value={t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)} 
-                                onClick={() => onToggleSetting('performanceMode')}
+                                onClick={() => engine.toggleSetting('performanceMode')}
                                 description={isCN ? "调整模型细节阈值。" : "Adjust Model LOD thresholds."}
                             />
 
                             <SettingRow 
                                 label={t('SETTING_SHADOWS')} 
                                 value={state.settings.showShadows ? t('SETTING_ON') : t('SETTING_OFF')} 
-                                onClick={() => onToggleSetting('showShadows')}
+                                onClick={() => engine.toggleSetting('showShadows')}
                                 description={isCN ? "切换单位阴影投射。" : "Toggle unit drop shadows."}
                             />
 
                             <SettingRow 
                                 label={t('SETTING_PARTICLES')} 
                                 value={state.settings.particleIntensity === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
-                                onClick={() => onToggleSetting('particleIntensity')}
+                                onClick={() => engine.toggleSetting('particleIntensity')}
                                 description={isCN ? "减少碎片/爆炸特效。" : "Reduce debris/explosion effects."}
                             />
                             
                             <SettingRow 
                                 label={t('SETTING_LIGHTING')} 
                                 value={state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')} 
-                                onClick={() => onToggleSetting('lightingQuality')}
+                                onClick={() => engine.toggleSetting('lightingQuality')}
                                 description={isCN ? "切换光晕和泛光效果。" : "Toggle glows and bloom effects."}
                             />
                             
                             <SettingRow 
                                 label={t('SETTING_ANIM_BG')} 
                                 value={state.settings.animatedBackground ? t('SETTING_ON') : t('SETTING_OFF')} 
-                                onClick={() => onToggleSetting('animatedBackground')}
+                                onClick={() => engine.toggleSetting('animatedBackground')}
                                 description={isCN ? "切换地形动画 (岩浆, 树木)。" : "Toggle terrain animations (Magma, Trees)."}
                             />
 
                             <SettingRow 
                                 label={t('DMG_TEXT')} 
                                 value={state.settings.showDamageNumbers ? t('SETTING_ON') : t('SETTING_OFF')} 
-                                onClick={() => onToggleSetting('showDamageNumbers')} 
+                                onClick={() => engine.toggleSetting('showDamageNumbers')} 
                                 description={isCN ? "显示/隐藏伤害数字浮动文本。" : "Toggle floating damage numbers."}
                             />
                         </div>

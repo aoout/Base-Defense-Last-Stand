@@ -1,15 +1,14 @@
+
 import React from 'react';
-import { GameState, WeaponType, GameMode, MissionType, BossType } from '../../types';
+import { WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
+import { useLocale } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
 
-interface HUDProps {
-    state: GameState;
-    t: (key: string) => string;
-    onSkipWave: () => void;
-}
-
-export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
+export const HUD: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const p = state.player;
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
     const currentWep = p.weapons[currentWeaponType];
@@ -146,7 +145,7 @@ export const HUD: React.FC<HUDProps> = ({ state, t, onSkipWave }) => {
                     </div>
 
                     <button 
-                        onClick={onSkipWave}
+                        onClick={() => engine.skipWave()}
                         className="
                             group relative bg-yellow-500/10 hover:bg-yellow-500/90 
                             border-x border-b border-yellow-500 

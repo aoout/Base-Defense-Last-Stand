@@ -1,18 +1,19 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
+import { useLocale, Translator } from '../contexts/LocaleContext';
+import { useGame } from '../contexts/GameContext';
+import { CanvasView } from './common/CanvasView';
 
 const ToggleRow: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (<div className="flex items-center justify-between p-3 border border-green-900/50 hover:bg-green-900/20 cursor-pointer" onClick={onClick}><span>{label}</span><div className={`w-12 h-6 rounded-none border border-green-700 relative transition-colors ${active ? 'bg-green-900' : 'bg-black'}`}><div className={`absolute top-0.5 bottom-0.5 w-5 bg-green-500 transition-all ${active ? 'left-[calc(100%-22px)]' : 'left-0.5'}`}></div></div></div>);
 
-const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => {
+const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t }) => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const requestRef = useRef<number>(0);
     
     const allEntities = [
         EnemyType.GRUNT, 
@@ -28,93 +29,79 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
 
     const isDiscovered = (id: string) => state.stats.encounteredEnemies.includes(id);
 
-    useEffect(() => {
-        const render = () => {
-            if (selectedId && isDiscovered(selectedId) && canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d');
-                if (!ctx) return;
-                
-                // Clear and Background
-                ctx.clearRect(0, 0, 200, 200); 
-                ctx.fillStyle = '#022c22'; 
-                ctx.fillRect(0,0,200,200); 
-                
-                // Grid Effect
-                ctx.strokeStyle = 'rgba(6, 95, 70, 0.3)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                for(let i=0; i<200; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,200); ctx.moveTo(0,i); ctx.lineTo(200,i); }
-                ctx.stroke();
-                
-                ctx.strokeStyle = '#065f46'; 
-                ctx.strokeRect(0,0,200,200);
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        if (!selectedId || !isDiscovered(selectedId)) return;
 
-                // Prepare Mock Entity
-                let radius = 20;
-                let color = '#fff';
-                if (ENEMY_STATS[selectedId as EnemyType]) {
-                    radius = ENEMY_STATS[selectedId as EnemyType].radius;
-                    color = ENEMY_STATS[selectedId as EnemyType].color;
-                } else if (BOSS_STATS[selectedId as BossType]) {
-                    radius = BOSS_STATS[selectedId as BossType].radius;
-                    color = BOSS_STATS[selectedId as BossType].color;
-                }
+        // Clear and Background
+        ctx.fillStyle = '#022c22'; 
+        ctx.fillRect(0,0, w, h); 
+        
+        // Grid Effect
+        ctx.strokeStyle = 'rgba(6, 95, 70, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        for(let i=0; i<w; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,h); ctx.moveTo(0,i); ctx.lineTo(w,i); }
+        ctx.stroke();
+        
+        ctx.strokeStyle = '#065f46'; 
+        ctx.strokeRect(0,0, w, h);
 
-                const isBoss = selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') || selectedId.includes('HIVE');
+        // Prepare Mock Entity
+        let radius = 20;
+        let color = '#fff';
+        if (ENEMY_STATS[selectedId as EnemyType]) {
+            radius = ENEMY_STATS[selectedId as EnemyType].radius;
+            color = ENEMY_STATS[selectedId as EnemyType].color;
+        } else if (BOSS_STATS[selectedId as BossType]) {
+            radius = BOSS_STATS[selectedId as BossType].radius;
+            color = BOSS_STATS[selectedId as BossType].color;
+        }
 
-                const mockEntity: any = { 
-                    x: 100, 
-                    y: 100, 
-                    radius: radius * 2, // Base scale
-                    angle: 0, // Facing right by default in local space usually, but we rotate context
-                    hp: 100, 
-                    maxHp: 100, 
-                    color: color, 
-                    type: selectedId, 
-                    bossType: selectedId, 
-                    isBoss: isBoss,
-                    armorValue: 90 // Visual for hive mother
-                };
-                
-                const time = Date.now();
-                
-                ctx.save();
-                // Move origin to center of canvas
-                ctx.translate(100, 100);
-                
-                // Adjust scale to fit canvas nicely
-                let scale = 1.5;
-                if (isBoss) scale = 0.8;
-                if (selectedId === BossType.HIVE_MOTHER) scale = 0.6;
-                if (selectedId === BossType.RED_SUMMONER) scale = 0.7;
-                
-                ctx.scale(scale, scale);
-                
-                // Rotate to face UP (standard portrait orientation)
-                // Most renderers draw facing RIGHT (0 rads) or are rotation agnostic but have a "head"
-                // Let's rotate -90 deg to face up
-                ctx.rotate(-Math.PI / 2);
+        const isBoss = selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') || selectedId.includes('HIVE');
 
-                // The draw functions draw at (0,0) of the current context
-                switch(selectedId) {
-                    case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
-                    case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
-                    case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
-                    case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
-                    case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
-                    case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
-                    case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
-                    case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
-                    case BossType.HIVE_MOTHER: drawHiveMother(ctx, mockEntity, time); break;
-                }
-                ctx.restore();
-            }
-            requestRef.current = requestAnimationFrame(render);
+        const mockEntity: any = { 
+            x: 100, 
+            y: 100, 
+            radius: radius * 2, // Base scale
+            angle: 0, // Facing right by default in local space usually, but we rotate context
+            hp: 100, 
+            maxHp: 100, 
+            color: color, 
+            type: selectedId, 
+            bossType: selectedId, 
+            isBoss: isBoss,
+            armorValue: 90 // Visual for hive mother
         };
+        
+        ctx.save();
+        // Move origin to center of canvas
+        ctx.translate(w/2, h/2);
+        
+        // Adjust scale to fit canvas nicely
+        let scale = 1.5;
+        if (isBoss) scale = 0.8;
+        if (selectedId === BossType.HIVE_MOTHER) scale = 0.6;
+        if (selectedId === BossType.RED_SUMMONER) scale = 0.7;
+        
+        ctx.scale(scale, scale);
+        
+        // Rotate to face UP (standard portrait orientation)
+        ctx.rotate(-Math.PI / 2);
 
-        requestRef.current = requestAnimationFrame(render);
-        return () => cancelAnimationFrame(requestRef.current);
-    }, [selectedId, state.stats.encounteredEnemies]);
+        // The draw functions draw at (0,0) of the current context
+        switch(selectedId) {
+            case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
+            case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
+            case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
+            case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
+            case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
+            case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
+            case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
+            case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
+            case BossType.HIVE_MOTHER: drawHiveMother(ctx, mockEntity, time); break;
+        }
+        ctx.restore();
+    }, [selectedId]); // Correct dependency: function recreates when ID changes
 
     return (
         <div className="flex h-full gap-4">
@@ -134,7 +121,7 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
                             <div className="h-full flex flex-col animate-fadeIn">
                                 <div className="flex gap-4 mb-4">
                                     <div className="border border-green-700 w-[200px] h-[200px] bg-black relative flex-shrink-0 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                                        <canvas ref={canvasRef} width={200} height={200} className="w-full h-full" />
+                                        <CanvasView width={200} height={200} className="w-full h-full" draw={handleDraw} />
                                         <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
                                         <div className="absolute bottom-1 right-1 text-[10px] text-green-900 font-mono">FIG. A</div>
                                     </div>
@@ -175,7 +162,9 @@ const BestiaryPanel: React.FC<{ state: GameState, t: any }> = ({ state, t }) => 
     );
 };
 
-export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k: keyof GameSettings) => void, onClose: () => void, onSave: () => void, t: any }> = ({ state, onToggleSetting, onClose, onSave, t }) => {
+export const TacticalTerminal: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
     const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'PLANET' | 'MEMORY'>('DATA');
     const chartRef = useRef<SVGSVGElement>(null);
     const tabs = ['DATA', 'CONFIG', 'NOTES', 'DATABASE'];
@@ -207,11 +196,23 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
         return ((playerDmg / total) * 100).toFixed(1);
     };
 
+    const handleToggleSetting = (k: keyof GameSettings) => {
+        engine.toggleSetting(k);
+    };
+
+    const handleClose = () => {
+        engine.togglePause();
+    }
+
+    const handleSave = () => {
+        engine.saveGame();
+    }
+
     return (
         <div className="absolute inset-0 z-[100] bg-black pointer-events-auto font-mono text-green-500 flex items-center justify-center">
             <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
             <div className="w-[900px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
-                <CloseButton onClick={onClose} colorClass="border-green-800 text-green-500 hover:text-white hover:bg-green-900/50" />
+                <CloseButton onClick={handleClose} colorClass="border-green-800 text-green-500 hover:text-white hover:bg-green-900/50" />
                 <div className="border-b border-green-800 p-4 flex justify-between items-center bg-black/50">
                     <h1 className="text-3xl font-display font-bold tracking-wide text-green-400">{t('PAUSE_TITLE')}</h1>
                     <div className="text-xs text-green-700 animate-pulse mr-8">{t('SYSTEM_PAUSED')}</div>
@@ -259,11 +260,11 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                     {activeTab === 'CONFIG' && (
                         <div className="space-y-4">
                             <h3 className="text-green-400 border-b border-green-900 pb-2 mb-4">{t('VISUAL_SETTINGS')}</h3>
-                            <ToggleRow label={`${t('SETTING_LOD_LABEL')} : ${t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}`} active={true} onClick={() => onToggleSetting('performanceMode')} />
-                            <ToggleRow label={t('HUD_OVERLAY')} active={state.settings.showHUD} onClick={() => onToggleSetting('showHUD')} />
-                            <ToggleRow label={t('GORE')} active={state.settings.showBlood} onClick={() => onToggleSetting('showBlood')} />
-                            <ToggleRow label={t('DMG_TEXT')} active={state.settings.showDamageNumbers} onClick={() => onToggleSetting('showDamageNumbers')} />
-                            <ToggleRow label={`${t('LANGUAGE')} : ${state.settings.language}`} active={state.settings.language === 'EN'} onClick={() => onToggleSetting('language')} />
+                            <ToggleRow label={`${t('SETTING_LOD_LABEL')} : ${t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}`} active={true} onClick={() => handleToggleSetting('performanceMode')} />
+                            <ToggleRow label={t('HUD_OVERLAY')} active={state.settings.showHUD} onClick={() => handleToggleSetting('showHUD')} />
+                            <ToggleRow label={t('GORE')} active={state.settings.showBlood} onClick={() => handleToggleSetting('showBlood')} />
+                            <ToggleRow label={t('DMG_TEXT')} active={state.settings.showDamageNumbers} onClick={() => handleToggleSetting('showDamageNumbers')} />
+                            <ToggleRow label={`${t('LANGUAGE')} : ${state.settings.language}`} active={state.settings.language === 'EN'} onClick={() => handleToggleSetting('language')} />
                         </div>
                     )}
                     {activeTab === 'NOTES' && (
@@ -287,13 +288,13 @@ export const TacticalTerminal: React.FC<{ state: GameState, onToggleSetting: (k:
                         </div>
                     )}
                     {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
-                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} t={t} onShowDetail={() => {}} />}
+                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} onShowDetail={() => {}} />}
                     {activeTab === 'MEMORY' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-8">
                             <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
                                 <h2 className="text-2xl font-bold mb-4">{t('MEMORY_STORAGE')}</h2>
                                 <p className="text-sm text-green-600 mb-8">Current game state can be preserved in cryo-storage for future deployment. Overwrites oldest non-pinned memory if storage is full.</p>
-                                <button onClick={onSave} className="px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all">{t('SAVE_STATE')}</button>
+                                <button onClick={handleSave} className="px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all">{t('SAVE_STATE')}</button>
                             </div>
                         </div>
                     )}
