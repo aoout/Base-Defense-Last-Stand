@@ -30,7 +30,7 @@ export const ENEMIES_CN = {
     // --- ENEMIES ---
     ENEMY_GRUNT_NAME: "蠕铗",
     ENEMY_GRUNT_CLASS: "虫群步兵",
-    ENEMY_GRUNT_DESC: "标准生物无人机。",
+    ENEMY_GRUNT_DESC: "带铗状口器的低阶劳工体，数量巨大。",
     ENEMY_RUSHER_NAME: "掠流虫",
     ENEMY_RUSHER_CLASS: "快速突击",
     ENEMY_RUSHER_DESC: "快速敏捷的变种。",
