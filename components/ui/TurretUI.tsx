@@ -4,6 +4,7 @@ import { TurretType, GameEventType, DefenseUpgradeTurretEvent } from '../../type
 import { TURRET_COSTS, TURRET_STATS } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
+import { CloseButton } from './Shared';
 
 export const TurretUpgradeUI: React.FC = () => {
     const { state, engine } = useGame();
@@ -19,6 +20,10 @@ export const TurretUpgradeUI: React.FC = () => {
         engine.eventBus.emit<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, { type });
     };
 
+    const handleClose = () => {
+        engine.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {});
+    };
+
     const upgrades = [
         { type: TurretType.GAUSS, name: t('GAUSS_NAME'), cost: TURRET_COSTS.upgrade_gauss, desc: t('GAUSS_DESC') },
         { type: TurretType.SNIPER, name: t('SNIPER_NAME'), cost: TURRET_COSTS.upgrade_sniper, desc: t('SNIPER_DESC') },
@@ -28,6 +33,8 @@ export const TurretUpgradeUI: React.FC = () => {
     return (
         <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50">
             <div className="bg-gray-900 border-2 border-emerald-500 p-8 rounded-xl max-w-4xl w-full text-center relative">
+                <CloseButton onClick={handleClose} colorClass="border-emerald-500 text-emerald-500 hover:text-white hover:bg-emerald-900/50" />
+                
                 <h2 className="text-3xl font-black text-emerald-500 mb-2">{t('SYSTEM_UPGRADE')}</h2>
                 <p className="text-emerald-800 mb-8">{t('SELECT_MODULE')}</p>
                 <div className="grid grid-cols-3 gap-6">

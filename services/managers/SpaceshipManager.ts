@@ -1,5 +1,5 @@
 
-import { GameState, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource, InfrastructureOption, InfrastructureUpgradeType, TurretType, BioNode, BioResource, BioBuffType, BioTask, GameEventType, DamageEnemyEvent, ShowFloatingTextEvent, PlaySoundEvent, SpawnParticleEvent, StatModifier, StatId, ModifierType } from '../../types';
+import { GameState, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, CarapaceGridState, CarapaceNode, EnemyType, DefenseUpgradeType, FloatingTextType, DamageSource, InfrastructureOption, InfrastructureUpgradeType, TurretType, BioNode, BioResource, BioBuffType, BioTask, GameEventType, DamageEnemyEvent, ShowFloatingTextEvent, PlaySoundEvent, SpawnParticleEvent, StatModifier, StatId, ModifierType, DamageAreaEvent } from '../../types';
 import { PLAYER_STATS, ALLY_STATS, BASE_STATS } from '../../data/registry';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { EventBus } from '../EventBus';
@@ -44,15 +44,15 @@ export class SpaceshipManager {
                     const baseDamage = 400;
                     const damageMultiplier = state.spaceship.orbitalDamageMultiplier || 1;
                     
-                    // Carapace logic is now handled in getCarapaceDamageMultiplier or via stats
-                    // For now, let's keep direct logic for Orbital since it's unique
-                    // BUT ideally, we query stats. For simplicity, we keep internal multiplier state for orbital
                     const carapaceMult = this.getCarapaceDamageMultiplier(closest.type);
                     const finalDamage = baseDamage * damageMultiplier * carapaceMult;
 
-                    this.events.emit<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, {
-                        targetId: closest.id,
-                        amount: finalDamage,
+                    // Switch to AOE Damage
+                    this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, {
+                        x: closest.x,
+                        y: closest.y,
+                        radius: 100,
+                        damage: finalDamage,
                         source: DamageSource.ORBITAL
                     });
                     
@@ -62,19 +62,21 @@ export class SpaceshipManager {
                         y: closest.y,
                         life: 1.0,
                         maxLife: 600, 
-                        width: 40,
+                        width: 60, // Slightly wider for impact visual
                         color: '#06b6d4'
                     };
                     state.orbitalBeams.push(beam);
 
-                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#06b6d4', count: 15, speed: 6 });
-                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#ffffff', count: 8, speed: 3 });
+                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#06b6d4', count: 20, speed: 8 });
+                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: closest.x, y: closest.y, color: '#ffffff', count: 12, speed: 12 });
                     
                     this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
                         text: `ORBITAL STRIKE: ${Math.floor(finalDamage)}`,
-                        x: closest.x, y: closest.y - 40, color: '#06b6d4', type: FloatingTextType.SYSTEM
+                        x: closest.x, y: closest.y - 60, color: '#06b6d4', type: FloatingTextType.SYSTEM
                     });
-                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 }); 
+                    
+                    // New Sound Event
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ORBITAL_STRIKE', x: closest.x, y: closest.y }); 
                 }
                 
                 state.orbitalSupportTimer = 0;
@@ -270,7 +272,7 @@ export class SpaceshipManager {
         
         const base = 1.2; // Base buff for having the module
         // We can query specific stats if we want detailed breakdown, or rely on this legacy method
-        // For consistency, let's keep using the internal state for this specific logic 
+        // For consistency, we keep using the internal state for this specific logic 
         // as converting the dynamic grid to individual StatModifiers is complex but doable in registerModifiers
         
         // HOWEVER, to be truly unified, we should use StatManager. 

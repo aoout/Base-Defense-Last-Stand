@@ -36,7 +36,7 @@ export class ProjectileManager {
         );
 
         this.events.on<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, (e) => {
-            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules);
+            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive);
         });
     }
 
@@ -44,7 +44,7 @@ export class ProjectileManager {
         this.getState().projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean) {
         const angle = Math.atan2(ty - y, tx - x);
         
         const proj = this.pool.get();
@@ -65,51 +65,9 @@ export class ProjectileManager {
         proj.isHoming = !!isHoming;
         proj.createsToxicZone = !!createsToxicZone;
         proj.activeModules = activeModules;
+        proj.isExplosive = !!isExplosive;
 
-        // Set flags based on weapon type derived modules if needed, or caller passes params
-        // Caller (PlayerManager) usually sets weaponType props or logic before spawn if using custom logic
-        // But here we rely on properties passed.
-        
-        // Infer weapon type for rendering/logic if passed in activeModules (complex) or just set prop
-        // Currently Projectile struct has optional weaponType.
-        // The event payload allows modules.
-        
-        // Simple heuristic for piercing/explosive flags (can be refined)
-        // Usually these are passed in via spawn params or derived.
-        // PlayerManager fires with specific params.
-        // For simplicity here, we assume the caller sets things up or we set defaults.
-        
-        // Re-apply flags based on modules if they were passed
-        if (activeModules) {
-             // Logic can be handled here or in PlayerManager. 
-             // Currently PlayerManager handles firing logic.
-             // We just store the modules for PhysicsSystem to use.
-        }
-
-        // To ensure consistency, we should set isPiercing/isExplosive based on weapon source in PlayerManager,
-        // but since we receive raw params here, we trust the caller (PlayerManager/EnemyManager)
-        
-        // NOTE: We need to know if it's piercing/explosive for PhysicsSystem.
-        // The SpawnProjectileEvent payload doesn't strictly have isPiercing/isExplosive flags explicitly in interface,
-        // but PlayerManager emits them attached to the object if it wasn't strictly typed?
-        // Actually, PlayerManager calls `firePlayerProjectile` which emits event.
-        // We should ensure the event carries this info or Physics infers it.
-        // The current `SpawnProjectileEvent` interface doesn't have isPiercing.
-        // We might need to update the Event interface or infer it.
-        // For now, let's assume standard behavior or that `activeModules` is enough for Physics to decide.
-        // Actually, PhysicsSystem uses `p.isPiercing`. We need to set it on `p`.
-        
-        // Hack: Infer from color/damage? No.
-        // Let's rely on `activeModules` or `weaponType` if stored.
-        // We store `activeModules` on `p`.
-        // We should arguably add `isPiercing` to the SpawnEvent, but to avoid changing Types file,
-        // let's infer for now or update Types.
-        // Since I can update Types (I'm the AI), I should have added it.
-        // But I didn't in previous step.
-        // Let's detect based on activeModules in PhysicsSystem, or set it here if possible.
-        // Actually, PlayerManager Logic determines piercing.
-        
-        // Let's add isPiercing/isExplosive detection based on modules here for robustness
+        // Auto-detect flags based on modules or legacy color mapping if not explicitly set
         if (activeModules) {
              if (activeModules.some(m => m.type === 'KINETIC_STABILIZER')) proj.isPiercing = true;
         }

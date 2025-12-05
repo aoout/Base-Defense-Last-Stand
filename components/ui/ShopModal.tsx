@@ -39,7 +39,7 @@ export const ShopModal: React.FC = () => {
     };
 
     const handleClose = () => {
-        engine.state.isShopOpen = false;
+        engine.closeShop();
     };
 
     const getCompatText = (modType: ModuleType) => {

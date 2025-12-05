@@ -1,6 +1,8 @@
 
 export type AudioLayerType = 'OSCILLATOR' | 'NOISE';
 
+export type OscillatorType = 'sine' | 'square' | 'sawtooth' | 'triangle' | 'custom';
+
 export interface AudioLayerBase {
     type: AudioLayerType;
     volume: number; // 0 to 1

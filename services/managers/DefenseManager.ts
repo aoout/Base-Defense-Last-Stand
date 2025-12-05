@@ -171,22 +171,41 @@ export class DefenseManager {
 
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
+                    
+                    // Determine projectile type based on turret type
+                    let isExplosive = false;
+                    let speed = 20;
+                    let color = '#10b981';
+                    let explosionRadius = 0;
+
+                    if (t.type === TurretType.SNIPER) { // Long-Range Cannon
+                        isExplosive = false; // Disabled AOE for precision mechanical feel
+                        color = '#ffffff';
+                        speed = 35;
+                    } else if (t.type === TurretType.MISSILE) {
+                        isExplosive = true;
+                        explosionRadius = 100;
+                    }
+
                     this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
                         x: spot.x, 
                         y: spot.y, 
                         targetX: target.x, 
                         targetY: target.y, 
-                        speed: 20, 
+                        speed: speed, 
                         damage: t.damage, 
                         fromPlayer: true, 
-                        color: '#10b981', 
+                        color: color, 
                         homingTargetId: t.type === TurretType.MISSILE ? target.id : undefined, 
                         isHoming: t.type === TurretType.MISSILE, 
                         maxRange: t.range, 
-                        source: DamageSource.TURRET
+                        source: DamageSource.TURRET,
+                        isExplosive: isExplosive,
+                        // @ts-ignore - passing extra prop to be handled by ProjectileManager/Physics
+                        explosionRadius: explosionRadius 
                     });
                     t.lastFireTime = time;
-                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: t.level });
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: t.type });
                 }
             }
         });
@@ -283,28 +302,10 @@ export class DefenseManager {
             if (type === TurretType.SNIPER) range = this.stats.get(StatId.TURRET_SNIPER_RANGE, range);
             spot.builtTurret.range = range;
 
-            // Rate (Rate is delay ms, so division is correct for acceleration)
-            // But StatManager multiplies. Rate "increase" usually means faster fire, so lower delay.
-            // My StatManager is additive percent. +10% rate means delay / 1.1
-            // Let's check how Infra modifiers were added. 
-            // In SpaceshipManager: TURRET_GAUSS_RATE adds value.
-            // So get() returns (base) * (1 + 0.1).
-            // We want delay / multiplier.
-            
-            // Re-evaluating StatManager usage for Rate (Delay).
-            // The StatId is TURRET_RATE_GLOBAL. A higher stat means FASTER fire rate (more shots per sec).
-            // So Delay = BaseDelay / Multiplier.
-            
-            // We calculate the multiplier separately by getting (1 + modifiers) from a base of 1.
+            // Rate calculation
             const rateMult = this.stats.get(StatId.TURRET_RATE_GLOBAL, 1.0);
-            
-            // Apply specific rate buffs
             let specificMult = 1.0;
             if (type === TurretType.GAUSS) specificMult = this.stats.get(StatId.TURRET_GAUSS_RATE, 1.0);
-            
-            // Note: The above `get(ID, 1.0)` works if the mods are PERCENT_ADD. 
-            // If there are FLAT modifiers on Rate, this logic breaks.
-            // Assuming rate mods are only percentage based for now.
             
             spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
             
@@ -314,6 +315,7 @@ export class DefenseManager {
 
     public closeTurretUpgrade() { 
         this.getState().activeTurretId = undefined; 
+        this.events.emit(GameEventType.UI_UPDATE, { reason: 'CLOSE_MENU' });
     }
     
     public issueOrder(order: AllyOrder) { 

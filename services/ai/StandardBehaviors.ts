@@ -1,3 +1,4 @@
+
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
 import { Enemy, GameEventType, DamageSource } from '../../types';
 
@@ -22,9 +23,10 @@ export class KamikazeBehavior extends BaseEnemyBehavior {
 
 export class ViperBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
-        // ... (Viper logic can remain same or be optimized, keeping existing structure)
         const target = this.acquireTarget(enemy, context);
         const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
+        
+        const attackRange = 450;
         const stopDist = 400;
 
         // Move only if out of range
@@ -35,9 +37,10 @@ export class ViperBehavior extends BaseEnemyBehavior {
             enemy.angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
         }
 
-        // Logic relies on BaseEnemyBehavior methods or custom
-        // Re-implementing tryShoot here since it was local private before
-        this.tryShoot(enemy, target, context);
+        // Only shoot if within attack range
+        if (distSq <= attackRange * attackRange) {
+            this.tryShoot(enemy, target, context);
+        }
     }
 
     private tryShoot(enemy: Enemy, target: any, context: AIContext) {

@@ -85,6 +85,9 @@ export class PhysicsSystem {
                             source: p.source 
                         });
                         
+                        // Hit Sound (Throttled by AudioService profile)
+                        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BULLET_HIT', x: e.x, y: e.y });
+                        
                         // Collision Response
                         if (p.isPiercing) {
                             p.hitIds!.push(e.id);
@@ -95,8 +98,9 @@ export class PhysicsSystem {
                                 }
                             }
                         } else if (p.isExplosive) {
-                            this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { x: p.x, y: p.y, radius: 100, damage: finalDamage });
+                            this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { x: p.x, y: p.y, radius: 100, damage: finalDamage, source: p.source });
                             this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: p.x, y: p.y, color: '#f87171', count: 10, speed: 10 });
+                            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
                             shouldRemove = true;
                         } else {
                             shouldRemove = true;
@@ -190,10 +194,16 @@ export class PhysicsSystem {
     }
 
     private triggerKamikazeExplosion(enemy: Enemy) {
-        this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { x: enemy.x, y: enemy.y, radius: 100, damage: enemy.damage });
+        this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { 
+            x: enemy.x, 
+            y: enemy.y, 
+            radius: 100, 
+            damage: enemy.damage,
+            source: DamageSource.ENEMY
+        });
         this.events.emit<SpawnToxicZoneEvent>(GameEventType.SPAWN_TOXIC_ZONE, { x: enemy.x, y: enemy.y });
         this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: enemy.x, y: enemy.y, color: '#a855f7', count: 10, speed: 20 });
-        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION' });
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: enemy.x, y: enemy.y });
         
         enemy.hp = 0; // Kill the enemy
     }

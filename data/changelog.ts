@@ -8,9 +8,35 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.7";
+export const CURRENT_VERSION = "0.9.8";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.8",
+        date: "2248.06.15",
+        title: "AUDIO-VISUAL & PERFORMANCE UPDATE",
+        titleCN: "视听体验与性能更新",
+        changes: [
+            "AUDIO: Implemented Generative BGM Engine with dynamic intensity scaling.",
+            "AUDIO: Added Spatial Audio (3D Panning) and separated SFX/Music mixing buses.",
+            "AUDIO: Overhauled weapon SFX (Reloads, Impacts) and added specific Turret sounds.",
+            "PERF: Added Sprite Rasterization system for high-performance rendering.",
+            "PERF: Added Resolution Scaling and Shadow Toggle settings.",
+            "GAMEPLAY: Orbital Cannon and Sniper Turret (Long-Range Cannon) now deal AOE damage.",
+            "AI: Optimized Viper behavior to stop firing when targets are out of range.",
+            "FIX: Resolved UI locking issues in Shop and Upgrade menus."
+        ],
+        changesCN: [
+            "音频：实装生成式背景音乐引擎，强度随战斗动态变化。",
+            "音频：添加空间音频（3D声像）并分离了音效/音乐混音通道。",
+            "音频：重制武器音效（换弹、命中）并添加了炮塔专属声音。",
+            "性能：添加精灵栅格化系统，大幅提升渲染性能。",
+            "性能：添加分辨率缩放和阴影开关设置。",
+            "玩法：轨道炮和狙击塔（现更名为远射炮）现在造成范围伤害。",
+            "AI：优化飞蛇行为，目标超出射程时停止射击。",
+            "修复：解决了商店和升级菜单中的界面锁定问题。"
+        ]
+    },
     {
         version: "0.9.7",
         date: "2248.06.10",

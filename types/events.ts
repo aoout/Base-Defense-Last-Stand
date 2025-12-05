@@ -55,6 +55,7 @@ export interface SpawnProjectileEvent {
     homingTargetId?: string;
     isHoming?: boolean;
     createsToxicZone?: boolean;
+    isExplosive?: boolean;
     maxRange?: number;
     source: DamageSource;
     activeModules?: WeaponModule[];
@@ -106,11 +107,14 @@ export interface DamageAreaEvent {
     y: number;
     radius: number;
     damage: number;
+    source: DamageSource;
 }
 
 export interface PlaySoundEvent {
-    type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE';
-    variant?: WeaponType | number | boolean; // WeaponType, TurretLevel, isBoss
+    type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'GRENADE_THROW' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE' | 'RELOAD' | 'BULLET_HIT' | 'ORBITAL_STRIKE';
+    variant?: WeaponType | number | boolean | string; // WeaponType, TurretLevel, isBoss
+    x?: number; // Spatial Audio X
+    y?: number; // Spatial Audio Y
 }
 
 export interface ShowFloatingTextEvent {

@@ -143,7 +143,7 @@ export class PlayerManager {
             wepState.ammoInMag--;
             wepState.lastFireTime = time;
             this.getState().stats.shotsFired++;
-            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: type });
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: type, x: p.x, y: p.y });
         }
     }
 
@@ -187,6 +187,8 @@ export class PlayerManager {
             if (w.ammoReserve > 0 || w.ammoReserve === Infinity) {
                 w.reloading = true;
                 w.reloadStartTime = time;
+                // Emit Reload Sound
+                this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'RELOAD', variant: w.type, x: p.x, y: p.y });
             }
         }
     }
@@ -220,9 +222,10 @@ export class PlayerManager {
                 color: '#f97316', 
                 maxRange: 1000, 
                 source: DamageSource.PLAYER,
+                isExplosive: true // Fix for AOE
             });
             
-            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'GRENADE' });
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'GRENADE_THROW', x: p.x, y: p.y });
         }
     }
 

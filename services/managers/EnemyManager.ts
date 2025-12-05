@@ -314,6 +314,6 @@ export class EnemyManager {
         else this.engine.state.stats.killsByType[e.type]++;
         this.engine.spaceshipManager.checkBioTaskProgress(e.type);
         this.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, { x: e.x, y: e.y, color: e.color, maxHp: e.maxHp });
-        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ENEMY_DEATH', variant: e.isBoss });
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ENEMY_DEATH', variant: e.isBoss, x: e.x, y: e.y });
     }
 }

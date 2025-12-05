@@ -174,36 +174,51 @@ export class GameEngine {
       this.eventBus.emit(GameEventType.UI_UPDATE, { reason });
   }
 
+  public closeShop() {
+      this.state.isShopOpen = false;
+      this.notifyUI('SHOP_CLOSE');
+  }
+
   private setupEventListeners() {
       // Data-Driven Audio Mapping
       this.eventBus.on<PlaySoundEvent>(GameEventType.PLAY_SOUND, (e) => {
           switch (e.type) {
               case 'WEAPON': 
-                  this.audio.play(`WEAPON_${e.variant}`); 
+                  this.audio.play(`WEAPON_${e.variant}`, e.x, e.y); 
+                  break;
+              case 'RELOAD':
+                  this.audio.play(`RELOAD_${e.variant}`, e.x, e.y);
                   break;
               case 'TURRET': 
-                  this.audio.play(`TURRET_${e.variant}`); 
+                  this.audio.play(`TURRET_${e.variant}`, e.x, e.y); 
                   break;
               case 'ALLY': 
-                  this.audio.play('ALLY_SHOOT'); 
+                  this.audio.play('ALLY_SHOOT', e.x, e.y); 
                   break;
               case 'EXPLOSION': 
-                  this.audio.play('EXPLOSION'); 
+                  this.audio.play('EXPLOSION', e.x, e.y); 
                   break;
-              case 'GRENADE': 
-                  this.audio.play('GRENADE_THROW'); 
+              case 'GRENADE': // Generic UI sound or grenade selection
+              case 'GRENADE_THROW': 
+                  this.audio.play('GRENADE_THROW', e.x, e.y); 
                   break;
               case 'ENEMY_DEATH': 
-                  this.audio.play(e.variant ? 'BOSS_DEATH' : 'ENEMY_DEATH'); 
+                  this.audio.play(e.variant ? 'BOSS_DEATH' : 'ENEMY_DEATH', e.x, e.y); 
                   break;
               case 'VIPER_SHOOT': 
-                  this.audio.play('VIPER_SHOOT'); 
+                  this.audio.play('VIPER_SHOOT', e.x, e.y); 
                   break;
               case 'MELEE_HIT': 
-                  this.audio.play('MELEE_HIT'); 
+                  this.audio.play('MELEE_HIT', e.x, e.y); 
                   break;
               case 'BASE_DAMAGE': 
-                  this.audio.play('BASE_DAMAGE'); 
+                  this.audio.play('BASE_DAMAGE', e.x, e.y); 
+                  break;
+              case 'BULLET_HIT':
+                  this.audio.play('BULLET_HIT', e.x, e.y);
+                  break;
+              case 'ORBITAL_STRIKE':
+                  this.audio.play('ORBITAL_STRIKE', e.x, e.y);
                   break;
           }
       });
@@ -215,7 +230,7 @@ export class GameEngine {
           this.damageBase(e.amount);
       });
       this.eventBus.on<DamageAreaEvent>(GameEventType.DAMAGE_AREA, (e) => {
-          this.damageArea(e.x, e.y, e.radius, e.damage);
+          this.damageArea(e.x, e.y, e.radius, e.damage, e.source);
       });
 
       this.eventBus.on<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, (e) => {
@@ -258,18 +273,31 @@ export class GameEngine {
                   if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
                       const p = this.state.player;
                       const dist = Math.sqrt(Math.pow(p.x - this.state.base.x, 2) + Math.pow(p.y - this.state.base.y, 2));
-                      if (dist < 300 || this.state.isShopOpen) { this.state.isShopOpen = !this.state.isShopOpen; this.notifyUI('SHOP_TOGGLE'); }
+                      if (dist < 300 || this.state.isShopOpen) { 
+                          if (this.state.isShopOpen) this.closeShop(); 
+                          else { this.state.isShopOpen = true; this.notifyUI('SHOP_OPEN'); }
+                      }
                   }
                   break;
               case UserAction.INTERACT: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && !this.state.isShopOpen && !this.state.activeTurretId) { this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {}); this.notifyUI('INTERACT'); } break;
               case UserAction.SKIP_WAVE: if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) { if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) return; this.skipWave(); } break;
-              case UserAction.PAUSE: if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) this.togglePause(); break;
+              case UserAction.PAUSE: 
+                  if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) {
+                      // If shop is open, just close it. Otherwise toggle actual pause.
+                      if (this.state.isShopOpen) {
+                          this.closeShop();
+                      } else {
+                          this.togglePause(); 
+                      }
+                  }
+                  break;
               case UserAction.ESCAPE: 
                   let updated = false;
-                  if (this.state.isShopOpen) { this.state.isShopOpen = false; updated = true; }
+                  if (this.state.isShopOpen) { this.closeShop(); updated = true; }
                   if (this.state.isTacticalMenuOpen) { this.toggleTacticalMenu(); updated = true; }
                   if (this.state.isInventoryOpen) { this.toggleInventory(); updated = true; }
                   if (this.state.activeTurretId !== undefined) { this.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {}); updated = true; } 
+                  // Only toggle pause if we didn't just close a menu
                   if (this.state.isPaused && !updated && this.state.activeTurretId === undefined) { this.togglePause(); updated = true; }
                   if (updated) this.notifyUI('ESCAPE');
                   break;
@@ -388,6 +416,9 @@ export class GameEngine {
     const targetCamY = this.state.player.y - CANVAS_HEIGHT / 2;
     this.state.camera.x = Math.max(0, Math.min(targetCamX, WORLD_WIDTH - CANVAS_WIDTH));
     this.state.camera.y = Math.max(0, Math.min(targetCamY, WORLD_HEIGHT - CANVAS_HEIGHT));
+    
+    // Update Audio Listener Position
+    this.audio.updateCamera(this.state.camera.x, this.state.camera.y);
   }
   
   // ... (Remaining delegation methods same as before) ...
@@ -403,22 +434,24 @@ export class GameEngine {
       if (totalYield > 0) { this.state.pendingYieldReport = { items: yieldItems, totalYield }; } else { this.state.pendingYieldReport = null; }
       this.notifyUI('MISSION_COMPLETE');
   }
-  public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2'); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
+  public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
   private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.notifyUI('RETURN_MAP'); }
   public skipWave() { this.missionManager.skipWave(); this.notifyUI('WAVE_UPDATE'); }
   public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
   public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) { this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, { x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules }); }
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.eventBus.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x, y, color, count, speed }); }
-  public damageBase(amount: number) { this.state.base.hp -= amount; this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE' }); if (this.state.base.hp <= 0) { this.state.isGameOver = true; this.state.isPaused = true; this.notifyUI('GAME_OVER'); } }
-  public damageArea(x: number, y: number, radius: number, damage: number) {
+  public damageBase(amount: number) { this.state.base.hp -= amount; this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE', x: this.state.base.x, y: this.state.base.y }); if (this.state.base.hp <= 0) { this.state.isGameOver = true; this.state.isPaused = true; this.notifyUI('GAME_OVER'); } }
+  
+  public damageArea(x: number, y: number, radius: number, damage: number, source: DamageSource = DamageSource.PLAYER) {
       // Replaced manual logic with Physics/Spatial query using shared physics system
       this.aoeCache.length = 0;
       this.physics.spatialGrid.query(x, y, radius, this.aoeCache);
       for (const e of this.aoeCache) {
           const dSq = (e.x - x)**2 + (e.y - y)**2;
-          if (dSq < radius * radius) { this.damageEnemy(e, damage, DamageSource.PLAYER); }
+          if (dSq < radius * radius) { this.damageEnemy(e, damage, source); }
       }
   }
+
   public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; this.notifyUI('TACTICAL_TOGGLE'); }
   public toggleInventory() { this.state.isInventoryOpen = !this.state.isInventoryOpen; this.notifyUI('INVENTORY_TOGGLE'); }
   public togglePause() { this.state.isPaused = !this.state.isPaused; this.notifyUI('PAUSE_TOGGLE'); }
@@ -474,7 +507,7 @@ export class GameEngine {
   public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
   public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; } this.notifyUI('ASCEND'); }
   public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.notifyUI('EVAC'); }
-  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2'); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
+  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }
