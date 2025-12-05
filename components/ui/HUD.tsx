@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { WeaponType, GameMode, MissionType, BossType } from '../../types';
+import { WeaponType, GameMode, MissionType, BossType, StatId } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
 import { useLocale } from '../contexts/LocaleContext';
@@ -23,6 +23,10 @@ export const HUD: React.FC = () => {
     const bossHpRef = useRef<HTMLDivElement>(null);
     const bossHpTextRef = useRef<HTMLSpanElement>(null);
     const enemiesRemainingRef = useRef<HTMLSpanElement>(null);
+    
+    // Lure Refs
+    const lureContainerRef = useRef<HTMLDivElement>(null);
+    const lureRewardRef = useRef<HTMLDivElement>(null);
 
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
     const currentWep = p.weapons[currentWeaponType];
@@ -39,17 +43,6 @@ export const HUD: React.FC = () => {
                            state.gameMode === GameMode.EXPLORATION && 
                            state.wave >= (state.currentPlanet?.totalWaves || 0) &&
                            state.waveTimeRemaining <= 0;
-
-    const noMoreWaves = isDefense && 
-                        state.gameMode === GameMode.EXPLORATION && 
-                        state.wave >= (state.currentPlanet?.totalWaves || 0);
-
-    // Skip Wave Logic
-    const elapsedWaveTime = state.waveDuration - state.waveTimeRemaining;
-    const canSkip = !isOffenseMode && elapsedWaveTime >= 10000 && !noMoreWaves;
-    
-    // NOTE: This value might lag slightly as it depends on React render, but button click works immediately on engine state
-    const skipReward = Math.max(0, Math.floor((state.waveTimeRemaining / 1000) * state.wave));
 
     // Theme Colors
     const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
@@ -72,7 +65,7 @@ export const HUD: React.FC = () => {
         // 3. Ammo
         if (ammoTextRef.current) {
             if (w.reloading) ammoTextRef.current.innerText = "RELOAD";
-            else ammoTextRef.current.innerText = `${w.ammoInMag}`; // Keep it simple for transient
+            else ammoTextRef.current.innerText = `${w.ammoInMag}`; 
         }
         if (ammoBarRef.current) {
             const pct = w.ammoInMag / stats.magSize;
@@ -90,7 +83,7 @@ export const HUD: React.FC = () => {
             waveProgressRef.current.style.width = `${pct * 100}%`;
         }
 
-        // 5. Boss HP (If applicable)
+        // 5. Boss HP
         if (isOffenseMode) {
             const boss = s.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
             if (boss) {
@@ -102,6 +95,36 @@ export const HUD: React.FC = () => {
         // 6. Enemies Remaining (Cleanup)
         if (isCleanupPhase && enemiesRemainingRef.current) {
             enemiesRemainingRef.current.innerText = `${s.enemies.length}`;
+        }
+
+        // 7. Lure Logic (Real-time visibility check)
+        if (lureContainerRef.current) {
+            const isOffense = s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.OFFENSE;
+            const elapsed = s.waveDuration - s.waveTimeRemaining;
+            const isDef = s.gameMode === GameMode.SURVIVAL || (s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.DEFENSE);
+            const noWaves = isDef && s.gameMode === GameMode.EXPLORATION && s.wave >= (s.currentPlanet?.totalWaves || 0);
+            
+            // Show after 10 seconds if not game over/complete/offense/last wave
+            const showLure = !isOffense && elapsed >= 10000 && !noWaves && !s.missionComplete && !s.isGameOver;
+
+            if (showLure) {
+                lureContainerRef.current.style.height = '3rem'; // h-12
+                lureContainerRef.current.style.opacity = '1';
+                lureContainerRef.current.style.transform = 'translateY(0)';
+                lureContainerRef.current.style.pointerEvents = 'auto';
+                
+                // Update Reward Text
+                if (lureRewardRef.current) {
+                    const baseReward = Math.max(0, Math.floor((s.waveTimeRemaining / 1000) * s.wave));
+                    const finalReward = engine.statManager.get(StatId.LURE_BONUS, baseReward);
+                    lureRewardRef.current.innerText = `REWARD: ${Math.floor(finalReward)}`;
+                }
+            } else {
+                lureContainerRef.current.style.height = '0px';
+                lureContainerRef.current.style.opacity = '0';
+                lureContainerRef.current.style.transform = 'translateY(-1rem)';
+                lureContainerRef.current.style.pointerEvents = 'none';
+            }
         }
     });
 
@@ -198,10 +221,10 @@ export const HUD: React.FC = () => {
                 </div>
 
                 {/* --- THE LURE (SKIP BUTTON) --- */}
-                <div className={`
-                    relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center
-                    ${canSkip ? 'h-12 opacity-100 translate-y-0' : 'h-0 opacity-0 -translate-y-4'}
-                `}>
+                <div 
+                    ref={lureContainerRef}
+                    className="relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center h-0 opacity-0 -translate-y-4"
+                >
                     <div className="w-24 flex justify-between px-2">
                         <div className="w-1 h-3 bg-yellow-600/50"></div>
                         <div className="w-1 h-3 bg-yellow-600/50"></div>
@@ -226,8 +249,8 @@ export const HUD: React.FC = () => {
                             <span>{t('SKIP_WAVE')}</span>
                             <span className="animate-pulse">◄◄</span>
                         </div>
-                        <div className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
-                            REWARD: {skipReward}
+                        <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
+                            REWARD: 0
                         </div>
                     </button>
                 </div>
