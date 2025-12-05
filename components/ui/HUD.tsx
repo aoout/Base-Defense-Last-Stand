@@ -18,6 +18,7 @@ export const HUD: React.FC = () => {
     const healthTextRef = useRef<HTMLSpanElement>(null);
     const armorBarRef = useRef<HTMLDivElement>(null);
     const ammoTextRef = useRef<HTMLSpanElement>(null);
+    const ammoReserveRef = useRef<HTMLSpanElement>(null); // New Ref for Reserve
     const ammoBarRef = useRef<HTMLDivElement>(null);
     const scrapTextRef = useRef<HTMLSpanElement>(null);
     const bossHpRef = useRef<HTMLDivElement>(null);
@@ -66,6 +67,9 @@ export const HUD: React.FC = () => {
         if (ammoTextRef.current) {
             if (w.reloading) ammoTextRef.current.innerText = "RELOAD";
             else ammoTextRef.current.innerText = `${w.ammoInMag}`; 
+        }
+        if (ammoReserveRef.current) {
+            ammoReserveRef.current.innerText = `/ ${w.ammoReserve === Infinity ? '∞' : w.ammoReserve}`;
         }
         if (ammoBarRef.current) {
             const pct = w.ammoInMag / stats.magSize;
@@ -314,7 +318,7 @@ export const HUD: React.FC = () => {
                                 <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
                                     {currentWep.ammoInMag}
                                 </span>
-                                <span className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
+                                <span ref={ammoReserveRef} className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
                             </div>
                         )}
                         <WeaponIcon type={currentWeaponType} className="w-12 h-12 text-slate-600" />

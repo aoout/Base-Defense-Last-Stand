@@ -356,7 +356,7 @@ export const SYSTEMS_CN = {
     GAS_CO2_NAME: "二氧化碳",
     GAS_ARGON_NAME: "氩气",
     GAS_METHANE_NAME: "甲烷",
-    GAS_SULFUR_NAME: "硫磺",
+    GAS_SULFUR_NAME: "硫化",
     GAS_SULFUR_DESC: "异种用于合成酸液（增强自爆/飞蛇）。",
     GAS_HELIUM_NAME: "氦气",
 };

@@ -337,7 +337,7 @@ export const UI_CN = {
     AVG_GENE_STR: "平均基因强度",
     INITIATE_SCAN: "启动超光速跳跃",
     GENE_RANGE: "基因变异范围",
-    MAX_SULFUR: "最高硫磺指数",
+    MAX_SULFUR: "最高硫化指数",
     MAX_OXYGEN: "最高含氧量",
     PLANET_COUNT: "星区密度",
     NAV_PROTOCOL: "导航协议",
