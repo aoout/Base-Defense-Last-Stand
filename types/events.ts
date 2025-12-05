@@ -1,5 +1,5 @@
 
-import { DamageSource, FloatingTextType, WeaponType, AllyOrder, TurretType } from './enums';
+import { DamageSource, FloatingTextType, WeaponType, AllyOrder, TurretType, EnemyType } from './enums';
 import { WeaponModule } from './items';
 import { GalaxyConfig } from './world';
 
@@ -9,6 +9,7 @@ export enum GameEventType {
     SPAWN_PARTICLE = 'SPAWN_PARTICLE',
     SPAWN_TOXIC_ZONE = 'SPAWN_TOXIC_ZONE',
     SPAWN_BLOOD_STAIN = 'SPAWN_BLOOD_STAIN',
+    ENEMY_SUMMON = 'ENEMY_SUMMON',
     
     // Combat
     DAMAGE_PLAYER = 'DAMAGE_PLAYER',
@@ -19,6 +20,7 @@ export enum GameEventType {
     // Audio & UI
     PLAY_SOUND = 'PLAY_SOUND',
     SHOW_FLOATING_TEXT = 'SHOW_FLOATING_TEXT',
+    UI_UPDATE = 'UI_UPDATE', // New Event for Structural UI Changes
     
     // Game State
     MISSION_COMPLETE = 'MISSION_COMPLETE',
@@ -76,6 +78,13 @@ export interface SpawnBloodStainEvent {
     y: number;
     color: string;
     maxHp: number;
+}
+
+export interface EnemySummonEvent {
+    type: EnemyType;
+    x: number;
+    y: number;
+    count?: number;
 }
 
 export interface DamagePlayerEvent {

@@ -7,7 +7,8 @@ import { GameState, GameEventType } from './types';
 import { GameProvider } from './components/contexts/GameContext';
 
 const App: React.FC = () => {
-  // We use state only for the UI overlay to update at 60fps (or less if we throttle)
+  // We use state only for the UI overlay.
+  // Game logic updates are decoupled from React renders.
   const engineRef = useRef<GameEngine>(new GameEngine());
   const [gameState, setGameState] = useState<GameState>(engineRef.current.state);
 
@@ -36,6 +37,14 @@ const App: React.FC = () => {
         }
     };
 
+    // React to Engine UI Updates
+    const handleUIUpdate = () => {
+        // Force a re-render with fresh state
+        setGameState({ ...engine.state });
+    };
+
+    engine.eventBus.on(GameEventType.UI_UPDATE, handleUIUpdate);
+
     window.addEventListener('click', handleInteraction);
     window.addEventListener('keydown', handleInteraction);
     window.addEventListener('game-action', handleGameAction);
@@ -47,7 +56,8 @@ const App: React.FC = () => {
       }
 
       // Input only active in gameplay or specific menus
-      engine.handleInput(e.key, true);
+      // NOTE: Using e.code for physical key mapping (e.g. "KeyW" instead of "w")
+      engine.handleInput(e.code, true);
       
       // Prevent browser zoom etc
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].indexOf(e.code) > -1) {
@@ -56,7 +66,7 @@ const App: React.FC = () => {
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
-      engine.handleInput(e.key, false);
+      engine.handleInput(e.code, false);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -114,12 +124,11 @@ const App: React.FC = () => {
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('contextmenu', handleContextMenu);
 
-    // Sync state loop - OPTIMIZED to 20 FPS (50ms) to reduce React Reconciliation overhead
-    const interval = setInterval(() => {
-        setGameState({...engine.state}); 
-    }, 50); 
+    // Initial sync
+    handleUIUpdate();
 
     return () => {
+      engine.eventBus.off(GameEventType.UI_UPDATE, handleUIUpdate);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('mousemove', handleMouseMove);
@@ -127,7 +136,6 @@ const App: React.FC = () => {
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('contextmenu', handleContextMenu);
       window.removeEventListener('game-action', handleGameAction);
-      clearInterval(interval);
     };
   }, []);
 

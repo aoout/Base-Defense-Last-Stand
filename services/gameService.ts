@@ -70,8 +70,8 @@ import { TimeManager } from './managers/TimeManager';
 import { MissionManager } from './managers/MissionManager';
 import { GalaxyManager } from './managers/GalaxyManager';
 import { StatManager } from './managers/StatManager';
+import { PhysicsSystem } from './PhysicsSystem';
 import { TRANSLATIONS } from '../data/locales';
-import { SpatialHashGrid } from '../utils/spatialHash';
 import { EventBus } from './EventBus';
 import { InputManager } from './InputManager';
 
@@ -93,6 +93,9 @@ export class GameEngine {
   eventBus: EventBus;
   statManager: StatManager;
   
+  // Systems
+  physics: PhysicsSystem;
+
   // Managers
   time: TimeManager;
   saveManager: SaveManager;
@@ -107,9 +110,11 @@ export class GameEngine {
   galaxyManager: GalaxyManager;
 
   // Shared Systems
-  public spatialGrid: SpatialHashGrid<Enemy>;
   private floatingTextPool: FloatingText[] = [];
   private aoeCache: Enemy[] = []; 
+  
+  // Performance: Loop Listeners for Transient UI
+  private loopListeners: Set<(dt: number, time: number) => void> = new Set();
 
   private lastTime: number = 0;
 
@@ -121,64 +126,89 @@ export class GameEngine {
     
     // Initialize Core Systems
     this.time = new TimeManager();
-    this.spatialGrid = new SpatialHashGrid<Enemy>(100);
+    
+    // Initialize Physics System
+    this.physics = new PhysicsSystem(() => this.state, this.eventBus, this.statManager);
 
     // Initialize temporary state
     this.reset(true); 
     
     // --- INSTANTIATE MANAGERS (With Dependency Injection) ---
-    // Note: Dependencies must be instantiated in order of requirement
-    
-    // 1. Basic Managers
     this.saveManager = new SaveManager(this);
-    // ShopManager now listens to events, but still takes engine for some deep access (legacy transition)
     this.shopManager = new ShopManager(this);
     
-    // 2. Spaceship Manager (Required by Defense & Projectile for upgrades/bonuses)
     this.spaceshipManager = new SpaceshipManager(() => this.state, this.eventBus, this.statManager);
     
-    // 3. Logic & FX Managers (Decoupled from Engine)
     this.fxManager = new FXManager(() => this.state, this.eventBus);
-    this.projectileManager = new ProjectileManager(() => this.state, this.eventBus, this.spatialGrid, this.statManager);
+    
+    // Projectile Manager no longer needs Physics/Grid dependencies, PhysicsSystem handles collision
+    this.projectileManager = new ProjectileManager(() => this.state, this.eventBus);
+    
     this.enemyManager = new EnemyManager(this, this.eventBus, this.statManager);
     
-    // 4. Entity Managers (Decoupled)
     this.playerManager = new PlayerManager(() => this.state, this.eventBus, this.inputManager, this.statManager);
-    this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.spatialGrid, this.statManager);
     
-    // 5. Higher Level Managers
+    // Defense Manager needs spatial grid for targeting AI
+    this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.physics.spatialGrid, this.statManager);
+    
     this.missionManager = new MissionManager(this);
     this.galaxyManager = new GalaxyManager(this);
     
-    // Initialize Event Listeners
     this.setupEventListeners();
 
-    // Override defaults for Startup
     this.state.appMode = AppMode.START_MENU;
-    
-    // Load saves
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
   }
 
+  // ... (Rest of the class methods remain largely unchanged, just removing manual grid updates) ...
+
+  public registerLoopListener(cb: (dt: number, time: number) => void) {
+      this.loopListeners.add(cb);
+  }
+
+  public unregisterLoopListener(cb: (dt: number, time: number) => void) {
+      this.loopListeners.delete(cb);
+  }
+
+  public notifyUI(reason?: string) {
+      this.eventBus.emit(GameEventType.UI_UPDATE, { reason });
+  }
+
   private setupEventListeners() {
-      // Audio
+      // Data-Driven Audio Mapping
       this.eventBus.on<PlaySoundEvent>(GameEventType.PLAY_SOUND, (e) => {
           switch (e.type) {
-              case 'WEAPON': this.audio.playWeaponFire(e.variant as WeaponType); break;
-              case 'TURRET': this.audio.playTurretFire(e.variant as number); break;
-              case 'ALLY': this.audio.playAllyFire(); break;
-              case 'EXPLOSION': this.audio.playExplosion(); break;
-              case 'GRENADE': this.audio.playGrenadeThrow(); break;
-              case 'ENEMY_DEATH': this.audio.playEnemyDeath(e.variant as boolean); break;
-              case 'VIPER_SHOOT': this.audio.playViperShoot(); break;
-              case 'MELEE_HIT': this.audio.playMeleeHit(); break;
-              case 'BASE_DAMAGE': this.audio.playBaseDamage(); break;
+              case 'WEAPON': 
+                  this.audio.play(`WEAPON_${e.variant}`); 
+                  break;
+              case 'TURRET': 
+                  this.audio.play(`TURRET_${e.variant}`); 
+                  break;
+              case 'ALLY': 
+                  this.audio.play('ALLY_SHOOT'); 
+                  break;
+              case 'EXPLOSION': 
+                  this.audio.play('EXPLOSION'); 
+                  break;
+              case 'GRENADE': 
+                  this.audio.play('GRENADE_THROW'); 
+                  break;
+              case 'ENEMY_DEATH': 
+                  this.audio.play(e.variant ? 'BOSS_DEATH' : 'ENEMY_DEATH'); 
+                  break;
+              case 'VIPER_SHOOT': 
+                  this.audio.play('VIPER_SHOOT'); 
+                  break;
+              case 'MELEE_HIT': 
+                  this.audio.play('MELEE_HIT'); 
+                  break;
+              case 'BASE_DAMAGE': 
+                  this.audio.play('BASE_DAMAGE'); 
+                  break;
           }
       });
 
-      // Combat
       this.eventBus.on<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, (e) => {
-          // This calls the internal logic which updates state directly
           this.playerManager.damagePlayer(e.amount);
       });
       this.eventBus.on<DamageBaseEvent>(GameEventType.DAMAGE_BASE, (e) => {
@@ -188,373 +218,136 @@ export class GameEngine {
           this.damageArea(e.x, e.y, e.radius, e.damage);
       });
 
-      // UI
       this.eventBus.on<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, (e) => {
           this.addMessage(e.text, e.x, e.y, e.color, e.type, e.time);
       });
 
-      // Logic
       this.eventBus.on(GameEventType.MISSION_COMPLETE, () => {
           this.completeMission();
       });
+      
+      this.eventBus.on(GameEventType.PLAYER_SWITCH_WEAPON, () => this.notifyUI('WEAPON_SWITCH'));
+      this.eventBus.on(GameEventType.SHOP_PURCHASE, () => this.notifyUI('SHOP_ACTION'));
+      this.eventBus.on(GameEventType.SHOP_SWAP_LOADOUT, () => this.notifyUI('SHOP_ACTION'));
   }
 
-  // Translation Helper with Fallback Logic
+  // ... (t helper, handleInput helper) ...
   public t(key: string, params?: Record<string, any>): string {
       const lang = this.state.settings.language;
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
-      
       let str = (dict as any)[key];
-      if (str === undefined) {
-          str = (TRANSLATIONS.EN as any)[key] || key;
-      }
-
-      if (params) {
-          Object.entries(params).forEach(([k, v]) => {
-              str = str.replace(`{${k}}`, String(v));
-          });
-      }
+      if (str === undefined) str = (TRANSLATIONS.EN as any)[key] || key;
+      if (params) Object.entries(params).forEach(([k, v]) => { str = str.replace(`{${k}}`, String(v)); });
       return str;
   }
 
-  public handleInput(key: string, isDown: boolean) {
-      const action = isDown ? this.inputManager.handleKeyDown(key) : this.inputManager.handleKeyUp(key);
-
+  public handleInput(code: string, isDown: boolean) {
+      const action = isDown ? this.inputManager.handleKeyDown(code) : this.inputManager.handleKeyUp(code);
       if (isDown && action && this.state.appMode === AppMode.GAMEPLAY) {
+          // ... (Input switch case same as before) ...
           switch (action) {
               case UserAction.WEAPON_1: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 0 }); break;
               case UserAction.WEAPON_2: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 1 }); break;
               case UserAction.WEAPON_3: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 2 }); break;
               case UserAction.WEAPON_4: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 3 }); break;
-              
-              case UserAction.TACTICAL_MENU:
-                  if (!this.state.isPaused && !this.state.isShopOpen && !this.state.isInventoryOpen) {
-                      this.toggleTacticalMenu();
-                  }
-                  break;
-              
-              case UserAction.ORDER_1:
-                  if (this.state.isTacticalMenuOpen) { 
-                      this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'PATROL' }); 
-                      this.toggleTacticalMenu(); 
-                  }
-                  break;
-              case UserAction.ORDER_2:
-                  if (this.state.isTacticalMenuOpen) { 
-                      this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'FOLLOW' }); 
-                      this.toggleTacticalMenu(); 
-                  }
-                  break;
-              case UserAction.ORDER_3:
-                  if (this.state.isTacticalMenuOpen) { 
-                      this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'ATTACK' }); 
-                      this.toggleTacticalMenu(); 
-                  }
-                  break;
-
-              case UserAction.INVENTORY:
-                  if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isShopOpen) {
-                      this.toggleInventory();
-                  }
-                  break;
-
-              case UserAction.SHOP:
+              case UserAction.TACTICAL_MENU: if (!this.state.isPaused && !this.state.isShopOpen && !this.state.isInventoryOpen) this.toggleTacticalMenu(); break;
+              case UserAction.ORDER_1: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'PATROL' }); this.toggleTacticalMenu(); } break;
+              case UserAction.ORDER_2: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'FOLLOW' }); this.toggleTacticalMenu(); } break;
+              case UserAction.ORDER_3: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'ATTACK' }); this.toggleTacticalMenu(); } break;
+              case UserAction.INVENTORY: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isShopOpen) this.toggleInventory(); break;
+              case UserAction.SHOP: 
                   if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
                       const p = this.state.player;
                       const dist = Math.sqrt(Math.pow(p.x - this.state.base.x, 2) + Math.pow(p.y - this.state.base.y, 2));
-                      
-                      if (dist < 300 || this.state.isShopOpen) {
-                          this.state.isShopOpen = !this.state.isShopOpen;
-                      }
+                      if (dist < 300 || this.state.isShopOpen) { this.state.isShopOpen = !this.state.isShopOpen; this.notifyUI('SHOP_TOGGLE'); }
                   }
                   break;
-
-              case UserAction.INTERACT:
-                  if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && !this.state.isShopOpen && !this.state.activeTurretId) {
-                      this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {});
-                  }
+              case UserAction.INTERACT: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && !this.state.isShopOpen && !this.state.activeTurretId) { this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {}); this.notifyUI('INTERACT'); } break;
+              case UserAction.SKIP_WAVE: if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) { if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) return; this.skipWave(); } break;
+              case UserAction.PAUSE: if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) this.togglePause(); break;
+              case UserAction.ESCAPE: 
+                  let updated = false;
+                  if (this.state.isShopOpen) { this.state.isShopOpen = false; updated = true; }
+                  if (this.state.isTacticalMenuOpen) { this.toggleTacticalMenu(); updated = true; }
+                  if (this.state.isInventoryOpen) { this.toggleInventory(); updated = true; }
+                  if (this.state.activeTurretId !== undefined) { this.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {}); updated = true; } 
+                  if (this.state.isPaused && !updated && this.state.activeTurretId === undefined) { this.togglePause(); updated = true; }
+                  if (updated) this.notifyUI('ESCAPE');
                   break;
-
-              case UserAction.SKIP_WAVE:
-                   if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) {
-                       if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) {
-                           return;
-                       }
-                       this.skipWave();
-                   }
-                   break;
-              
-              case UserAction.PAUSE:
-                  if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) {
-                      this.togglePause();
-                  }
-                  break;
-
-              case UserAction.ESCAPE:
-                  this.state.isShopOpen = false;
-                  if (this.state.isTacticalMenuOpen) this.toggleTacticalMenu();
-                  if (this.state.isInventoryOpen) this.toggleInventory();
-                  if (this.state.activeTurretId !== undefined) {
-                      this.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {});
-                  } 
-                  if (this.state.isPaused && this.state.activeTurretId === undefined) this.togglePause();
-                  break;
-
-              case UserAction.GRENADE:
-                  if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
-                      this.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {});
-                  }
-                  break;
-                  
-              case UserAction.RELOAD:
-                  if (!this.state.isPaused) {
-                      this.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: this.time.now });
-                  }
-                  break;
+              case UserAction.GRENADE: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) this.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {}); break;
+              case UserAction.RELOAD: if (!this.state.isPaused) this.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: this.time.now }); break;
           }
       }
   }
 
+  // ... (Settings loading/persistence logic same) ...
   private loadSettings(): GameSettings {
-      const defaultSettings: GameSettings = {
-          showHUD: true,
-          showBlood: true,
-          showDamageNumbers: true,
-          language: 'EN',
-          lightingQuality: 'HIGH',
-          particleIntensity: 'HIGH',
-          animatedBackground: true,
-          performanceMode: 'BALANCED',
-          resolutionScale: 1.0,
-          showShadows: true
-      };
-
-      try {
-          const raw = localStorage.getItem('VANGUARD_SETTINGS_V1');
-          if (raw) {
-              const parsed = JSON.parse(raw);
-              return { ...defaultSettings, ...parsed };
-          }
-      } catch (e) {
-          console.error("Failed to load settings:", e);
-      }
+      const defaultSettings: GameSettings = { showHUD: true, showBlood: true, showDamageNumbers: true, language: 'EN', lightingQuality: 'HIGH', particleIntensity: 'HIGH', animatedBackground: true, performanceMode: 'BALANCED', resolutionScale: 1.0, showShadows: true };
+      try { const raw = localStorage.getItem('VANGUARD_SETTINGS_V1'); if (raw) { const parsed = JSON.parse(raw); return { ...defaultSettings, ...parsed }; } } catch (e) { console.error("Failed to load settings:", e); }
       return defaultSettings;
   }
-
-  private persistSettings() {
-      if (this.state && this.state.settings) {
-          localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings));
-      }
-  }
+  private persistSettings() { if (this.state && this.state.settings) localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings)); }
 
   public reset(fullReset: boolean = false) {
     const basePos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT - 100 };
-    
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets();
     existingPlanets.forEach(p => { if (!p.buildings) p.buildings = []; });
-
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
-    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { 
-        installedModules: [],
-        orbitalUpgradeTree: [],
-        orbitalDamageMultiplier: 1,
-        orbitalRateMultiplier: 1,
-        carapaceGrid: null,
-        infrastructureUpgrades: [],
-        infrastructureOptions: [],
-        infrastructureLocked: false,
-        bioNodes: [],
-        bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 },
-        bioTasks: [],
-        activeBioTask: null
-    };
-
+    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { installedModules: [], orbitalUpgradeTree: [], orbitalDamageMultiplier: 1, orbitalRateMultiplier: 1, carapaceGrid: null, infrastructureUpgrades: [], infrastructureOptions: [], infrastructureLocked: false, bioNodes: [], bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 }, bioTasks: [], activeBioTask: null };
     let currentSettings: GameSettings;
-    if (!fullReset && this.state?.settings) {
-        currentSettings = this.state.settings;
-    } else {
-        currentSettings = this.loadSettings();
-    }
+    if (!fullReset && this.state?.settings) currentSettings = this.state.settings; else currentSettings = this.loadSettings();
 
     const initialWeapons: Record<string, WeaponState> = {};
-    Object.values(WeaponType).forEach(type => {
-      initialWeapons[type] = {
-        type,
-        ammoInMag: WEAPONS[type].magSize,
-        ammoReserve: INITIAL_AMMO[type],
-        lastFireTime: 0,
-        reloading: false,
-        reloadStartTime: 0,
-        modules: [],
-        consecutiveShots: 0
-      };
-    });
-
-    const initialTurretSpots = TURRET_POSITIONS.map((pos, idx) => ({
-      id: idx,
-      x: basePos.x + pos.x,
-      y: basePos.y + pos.y,
-    }));
-
+    Object.values(WeaponType).forEach(type => { initialWeapons[type] = { type, ammoInMag: WEAPONS[type].magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; });
+    const initialTurretSpots = TURRET_POSITIONS.map((pos, idx) => ({ id: idx, x: basePos.x + pos.x, y: basePos.y + pos.y, }));
     const terrain = generateTerrain(PlanetVisualType.BARREN, 'BARREN' as any);
     const sectorName = !fullReset && this.state?.sectorName ? this.state.sectorName : generateSectorName();
 
     this.state = {
-      appMode: AppMode.GAMEPLAY,
-      gameMode: GameMode.SURVIVAL,
-      
-      sectorName,
-      planets: existingPlanets,
-      currentPlanet: null,
-      selectedPlanetId: null,
-      savedPlayerState: null,
-      spaceship: existingSpaceship,
-      orbitalSupportTimer: 0,
-      saveSlots: existingSaveSlots,
-      activeGalacticEvent: null,
-      pendingYieldReport: null,
-
+      appMode: AppMode.GAMEPLAY, gameMode: GameMode.SURVIVAL, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
       camera: { x: 0, y: 0 },
-      player: {
-        id: 'player',
-        x: basePos.x,
-        y: basePos.y - 150,
-        radius: 15,
-        angle: -Math.PI / 2,
-        color: '#3B82F6',
-        hp: PLAYER_STATS.maxHp,
-        maxHp: PLAYER_STATS.maxHp,
-        armor: PLAYER_STATS.maxArmor,
-        maxArmor: PLAYER_STATS.maxArmor,
-        speed: PLAYER_STATS.speed,
-        lastHitTime: 0,
-        weapons: initialWeapons as Record<WeaponType, WeaponState>,
-        loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL],
-        inventory: new Array(INVENTORY_SIZE).fill(null),
-        upgrades: [],
-        freeModules: [],
-        grenadeModules: [],
-        currentWeaponIndex: 0,
-        grenades: PLAYER_STATS.maxGrenades,
-        score: PLAYER_STATS.initialScore,
-        isAiming: false
-      },
-      base: {
-        x: basePos.x,
-        y: basePos.y,
-        width: BASE_STATS.width,
-        height: BASE_STATS.height,
-        hp: BASE_STATS.maxHp,
-        maxHp: BASE_STATS.maxHp,
-      },
-      terrain,
-      bloodStains: [],
-      enemies: [],
-      allies: [],
-      projectiles: [],
-      particles: [],
-      orbitalBeams: [],
-      turretSpots: initialTurretSpots,
-      toxicZones: [],
-      activeSpecialEvent: SpecialEventType.NONE,
-
-      wave: 1,
-      waveTimeRemaining: 30000, 
-      waveDuration: 30000, 
-      spawnTimer: 0,
-      enemiesPendingSpawn: 17, 
-      enemiesSpawnedInWave: 0,
-      totalEnemiesInWave: 99999, 
-      lastAllySpawnTime: 0,
-
-      isGameOver: false,
-      missionComplete: false,
-      isPaused: false,
-      isTacticalMenuOpen: false,
-      isInventoryOpen: false,
-      isShopOpen: false,
-      floatingTexts: [],
-      
-      settings: currentSettings, 
-      stats: {
-        shotsFired: 0,
-        shotsHit: 0,
-        damageDealt: 0,
-        damageBySource: {
-            [DamageSource.PLAYER]: 0,
-            [DamageSource.TURRET]: 0,
-            [DamageSource.ALLY]: 0,
-            [DamageSource.ORBITAL]: 0,
-            [DamageSource.ENEMY]: 0
-        },
-        killsByType: {
-            [EnemyType.GRUNT]: 0,
-            [EnemyType.RUSHER]: 0,
-            [EnemyType.TANK]: 0,
-            [EnemyType.KAMIKAZE]: 0,
-            [EnemyType.VIPER]: 0,
-            'BOSS': 0
-        },
-        encounteredEnemies: []
-      }
+      player: { id: 'player', x: basePos.x, y: basePos.y - 150, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
+      base: { x: basePos.x, y: basePos.y, width: BASE_STATS.width, height: BASE_STATS.height, hp: BASE_STATS.maxHp, maxHp: BASE_STATS.maxHp, },
+      terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [], activeSpecialEvent: SpecialEventType.NONE,
+      wave: 1, waveTimeRemaining: 30000, waveDuration: 30000, spawnTimer: 0, enemiesPendingSpawn: 17, enemiesSpawnedInWave: 0, totalEnemiesInWave: 99999, lastAllySpawnTime: 0,
+      isGameOver: false, missionComplete: false, isPaused: false, isTacticalMenuOpen: false, isInventoryOpen: false, isShopOpen: false, floatingTexts: [],
+      settings: currentSettings, stats: { shotsFired: 0, shotsHit: 0, damageDealt: 0, damageBySource: { [DamageSource.PLAYER]: 0, [DamageSource.TURRET]: 0, [DamageSource.ALLY]: 0, [DamageSource.ORBITAL]: 0, [DamageSource.ENEMY]: 0 }, killsByType: { [EnemyType.GRUNT]: 0, [EnemyType.RUSHER]: 0, [EnemyType.TANK]: 0, [EnemyType.KAMIKAZE]: 0, [EnemyType.VIPER]: 0, 'BOSS': 0 }, encounteredEnemies: [] }
     };
 
-    if (!fullReset) {
-        if (this.spaceshipManager) {
-            this.spaceshipManager.registerModifiers(); // New: Replaces applyPassiveBonuses for StatManager, though logic is inside
-        }
-    }
+    if (!fullReset) { if (this.spaceshipManager) this.spaceshipManager.registerModifiers(); }
+    this.notifyUI('RESET');
   }
 
   public update(time: number) {
-    // Update Time Manager
     this.time.update(time);
-
-    if (this.lastTime === 0) {
-      this.lastTime = time;
-      return;
-    }
-    
+    if (this.lastTime === 0) { this.lastTime = time; return; }
     let dt = time - this.lastTime;
     this.lastTime = time;
-
     if (dt > 100) dt = 100;
     const TARGET_MS_PER_FRAME = 1000 / 60; 
     const timeScale = dt / TARGET_MS_PER_FRAME;
 
+    this.loopListeners.forEach(cb => cb(dt, time));
+
     if (this.state.isPaused || this.state.isShopOpen || this.state.isGameOver || this.state.appMode !== AppMode.GAMEPLAY) return;
 
-    // --- SPATIAL PARTITIONING PREP (Optimization) ---
-    this.spatialGrid.clear();
-    for (let i = 0; i < this.state.enemies.length; i++) {
-        this.spatialGrid.insert(this.state.enemies[i]);
-    }
+    // --- PHYSICS UPDATE (Centralized Collision) ---
+    this.physics.update(dt);
 
-    // --- Mission Logic (Waves) ---
+    // --- Mission Logic ---
     this.missionManager.update(dt);
 
-    // --- Message / Floating Text Lifecycle (Optimized Swap-Pop with Pool) ---
+    // --- Floating Text Lifecycle ---
     const floatingTexts = this.state.floatingTexts;
     for (let i = floatingTexts.length - 1; i >= 0; i--) {
         const m = floatingTexts[i];
         m.life -= dt;
         m.x += m.vx * timeScale;
         m.y += m.vy * timeScale;
-        
-        if (m.type === FloatingTextType.DAMAGE || m.type === FloatingTextType.CRIT) {
-            m.vx *= 0.92; 
-            m.vy *= 0.92;
-        } else if (m.type === FloatingTextType.LOOT) {
-            m.vy -= 0.05 * timeScale; 
-        } else {
-            m.vy = -0.5 * timeScale; 
-        }
-
-        if (m.life <= 0) {
-            this.floatingTextPool.push(m);
-            floatingTexts[i] = floatingTexts[floatingTexts.length - 1];
-            floatingTexts.pop();
-        }
+        if (m.type === FloatingTextType.DAMAGE || m.type === FloatingTextType.CRIT) { m.vx *= 0.92; m.vy *= 0.92; } 
+        else if (m.type === FloatingTextType.LOOT) { m.vy -= 0.05 * timeScale; } 
+        else { m.vy = -0.5 * timeScale; }
+        if (m.life <= 0) { this.floatingTextPool.push(m); floatingTexts[i] = floatingTexts[floatingTexts.length - 1]; floatingTexts.pop(); }
     }
 
     // --- Managers Update ---
@@ -572,222 +365,97 @@ export class GameEngine {
     this.state.camera.y = Math.max(0, Math.min(targetCamY, WORLD_HEIGHT - CANVAS_HEIGHT));
   }
   
-  // Delegations
-  public deployToPlanet(id: string) { this.galaxyManager.deployToPlanet(id); }
-  public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) { this.galaxyManager.constructBuilding(planetId, type, slotIndex); }
+  // ... (Remaining delegation methods same as before) ...
+  public deployToPlanet(id: string) { this.galaxyManager.deployToPlanet(id); this.notifyUI('DEPLOY'); }
+  public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) { this.galaxyManager.constructBuilding(planetId, type, slotIndex); this.notifyUI('CONSTRUCT'); }
   public completeMission() { 
       this.state.missionComplete = true;
       this.state.isPaused = true;
-      if (this.state.currentPlanet) {
-          const pIdx = this.state.planets.findIndex(p => p.id === this.state.currentPlanet?.id);
-          if (pIdx !== -1) {
-              this.state.planets[pIdx].completed = true;
-          }
-      }
-      
-      if (this.state.spaceship.infrastructureLocked) {
-          this.state.spaceship.infrastructureLocked = false;
-          this.state.spaceship.infrastructureOptions = []; 
-      }
-
+      if (this.state.currentPlanet) { const pIdx = this.state.planets.findIndex(p => p.id === this.state.currentPlanet?.id); if (pIdx !== -1) { this.state.planets[pIdx].completed = true; } }
+      if (this.state.spaceship.infrastructureLocked) { this.state.spaceship.infrastructureLocked = false; this.state.spaceship.infrastructureOptions = []; }
       const yieldItems = this.galaxyManager.calculateYields();
       const totalYield = yieldItems.reduce((sum, item) => sum + item.total, 0);
-
-      if (totalYield > 0) {
-          this.state.pendingYieldReport = { items: yieldItems, totalYield };
-      } else {
-          this.state.pendingYieldReport = null;
-      }
+      if (totalYield > 0) { this.state.pendingYieldReport = { items: yieldItems, totalYield }; } else { this.state.pendingYieldReport = null; }
+      this.notifyUI('MISSION_COMPLETE');
   }
-  
-  public claimYields() {
-      if (this.state.pendingYieldReport) {
-          this.state.player.score += this.state.pendingYieldReport.totalYield;
-          this.audio.playTurretFire(2);
-          this.state.pendingYieldReport = null;
-      }
-      this.finalizeMissionReturn();
-  }
-
-  private finalizeMissionReturn() {
-      this.state.appMode = AppMode.EXPLORATION_MAP;
-      this.galaxyManager.triggerGalacticEvent();
-  }
-
-  public skipWave() { this.missionManager.skipWave(); }
-  
-  // Combat delegates retained for backward compat in specialized managers (e.g. Area Damage logic in GameEngine)
-  // or refactored to use Events directly
-  public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { 
-      this.enemyManager.damageEnemy(enemy, amount, source); 
-  }
-
-  // Decoupled projectile spawning via event bus wrapper for legacy calls (if any remain)
-  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) {
-      this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-          x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules
-      });
-  }
-  
-  public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { 
-      this.eventBus.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x, y, color, count, speed });
-  }
-  
-  // Removed direct pass-through methods for input actions (switchWeapon, reload, etc.) as they are now event-driven
-
-  public damageBase(amount: number) {
-      this.state.base.hp -= amount;
-      this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE' });
-      if (this.state.base.hp <= 0) {
-           this.state.isGameOver = true;
-           this.state.isPaused = true;
-      }
-  }
-
+  public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2'); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
+  private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.notifyUI('RETURN_MAP'); }
+  public skipWave() { this.missionManager.skipWave(); this.notifyUI('WAVE_UPDATE'); }
+  public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
+  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) { this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, { x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules }); }
+  public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.eventBus.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x, y, color, count, speed }); }
+  public damageBase(amount: number) { this.state.base.hp -= amount; this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE' }); if (this.state.base.hp <= 0) { this.state.isGameOver = true; this.state.isPaused = true; this.notifyUI('GAME_OVER'); } }
   public damageArea(x: number, y: number, radius: number, damage: number) {
-      const radiusSq = radius * radius;
+      // Replaced manual logic with Physics/Spatial query using shared physics system
       this.aoeCache.length = 0;
-      this.spatialGrid.query(x, y, radius, this.aoeCache);
+      this.physics.spatialGrid.query(x, y, radius, this.aoeCache);
       for (const e of this.aoeCache) {
           const dSq = (e.x - x)**2 + (e.y - y)**2;
-          if (dSq < radiusSq) {
-              this.damageEnemy(e, damage, DamageSource.PLAYER); 
-          }
+          if (dSq < radius * radius) { this.damageEnemy(e, damage, DamageSource.PLAYER); }
       }
   }
-
-  public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; }
-  public toggleInventory() { this.state.isInventoryOpen = !this.state.isInventoryOpen; }
-  public togglePause() { this.state.isPaused = !this.state.isPaused; }
-  
+  public toggleTacticalMenu() { this.state.isTacticalMenuOpen = !this.state.isTacticalMenuOpen; this.notifyUI('TACTICAL_TOGGLE'); }
+  public toggleInventory() { this.state.isInventoryOpen = !this.state.isInventoryOpen; this.notifyUI('INVENTORY_TOGGLE'); }
+  public togglePause() { this.state.isPaused = !this.state.isPaused; this.notifyUI('PAUSE_TOGGLE'); }
   public toggleSetting(key: keyof GameSettings) { 
-      if (key === 'language') {
-          const newLang = this.state.settings.language === 'EN' ? 'CN' : 'EN';
-          this.state.settings.language = newLang;
-      } else if (key === 'lightingQuality') {
-          this.state.settings.lightingQuality = this.state.settings.lightingQuality === 'HIGH' ? 'LOW' : 'HIGH';
-      } else if (key === 'particleIntensity') {
-          this.state.settings.particleIntensity = this.state.settings.particleIntensity === 'HIGH' ? 'LOW' : 'HIGH';
-      } else if (key === 'performanceMode') {
-          const modes: PerformanceMode[] = ['QUALITY', 'BALANCED', 'PERFORMANCE'];
-          const idx = modes.indexOf(this.state.settings.performanceMode || 'BALANCED');
-          this.state.settings.performanceMode = modes[(idx + 1) % modes.length];
-      } else if (key === 'resolutionScale') {
-          const cur = this.state.settings.resolutionScale || 1.0;
-          if (cur === 1.0) this.state.settings.resolutionScale = 0.75;
-          else if (cur === 0.75) this.state.settings.resolutionScale = 0.5;
-          else this.state.settings.resolutionScale = 1.0;
-      } else {
-          (this.state.settings as any)[key] = !(this.state.settings as any)[key]; 
-      }
-      this.persistSettings();
+      if (key === 'language') { const newLang = this.state.settings.language === 'EN' ? 'CN' : 'EN'; this.state.settings.language = newLang; } 
+      else if (key === 'lightingQuality') { this.state.settings.lightingQuality = this.state.settings.lightingQuality === 'HIGH' ? 'LOW' : 'HIGH'; } 
+      else if (key === 'particleIntensity') { this.state.settings.particleIntensity = this.state.settings.particleIntensity === 'HIGH' ? 'LOW' : 'HIGH'; } 
+      else if (key === 'performanceMode') { const modes: PerformanceMode[] = ['QUALITY', 'BALANCED', 'PERFORMANCE']; const idx = modes.indexOf(this.state.settings.performanceMode || 'BALANCED'); this.state.settings.performanceMode = modes[(idx + 1) % modes.length]; } 
+      else if (key === 'resolutionScale') { const cur = this.state.settings.resolutionScale || 1.0; if (cur === 1.0) this.state.settings.resolutionScale = 0.75; else if (cur === 0.75) this.state.settings.resolutionScale = 0.5; else this.state.settings.resolutionScale = 1.0; } 
+      else { (this.state.settings as any)[key] = !(this.state.settings as any)[key]; }
+      this.persistSettings(); this.notifyUI('SETTING_CHANGE');
   }
-
   public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
       if (!this.state.settings.showDamageNumbers && (type === FloatingTextType.DAMAGE || type === FloatingTextType.CRIT)) return;
-
       let vx = 0; let vy = -0.5; let size = 12;
       if (type === FloatingTextType.DAMAGE) { vx = (Math.random() - 0.5) * 4; vy = (Math.random() * -2) - 1; time = 600; size = 14; } 
       else if (type === FloatingTextType.CRIT) { vx = (Math.random() - 0.5) * 6; vy = -3; time = 1000; size = 20; } 
       else if (type === FloatingTextType.LOOT) { vx = 0; vy = -1.5; time = 1500; size = 12; } 
       else { vx = 0; vy = -0.2; size = 16; }
-
       let ft: FloatingText;
-      if (this.floatingTextPool.length > 0) {
-          ft = this.floatingTextPool.pop()!;
-          ft.id = `ft-${Date.now()}-${Math.random()}`;
-          ft.text = text; ft.x = x; ft.y = y; ft.vx = vx; ft.vy = vy;
-          ft.color = color; ft.maxLife = time; ft.life = time; ft.type = type; ft.size = size;
-      } else {
-          ft = { id: `ft-${Date.now()}-${Math.random()}`, text, x, y, vx, vy, color, maxLife: time, type, size, life: time };
-      }
+      if (this.floatingTextPool.length > 0) { ft = this.floatingTextPool.pop()!; ft.id = `ft-${Date.now()}-${Math.random()}`; ft.text = text; ft.x = x; ft.y = y; ft.vx = vx; ft.vy = vy; ft.color = color; ft.maxLife = time; ft.life = time; ft.type = type; ft.size = size; } 
+      else { ft = { id: `ft-${Date.now()}-${Math.random()}`, text, x, y, vx, vy, color, maxLife: time, type, size, life: time }; }
       this.state.floatingTexts.push(ft);
   }
-
-  public saveGame() { this.saveManager.saveGame(); }
-  public loadGame(id: string) { this.saveManager.loadGame(id); }
-  public deleteSave(id: string) { this.saveManager.deleteSave(id); }
-  public togglePin(id: string) { this.saveManager.togglePin(id); }
+  public saveGame() { this.saveManager.saveGame(); this.notifyUI('SAVE'); }
+  public loadGame(id: string) { this.saveManager.loadGame(id); this.notifyUI('LOAD'); }
+  public deleteSave(id: string) { this.saveManager.deleteSave(id); this.notifyUI('SAVE_DELETE'); }
+  public togglePin(id: string) { this.saveManager.togglePin(id); this.notifyUI('SAVE_PIN'); }
   public exportSave(id: string) { return this.saveManager.exportSaveString(id); }
-  public importSave(json: string) { return this.saveManager.importSave(json); }
-
-  public enterSurvivalMode() { this.reset(true); this.state.appMode = AppMode.GAMEPLAY; this.state.gameMode = GameMode.SURVIVAL; }
-  public enterExplorationMode() { this.reset(true); this.state.appMode = AppMode.EXPLORATION_MAP; this.state.gameMode = GameMode.EXPLORATION; }
-  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
-  public exitSpaceshipView() { this.state.appMode = AppMode.EXPLORATION_MAP; }
-  public enterOrbitalUpgradeMenu() { this.state.appMode = AppMode.ORBITAL_UPGRADES; }
-  public exitOrbitalUpgradeMenu() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
-  public enterCarapaceGrid() { this.state.appMode = AppMode.CARAPACE_GRID; }
-  public exitCarapaceGrid() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
-  public enterShipComputer() { this.state.appMode = AppMode.SHIP_COMPUTER; }
-  public exitShipComputer() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
-  public enterInfrastructureResearch() { this.state.appMode = AppMode.INFRASTRUCTURE_RESEARCH; }
-  public exitInfrastructureResearch() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
-  public enterPlanetConstruction() { this.state.appMode = AppMode.PLANET_CONSTRUCTION; }
-  public exitPlanetConstruction() { this.state.appMode = AppMode.EXPLORATION_MAP; }
-  public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; }
-  public closeGalacticEvent() { this.state.activeGalacticEvent = null; }
-
-  // Bio Sequencing Hooks
-  public enterBioSequencing() { this.state.appMode = AppMode.BIO_SEQUENCING; }
-  public exitBioSequencing() { this.state.appMode = AppMode.SPACESHIP_VIEW; }
+  public importSave(json: string) { const res = this.saveManager.importSave(json); if(res) this.notifyUI('SAVE_IMPORT'); return res; }
+  public enterSurvivalMode() { this.reset(true); this.state.appMode = AppMode.GAMEPLAY; this.state.gameMode = GameMode.SURVIVAL; this.notifyUI('MODE_SWITCH'); }
+  public enterExplorationMode() { this.reset(true); this.state.appMode = AppMode.EXPLORATION_MAP; this.state.gameMode = GameMode.EXPLORATION; this.notifyUI('MODE_SWITCH'); }
+  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public exitSpaceshipView() { this.state.appMode = AppMode.EXPLORATION_MAP; this.notifyUI('MODE_SWITCH'); }
+  public enterOrbitalUpgradeMenu() { this.state.appMode = AppMode.ORBITAL_UPGRADES; this.notifyUI('MODE_SWITCH'); }
+  public exitOrbitalUpgradeMenu() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public enterCarapaceGrid() { this.state.appMode = AppMode.CARAPACE_GRID; this.notifyUI('MODE_SWITCH'); }
+  public exitCarapaceGrid() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public enterShipComputer() { this.state.appMode = AppMode.SHIP_COMPUTER; this.notifyUI('MODE_SWITCH'); }
+  public exitShipComputer() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public enterInfrastructureResearch() { this.state.appMode = AppMode.INFRASTRUCTURE_RESEARCH; this.notifyUI('MODE_SWITCH'); }
+  public exitInfrastructureResearch() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public enterPlanetConstruction() { this.state.appMode = AppMode.PLANET_CONSTRUCTION; this.notifyUI('MODE_SWITCH'); }
+  public exitPlanetConstruction() { this.state.appMode = AppMode.EXPLORATION_MAP; this.notifyUI('MODE_SWITCH'); }
+  public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; this.notifyUI('PLANET_SELECT'); }
+  public closeGalacticEvent() { this.state.activeGalacticEvent = null; this.notifyUI('EVENT_CLOSE'); }
+  public enterBioSequencing() { this.state.appMode = AppMode.BIO_SEQUENCING; this.notifyUI('MODE_SWITCH'); }
+  public exitBioSequencing() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
   public generateBioGrid() { this.spaceshipManager.generateBioGrid(); }
-  public conductBioResearch() { this.spaceshipManager.conductBioResearch(); }
-  public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); }
-  public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); }
-  public abortBioTask() { this.spaceshipManager.abortBioTask(); }
-
-  public ascendToOrbit() {
-      const wasSuccess = this.state.missionComplete;
-      this.state.missionComplete = false;
-      this.state.isPaused = false;
-      this.state.isGameOver = false;
-      this.state.currentPlanet = null;
-      this.state.selectedPlanetId = null;
-      this.state.enemies = [];
-      this.state.projectiles = [];
-      this.state.allies = [];
-      this.state.toxicZones = [];
-      this.state.bloodStains = [];
-      this.state.turretSpots.forEach(s => s.builtTurret = undefined);
-
-      if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) {
-          if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) {
-              this.state.appMode = AppMode.YIELD_REPORT;
-          } else {
-              this.finalizeMissionReturn();
-          }
-      } else {
-          this.state.appMode = AppMode.EXPLORATION_MAP;
-      }
-  }
-
-  public emergencyEvac() {
-      this.state.isGameOver = false;
-      this.state.isPaused = false;
-      this.state.appMode = AppMode.EXPLORATION_MAP;
-      this.state.currentPlanet = null; 
-      this.state.selectedPlanetId = null;
-      this.state.enemies = [];
-      this.state.projectiles = [];
-      this.state.allies = [];
-      this.state.toxicZones = [];
-      this.state.bloodStains = [];
-  }
-
-  public activateBackdoor() {
-      this.state.player.score += 9999999;
-      this.audio.playTurretFire(2);
-      this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM);
-  }
-  
+  public conductBioResearch() { this.spaceshipManager.conductBioResearch(); this.notifyUI('BIO_RESEARCH'); }
+  public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); this.notifyUI('BIO_UNLOCK'); }
+  public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); this.notifyUI('BIO_TASK'); }
+  public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
+  public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; } this.notifyUI('ASCEND'); }
+  public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.notifyUI('EVAC'); }
+  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2'); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
-  public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); }
+  public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }
-  public purchaseCarapaceNode(row: number, col: number) { this.spaceshipManager.purchaseCarapaceNode(row, col); }
+  public purchaseCarapaceNode(row: number, col: number) { this.spaceshipManager.purchaseCarapaceNode(row, col); this.notifyUI('UPGRADE'); }
   public generateInfrastructureOptions() { this.spaceshipManager.generateInfrastructureOptions(); }
-  public purchaseInfrastructureUpgrade(optionId: string) { this.spaceshipManager.purchaseInfrastructureUpgrade(optionId); }
-  
-  public equipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.equipModule(target, modId); }
-  public unequipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.unequipModule(target, modId); }
+  public purchaseInfrastructureUpgrade(optionId: string) { this.spaceshipManager.purchaseInfrastructureUpgrade(optionId); this.notifyUI('UPGRADE'); }
+  public equipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.equipModule(target, modId); this.notifyUI('EQUIP'); }
+  public unequipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.unequipModule(target, modId); this.notifyUI('EQUIP'); }
 }

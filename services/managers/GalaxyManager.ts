@@ -114,7 +114,7 @@ export class GalaxyManager {
                 createdAt: Date.now()
             });
             
-            this.engine.audio.playTurretFire(2);
+            this.engine.audio.play('TURRET_2');
         }
     }
 

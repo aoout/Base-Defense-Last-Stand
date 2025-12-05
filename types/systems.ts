@@ -65,6 +65,7 @@ export interface SaveFile {
     isPinned: boolean;
     data: string; // JSON string of GameState
     mode: GameMode;
+    version?: string; // Schema version of the save data
 }
 
 export interface OrbitalUpgradeNode {

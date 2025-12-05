@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useEffect } from 'react';
 import { GameEngine } from '../../services/gameService';
 import { GameState } from '../../types';
 
@@ -24,4 +24,21 @@ export const useGame = () => {
         throw new Error('useGame must be used within a GameProvider');
     }
     return context;
+};
+
+/**
+ * Optimized Hook for High-Frequency updates.
+ * Registers a callback to run inside the requestAnimationFrame loop of the engine.
+ * Does NOT trigger React re-renders.
+ */
+export const useGameLoop = (callback: (dt: number, time: number) => void, deps: React.DependencyList = []) => {
+    const { engine } = useGame();
+
+    useEffect(() => {
+        engine.registerLoopListener(callback);
+        return () => {
+            engine.unregisterLoopListener(callback);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [engine, ...deps]);
 };

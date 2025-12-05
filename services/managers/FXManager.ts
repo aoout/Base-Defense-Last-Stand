@@ -1,5 +1,5 @@
 
-import { GameState, Particle, BloodStain, GameEventType, SpawnParticleEvent, SpawnBloodStainEvent, SpawnToxicZoneEvent, DamagePlayerEvent } from '../../types';
+import { GameState, Particle, BloodStain, GameEventType, SpawnParticleEvent, SpawnBloodStainEvent, SpawnToxicZoneEvent } from '../../types';
 import { TOXIC_ZONE_STATS } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
@@ -84,14 +84,7 @@ export class FXManager {
             const z = zones[i];
             z.life -= dt;
             
-            // Damage tick
-            if (z.life % 500 < dt) { 
-                const p = state.player;
-                const d = Math.sqrt((p.x - z.x)**2 + (p.y - z.y)**2);
-                if (d < z.radius) {
-                    this.events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: z.damagePerSecond * 0.5 });
-                }
-            }
+            // NOTE: Damage logic moved to PhysicsSystem
 
             if (z.life <= 0) {
                 zones[i] = zones[zones.length - 1];
@@ -148,7 +141,7 @@ export class FXManager {
         b.life = lifeDuration;
         b.maxLife = lifeDuration;
         
-        // Always regenerate blotches for variety, reusing arrays would require deeper pooling
+        // Always regenerate blotches for variety
         b.blotches = Array.from({length: 5}, () => ({
             x: (Math.random()-0.5)*20,
             y: (Math.random()-0.5)*20,

@@ -130,7 +130,7 @@ export class MissionManager {
             state.player.score += Math.floor(finalReward);
             this.engine.addMessage(this.engine.t('LURE_REWARD', {0: Math.floor(finalReward)}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
             
-            this.engine.audio.playBaseDamage(); 
+            this.engine.audio.play('BASE_DAMAGE'); 
             this.nextWave();
         } else {
             this.engine.addMessage(this.engine.t('LURE_PENDING'), state.player.x, state.player.y - 80, 'red', FloatingTextType.SYSTEM);

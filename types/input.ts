@@ -24,4 +24,5 @@ export enum UserAction {
     ORDER_3 = 'ORDER_3'
 }
 
-export type KeyBindingMap = Record<string, UserAction>;
+export type KeyBindingMap = Record<string, UserAction>; // Code -> Action
+export type InputConfig = Record<UserAction, string>; // Action -> Code

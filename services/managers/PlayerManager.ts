@@ -258,6 +258,7 @@ export class PlayerManager {
         if (p.hp <= 0) {
             state.isGameOver = true;
             state.isPaused = true;
+            this.events.emit(GameEventType.UI_UPDATE, { reason: 'GAME_OVER' });
         }
     }
 }

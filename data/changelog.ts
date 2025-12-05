@@ -8,9 +8,35 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.6";
+export const CURRENT_VERSION = "0.9.7";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "0.9.7",
+        date: "2248.06.10",
+        title: "ENGINE OPTIMIZATION & REFACTOR",
+        titleCN: "引擎优化与重构",
+        changes: [
+            "CORE: Implemented Fixed Time Step game loop for deterministic physics.",
+            "CORE: Centralized Physics System for unified collision handling.",
+            "CORE: Refactored Enemy AI into modular Strategy patterns.",
+            "AUDIO: Converted Audio System to Data-Driven architecture.",
+            "PERF: Implemented Transient UI Updates for zero-overhead HUD.",
+            "PERF: Added Asset Caching for entity rendering.",
+            "UX: Added Input Rebinding system.",
+            "SYS: Added Save Data Migration service."
+        ],
+        changesCN: [
+            "核心：实现固定时间步长游戏循环，确保物理确定性。",
+            "核心：集中化物理系统，统一碰撞处理。",
+            "核心：将敌人AI重构为模块化策略模式。",
+            "音频：将音频系统转换为数据驱动架构。",
+            "性能：实现瞬态UI更新，消除HUD渲染开销。",
+            "性能：添加实体渲染资产缓存。",
+            "体验：添加按键绑定重设系统。",
+            "系统：添加存档数据迁移服务。"
+        ]
+    },
     {
         version: "0.9.6",
         date: "2248.06.05",

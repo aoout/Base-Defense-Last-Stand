@@ -12,6 +12,7 @@ import {
     isVisible, drawParticlesBatch
 } from '../utils/renderers';
 import { InputManager } from './InputManager';
+import { AssetManager } from './managers/AssetManager';
 
 export class RenderService {
     private canvas: HTMLCanvasElement | null = null;
@@ -20,6 +21,11 @@ export class RenderService {
     // Cache System
     private terrainCache: HTMLCanvasElement | null = null;
     private lastTerrainRef: any = null;
+    private assetManager: AssetManager;
+
+    constructor() {
+        this.assetManager = new AssetManager();
+    }
 
     public setCanvas(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -77,6 +83,8 @@ export class RenderService {
             // Regenerate cache if terrain reference changed (New planet or reset)
             this.terrainCache = renderStaticTerrainToCache(state.terrain, state.gameMode, state.currentPlanet);
             this.lastTerrainRef = state.terrain;
+            // Also clear sprite cache on level change to free memory
+            this.assetManager.clearCache();
         }
 
         if (this.terrainCache) {
@@ -150,6 +158,10 @@ export class RenderService {
         if (count > thresholds.superLow) lodLevel = 2; // Super Low
         else if (count > thresholds.low) lodLevel = 1; // Low
 
+        // Use Asset Manager for sprites if not in High Quality mode or if count is very high
+        // We use cached sprites for LOD 1 and 2
+        const useCachedSprites = lodLevel > 0;
+
         // Draw Enemies
         state.enemies.forEach(e => {
             if (!isVisible(e.x, e.y, e.radius, camera)) return;
@@ -167,20 +179,28 @@ export class RenderService {
 
             ctx.rotate(e.angle);
 
-            if (e.isBoss && e.bossType) {
-                switch(e.bossType) {
-                    case 'RED_SUMMONER': drawBossRed(ctx, e, time); break;
-                    case 'BLUE_BURST': drawBossBlue(ctx, e, time); break;
-                    case 'PURPLE_ACID': drawBossPurple(ctx, e, time); break;
-                    case 'HIVE_MOTHER': drawHiveMother(ctx, e, time); break;
-                }
+            if (useCachedSprites) {
+                const sprite = this.assetManager.getEnemySprite(e.type, e.bossType, e.color, e.radius);
+                const size = sprite.width;
+                const offset = size / 2;
+                ctx.drawImage(sprite, -offset, -offset, size, size);
             } else {
-                switch(e.type) {
-                    case 'GRUNT': drawGrunt(ctx, e, time, lodLevel); break;
-                    case 'RUSHER': drawRusher(ctx, e, time, lodLevel); break;
-                    case 'TANK': drawTank(ctx, e, time, lodLevel); break;
-                    case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
-                    case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
+                // Vector Drawing (Animated)
+                if (e.isBoss && e.bossType) {
+                    switch(e.bossType) {
+                        case 'RED_SUMMONER': drawBossRed(ctx, e, time); break;
+                        case 'BLUE_BURST': drawBossBlue(ctx, e, time); break;
+                        case 'PURPLE_ACID': drawBossPurple(ctx, e, time); break;
+                        case 'HIVE_MOTHER': drawHiveMother(ctx, e, time); break;
+                    }
+                } else {
+                    switch(e.type) {
+                        case 'GRUNT': drawGrunt(ctx, e, time, lodLevel); break;
+                        case 'RUSHER': drawRusher(ctx, e, time, lodLevel); break;
+                        case 'TANK': drawTank(ctx, e, time, lodLevel); break;
+                        case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
+                        case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
+                    }
                 }
             }
             

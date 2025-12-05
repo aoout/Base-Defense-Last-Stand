@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { GalaxyConfig, GameMode } from '../../types';
 import { CloseButton } from './Shared';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { PlanetDetailScreen } from './PlanetDetailScreen';
 import { GalaxyIndexModal } from './GalaxyIndexModal';
 import { useLocale } from '../contexts/LocaleContext';
-import { useGame } from '../contexts/GameContext';
+import { useGame, useGameLoop } from '../contexts/GameContext';
 
 export const SectorMapUI: React.FC = () => {
     const { state, engine } = useGame();
@@ -14,6 +14,14 @@ export const SectorMapUI: React.FC = () => {
     const planet = state.planets.find(p => p.id === state.selectedPlanetId);
     const [viewingDetail, setViewingDetail] = useState(false);
     const [showIndex, setShowIndex] = useState(false);
+    
+    // Transient Update for Funds
+    const fundsRef = useRef<HTMLDivElement>(null);
+    useGameLoop(() => {
+        if (fundsRef.current) {
+            fundsRef.current.innerText = `${Math.floor(engine.state.player.score)} SCRAPS`;
+        }
+    });
 
     const handleScan = (config: GalaxyConfig) => {
         const event = new CustomEvent('game-action', { detail: { type: 'SCAN_SECTOR', config } });
@@ -93,7 +101,7 @@ export const SectorMapUI: React.FC = () => {
             {/* Current Scraps Display */}
             <div className="absolute bottom-8 left-64 bg-slate-900/80 p-4 border border-blue-900/50">
                 <div className="text-xs text-blue-400 font-bold uppercase tracking-widest">{t('AVAILABLE_FUNDS')}</div>
-                <div className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
+                <div ref={fundsRef} className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
             </div>
 
             {/* Modals */}

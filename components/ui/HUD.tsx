@@ -1,15 +1,29 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { WeaponType, GameMode, MissionType, BossType } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
 import { useLocale } from '../contexts/LocaleContext';
-import { useGame } from '../contexts/GameContext';
+import { useGame, useGameLoop } from '../contexts/GameContext';
 
 export const HUD: React.FC = () => {
     const { state, engine } = useGame();
     const { t } = useLocale();
     const p = state.player;
+    
+    // Direct DOM Refs for High Frequency Updates
+    const waveTimerRef = useRef<HTMLSpanElement>(null);
+    const waveProgressRef = useRef<HTMLDivElement>(null);
+    const healthBarRef = useRef<HTMLDivElement>(null);
+    const healthTextRef = useRef<HTMLSpanElement>(null);
+    const armorBarRef = useRef<HTMLDivElement>(null);
+    const ammoTextRef = useRef<HTMLSpanElement>(null);
+    const ammoBarRef = useRef<HTMLDivElement>(null);
+    const scrapTextRef = useRef<HTMLSpanElement>(null);
+    const bossHpRef = useRef<HTMLDivElement>(null);
+    const bossHpTextRef = useRef<HTMLSpanElement>(null);
+    const enemiesRemainingRef = useRef<HTMLSpanElement>(null);
+
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
     const currentWep = p.weapons[currentWeaponType];
     const wepStats = WEAPONS[currentWeaponType];
@@ -30,17 +44,66 @@ export const HUD: React.FC = () => {
                         state.gameMode === GameMode.EXPLORATION && 
                         state.wave >= (state.currentPlanet?.totalWaves || 0);
 
-    const secondsLeft = Math.ceil(state.waveTimeRemaining / 1000);
-    const formattedTime = `${Math.floor(secondsLeft / 60).toString().padStart(2, '0')}:${(secondsLeft % 60).toString().padStart(2, '0')}`;
-    
     // Skip Wave Logic
     const elapsedWaveTime = state.waveDuration - state.waveTimeRemaining;
     const canSkip = !isOffenseMode && elapsedWaveTime >= 10000 && !noMoreWaves;
+    
+    // NOTE: This value might lag slightly as it depends on React render, but button click works immediately on engine state
     const skipReward = Math.max(0, Math.floor((state.waveTimeRemaining / 1000) * state.wave));
 
     // Theme Colors
     const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
     const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
+
+    // --- TRANSIENT UPDATE LOOP ---
+    useGameLoop(() => {
+        const s = engine.state;
+        const pl = s.player;
+        const w = pl.weapons[pl.loadout[pl.currentWeaponIndex]];
+        const stats = WEAPONS[w.type];
+
+        // 1. Base Health
+        if (healthBarRef.current) healthBarRef.current.style.width = `${Math.max(0, s.base.hp / s.base.maxHp * 100)}%`;
+        if (healthTextRef.current) healthTextRef.current.innerText = `${Math.ceil(s.base.hp)} / ${s.base.maxHp}`;
+
+        // 2. Scraps
+        if (scrapTextRef.current) scrapTextRef.current.innerText = `${Math.floor(pl.score)}`;
+
+        // 3. Ammo
+        if (ammoTextRef.current) {
+            if (w.reloading) ammoTextRef.current.innerText = "RELOAD";
+            else ammoTextRef.current.innerText = `${w.ammoInMag}`; // Keep it simple for transient
+        }
+        if (ammoBarRef.current) {
+            const pct = w.ammoInMag / stats.magSize;
+            ammoBarRef.current.style.width = `${pct * 100}%`;
+        }
+
+        // 4. Wave Timer
+        if (waveTimerRef.current) {
+            const sec = Math.ceil(s.waveTimeRemaining / 1000);
+            const fmt = `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
+            waveTimerRef.current.innerText = fmt;
+        }
+        if (waveProgressRef.current) {
+            const pct = s.waveTimeRemaining / s.waveDuration;
+            waveProgressRef.current.style.width = `${pct * 100}%`;
+        }
+
+        // 5. Boss HP (If applicable)
+        if (isOffenseMode) {
+            const boss = s.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
+            if (boss) {
+                if (bossHpRef.current) bossHpRef.current.style.width = `${Math.max(0, (boss.hp / boss.maxHp) * 100)}%`;
+                if (bossHpTextRef.current) bossHpTextRef.current.innerText = `${Math.ceil(boss.hp).toLocaleString()}`;
+            }
+        }
+
+        // 6. Enemies Remaining (Cleanup)
+        if (isCleanupPhase && enemiesRemainingRef.current) {
+            enemiesRemainingRef.current.innerText = `${s.enemies.length}`;
+        }
+    });
 
     return (
         <>
@@ -77,10 +140,11 @@ export const HUD: React.FC = () => {
                                 <div className="w-full mt-1">
                                     <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
                                         <span>BOSS INTEGRITY</span>
-                                        <span className="font-display text-lg">{Math.ceil(hiveMother.hp).toLocaleString()}</span>
+                                        <span ref={bossHpTextRef} className="font-display text-lg">{Math.ceil(hiveMother.hp).toLocaleString()}</span>
                                     </div>
                                     <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
                                         <div 
+                                            ref={bossHpRef}
                                             className="h-full bg-red-600 transition-all duration-300"
                                             style={{ width: `${Math.max(0, (hiveMother.hp / hiveMother.maxHp) * 100)}%` }}
                                         />
@@ -108,13 +172,13 @@ export const HUD: React.FC = () => {
                                 {isCleanupPhase ? (
                                     <div className="flex flex-col items-center">
                                         <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
-                                        <span className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
+                                        <span ref={enemiesRemainingRef} className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
                                             {state.enemies.length}
                                         </span>
                                     </div>
                                 ) : (
-                                    <span className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                                        {formattedTime}
+                                    <span ref={waveTimerRef} className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
+                                        00:00
                                     </span>
                                 )}
                             </div>
@@ -123,8 +187,9 @@ export const HUD: React.FC = () => {
                             {!isCleanupPhase && (
                                 <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
                                     <div 
-                                        className="h-full bg-cyan-500 transition-all duration-1000 linear"
-                                        style={{ width: `${(state.waveTimeRemaining / state.waveDuration) * 100}%` }}
+                                        ref={waveProgressRef}
+                                        className="h-full bg-cyan-500 transition-all duration-100 linear"
+                                        style={{ width: '100%' }}
                                     ></div>
                                 </div>
                             )}
@@ -133,12 +198,10 @@ export const HUD: React.FC = () => {
                 </div>
 
                 {/* --- THE LURE (SKIP BUTTON) --- */}
-                {/* This is the fusion part. It hangs FROM the main HUD, preserving symmetry. */}
                 <div className={`
                     relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center
                     ${canSkip ? 'h-12 opacity-100 translate-y-0' : 'h-0 opacity-0 -translate-y-4'}
                 `}>
-                    {/* Connecting "Cables" */}
                     <div className="w-24 flex justify-between px-2">
                         <div className="w-1 h-3 bg-yellow-600/50"></div>
                         <div className="w-1 h-3 bg-yellow-600/50"></div>
@@ -178,7 +241,7 @@ export const HUD: React.FC = () => {
                         <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span className="text-4xl font-display font-bold text-white tracking-wide">{Math.floor(p.score)}</span>
+                        <span ref={scrapTextRef} className="text-4xl font-display font-bold text-white tracking-wide">{Math.floor(p.score)}</span>
                         <span className="text-xs text-slate-500 font-bold">{t('SCRAPS')}</span>
                     </div>
                 </div>
@@ -194,12 +257,13 @@ export const HUD: React.FC = () => {
                 <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                     <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
                         <span className="text-blue-400">STRUCTURE</span>
-                        <span className="text-white">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
+                        <span ref={healthTextRef} className="text-white">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
                     </div>
                     {/* Health Bar */}
                     <div className="w-full h-3 bg-slate-800 relative z-10">
                         <div 
-                            className={`h-full transition-all duration-300 ${state.base.hp < state.base.maxHp * 0.3 ? 'bg-red-500 animate-pulse' : 'bg-blue-500'}`} 
+                            ref={healthBarRef}
+                            className={`h-full transition-all duration-300 bg-blue-500`} 
                             style={{ width: `${Math.max(0, state.base.hp / state.base.maxHp * 100)}%` }}
                         ></div>
                     </div>
@@ -224,7 +288,7 @@ export const HUD: React.FC = () => {
                             <div className="text-3xl font-display font-black text-yellow-500 animate-pulse tracking-widest">RELOADING</div>
                         ) : (
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-6xl font-display font-black tracking-wide ${currentWep.ammoInMag === 0 ? 'text-red-500' : 'text-white'}`}>
+                                <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
                                     {currentWep.ammoInMag}
                                 </span>
                                 <span className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
@@ -235,6 +299,7 @@ export const HUD: React.FC = () => {
 
                     <div className="w-full h-1 bg-slate-800 mt-2">
                         <div 
+                            ref={ammoBarRef}
                             className="h-full bg-white" 
                             style={{ width: `${(currentWep.ammoInMag / wepStats.magSize) * 100}%` }}
                         ></div>

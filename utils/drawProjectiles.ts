@@ -125,8 +125,10 @@ export const drawProjectilesBatch = (ctx: CanvasRenderingContext2D, projectiles:
 export const drawOrbitalBeam = (ctx: CanvasRenderingContext2D, beam: OrbitalBeam) => {
     ctx.save();
     
-    const currentWidth = beam.width * Math.pow(beam.life, 0.5);
-    const opacity = beam.life;
+    // Ensure beam.life is non-negative to prevent NaN in Math.pow
+    const lifeFactor = Math.max(0, beam.life);
+    const currentWidth = beam.width * Math.pow(lifeFactor, 0.5);
+    const opacity = lifeFactor;
     
     const grad = ctx.createLinearGradient(beam.x - currentWidth/2, 0, beam.x + currentWidth/2, 0);
     grad.addColorStop(0, 'rgba(6,182,212,0)');
@@ -140,14 +142,15 @@ export const drawOrbitalBeam = (ctx: CanvasRenderingContext2D, beam: OrbitalBeam
     
     // Disable expensive radial gradient on low settings if passed? 
     // Currently no settings access here, but Orbital beams are rare enough to keep high quality usually.
-    const grdRadial = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, currentWidth * 2);
+    const safeRadius = Math.max(0.1, currentWidth * 2); // Prevent 0 or negative radius
+    const grdRadial = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, safeRadius);
     grdRadial.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
     grdRadial.addColorStop(0.5, `rgba(6, 182, 212, ${opacity * 0.5})`);
     grdRadial.addColorStop(1, 'rgba(0,0,0,0)');
     
     ctx.fillStyle = grdRadial;
     ctx.beginPath();
-    ctx.arc(beam.x, beam.y, currentWidth * 2, 0, Math.PI * 2);
+    ctx.arc(beam.x, beam.y, safeRadius, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = `rgba(6,182,212,${opacity * 0.2})`;
@@ -178,16 +181,22 @@ export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[]
 
         ctx.save();
         ctx.translate(zone.x, zone.y);
-        const scale = 1 + Math.sin(time * 0.005 + parseInt(zone.id)) * 0.05;
+        
+        // Use a string hash for seed instead of parseInt, as IDs are strings like "tz-1"
+        let seed = 0;
+        for(let i=0; i<zone.id.length; i++) seed += zone.id.charCodeAt(i);
+        
+        const scale = 1 + Math.sin(time * 0.005 + seed) * 0.05;
         
         // This gradient is somewhat expensive, but toxic zones are limited.
-        const grad = ctx.createRadialGradient(0,0, 0, 0,0, zone.radius * scale);
+        const radius = Math.max(0.1, zone.radius * scale); // Ensure positive radius
+        const grad = ctx.createRadialGradient(0,0, 0, 0,0, radius);
         grad.addColorStop(0, 'rgba(124, 58, 237, 0.8)');
         grad.addColorStop(0.7, 'rgba(124, 58, 237, 0.4)');
         grad.addColorStop(1, 'rgba(124, 58, 237, 0)');
         
         ctx.fillStyle = grad;
-        ctx.beginPath(); ctx.arc(0, 0, zone.radius * scale, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2); ctx.fill();
 
         ctx.fillStyle = '#DDD6FE';
         for (let i = 0; i < 5; i++) {

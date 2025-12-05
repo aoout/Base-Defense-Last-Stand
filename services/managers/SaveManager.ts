@@ -1,8 +1,9 @@
 
-
 import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
+import { CURRENT_VERSION } from '../../data/changelog';
+import { MigrationService } from '../MigrationService';
 
 export class SaveManager {
     private engine: GameEngine;
@@ -86,7 +87,8 @@ export class SaveManager {
                 : `SURVIVAL - WAVE ${this.engine.state.wave}`,
             isPinned: false,
             data: JSON.stringify(stateToSave),
-            mode: this.engine.state.gameMode
+            mode: this.engine.state.gameMode,
+            version: CURRENT_VERSION // Stamp with current system version
         };
 
         this.engine.state.saveSlots.unshift(newSave);
@@ -107,7 +109,8 @@ export class SaveManager {
                 label: parsed.label + " (IMP)",
                 isPinned: false,
                 data: parsed.data,
-                mode: parsed.mode
+                mode: parsed.mode,
+                version: parsed.version || "0.9.0" // Default to base if missing on import
             };
             this.engine.state.saveSlots.unshift(newSave);
             this.enforceSlotLimit();
@@ -125,7 +128,8 @@ export class SaveManager {
         return JSON.stringify({
             label: slot.label,
             data: slot.data,
-            mode: slot.mode
+            mode: slot.mode,
+            version: slot.version
         }, null, 2);
     }
 
@@ -133,24 +137,23 @@ export class SaveManager {
         const slot = this.engine.state.saveSlots.find(s => s.id === id);
         if (slot) {
             try {
-                const data = JSON.parse(slot.data);
+                // 1. Parse raw data
+                let data = JSON.parse(slot.data);
                 
+                // 2. Run Migration Service
+                // We pass current settings to preserve language preference/performance settings
+                const currentContext = {
+                    settings: this.engine.state.settings
+                };
+                
+                const saveVersion = slot.version || "0.9.0";
+                data = MigrationService.migrate(data, saveVersion, currentContext);
+
+                // 3. Hydrate State
                 // Sync Time Manager to current fresh time
                 this.engine.time.sync();
                 const currentNow = this.engine.time.now;
                 const oldSaveTime = (data as any).metaGameTime || 0; // The time when save happened
-
-                // Preserve current language preference (Global setting)
-                const currentLang = this.engine.state.settings.language;
-
-                // Apply State
-                if (!data.settings) data.settings = { ...this.engine.state.settings };
-                
-                // Force language match
-                data.settings.language = currentLang;
-
-                // Ensure data.settings.language is set just in case
-                if (!data.settings.language) data.settings.language = 'EN';
 
                 Object.assign(this.engine.state, data);
                 
@@ -166,15 +169,12 @@ export class SaveManager {
                 
                 // 1. Player Regeneration Logic
                 // We need to preserve how long ago we were hit relative to the game state.
-                // timeSinceHit = oldSaveTime - oldLastHitTime
-                // newLastHitTime = currentNow - timeSinceHit
                 const timeSinceHit = oldSaveTime - this.engine.state.player.lastHitTime;
                 this.engine.state.player.lastHitTime = currentNow - timeSinceHit;
 
                 // 2. Weapon Reloading & Cooldowns
                 Object.values(this.engine.state.player.weapons).forEach(w => {
-                    // Prevent jamming: Reset fire timer to allow shooting immediately (or after minimal delay)
-                    // It's safer to just set lastFireTime to 0 than try to calculate fire rate offsets which might be negative
+                    // Prevent jamming: Reset fire timer to allow shooting immediately
                     w.lastFireTime = 0; 
 
                     // Reloading is critical to preserve
@@ -187,8 +187,6 @@ export class SaveManager {
                 });
 
                 // 3. Enemy Attack Cooldowns
-                // Resetting to 0 is fine, they can attack immediately or wait a full cycle. 
-                // Preventing negative overflow is key.
                 this.engine.state.enemies.forEach(e => {
                     e.lastAttackTime = 0;
                     if (e.bossNextShotTime) e.bossNextShotTime = currentNow + 1000; // Small delay
@@ -199,6 +197,14 @@ export class SaveManager {
                 this.engine.state.turretSpots.forEach(s => {
                     if (s.builtTurret) s.builtTurret.lastFireTime = 0;
                 });
+                
+                // 5. Re-register Stats
+                // Since the stat modifiers are not strictly serialized (they are runtime calculated),
+                // we must re-run the registration logic based on the loaded upgrade state.
+                if (this.engine.spaceshipManager) {
+                    this.engine.statManager.clear(); // Clear old stats
+                    this.engine.spaceshipManager.registerModifiers(); // Rebuild from persistent data
+                }
 
                 this.engine.addMessage("GAME LOADED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
             } catch (e) {

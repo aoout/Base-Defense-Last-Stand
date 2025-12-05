@@ -6,6 +6,7 @@ import { CloseButton } from './Shared';
 import { CHANGELOG, CURRENT_VERSION } from '../../data/changelog';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
+import { KeyBindingUI } from './KeyBindingUI';
 
 const SettingRow: React.FC<{ label: string, value: string, onClick: () => void, description?: string }> = ({ label, value, onClick, description }) => (
     <div 
@@ -28,6 +29,7 @@ export const MainMenu: React.FC = () => {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showSettings, setShowSettings] = useState(false);
     const [showChangelog, setShowChangelog] = useState(false);
+    const [showControls, setShowControls] = useState(false);
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -215,6 +217,10 @@ export const MainMenu: React.FC = () => {
                 </div>
             )}
 
+            {showControls && (
+                <KeyBindingUI onClose={() => setShowControls(false)} />
+            )}
+
             {showSettings && (
                 <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center backdrop-blur-sm">
                     <div className="w-[600px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative p-8">
@@ -234,6 +240,16 @@ export const MainMenu: React.FC = () => {
                             
                             <div className="h-px bg-slate-800 my-4"></div>
                             
+                            <button
+                                onClick={() => setShowControls(true)}
+                                className="w-full p-3 border border-slate-700 bg-slate-900/50 hover:bg-cyan-900/20 hover:border-cyan-500 transition-all text-xs font-bold text-slate-400 hover:text-cyan-400 tracking-widest flex justify-between items-center group"
+                            >
+                                <span>{t('CONTROLS_BTN')}</span>
+                                <span className="group-hover:translate-x-1 transition-transform">»</span>
+                            </button>
+
+                            <div className="h-px bg-slate-800 my-4"></div>
+
                             <SettingRow 
                                 label={t('SETTING_RESOLUTION')} 
                                 value={`${(state.settings.resolutionScale || 1.0) * 100}%`}
