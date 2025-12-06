@@ -1,10 +1,56 @@
 
-import React from 'react';
-import { TurretType, GameEventType, DefenseUpgradeTurretEvent } from '../../types';
+import React, { useCallback } from 'react';
+import { TurretType, GameEventType, DefenseUpgradeTurretEvent, StatId, ModifierType, Turret } from '../../types';
 import { TURRET_COSTS, TURRET_STATS } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CloseButton } from './Shared';
+import { CanvasView } from './common/CanvasView';
+import { drawTurret } from '../../utils/renderers';
+
+const TurretPreview: React.FC<{ type: TurretType, color: string }> = ({ type, color }) => {
+    const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
+        ctx.clearRect(0, 0, w, h);
+        
+        // Mock Turret for visualization
+        const t: Turret = {
+            id: 'preview',
+            type: type,
+            level: 2,
+            x: 0, y: 0, // Drawn at origin after translate
+            radius: 15,
+            angle: -Math.PI / 2, // Facing Up
+            color: '#fff',
+            hp: 100, maxHp: 100,
+            damage: 0, range: 0, fireRate: 0, lastFireTime: 0
+        };
+
+        ctx.save();
+        ctx.translate(w/2, h/2);
+        ctx.scale(2.5, 2.5); // Scale up for visibility
+        
+        // Draw decorative ring
+        ctx.beginPath();
+        ctx.arc(0, 0, 25, 0, Math.PI * 2);
+        ctx.strokeStyle = `${color}33`; // Low opacity hex
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        // Draw Turret
+        drawTurret(ctx, t, time, false);
+        
+        ctx.restore();
+    }, [type, color]);
+
+    return <CanvasView width={140} height={140} draw={handleDraw} className="pointer-events-none" />;
+};
+
+const StatBadge: React.FC<{ label: string, value: string | number, color: string }> = ({ label, value, color }) => (
+    <div className="flex flex-col items-center bg-black/40 p-2 rounded border border-white/5 w-full">
+        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{label}</span>
+        <span className={`text-sm font-mono font-bold ${color}`}>{value}</span>
+    </div>
+);
 
 export const TurretUpgradeUI: React.FC = () => {
     const { state, engine } = useGame();
@@ -13,8 +59,8 @@ export const TurretUpgradeUI: React.FC = () => {
     const turretId = state.activeTurretId;
     
     if (turretId === undefined) return null;
-    const turret = state.turretSpots[turretId]?.builtTurret;
-    if (!turret) return null;
+    const spot = state.turretSpots[turretId];
+    if (!spot || !spot.builtTurret) return null;
 
     const handleConfirmUpgrade = (type: TurretType) => {
         engine.eventBus.emit<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, { type });
@@ -24,43 +70,161 @@ export const TurretUpgradeUI: React.FC = () => {
         engine.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {});
     };
 
+    // Calculate dynamic stats for preview
+    const getCalculatedStats = (type: TurretType) => {
+        const base = TURRET_STATS[type];
+        const stats = engine.statManager;
+
+        // HP
+        const hp = stats.get(StatId.TURRET_HP, base.hp);
+
+        // Damage
+        let dmg = stats.get(StatId.TURRET_DAMAGE_GLOBAL, base.damage);
+        if (type === TurretType.MISSILE) dmg = stats.get(StatId.TURRET_MISSILE_DAMAGE, dmg);
+        // Note: Gauss/Sniper specific damage mods if any would go here, currently using global mostly
+
+        // Range
+        let range = base.range;
+        if (type === TurretType.SNIPER) range = stats.get(StatId.TURRET_SNIPER_RANGE, range);
+
+        // Fire Rate (Lower is faster)
+        const globalRateMod = stats.get(StatId.TURRET_RATE_GLOBAL, 1.0) - 1.0; // Convert multiplier back to pct add for logic or just use get with base
+        // StatManager.get returns Final Value. 
+        // Rate is handled as (BaseRate / Multiplier). 
+        // StatManager logic is: val * PercentMult.
+        // Let's manually reconstruct rate logic to match DefenseManager:
+        // spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
+        
+        let rateMult = 1.0;
+        // Re-query modifiers manually or assume StatManager setup for RATE returns the multiplier
+        // We know Infrastructure adds to GLOBAL_TURRET_RATE which is type PERCENT_ADD
+        const rateBonus = stats.get(StatId.TURRET_RATE_GLOBAL, 0); // This returns 0 + modifiers. 
+        // Wait, stats.get(ID, 0) returns 0 + flat * (1+pct). 
+        // If we want just the multiplier:
+        rateMult = 1 + rateBonus; 
+        
+        if (type === TurretType.GAUSS) {
+            const gaussBonus = stats.get(StatId.TURRET_GAUSS_RATE, 0);
+            rateMult *= (1 + gaussBonus);
+        }
+
+        const rate = base.fireRate / rateMult;
+
+        return {
+            hp: Math.floor(hp),
+            damage: Math.floor(dmg),
+            range: range > 2000 ? "GLOBAL" : Math.floor(range),
+            rate: Math.floor(rate)
+        };
+    };
+
     const upgrades = [
-        { type: TurretType.GAUSS, name: t('GAUSS_NAME'), cost: TURRET_COSTS.upgrade_gauss, desc: t('GAUSS_DESC') },
-        { type: TurretType.SNIPER, name: t('SNIPER_NAME'), cost: TURRET_COSTS.upgrade_sniper, desc: t('SNIPER_DESC') },
-        { type: TurretType.MISSILE, name: t('MISSILE_NAME'), cost: TURRET_COSTS.upgrade_missile, desc: t('MISSILE_DESC') }
+        { 
+            type: TurretType.GAUSS, 
+            name: t('GAUSS_NAME'), 
+            cost: TURRET_COSTS.upgrade_gauss, 
+            desc: t('GAUSS_DESC'),
+            color: '#10b981', // Emerald
+            textColor: 'text-emerald-400',
+            borderColor: 'border-emerald-500',
+            bgGradient: 'from-emerald-900/40'
+        },
+        { 
+            type: TurretType.SNIPER, 
+            name: t('SNIPER_NAME'), 
+            cost: TURRET_COSTS.upgrade_sniper, 
+            desc: t('SNIPER_DESC'),
+            color: '#ffffff', // White
+            textColor: 'text-slate-200',
+            borderColor: 'border-slate-400',
+            bgGradient: 'from-slate-800/60'
+        },
+        { 
+            type: TurretType.MISSILE, 
+            name: t('MISSILE_NAME'), 
+            cost: TURRET_COSTS.upgrade_missile, 
+            desc: t('MISSILE_DESC'),
+            color: '#ef4444', // Red
+            textColor: 'text-red-400',
+            borderColor: 'border-red-500',
+            bgGradient: 'from-red-900/40'
+        }
     ];
 
     return (
-        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50">
-            <div className="bg-gray-900 border-2 border-emerald-500 p-8 rounded-xl max-w-4xl w-full text-center relative">
-                <CloseButton onClick={handleClose} colorClass="border-emerald-500 text-emerald-500 hover:text-white hover:bg-emerald-900/50" />
+        <div className="absolute inset-0 bg-slate-950/90 flex items-center justify-center pointer-events-auto z-[150] backdrop-blur-sm">
+            <div className="w-[1000px] bg-slate-900 border-2 border-slate-700 shadow-2xl rounded-xl relative overflow-hidden flex flex-col p-8">
+                {/* Background Grid */}
+                <div className="absolute inset-0 pointer-events-none opacity-10 bg-[size:40px_40px] bg-[linear-gradient(to_right,#ffffff_1px,transparent_1px),linear-gradient(to_bottom,#ffffff_1px,transparent_1px)]"></div>
                 
-                <h2 className="text-3xl font-black text-emerald-500 mb-2">{t('SYSTEM_UPGRADE')}</h2>
-                <p className="text-emerald-800 mb-8">{t('SELECT_MODULE')}</p>
-                <div className="grid grid-cols-3 gap-6">
+                <CloseButton onClick={handleClose} colorClass="border-slate-600 text-slate-400 hover:text-white hover:bg-slate-800 z-20" />
+
+                <div className="text-center mb-8 relative z-10">
+                    <h2 className="text-3xl font-display font-black text-white tracking-[0.2em] uppercase">{t('SYSTEM_UPGRADE')}</h2>
+                    <div className="flex justify-center items-center gap-2 mt-2">
+                        <span className="text-xs text-slate-500 font-mono tracking-widest">{t('SELECT_MODULE')}</span>
+                        <div className="h-px w-12 bg-slate-700"></div>
+                        <span className="text-yellow-400 font-mono font-bold">{Math.floor(p.score)} {t('SCRAPS')}</span>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-6 relative z-10">
                     {upgrades.map(u => {
                         const canAfford = p.score >= u.cost;
-                        const stats = TURRET_STATS[u.type];
+                        const stats = getCalculatedStats(u.type);
+
                         return (
-                            <button 
-                                key={u.type} 
-                                disabled={!canAfford} 
-                                onClick={() => handleConfirmUpgrade(u.type)} 
-                                className={`border-2 p-6 rounded-lg flex flex-col items-center transition-all group ${canAfford ? 'border-gray-700 bg-gray-800 hover:border-emerald-500 hover:bg-gray-700' : 'border-red-900/30 bg-gray-900 opacity-50 cursor-not-allowed'}`}
+                            <div 
+                                key={u.type}
+                                className={`
+                                    relative border-2 rounded-lg flex flex-col overflow-hidden transition-all duration-300 group
+                                    ${u.borderColor} bg-slate-900
+                                `}
                             >
-                                <div className="text-xl font-bold text-white mb-2 group-hover:text-emerald-300">{u.name}</div>
-                                <div className="text-xs text-gray-400 mb-4 h-8">{u.desc}</div>
-                                <div className="w-full space-y-2 mb-6">
-                                    <div className="flex justify-between text-xs text-gray-500"><span>{t('DMG')}</span><span className="text-white">{stats.damage}</span></div>
-                                    <div className="flex justify-between text-xs text-gray-500"><span>{t('RNG')}</span><span className="text-white">{stats.range > 2000 ? t('GLOBAL') : stats.range}</span></div>
-                                    <div className="flex justify-between text-xs text-gray-500"><span>{t('SPD')}</span><span className="text-white">{stats.fireRate}ms</span></div>
+                                {/* Header Gradient */}
+                                <div className={`absolute inset-0 bg-gradient-to-b ${u.bgGradient} to-transparent h-32 pointer-events-none`}></div>
+
+                                {/* Preview Section */}
+                                <div className="h-40 flex items-center justify-center relative mt-4">
+                                    <TurretPreview type={u.type} color={u.color} />
+                                    <div className={`absolute bottom-0 text-sm font-black tracking-wider uppercase ${u.textColor}`}>{u.name}</div>
                                 </div>
-                                <div className={`text-2xl font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>{u.cost} <span className="text-sm">{t('SCRAPS')}</span></div>
-                            </button>
+
+                                {/* Content */}
+                                <div className="p-4 flex-1 flex flex-col gap-4 bg-slate-950/30">
+                                    <p className="text-[10px] text-slate-400 text-center font-mono h-8 leading-tight">{u.desc}</p>
+                                    
+                                    {/* Stats Grid */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <StatBadge label={t('HEALTH')} value={stats.hp} color={u.textColor} />
+                                        <StatBadge label={t('DMG')} value={stats.damage} color={u.textColor} />
+                                        <StatBadge label={t('RNG')} value={stats.range} color="text-white" />
+                                        <StatBadge label={t('SPD')} value={`${stats.rate}ms`} color="text-yellow-400" />
+                                    </div>
+
+                                    {/* Footer Action */}
+                                    <button
+                                        onClick={() => handleConfirmUpgrade(u.type)}
+                                        disabled={!canAfford}
+                                        className={`
+                                            w-full py-3 mt-auto font-black text-sm tracking-[0.2em] uppercase transition-all
+                                            ${canAfford 
+                                                ? `bg-white text-black hover:bg-${u.color === '#ffffff' ? 'gray-300' : u.color.replace('#','')} hover:text-white`
+                                                : 'bg-slate-800 text-slate-500 cursor-not-allowed'}
+                                        `}
+                                        style={canAfford && u.color !== '#ffffff' ? { backgroundColor: u.color } : {}}
+                                    >
+                                        {canAfford ? `${u.cost}` : t('NO_FUNDS')}
+                                    </button>
+                                </div>
+                            </div>
                         )
                     })}
                 </div>
-                <div className="mt-8 text-xs text-gray-600">{t('CANCEL_HINT')}</div>
+                
+                <div className="text-center mt-6 text-[10px] text-slate-600 font-mono">
+                    {t('CANCEL_HINT')}
+                </div>
             </div>
         </div>
     )

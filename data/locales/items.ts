@@ -149,7 +149,7 @@ export const ITEMS_CN = {
     COMPAT_LIST: "兼容: {0}",
     COMPAT_ALL: "兼容: 所有主武器",
     COMPAT_GRENADE: "爆炸物",
-    ASSEMBLY_TITLE: "武器工坊",
+    ASSEMBLY_TITLE: "模块装配",
     EMPTY_SLOT: "空插槽",
     MODULES_STORAGE: "模块库存",
     STATUS_HEADER: "特工体征",

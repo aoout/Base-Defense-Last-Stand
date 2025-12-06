@@ -257,7 +257,7 @@ export class DefenseManager {
                         hp: finalHp, maxHp: finalHp,
                         damage: finalDmg, fireRate: finalRate
                     };
-                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 1 });
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'BUILD' });
                 } else {
                     this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
                         text: "INSUFFICIENT FUNDS", x: p.x, y: p.y - 50, color: 'red', type: FloatingTextType.SYSTEM
@@ -309,6 +309,7 @@ export class DefenseManager {
             
             spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
             
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
             this.closeTurretUpgrade();
         }
     }

@@ -169,6 +169,24 @@ export const SFX_LIBRARY: Record<string, SoundProfile> = {
             { type: 'NOISE', filterFreq: 500, volume: 0.05, duration: 0.15 }
         ]
     },
+    'TURRET_BUILD': {
+        layers: [
+            // Servo whine
+            { type: 'OSCILLATOR', oscillatorType: 'sawtooth', frequency: 150, freqEnd: 50, volume: 0.2, duration: 0.3 },
+            // Heavy metallic thud
+            { type: 'NOISE', filterFreq: 200, volume: 0.5, duration: 0.2, delay: 0.1 },
+            { type: 'OSCILLATOR', oscillatorType: 'square', frequency: 60, volume: 0.3, duration: 0.1, delay: 0.1 }
+        ]
+    },
+    'TURRET_UPGRADE': {
+        layers: [
+            // Tech charging sound
+            { type: 'OSCILLATOR', oscillatorType: 'sine', frequency: 400, freqEnd: 1200, volume: 0.2, duration: 0.4 },
+            // Mechanical lock
+            { type: 'NOISE', filterFreq: 1500, volume: 0.2, duration: 0.1, delay: 0.35 },
+            { type: 'OSCILLATOR', oscillatorType: 'square', frequency: 100, volume: 0.2, duration: 0.1, delay: 0.35 }
+        ]
+    },
 
     // --- ENTITIES & EVENTS ---
     'ALLY_SHOOT': {

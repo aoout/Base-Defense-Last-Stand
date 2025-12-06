@@ -244,6 +244,10 @@ export class GameEngine {
       this.eventBus.on(GameEventType.PLAYER_SWITCH_WEAPON, () => this.notifyUI('WEAPON_SWITCH'));
       this.eventBus.on(GameEventType.SHOP_PURCHASE, () => this.notifyUI('SHOP_ACTION'));
       this.eventBus.on(GameEventType.SHOP_SWAP_LOADOUT, () => this.notifyUI('SHOP_ACTION'));
+      
+      // Fix: Listen for Module Equip/Unequip to notify UI
+      this.eventBus.on(GameEventType.SHOP_EQUIP_MODULE, () => this.notifyUI('EQUIP'));
+      this.eventBus.on(GameEventType.SHOP_UNEQUIP_MODULE, () => this.notifyUI('EQUIP'));
   }
 
   // ... (t helper, handleInput helper) ...

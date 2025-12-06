@@ -8,9 +8,35 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.0";
+export const CURRENT_VERSION = "1.0.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.1",
+        date: "2248.06.25",
+        title: "ENGINEERING & VISUAL OVERHAUL",
+        titleCN: "工程与视觉重制",
+        changes: [
+            "UI: Complete visual overhaul of Weapon Assembly (Tech Chips) and Turret Upgrade interfaces.",
+            "UI: Added real-time 3D model previews and dynamic stat calculations to Turret menus.",
+            "GAMEPLAY: 'Dual Protocol' Simulation (Snake + Tetris) installed in Ship Computer.",
+            "GAMEPLAY: Significantly buffed Turret HP values for late-game viability.",
+            "AUDIO: Added distinct sound effects for Turret Construction and Upgrades.",
+            "SYS: Major refactor of Spaceship Architecture (Modularized Managers).",
+            "FIX: Resolved issue where Galaxy Index scans did not refresh sector names immediately.",
+            "FIX: Corrected hardcoded values for 'Impact Plate' and 'Spore Barrier' upgrades."
+        ],
+        changesCN: [
+            "界面：武器装配（科技芯片）和炮塔升级界面的全面视觉重制。",
+            "界面：为炮塔菜单添加了实时3D模型预览和动态属性计算。",
+            "玩法：飞船电脑安装了“双重协议”模拟（贪吃蛇 + 俄罗斯方块）。",
+            "玩法：大幅提升了炮塔生命值，增强后期生存能力。",
+            "音频：添加了炮塔建造和升级的专属音效。",
+            "系统：飞船架构底层重构（模块化管理器）。",
+            "修复：解决了星系索引扫描后扇区名称不立即刷新的问题。",
+            "修复：修正了“冲击挂板”和“孢子屏障”升级数值硬编码的问题。"
+        ]
+    },
     {
         version: "1.0.0",
         date: "2248.06.20",
