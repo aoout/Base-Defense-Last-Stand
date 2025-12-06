@@ -319,7 +319,24 @@ export class GameEngine {
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets();
     existingPlanets.forEach(p => { if (!p.buildings) p.buildings = []; });
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
-    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { installedModules: [], orbitalUpgradeTree: [], orbitalDamageMultiplier: 1, orbitalRateMultiplier: 1, carapaceGrid: null, infrastructureUpgrades: [], infrastructureOptions: [], infrastructureLocked: false, bioNodes: [], bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 }, bioTasks: [], activeBioTask: null };
+    
+    // IMPORTANT: Preserve Snake Reward Status if not full reset, otherwise default to false
+    const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { 
+        installedModules: [], 
+        orbitalUpgradeTree: [], 
+        orbitalDamageMultiplier: 1, 
+        orbitalRateMultiplier: 1, 
+        carapaceGrid: null, 
+        infrastructureUpgrades: [], 
+        infrastructureOptions: [], 
+        infrastructureLocked: false, 
+        bioNodes: [], 
+        bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 }, 
+        bioTasks: [], 
+        activeBioTask: null,
+        snakeRewardClaimed: false
+    };
+    
     let currentSettings: GameSettings;
     if (!fullReset && this.state?.settings) currentSettings = this.state.settings; else currentSettings = this.loadSettings();
 

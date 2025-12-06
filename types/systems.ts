@@ -137,6 +137,9 @@ export interface SpaceshipState {
     bioResources: Record<BioResource, number>;
     bioTasks: BioTask[]; // 3 available options
     activeBioTask: BioTask | null;
+
+    // Mini-game State
+    snakeRewardClaimed: boolean;
 }
 
 export interface FloatingText {

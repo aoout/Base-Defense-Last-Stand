@@ -585,6 +585,26 @@ export class SpaceshipManager {
     }
 
     /**
+     * Attempts to claim the Snake Mini-game reward.
+     * Returns the amount awarded (0 if already claimed).
+     */
+    public claimSnakeReward(score: number): number {
+        const state = this.getState();
+        const s = state.spaceship;
+        
+        if (s.snakeRewardClaimed) return 0;
+
+        const reward = Math.floor(score * 10);
+        if (reward > 0) {
+            state.player.score += reward;
+            s.snakeRewardClaimed = true;
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+        }
+        
+        return reward;
+    }
+
+    /**
      * Replaces applyPassiveBonuses.
      * Iterates all upgrade systems and registers their modifiers with StatManager.
      */

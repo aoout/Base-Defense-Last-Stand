@@ -171,7 +171,16 @@ export const UI_EN = {
     ATMOSPHERIC_CONDITIONS: "ATMOSPHERIC CONDITIONS",
     SECTOR_DENSITY: "SECTOR DENSITY",
     LOCKED_PARAM: "PARAMETER LOCKED BY PROTOCOL",
-    MANUAL_OVERRIDE: "MANUAL OVERRIDE"
+    MANUAL_OVERRIDE: "MANUAL OVERRIDE",
+
+    // --- SNAKE GAME ---
+    SNAKE_START: "INITIATE SIMULATION",
+    SNAKE_CONTROLS: "CONTROLS: ARROW KEYS",
+    SNAKE_GAME_OVER: "SIMULATION TERMINATED",
+    SNAKE_SCORE: "EFFICIENCY SCORE",
+    SNAKE_RETRY: "RE-INITIALIZE",
+    SNAKE_REWARD_TITLE: "PERFORMANCE BONUS",
+    SNAKE_REWARD_MSG: "The Fleet recognizes your cognitive efficiency in the simulation protocol. Biomass has been transferred to your account.",
 };
 
 export const UI_CN = {
@@ -346,5 +355,14 @@ export const UI_CN = {
     ATMOSPHERIC_CONDITIONS: "大气条件",
     SECTOR_DENSITY: "星区密度",
     LOCKED_PARAM: "协议锁定参数",
-    MANUAL_OVERRIDE: "手动覆盖"
+    MANUAL_OVERRIDE: "手动覆盖",
+
+    // --- SNAKE GAME ---
+    SNAKE_START: "启动模拟",
+    SNAKE_CONTROLS: "控制：方向键",
+    SNAKE_GAME_OVER: "模拟终止",
+    SNAKE_SCORE: "效率评分",
+    SNAKE_RETRY: "重新初始化",
+    SNAKE_REWARD_TITLE: "表现奖励",
+    SNAKE_REWARD_MSG: "舰队认可您在模拟协议中的认知效率。生物质已转入您的账户。",
 };

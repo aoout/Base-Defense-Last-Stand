@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "0.9.8";
+export const CURRENT_VERSION = "1.0.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.0",
+        date: "2248.06.20",
+        title: "FULL RELEASE",
+        titleCN: "正式发布",
+        changes: [
+            "LORE: Comprehensive rewrite of Item and Upgrade names to align with 'Bio-Mechanical' world building.",
+            "UI: Enhanced Death/Failure screen with detailed atmospheric logs.",
+            "SYSTEM: Fixed UI synchronization latency for Ammo and Wave counters.",
+            "CONTENT: Expanded Ship Computer database (Flight, Ops, Kernel) with accurate mechanics data.",
+            "EXTRA: Added 'PROTO_SIM' (Snake) mini-game to Ship Computer with one-time resource reward."
+        ],
+        changesCN: [
+            "设定：全面重写物品和升级的名称与描述，深度契合“生物机械”世界观。",
+            "界面：增强了死亡/失败屏幕，添加了详细的氛围日志。",
+            "系统：修复了弹药和波次计数器的 UI 同步延迟问题。",
+            "内容：扩展了飞船电脑数据库（航行、行动、内核），提供了准确的游戏机制数据。",
+            "彩蛋：在飞船电脑中添加了“原型模拟”（贪吃蛇）小游戏，首次游玩可获得资源奖励。"
+        ]
+    },
     {
         version: "0.9.8",
         date: "2248.06.15",
