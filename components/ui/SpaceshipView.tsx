@@ -58,7 +58,7 @@ export const SpaceshipView: React.FC = () => {
             </div>
 
             {/* Top UI Bar */}
-            <div className="relative z-10 flex justify-between items-start p-8 w-full pointer-events-none">
+            <div className="relative z-10 flex justify-between items-start p-8 w-full pointer-events-none shrink-0">
                 {/* Left: Scraps / Fragments */}
                 <div className="flex flex-col gap-2 pointer-events-auto">
                     <div className="flex items-center gap-2">
@@ -86,12 +86,13 @@ export const SpaceshipView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="flex-1 flex relative z-10 px-8 pb-8 gap-8 pointer-events-none">
+            {/* Main Content Area - Constrained with min-h-0 for scrolling */}
+            <div className="flex-1 flex relative z-10 px-8 pb-8 gap-8 pointer-events-none min-h-0 overflow-hidden">
                 
                 {/* Center: Ship Visual (Simplified for layout) */}
-                <div className="flex-1 relative flex flex-col items-center justify-center pointer-events-auto">
+                <div className="flex-1 relative flex flex-col items-center justify-center pointer-events-auto overflow-hidden">
                      {/* SVG Container */}
-                    <div className="relative w-[800px] h-[400px] filter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)]">
+                    <div className="relative w-[800px] h-[400px] filter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] shrink-0">
                         <svg viewBox="0 0 1000 500" className="w-full h-full">
                             <defs>
                                 <linearGradient id="hullMetal" x1="0" y1="0" x2="1" y2="0">
@@ -132,7 +133,7 @@ export const SpaceshipView: React.FC = () => {
                         </svg>
                         
                         {/* Installed Modules List Overlay (Left Side of Ship) */}
-                        <div className="absolute top-0 left-0 w-64 bg-slate-900/80 border border-slate-700 p-4">
+                        <div className="absolute top-0 left-0 w-64 max-h-full bg-slate-900/80 border border-slate-700 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent z-20">
                             <h3 className="text-cyan-400 text-xs font-bold tracking-widest border-b border-slate-700 pb-2 mb-2">{t('SHIP_MODULES')}</h3>
                             {installed.length === 0 ? (
                                 <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div>
@@ -194,7 +195,7 @@ export const SpaceshipView: React.FC = () => {
                     </div>
 
                     {/* CORE COMPUTER TERMINAL BUTTON */}
-                    <div className="mt-8">
+                    <div className="mt-8 shrink-0">
                         <button 
                             onClick={() => engine.enterShipComputer()}
                             className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden"
@@ -207,12 +208,12 @@ export const SpaceshipView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right Panel: Module Shop */}
-                <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6">
-                    <h2 className="text-xl font-display font-black text-white mb-1 uppercase tracking-wide">{t('ENGINEERING')}</h2>
-                    <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest">{t('MODULE_FAB')}</p>
+                {/* Right Panel: Module Shop - Full Height & Scrollable */}
+                <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6 h-full overflow-hidden">
+                    <h2 className="text-xl font-display font-black text-white mb-1 uppercase tracking-wide shrink-0">{t('ENGINEERING')}</h2>
+                    <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest shrink-0">{t('MODULE_FAB')}</p>
                     
-                    <div className="flex-1 overflow-y-auto space-y-4">
+                    <div className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent pr-2 min-h-0">
                         {availableModules.length === 0 && (
                             <div className="text-slate-500 text-center text-sm py-10">
                                 {t('ALL_INSTALLED')}
