@@ -256,7 +256,6 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
     const [booting, setBooting] = useState(true);
     const [bootLog, setBootLog] = useState<string[]>([]);
     const [windows, setWindows] = useState<WindowState[]>([]);
-    const [topZ, setTopZ] = useState(10);
     const [time, setTime] = useState("");
 
     // Boot Sequence
@@ -295,14 +294,17 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
         return () => clearInterval(timer);
     }, []);
 
+    // Optimized openWindow: dynamically calculates max Z from current state
     const openWindow = (id: string, title: string, content: React.ReactNode) => {
-        setTopZ(z => z + 1);
         setWindows(prev => {
+            const maxZ = prev.reduce((max, w) => Math.max(max, w.zIndex), 10);
+            const newZ = maxZ + 1;
+            
             const existing = prev.find(w => w.id === id);
             if (existing) {
-                return prev.map(w => w.id === id ? { ...w, isOpen: true, zIndex: topZ + 1 } : w);
+                return prev.map(w => w.id === id ? { ...w, isOpen: true, zIndex: newZ } : w);
             }
-            return [...prev, { id, title, content, isOpen: true, zIndex: topZ + 1 }];
+            return [...prev, { id, title, content, isOpen: true, zIndex: newZ }];
         });
     };
 
@@ -310,9 +312,18 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
         setWindows(prev => prev.map(w => w.id === id ? { ...w, isOpen: false } : w));
     };
 
+    // Optimized focusWindow: dynamically calculates max Z
     const focusWindow = (id: string) => {
-        setTopZ(z => z + 1);
-        setWindows(prev => prev.map(w => w.id === id ? { ...w, zIndex: topZ + 1 } : w));
+        setWindows(prev => {
+            const maxZ = prev.reduce((max, w) => Math.max(max, w.zIndex), 10);
+            const target = prev.find(w => w.id === id);
+            
+            // Optimization: If already top, do nothing
+            if (target && target.zIndex === maxZ) return prev;
+
+            const newZ = maxZ + 1;
+            return prev.map(w => w.id === id ? { ...w, zIndex: newZ } : w);
+        });
     };
 
     // File Content Generators
@@ -376,8 +387,7 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                     // Try to claim reward
                     const reward = engine.spaceshipManager.claimSnakeReward(score);
                     if (reward > 0) {
-                        // Open Reward Notification Window
-                        // Using timeout to allow Game Over screen to render first
+                        // Open Reward Notification Window immediately
                         setTimeout(() => {
                             openWindow(
                                 'alert_reward', 
@@ -397,7 +407,7 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                                     </button>
                                 </div>
                             );
-                        }, 500);
+                        }, 500); // Small delay for visual pacing
                     }
                 }} 
             />
@@ -476,21 +486,28 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                 
                 <div className="w-[2px] h-6 bg-gray-400 mx-2 shadow-[1px_0_0_white]"></div>
                 
-                <div className="flex-1 flex gap-1">
-                    {windows.filter(w => w.isOpen).map(w => (
-                        <button
-                            key={w.id}
-                            onClick={() => focusWindow(w.id)}
-                            className={`
-                                h-8 px-4 max-w-[150px] truncate text-xs font-bold flex items-center
-                                ${w.zIndex === topZ 
-                                    ? 'bg-[#e0e0e0] border-2 border-b-white border-r-white border-t-black border-l-black' // Depressed
-                                    : 'bg-[#c0c0c0] border-2 border-b-black border-r-black border-t-white border-l-white'} // Raised
-                            `}
-                        >
-                            {w.title}
-                        </button>
-                    ))}
+                {/* Simplified Taskbar: Just shows open window titles */}
+                <div className="flex-1 flex gap-1 overflow-x-auto">
+                    {windows.filter(w => w.isOpen).map(w => {
+                        // Find max Z to see if this is active
+                        const maxZ = windows.reduce((m, win) => win.isOpen ? Math.max(m, win.zIndex) : m, 0);
+                        const isActive = w.zIndex === maxZ;
+                        
+                        return (
+                            <button
+                                key={w.id}
+                                onClick={() => focusWindow(w.id)}
+                                className={`
+                                    h-8 px-4 max-w-[150px] truncate text-xs font-bold flex items-center
+                                    ${isActive
+                                        ? 'bg-[#e0e0e0] border-2 border-b-white border-r-white border-t-black border-l-black' // Depressed
+                                        : 'bg-[#c0c0c0] border-2 border-b-black border-r-black border-t-white border-l-white'} // Raised
+                                `}
+                            >
+                                {w.title}
+                            </button>
+                        )
+                    })}
                 </div>
 
                 <div className="h-8 px-4 bg-[#c0c0c0] border-2 border-b-white border-r-white border-t-gray-500 border-l-gray-500 flex items-center justify-center font-mono text-sm">
