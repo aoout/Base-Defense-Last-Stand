@@ -15,6 +15,8 @@ interface WindowState {
     content: React.ReactNode;
     isOpen: boolean;
     zIndex: number;
+    // New prop for dynamic sizing
+    className?: string;
 }
 
 const DesktopIcon: React.FC<{ label: string, icon: string, onClick: () => void, isFolder?: boolean }> = ({ label, icon, onClick, isFolder }) => (
@@ -36,10 +38,11 @@ const Window: React.FC<{
     children: React.ReactNode, 
     onClose: () => void, 
     zIndex: number,
-    onFocus: () => void 
-}> = ({ title, children, onClose, zIndex, onFocus }) => (
+    onFocus: () => void,
+    className?: string
+}> = ({ title, children, onClose, zIndex, onFocus, className }) => (
     <div 
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-[#000080] border-2 border-gray-400 shadow-[10px_10px_0_rgba(0,0,0,0.5)] flex flex-col font-mono"
+        className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#000080] border-2 border-gray-400 shadow-[10px_10px_0_rgba(0,0,0,0.5)] flex flex-col font-mono ${className || 'w-[700px] h-[500px]'}`}
         style={{ zIndex }}
         onMouseDown={onFocus}
     >
@@ -65,29 +68,66 @@ const Window: React.FC<{
     </div>
 );
 
-// --- SNAKE GAME LOGIC ---
-const SNAKE_COLS = 30;
-const SNAKE_ROWS = 20;
-const CELL_SIZE = 20;
+// --- DUAL SIM GAME LOGIC (Snake + Tetris) ---
+const SNAKE_COLS = 20;
+const SNAKE_ROWS = 25;
+const SNAKE_CELL_SIZE = 15;
 
-const SnakeGame: React.FC<{ onGameOver: (score: number) => void, t: any }> = ({ onGameOver, t }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+const TETRIS_COLS = 10;
+const TETRIS_ROWS = 20;
+const TETRIS_CELL_SIZE = 25;
+
+// Tetromino Definitions
+const TETROMINOS = [
+    { shape: [[1, 1, 1, 1]], color: '#00ffff' }, // I
+    { shape: [[1, 1], [1, 1]], color: '#ffff00' }, // O
+    { shape: [[0, 1, 0], [1, 1, 1]], color: '#aa00ff' }, // T
+    { shape: [[1, 0, 0], [1, 1, 1]], color: '#ff7700' }, // L
+    { shape: [[0, 0, 1], [1, 1, 1]], color: '#0000ff' }, // J
+    { shape: [[0, 1, 1], [1, 1, 0]], color: '#00ff00' }, // S
+    { shape: [[1, 1, 0], [0, 1, 1]], color: '#ff0000' }  // Z
+];
+
+const DualSimGame: React.FC<{ onGameOver: (score: number) => void, onClose: () => void, t: any }> = ({ onGameOver, onClose, t }) => {
+    const snakeCanvasRef = useRef<HTMLCanvasElement>(null);
+    const tetrisCanvasRef = useRef<HTMLCanvasElement>(null);
+    
     const [gameState, setGameState] = useState<'START' | 'PLAY' | 'GAME_OVER'>('START');
     const [score, setScore] = useState(0);
-    
-    // Game Refs to avoid stale closures in loop
-    const snakeRef = useRef([{x: 5, y: 10}]);
-    const dirRef = useRef({x: 1, y: 0});
-    const nextDirRef = useRef({x: 1, y: 0}); // Buffer for input
-    const foodRef = useRef({x: 15, y: 10});
     const scoreRef = useRef(0);
+
+    // --- SNAKE STATE ---
+    const snakeRef = useRef([{x: 10, y: 10}, {x: 10, y: 11}, {x: 10, y: 12}]);
+    const snakeDirRef = useRef({x: 0, y: -1});
+    const nextSnakeDirRef = useRef({x: 0, y: -1});
+    const foodRef = useRef({x: 5, y: 5});
+
+    // --- TETRIS STATE ---
+    const tetrisGridRef = useRef<number[][]>([]); // 0 = empty, 1 = occupied
+    const activePieceRef = useRef<{shape: number[][], x: number, y: number, colorId: number} | null>(null);
+    const tetrisTickCounter = useRef(0);
+
+    // Helpers
+    const initTetrisGrid = () => Array(TETRIS_ROWS).fill(null).map(() => Array(TETRIS_COLS).fill(0));
     
-    // Saved callback ref for the game loop
-    const savedCallback = useRef<() => void>(() => {});
+    const spawnTetrisPiece = () => {
+        const typeIdx = Math.floor(Math.random() * TETROMINOS.length);
+        const { shape } = TETROMINOS[typeIdx];
+        activePieceRef.current = {
+            shape,
+            x: Math.floor(TETRIS_COLS / 2) - Math.ceil(shape[0].length / 2),
+            y: 0,
+            colorId: typeIdx + 1 // 1-based ID for colors
+        };
+        // Check immediate collision (Game Over)
+        if (checkTetrisCollision(0, 0, shape)) {
+            return false;
+        }
+        return true;
+    };
 
     const spawnFood = () => {
-        let x = 0; let y = 0;
-        let valid = false;
+        let x = 0, y = 0, valid = false;
         while (!valid) {
             x = Math.floor(Math.random() * SNAKE_COLS);
             y = Math.floor(Math.random() * SNAKE_ROWS);
@@ -96,15 +136,90 @@ const SnakeGame: React.FC<{ onGameOver: (score: number) => void, t: any }> = ({ 
         foodRef.current = {x, y};
     };
 
+    const checkTetrisCollision = (offX: number, offY: number, shape: number[][]) => {
+        const p = activePieceRef.current;
+        if (!p) return false;
+        const grid = tetrisGridRef.current;
+
+        for (let r = 0; r < shape.length; r++) {
+            for (let c = 0; c < shape[r].length; c++) {
+                if (shape[r][c]) {
+                    const newX = p.x + c + offX;
+                    const newY = p.y + r + offY;
+                    if (newX < 0 || newX >= TETRIS_COLS || newY >= TETRIS_ROWS) return true;
+                    if (newY >= 0 && grid[newY][newX]) return true;
+                }
+            }
+        }
+        return false;
+    };
+
+    const lockTetrisPiece = () => {
+        const p = activePieceRef.current;
+        if (!p) return;
+        const grid = tetrisGridRef.current;
+        
+        for (let r = 0; r < p.shape.length; r++) {
+            for (let c = 0; c < p.shape[r].length; c++) {
+                if (p.shape[r][c]) {
+                    const py = p.y + r;
+                    const px = p.x + c;
+                    if (py >= 0) grid[py][px] = p.colorId;
+                }
+            }
+        }
+
+        // Clear lines
+        let linesCleared = 0;
+        for (let r = TETRIS_ROWS - 1; r >= 0; r--) {
+            if (grid[r].every(cell => cell !== 0)) {
+                grid.splice(r, 1);
+                grid.unshift(Array(TETRIS_COLS).fill(0));
+                linesCleared++;
+                r++; // Recheck same row index
+            }
+        }
+        if (linesCleared > 0) {
+            scoreRef.current += linesCleared * 100;
+            setScore(scoreRef.current);
+        }
+
+        if (!spawnTetrisPiece()) {
+            stopGame();
+        }
+    };
+
+    const rotateTetrisPiece = () => {
+        const p = activePieceRef.current;
+        if (!p) return;
+        
+        const oldShape = p.shape;
+        const newShape = oldShape[0].map((_, colIndex) => oldShape.map(row => row[colIndex]).reverse());
+        
+        if (!checkTetrisCollision(0, 0, newShape)) {
+            p.shape = newShape;
+        } else {
+            // Wall Kick attempt (simple)
+            if (!checkTetrisCollision(-1, 0, newShape)) { p.x -= 1; p.shape = newShape; }
+            else if (!checkTetrisCollision(1, 0, newShape)) { p.x += 1; p.shape = newShape; }
+        }
+    };
+
     const startGame = () => {
-        snakeRef.current = [{x: 5, y: 10}, {x: 4, y: 10}, {x: 3, y: 10}];
-        dirRef.current = {x: 1, y: 0};
-        nextDirRef.current = {x: 1, y: 0};
+        // Init Snake
+        snakeRef.current = [{x: 10, y: 15}, {x: 10, y: 16}, {x: 10, y: 17}];
+        snakeDirRef.current = {x: 0, y: -1};
+        nextSnakeDirRef.current = {x: 0, y: -1};
         spawnFood();
+
+        // Init Tetris
+        tetrisGridRef.current = initTetrisGrid();
+        tetrisTickCounter.current = 0;
+        spawnTetrisPiece();
+
         scoreRef.current = 0;
         setScore(0);
         setGameState('PLAY');
-        draw(); // Immediate draw
     };
 
     const stopGame = () => {
@@ -112,139 +227,246 @@ const SnakeGame: React.FC<{ onGameOver: (score: number) => void, t: any }> = ({ 
         onGameOver(scoreRef.current);
     };
 
-    const update = () => {
-        const head = snakeRef.current[0];
-        dirRef.current = nextDirRef.current;
-        const newHead = { x: head.x + dirRef.current.x, y: head.y + dirRef.current.y };
-
-        // Collision Check
-        if (newHead.x < 0 || newHead.x >= SNAKE_COLS || newHead.y < 0 || newHead.y >= SNAKE_ROWS || 
-            snakeRef.current.some(s => s.x === newHead.x && s.y === newHead.y)) {
-            stopGame();
-            return;
-        }
-
-        const newSnake = [newHead, ...snakeRef.current];
-        
-        // Eat Food
-        if (newHead.x === foodRef.current.x && newHead.y === foodRef.current.y) {
-            scoreRef.current += 1;
-            setScore(scoreRef.current);
-            spawnFood();
-        } else {
-            newSnake.pop(); // Remove tail
-        }
-
-        snakeRef.current = newSnake;
-        draw();
-    };
-
-    const draw = () => {
-        const ctx = canvasRef.current?.getContext('2d');
-        if (!ctx) return;
-
-        // Clear
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(0, 0, SNAKE_COLS * CELL_SIZE, SNAKE_ROWS * CELL_SIZE);
-
-        // Grid (Subtle)
-        ctx.strokeStyle = '#003300';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for(let i=0; i<=SNAKE_COLS; i++) { ctx.moveTo(i*CELL_SIZE, 0); ctx.lineTo(i*CELL_SIZE, SNAKE_ROWS*CELL_SIZE); }
-        for(let i=0; i<=SNAKE_ROWS; i++) { ctx.moveTo(0, i*CELL_SIZE); ctx.lineTo(SNAKE_COLS*CELL_SIZE, i*CELL_SIZE); }
-        ctx.stroke();
-
-        // Food
-        ctx.fillStyle = '#ff0000';
-        ctx.fillRect(foodRef.current.x * CELL_SIZE + 2, foodRef.current.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4);
-
-        // Snake
-        ctx.fillStyle = '#00ff00';
-        snakeRef.current.forEach(s => {
-            ctx.fillRect(s.x * CELL_SIZE + 1, s.y * CELL_SIZE + 1, CELL_SIZE - 2, CELL_SIZE - 2);
-        });
-    };
-
-    // Keep savedCallback up to date
+    // --- MAIN LOOP ---
     useEffect(() => {
-        savedCallback.current = update;
-    });
+        if (gameState !== 'PLAY') return;
 
-    // Game Loop Management
-    useEffect(() => {
-        if (gameState === 'PLAY') {
-            const id = window.setInterval(() => {
-                savedCallback.current();
-            }, 100);
-            return () => clearInterval(id);
-        }
+        const loop = setInterval(() => {
+            // 1. UPDATE SNAKE
+            const head = snakeRef.current[0];
+            snakeDirRef.current = nextSnakeDirRef.current;
+            const newHead = { x: head.x + snakeDirRef.current.x, y: head.y + snakeDirRef.current.y };
+
+            // Collision: Walls or Self
+            if (newHead.x < 0 || newHead.x >= SNAKE_COLS || newHead.y < 0 || newHead.y >= SNAKE_ROWS || 
+                snakeRef.current.some(s => s.x === newHead.x && s.y === newHead.y)) {
+                stopGame();
+                return;
+            }
+
+            const newSnake = [newHead, ...snakeRef.current];
+            if (newHead.x === foodRef.current.x && newHead.y === foodRef.current.y) {
+                scoreRef.current += 10;
+                setScore(scoreRef.current);
+                spawnFood();
+            } else {
+                newSnake.pop();
+            }
+            snakeRef.current = newSnake;
+
+            // 2. UPDATE TETRIS (Gravity every 4 ticks)
+            tetrisTickCounter.current++;
+            if (tetrisTickCounter.current >= 4) {
+                tetrisTickCounter.current = 0;
+                if (!checkTetrisCollision(0, 1, activePieceRef.current?.shape || [])) {
+                    if (activePieceRef.current) activePieceRef.current.y += 1;
+                } else {
+                    lockTetrisPiece();
+                }
+            }
+
+            // Draw Both
+            draw();
+
+        }, 170); // 170ms tick (slower than 120ms for better playability)
+
+        return () => clearInterval(loop);
     }, [gameState]);
 
-    // Input Handling
+    // --- INPUT ---
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (gameState !== 'PLAY') return;
-            // Prevent default scrolling for arrows
-            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+            const key = e.key; // e.g. "w", "ArrowUp"
+            
+            // Prevent default scrolling
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
                 e.preventDefault();
-                e.stopPropagation();
             }
 
-            const { x, y } = dirRef.current;
-            if (e.key === 'ArrowUp' && y === 0) nextDirRef.current = { x: 0, y: -1 };
-            if (e.key === 'ArrowDown' && y === 0) nextDirRef.current = { x: 0, y: 1 };
-            if (e.key === 'ArrowLeft' && x === 0) nextDirRef.current = { x: -1, y: 0 };
-            if (e.key === 'ArrowRight' && x === 0) nextDirRef.current = { x: 1, y: 0 };
+            // --- UNIFIED CONTROLS ---
+            
+            // UP / W: Snake UP, Tetris ROTATE
+            if (key === 'ArrowUp' || key.toLowerCase() === 'w') {
+                if (snakeDirRef.current.y === 0) nextSnakeDirRef.current = { x: 0, y: -1 };
+                rotateTetrisPiece();
+            }
+            // DOWN / S: Snake DOWN, Tetris DROP (Fast)
+            if (key === 'ArrowDown' || key.toLowerCase() === 's') {
+                if (snakeDirRef.current.y === 0) nextSnakeDirRef.current = { x: 0, y: 1 };
+                // Tetris soft drop
+                if (!checkTetrisCollision(0, 1, activePieceRef.current?.shape || [])) {
+                    if (activePieceRef.current) activePieceRef.current.y += 1;
+                } else {
+                    lockTetrisPiece();
+                }
+            }
+            // LEFT / A: Snake LEFT, Tetris MOVE LEFT
+            if (key === 'ArrowLeft' || key.toLowerCase() === 'a') {
+                if (snakeDirRef.current.x === 0) nextSnakeDirRef.current = { x: -1, y: 0 };
+                if (!checkTetrisCollision(-1, 0, activePieceRef.current?.shape || [])) {
+                    if (activePieceRef.current) activePieceRef.current.x -= 1;
+                }
+            }
+            // RIGHT / D: Snake RIGHT, Tetris MOVE RIGHT
+            if (key === 'ArrowRight' || key.toLowerCase() === 'd') {
+                if (snakeDirRef.current.x === 0) nextSnakeDirRef.current = { x: 1, y: 0 };
+                if (!checkTetrisCollision(1, 0, activePieceRef.current?.shape || [])) {
+                    if (activePieceRef.current) activePieceRef.current.x += 1;
+                }
+            }
+            
+            // Force redraw immediately for responsiveness
+            draw();
         };
 
-        window.addEventListener('keydown', handleKey, { capture: true });
+        window.addEventListener('keydown', handleKey);
         // Initial draw
-        if (gameState === 'START') setTimeout(draw, 0); // Defer draw slightly to ensure canvas is ready
-        return () => {
-            window.removeEventListener('keydown', handleKey, { capture: true });
-        };
+        if (gameState === 'START') setTimeout(draw, 50);
+        return () => window.removeEventListener('keydown', handleKey);
     }, [gameState]);
 
-    // Redraw on Game Over to show state
+    const draw = () => {
+        // Draw Snake
+        const sCtx = snakeCanvasRef.current?.getContext('2d');
+        if (sCtx) {
+            sCtx.fillStyle = '#000000';
+            sCtx.fillRect(0, 0, SNAKE_COLS * SNAKE_CELL_SIZE, SNAKE_ROWS * SNAKE_CELL_SIZE);
+            
+            // Grid Lines
+            sCtx.strokeStyle = '#003300';
+            sCtx.lineWidth = 1;
+            sCtx.beginPath();
+            for(let i=0; i<=SNAKE_COLS; i++) { sCtx.moveTo(i*SNAKE_CELL_SIZE, 0); sCtx.lineTo(i*SNAKE_CELL_SIZE, SNAKE_ROWS*SNAKE_CELL_SIZE); }
+            for(let i=0; i<=SNAKE_ROWS; i++) { sCtx.moveTo(0, i*SNAKE_CELL_SIZE); sCtx.lineTo(SNAKE_COLS*SNAKE_CELL_SIZE, i*SNAKE_CELL_SIZE); }
+            sCtx.stroke();
+
+            // Snake Body
+            sCtx.fillStyle = '#00ff00';
+            snakeRef.current.forEach(s => {
+                sCtx.fillRect(s.x * SNAKE_CELL_SIZE + 1, s.y * SNAKE_CELL_SIZE + 1, SNAKE_CELL_SIZE - 2, SNAKE_CELL_SIZE - 2);
+            });
+
+            // Food
+            sCtx.fillStyle = '#ff0000';
+            sCtx.beginPath();
+            const fx = foodRef.current.x * SNAKE_CELL_SIZE + SNAKE_CELL_SIZE/2;
+            const fy = foodRef.current.y * SNAKE_CELL_SIZE + SNAKE_CELL_SIZE/2;
+            sCtx.arc(fx, fy, SNAKE_CELL_SIZE/3, 0, Math.PI*2);
+            sCtx.fill();
+        }
+
+        // Draw Tetris
+        const tCtx = tetrisCanvasRef.current?.getContext('2d');
+        if (tCtx) {
+            tCtx.fillStyle = '#000000';
+            tCtx.fillRect(0, 0, TETRIS_COLS * TETRIS_CELL_SIZE, TETRIS_ROWS * TETRIS_CELL_SIZE);
+
+            // Locked Blocks
+            tetrisGridRef.current.forEach((row, r) => {
+                row.forEach((cell, c) => {
+                    if (cell !== 0) {
+                        tCtx.fillStyle = TETROMINOS[cell-1]?.color || '#fff';
+                        tCtx.fillRect(c * TETRIS_CELL_SIZE + 1, r * TETRIS_CELL_SIZE + 1, TETRIS_CELL_SIZE - 2, TETRIS_CELL_SIZE - 2);
+                    }
+                });
+            });
+
+            // Active Piece
+            const p = activePieceRef.current;
+            if (p) {
+                tCtx.fillStyle = TETROMINOS[p.colorId-1]?.color || '#fff';
+                p.shape.forEach((row, r) => {
+                    row.forEach((cell, c) => {
+                        if (cell) {
+                            tCtx.fillRect((p.x + c) * TETRIS_CELL_SIZE + 1, (p.y + r) * TETRIS_CELL_SIZE + 1, TETRIS_CELL_SIZE - 2, TETRIS_CELL_SIZE - 2);
+                        }
+                    });
+                });
+            }
+            
+            // Grid Overlay
+            tCtx.strokeStyle = '#333333';
+            tCtx.lineWidth = 1;
+            tCtx.beginPath();
+            for(let i=0; i<=TETRIS_COLS; i++) { tCtx.moveTo(i*TETRIS_CELL_SIZE, 0); tCtx.lineTo(i*TETRIS_CELL_SIZE, TETRIS_ROWS*TETRIS_CELL_SIZE); }
+            for(let i=0; i<=TETRIS_ROWS; i++) { tCtx.moveTo(0, i*TETRIS_CELL_SIZE); tCtx.lineTo(TETRIS_COLS*TETRIS_CELL_SIZE, i*TETRIS_CELL_SIZE); }
+            tCtx.stroke();
+        }
+    };
+
+    // Game Over redrawing
     useEffect(() => {
         if (gameState === 'GAME_OVER') draw();
     }, [gameState]);
 
     return (
-        <div className="flex flex-col items-center justify-center h-full gap-4">
-            <div className="relative border-4 border-gray-600 rounded">
-                <canvas 
-                    ref={canvasRef} 
-                    width={SNAKE_COLS * CELL_SIZE} 
-                    height={SNAKE_ROWS * CELL_SIZE}
-                    className="block"
-                />
+        <div className="flex flex-col items-center justify-center h-full w-full gap-4 p-4">
+            
+            {/* Header */}
+            <div className="flex justify-between w-full max-w-4xl border-b-2 border-green-800 pb-2 mb-2">
+                <div className="text-green-500 font-bold text-xl glitch-text">DUAL_PROTOCOL.SIM</div>
+                <div className="text-white font-mono text-xl">SCORE: {score}</div>
+            </div>
+
+            <div className="flex flex-row gap-8 relative">
                 
+                {/* Left: Snake */}
+                <div className="flex flex-col items-center">
+                    <div className="text-xs text-green-700 mb-1">MODULE A: SERPENT</div>
+                    <canvas 
+                        ref={snakeCanvasRef} 
+                        width={SNAKE_COLS * SNAKE_CELL_SIZE} 
+                        height={SNAKE_ROWS * SNAKE_CELL_SIZE}
+                        className="border-2 border-green-700 shadow-[0_0_15px_rgba(0,255,0,0.2)]"
+                    />
+                </div>
+
+                {/* Right: Tetris */}
+                <div className="flex flex-col items-center">
+                    <div className="text-xs text-cyan-700 mb-1">MODULE B: STACKER</div>
+                    <canvas 
+                        ref={tetrisCanvasRef} 
+                        width={TETRIS_COLS * TETRIS_CELL_SIZE} 
+                        height={TETRIS_ROWS * TETRIS_CELL_SIZE}
+                        className="border-2 border-cyan-700 shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                    />
+                </div>
+
+                {/* Overlay UI */}
                 {gameState !== 'PLAY' && (
-                    <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center text-green-500 font-mono">
+                    <div className="absolute inset-0 bg-black/90 flex flex-col items-center justify-center z-10 border border-white">
                         {gameState === 'START' ? (
                             <>
-                                <h1 className="text-4xl font-bold mb-4 glitch-text">PROTO_SIM.EXE</h1>
-                                <button onClick={startGame} className="px-4 py-2 border-2 border-green-500 hover:bg-green-900 text-white animate-pulse">
-                                    {t('SNAKE_START')}
+                                <h1 className="text-5xl font-black mb-4 text-white tracking-widest text-center">
+                                    <span className="text-green-500">DUAL</span> <span className="text-cyan-500">CORE</span>
+                                </h1>
+                                <p className="text-xs text-gray-400 mb-8 max-w-sm text-center">
+                                    WARNING: SHARED INPUT BUFFER DETECTED.<br/>
+                                    WASD CONTROLS BOTH SIMULATIONS SIMULTANEOUSLY.
+                                </p>
+                                <button onClick={startGame} className="px-8 py-3 bg-white text-black font-bold hover:bg-gray-300 tracking-widest">
+                                    INITIATE
                                 </button>
-                                <p className="mt-4 text-xs text-green-700">{t('SNAKE_CONTROLS')}</p>
                             </>
                         ) : (
                             <>
-                                <h1 className="text-4xl font-bold mb-2 text-red-500">{t('SNAKE_GAME_OVER')}</h1>
-                                <p className="text-xl mb-6 text-white">{t('SNAKE_SCORE')}: {score}</p>
-                                <button onClick={startGame} className="px-4 py-2 border-2 border-green-500 hover:bg-green-900 text-white">
-                                    {t('SNAKE_RETRY')}
+                                <h1 className="text-4xl font-bold mb-2 text-red-500">SYNC FAILURE</h1>
+                                <p className="text-2xl mb-6 text-white font-mono">{score} PTS</p>
+                                <button onClick={startGame} className="px-6 py-2 border-2 border-red-500 text-red-500 hover:bg-red-900/50 hover:text-white transition-colors mb-4">
+                                    RETRY
+                                </button>
+                                <button onClick={onClose} className="text-xs text-gray-500 hover:text-white underline">
+                                    EXIT
                                 </button>
                             </>
                         )}
                     </div>
                 )}
             </div>
-            <div className="text-xs text-green-800 font-mono self-start w-full text-center">
-                VANGUARD ENTERTAINMENT SYSTEM v1.0
+
+            <div className="text-xs text-green-800 font-mono mt-2">
+                INPUT: WASD / ARROWS [SHARED]
             </div>
         </div>
     );
@@ -295,16 +517,16 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
     }, []);
 
     // Optimized openWindow: dynamically calculates max Z from current state
-    const openWindow = (id: string, title: string, content: React.ReactNode) => {
+    const openWindow = (id: string, title: string, content: React.ReactNode, className?: string) => {
         setWindows(prev => {
             const maxZ = prev.reduce((max, w) => Math.max(max, w.zIndex), 10);
             const newZ = maxZ + 1;
             
             const existing = prev.find(w => w.id === id);
             if (existing) {
-                return prev.map(w => w.id === id ? { ...w, isOpen: true, zIndex: newZ } : w);
+                return prev.map(w => w.id === id ? { ...w, isOpen: true, zIndex: newZ, className } : w);
             }
-            return [...prev, { id, title, content, isOpen: true, zIndex: newZ }];
+            return [...prev, { id, title, content, isOpen: true, zIndex: newZ, className }];
         });
     };
 
@@ -378,11 +600,13 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
     };
 
     const openSnakeGame = () => {
+        // Pass a larger window size className
         openWindow(
             'snake', 
-            'PROTO_SIM.EXE', 
-            <SnakeGame 
-                t={t} 
+            'DUAL_PROTOCOL.SIM', 
+            <DualSimGame 
+                t={t}
+                onClose={() => closeWindow('snake')}
                 onGameOver={(score) => {
                     // Try to claim reward
                     const reward = engine.spaceshipManager.claimSnakeReward(score);
@@ -410,7 +634,8 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                         }, 500); // Small delay for visual pacing
                     }
                 }} 
-            />
+            />,
+            'w-[900px] h-[600px]'
         );
     };
 
@@ -455,8 +680,8 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                     onClick={openKernel} 
                 />
                 <DesktopIcon 
-                    label="PROTO_SIM.EXE" 
-                    icon="🐍" 
+                    label="DUAL_SIM.EXE" 
+                    icon="🕹️" 
                     onClick={openSnakeGame} 
                 />
             </div>
@@ -469,6 +694,7 @@ export const ShipComputer: React.FC<ShipComputerProps> = ({ onClose, onCheat }) 
                     onClose={() => closeWindow(w.id)} 
                     zIndex={w.zIndex}
                     onFocus={() => focusWindow(w.id)}
+                    className={w.className}
                 >
                     {w.content}
                 </Window>
