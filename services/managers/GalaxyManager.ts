@@ -207,5 +207,7 @@ export class GalaxyManager {
         this.engine.state.sectorName = generateSectorName(); 
         this.engine.state.selectedPlanetId = null;
         this.engine.addMessage(this.engine.t('SCAN_COMPLETE'), WORLD_WIDTH / 2, WORLD_HEIGHT / 2, '#06b6d4', FloatingTextType.SYSTEM);
+        // FORCE UI UPDATE to show new sector name and planets
+        this.engine.notifyUI('SECTOR_SCAN');
     }
 }

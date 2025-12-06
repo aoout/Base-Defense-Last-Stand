@@ -5,6 +5,60 @@ export const pRand = (seed: number) => {
     return Math.abs(Math.sin(seed * 12.9898 + 78.233) * 43758.5453) % 1;
 };
 
+// --- SEMANTIC PRIMITIVES ---
+
+export const drawCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+};
+
+export const drawStrokeCircle = (ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string, width: number = 1) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.stroke();
+};
+
+export const drawEllipse = (ctx: CanvasRenderingContext2D, x: number, y: number, rx: number, ry: number, color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+};
+
+export const drawPolygon = (ctx: CanvasRenderingContext2D, points: {x: number, y: number}[], color: string) => {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (points.length > 0) {
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+            ctx.lineTo(points[i].x, points[i].y);
+        }
+    }
+    ctx.closePath();
+    ctx.fill();
+};
+
+export const drawSmoothLeg = (ctx: CanvasRenderingContext2D, start: {x: number, y: number}, end: {x: number, y: number}, kneeOffset: {x: number, y: number}, color: string, width: number) => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    
+    // Calculate knee position (midpoint + offset)
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+    const kneeX = midX + kneeOffset.x;
+    const kneeY = midY + kneeOffset.y;
+
+    ctx.beginPath();
+    ctx.moveTo(start.x, start.y);
+    ctx.quadraticCurveTo(kneeX, kneeY, end.x, end.y);
+    ctx.stroke();
+};
+
 // --- OPTIMIZATION: SPRITE CACHE SYSTEM ---
 
 const spriteCache: Record<string, HTMLCanvasElement> = {};

@@ -10,17 +10,17 @@ export const TURRET_COSTS = {
 };
 
 export const TURRET_STATS = {
-  [TurretType.STANDARD]: { hp: 600, range: 400, damage: 60, fireRate: 120 },
-  [TurretType.GAUSS]:    { hp: 800, range: 650, damage: 90, fireRate: 100 },
-  [TurretType.SNIPER]:   { hp: 800, range: 1300, damage: 140, fireRate: 250 },
-  [TurretType.MISSILE]:  { hp: 1000, range: 9999, damage: 160, fireRate: 840 }, 
+  [TurretType.STANDARD]: { hp: 1200, range: 400, damage: 60, fireRate: 120 },
+  [TurretType.GAUSS]:    { hp: 3600, range: 650, damage: 90, fireRate: 100 },
+  [TurretType.SNIPER]:   { hp: 3000, range: 1300, damage: 140, fireRate: 250 },
+  [TurretType.MISSILE]:  { hp: 2400, range: 9999, damage: 160, fireRate: 840 }, 
 };
 
 export const DEFENSE_UPGRADE_INFO = {
     [DefenseUpgradeType.INFECTION_DISPOSAL]: {
         cost: 3500,
         armorMitigation: 0.9,
-        regenRate: 10 / 60
+        regenRate: 0.01
     },
     [DefenseUpgradeType.SPORE_BARRIER]: {
         cost: 2700,

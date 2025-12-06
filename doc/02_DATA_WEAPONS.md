@@ -5,6 +5,8 @@
 
 
 
+
+
 # 02. Tactical Arsenal Data
 
 **Code Reference**: 
@@ -48,9 +50,9 @@ Modules modify weapon behavior dynamically at runtime.
 
 | Type | Level | HP | Dmg | Rate | Range | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `STANDARD` | 1 | 600 | 60 | 120ms| 400 | Basic Kinetic |
-| `GAUSS` | 2 | 800 | 90 | 100ms| 650 | High DPS Upgrade |
-| `SNIPER` | 2 | 800 | 140 | 250ms| 1300 | Long Range Upgrade |
-| `MISSILE` | 2 | 1000 | 160 | 840ms| 9999 | **Global Range**. Homing. AoE. |
+| `STANDARD` | 1 | 1200 | 60 | 120ms| 400 | Basic Kinetic |
+| `GAUSS` | 2 | 3600 | 90 | 100ms| 650 | High DPS Upgrade |
+| `SNIPER` | 2 | 3000 | 140 | 250ms| 1300 | Long Range Upgrade |
+| `MISSILE` | 2 | 2400 | 160 | 840ms| 9999 | **Global Range**. Homing. AoE. |
 
 *Note: Stats are further modified by Infrastructure Research bonuses.*

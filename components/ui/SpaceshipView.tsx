@@ -5,48 +5,37 @@ import { SPACESHIP_MODULES } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 
-export const SpaceshipView: React.FC = () => {
-    const { state, engine } = useGame();
-    const { t } = useLocale();
-    const installed = state.spaceship.installedModules;
-    const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
+// Simple logic extraction
+const useBackdoorTrigger = (activate: () => void) => {
     const [clickCount, setClickCount] = useState(0);
     const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const handleScrapClick = () => {
         if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
-        
         const newCount = clickCount + 1;
         setClickCount(newCount);
-        
         if (newCount >= 10) {
-            engine.activateBackdoor();
+            activate();
             setClickCount(0);
         } else {
-            clickTimerRef.current = setTimeout(() => {
-                setClickCount(0);
-            }, 500); // 0.5s window between clicks
+            clickTimerRef.current = setTimeout(() => setClickCount(0), 500);
         }
     };
+    return handleScrapClick;
+};
 
-    const handlePurchase = (modType: SpaceshipModuleType) => {
-        engine.eventBus.emit<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, { itemId: modType });
-    };
+export const SpaceshipView: React.FC = () => {
+    const { state, engine } = useGame();
+    const { t } = useLocale();
+    const installed = state.spaceship.installedModules;
+    const availableModules = Object.values(SpaceshipModuleType).filter(m => !installed.includes(m));
+    
+    const handleScrapClick = useBackdoorTrigger(() => engine.activateBackdoor());
 
-    const handleOpenBioSequencing = () => {
-        engine.generateBioGrid();
-        engine.enterBioSequencing();
-    }
-
-    const handleOpenInfrastructure = () => {
-        engine.generateInfrastructureOptions();
-        engine.enterInfrastructureResearch();
-    }
-
-    const handleOpenCarapace = () => {
-        engine.generateCarapaceGrid();
-        engine.enterCarapaceGrid();
-    }
+    const handlePurchase = (modType: SpaceshipModuleType) => engine.eventBus.emit<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, { itemId: modType });
+    const handleOpenBioSequencing = () => { engine.generateBioGrid(); engine.enterBioSequencing(); };
+    const handleOpenInfrastructure = () => { engine.generateInfrastructureOptions(); engine.enterInfrastructureResearch(); };
+    const handleOpenCarapace = () => { engine.generateCarapaceGrid(); engine.enterCarapaceGrid(); };
 
     return (
         <div className="absolute inset-0 bg-slate-950 z-[200] flex flex-col overflow-hidden pointer-events-auto select-none">
@@ -59,26 +48,18 @@ export const SpaceshipView: React.FC = () => {
 
             {/* Top UI Bar */}
             <div className="relative z-10 flex justify-between items-start p-8 w-full pointer-events-none shrink-0">
-                {/* Left: Scraps / Fragments */}
                 <div className="flex flex-col gap-2 pointer-events-auto">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse"></div>
                         <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">{t('STORAGE_ACCESS')}</span>
                     </div>
-                    <div 
-                        className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3 cursor-pointer hover:bg-slate-800 transition-colors active:bg-cyan-900/20"
-                        onClick={handleScrapClick}
-                    >
+                    <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3 cursor-pointer hover:bg-slate-800 transition-colors active:bg-cyan-900/20" onClick={handleScrapClick}>
                          <span className="text-4xl font-display font-black text-white tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
                          <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{t('FRAGMENTS')}</span>
                     </div>
                 </div>
-
-                {/* Right: Ship Class Info */}
                  <div className="text-right pointer-events-auto opacity-80">
-                     <h1 className="text-5xl font-display font-black italic text-slate-700 tracking-wide uppercase">
-                         {t('SHIP_CLASS_NAME')}
-                     </h1>
+                     <h1 className="text-5xl font-display font-black italic text-slate-700 tracking-wide uppercase">{t('SHIP_CLASS_NAME')}</h1>
                      <div className="flex justify-end items-center gap-2 mt-1">
                          <div className="h-px w-24 bg-cyan-900"></div>
                          <span className="text-cyan-800 font-display font-bold text-[14px] tracking-[0.3em]">{t('SHIP_TYPE_NAME')}</span>
@@ -86,29 +67,23 @@ export const SpaceshipView: React.FC = () => {
                 </div>
             </div>
 
-            {/* Main Content Area - Constrained with min-h-0 for scrolling */}
+            {/* Main Content Area */}
             <div className="flex-1 flex relative z-10 px-8 pb-8 gap-8 pointer-events-none min-h-0 overflow-hidden">
-                
-                {/* Center: Ship Visual (Simplified for layout) */}
+                {/* Center: Ship Visual */}
                 <div className="flex-1 relative flex flex-col items-center justify-center pointer-events-auto overflow-hidden">
-                     {/* SVG Container */}
                     <div className="relative w-[800px] h-[400px] filter drop-shadow-[0_0_30px_rgba(0,0,0,0.5)] shrink-0">
                         <svg viewBox="0 0 1000 500" className="w-full h-full">
                             <defs>
                                 <linearGradient id="hullMetal" x1="0" y1="0" x2="1" y2="0">
-                                    <stop offset="0%" stopColor="#0f172a" />
-                                    <stop offset="50%" stopColor="#1e293b" />
-                                    <stop offset="100%" stopColor="#0f172a" />
+                                    <stop offset="0%" stopColor="#0f172a" /><stop offset="50%" stopColor="#1e293b" /><stop offset="100%" stopColor="#0f172a" />
                                 </linearGradient>
                                 <linearGradient id="engineGlow" x1="1" y1="0" x2="0" y2="0">
-                                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/>
-                                    <stop offset="100%" stopColor="transparent" />
+                                    <stop offset="0%" stopColor="#06b6d4" stopOpacity="0.8"/><stop offset="100%" stopColor="transparent" />
                                 </linearGradient>
                                 <pattern id="gridPattern" width="20" height="20" patternUnits="userSpaceOnUse">
                                     <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" strokeWidth="0.5" strokeOpacity="0.3"/>
                                 </pattern>
                             </defs>
-
                             <g transform="translate(50, 100)">
                                 <path d="M 0 120 L -80 100 L -80 160 L 0 140 Z" fill="url(#engineGlow)" className="animate-pulse" />
                                 <path d="M 0 180 L -100 160 L -100 220 L 0 200 Z" fill="url(#engineGlow)" className="animate-pulse" style={{animationDelay: '0.1s'}} />
@@ -132,16 +107,13 @@ export const SpaceshipView: React.FC = () => {
                             </g>
                         </svg>
                         
-                        {/* Installed Modules List Overlay (Left Side of Ship) */}
+                        {/* Installed Modules List */}
                         <div className="absolute top-0 left-0 w-64 max-h-full bg-slate-900/80 border border-slate-700 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent z-20">
                             <h3 className="text-cyan-400 text-xs font-bold tracking-widest border-b border-slate-700 pb-2 mb-2">{t('SHIP_MODULES')}</h3>
-                            {installed.length === 0 ? (
-                                <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div>
-                            ) : (
+                            {installed.length === 0 ? <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div> : (
                                 <div className="space-y-2">
                                     {installed.map((modType) => {
                                         let btnColorClass = "bg-slate-700 border-slate-600";
-                                        // Define accent colors per module
                                         if (modType === SpaceshipModuleType.ORBITAL_CANNON) btnColorClass = "bg-cyan-900 hover:bg-cyan-700 text-cyan-100 border-cyan-600";
                                         if (modType === SpaceshipModuleType.CARAPACE_ANALYZER) btnColorClass = "bg-emerald-900 hover:bg-emerald-700 text-emerald-100 border-emerald-600";
                                         if (modType === SpaceshipModuleType.BASE_REINFORCEMENT) btnColorClass = "bg-yellow-900 hover:bg-yellow-700 text-yellow-100 border-yellow-600";
@@ -149,41 +121,18 @@ export const SpaceshipView: React.FC = () => {
 
                                         return (
                                             <div key={modType} className={`flex flex-col gap-1 text-xs text-white p-2 border-l-2 ${btnColorClass.replace('bg-', 'border-').replace('text-', 'bg-').split(' ')[0]} bg-opacity-10 bg-slate-800`}>
-                                                <div className="flex items-center gap-2">
-                                                    <span>✔️</span>
-                                                    <span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span>
-                                                </div>
+                                                <div className="flex items-center gap-2"><span>✔️</span><span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span></div>
                                                 {modType === SpaceshipModuleType.ORBITAL_CANNON && (
-                                                    <button 
-                                                        onClick={() => engine.enterOrbitalUpgradeMenu()}
-                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
-                                                    >
-                                                        {t('SYSTEM_UPGRADE')}
-                                                    </button>
+                                                    <button onClick={() => engine.enterOrbitalUpgradeMenu()} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('SYSTEM_UPGRADE')}</button>
                                                 )}
                                                 {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
-                                                    <button 
-                                                        onClick={handleOpenCarapace}
-                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
-                                                    >
-                                                        {t('XENO_MATRIX')}
-                                                    </button>
+                                                    <button onClick={handleOpenCarapace} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('XENO_MATRIX')}</button>
                                                 )}
                                                 {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
-                                                    <button 
-                                                        onClick={handleOpenInfrastructure}
-                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
-                                                    >
-                                                        {t('RESEARCH_BTN')}
-                                                    </button>
+                                                    <button onClick={handleOpenInfrastructure} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('RESEARCH_BTN')}</button>
                                                 )}
                                                 {modType === SpaceshipModuleType.BIO_SEQUENCING && (
-                                                    <button 
-                                                        onClick={handleOpenBioSequencing}
-                                                        className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}
-                                                    >
-                                                        {t('BIO_TITLE')}
-                                                    </button>
+                                                    <button onClick={handleOpenBioSequencing} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('BIO_TITLE')}</button>
                                                 )}
                                             </div>
                                         );
@@ -191,15 +140,10 @@ export const SpaceshipView: React.FC = () => {
                                 </div>
                             )}
                         </div>
-
                     </div>
 
-                    {/* CORE COMPUTER TERMINAL BUTTON */}
                     <div className="mt-8 shrink-0">
-                        <button 
-                            onClick={() => engine.enterShipComputer()}
-                            className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden"
-                        >
+                        <button onClick={() => engine.enterShipComputer()} className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden">
                             <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#00ff00_2px,#00ff00_4px)] opacity-5 pointer-events-none"></div>
                             <div className="text-green-500 font-mono text-xs tracking-[0.2em] mb-1 group-hover:text-green-400">{t('CORE_DB')}</div>
                             <div className="text-white font-display font-black text-2xl tracking-wide group-hover:text-green-300">{t('ACCESS_COMPUTER')}</div>
@@ -208,17 +152,12 @@ export const SpaceshipView: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right Panel: Module Shop - Full Height & Scrollable */}
+                {/* Right Panel: Module Shop */}
                 <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6 h-full overflow-hidden">
                     <h2 className="text-xl font-display font-black text-white mb-1 uppercase tracking-wide shrink-0">{t('ENGINEERING')}</h2>
                     <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest shrink-0">{t('MODULE_FAB')}</p>
-                    
                     <div className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent pr-2 min-h-0">
-                        {availableModules.length === 0 && (
-                            <div className="text-slate-500 text-center text-sm py-10">
-                                {t('ALL_INSTALLED')}
-                            </div>
-                        )}
+                        {availableModules.length === 0 && <div className="text-slate-500 text-center text-sm py-10">{t('ALL_INSTALLED')}</div>}
                         {availableModules.map(modType => {
                             const mod = SPACESHIP_MODULES[modType];
                             const canAfford = state.player.score >= mod.cost;
@@ -231,11 +170,7 @@ export const SpaceshipView: React.FC = () => {
                                         <button 
                                             onClick={() => handlePurchase(modType)}
                                             disabled={!canAfford}
-                                            className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase transition-all
-                                                ${canAfford 
-                                                    ? 'bg-cyan-600 text-white hover:bg-cyan-400' 
-                                                    : 'bg-slate-700 text-slate-500 cursor-not-allowed'}
-                                            `}
+                                            className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase transition-all ${canAfford ? 'bg-cyan-600 text-white hover:bg-cyan-400' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
                                         >
                                             {canAfford ? t('INSTALL_BTN') : t('NO_FUNDS')}
                                         </button>
@@ -249,10 +184,7 @@ export const SpaceshipView: React.FC = () => {
 
             {/* Bottom Controls */}
             <div className="absolute bottom-8 left-8 z-20 pointer-events-auto">
-                <button 
-                    onClick={() => engine.exitSpaceshipView()}
-                    className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white"
-                >
+                <button onClick={() => engine.exitSpaceshipView()} className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white">
                     <span className="text-xl">«</span>
                     <span className="font-mono text-xs tracking-widest uppercase">{t('RETURN_SECTOR_BTN')}</span>
                 </button>
@@ -264,7 +196,6 @@ export const SpaceshipView: React.FC = () => {
                     <div>{t('HULL_INTEGRITY')}: 100%</div>
                 </div>
             </div>
-
         </div>
     )
 }
