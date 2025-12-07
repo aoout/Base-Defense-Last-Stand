@@ -397,8 +397,11 @@ export class GameEngine {
     const terrain = generateTerrain(PlanetVisualType.BARREN, 'BARREN' as any, w, h);
     const sectorName = !fullReset && this.state?.sectorName ? this.state.sectorName : generateSectorName();
 
+    // Fix: Exploration Mode should start on Map, others in Gameplay
+    const initialAppMode = mode === GameMode.EXPLORATION ? AppMode.EXPLORATION_MAP : AppMode.GAMEPLAY;
+
     this.state = {
-      appMode: AppMode.GAMEPLAY, gameMode: mode, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
+      appMode: initialAppMode, gameMode: mode, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
       worldWidth: w, worldHeight: h,
       camera: { x: 0, y: 0 },
       player: { id: 'player', x: playerPos.x, y: playerPos.y, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
