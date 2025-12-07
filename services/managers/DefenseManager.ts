@@ -1,7 +1,6 @@
 
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
 import { StatManager } from './StatManager';
@@ -129,8 +128,9 @@ export class DefenseManager {
                     a.angle = angle;
                 }
             }
-            a.x = Math.max(0, Math.min(WORLD_WIDTH, a.x));
-            a.y = Math.max(0, Math.min(WORLD_HEIGHT, a.y));
+            // Use state dimensions for clamping to support Campaign Mode
+            a.x = Math.max(0, Math.min(state.worldWidth, a.x));
+            a.y = Math.max(0, Math.min(state.worldHeight, a.y));
         });
         
         state.allies = state.allies.filter(a => a.hp > 0);

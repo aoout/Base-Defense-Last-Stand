@@ -23,6 +23,10 @@ export const ENEMY_STATS: Record<EnemyType, EnemyStatsConfig> = {
       attackRate: 2000, range: 450,
       detectionRange: 800 // Hunter behavior
   },
+  [EnemyType.PUSTULE]: { 
+      hp: 3000, speed: 0, damage: 30, scoreReward: 1000, radius: 40, color: '#a3e635', 
+      detectionRange: 0 // Passive until touch
+  },
 };
 
 export const BOSS_STATS: Record<BossType, EnemyStatsConfig> = {
@@ -77,6 +81,12 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
         classification: "RANGED SUPPORT",
         danger: 3,
         description: "Aerial unit capable of launching corrosive projectiles. Maintains distance while bombarding targets. Green bio-luminescence marks attack vectors."
+    },
+    [EnemyType.PUSTULE]: {
+        codeName: "NONGBAO",
+        classification: "BIO-NODE",
+        danger: 6,
+        description: "A stationary organic growth that acts as a forward spawning point for the swarm. Heavily armored and dangerous to touch. Destroy immediately to prevent reinforcement floods."
     },
     [BossType.RED_SUMMONER]: {
         codeName: "THE HIVE LORD",

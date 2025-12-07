@@ -61,6 +61,7 @@ export enum EnemyType {
   TANK = 'TANK',
   KAMIKAZE = 'KAMIKAZE',
   VIPER = 'VIPER',
+  PUSTULE = 'PUSTULE',
 }
 
 export enum BossType {
@@ -116,7 +117,8 @@ export enum AppMode {
 
 export enum GameMode {
     SURVIVAL = 'SURVIVAL',
-    EXPLORATION = 'EXPLORATION'
+    EXPLORATION = 'EXPLORATION',
+    CAMPAIGN = 'CAMPAIGN'
 }
 
 export enum MissionType {

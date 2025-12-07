@@ -8,9 +8,13 @@ export * from './data/world';
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 900;
 
-// New World Dimensions (Long and Narrow)
+// Default World Dimensions (Long and Narrow)
 export const WORLD_WIDTH = 1200;
 export const WORLD_HEIGHT = 3200; 
+
+// Campaign World Dimensions (Massive Square)
+export const CAMPAIGN_WIDTH = 3600;
+export const CAMPAIGN_HEIGHT = 3600;
 
 export const INVENTORY_SIZE = 30;
 export const MAX_SAVE_SLOTS = 7;

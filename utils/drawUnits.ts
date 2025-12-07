@@ -250,10 +250,9 @@ const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, ti
     drawCircle(ctx, x, y - 20, 2, pulse ? '#22c55e' : '#14532d');
 };
 
-// --- ENEMIES (Refactored) ---
+// --- ENEMIES ---
 
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    // SUPER LOW LOD
     if (lodLevel >= 2) {
         ctx.fillStyle = PALETTE.ZERG.SKIN_LIGHT;
         ctx.fillRect(-8, -8, 16, 16); 
@@ -298,21 +297,14 @@ export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
             drawSmoothLeg(ctx, leg.start, { x: leg.end.x + (i%3===0 ? move : -move), y: leg.end.y }, {x: 0, y: offsetY}, PALETTE.ZERG.LEG, 3);
         });
 
-        // Head
         drawEllipse(ctx, -6, 0, 9, 7 + breathe, PALETTE.ZERG.SKIN_DARK);
         ctx.strokeStyle = PALETTE.ZERG.SKIN_LIGHT;
         ctx.beginPath(); ctx.moveTo(-12, 0); ctx.lineTo(-2, 0); ctx.stroke(); 
 
-        // Body
         drawEllipse(ctx, 3, 0, 7, 6, PALETTE.ZERG.SKIN_LIGHT);
-
-        // Carapace
         drawPolygon(ctx, [{x: -2, y: -4}, {x: 8, y: -3}, {x: 8, y: 3}, {x: -2, y: 4}], PALETTE.ZERG.CARAPACE);
-
-        // Tail Spot
         drawEllipse(ctx, 10, 0, 5, 4, PALETTE.ZERG.TAIL_SPOT);
 
-        // Mandibles
         ctx.strokeStyle = PALETTE.ZERG.MANDIBLE; 
         ctx.lineWidth = 2;
         const bite = Math.sin(time * 0.015) * 2;
@@ -322,7 +314,6 @@ export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
         ctx.moveTo(12, 2); ctx.lineTo(18, 4 - bite); ctx.lineTo(16, 1);
         ctx.stroke();
 
-        // Eyes
         drawCircle(ctx, 11, -2, 1.5, PALETTE.ZERG.EYE);
         drawCircle(ctx, 11, 2, 1.5, PALETTE.ZERG.EYE);
     }
@@ -344,8 +335,6 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
         ctx.stroke();
     } else {
         const enginePulse = Math.sin(time * 0.05);
-
-        // Engine Glow
         ctx.fillStyle = PALETTE.RUSHER.GLOW;
         ctx.beginPath(); 
         ctx.moveTo(-5, 0); 
@@ -354,7 +343,6 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
         ctx.lineTo(-25 - enginePulse*5, 8); 
         ctx.fill();
 
-        // Body Gradient
         const grad = ctx.createLinearGradient(-10, 0, 15, 0); 
         grad.addColorStop(0, PALETTE.RUSHER.BODY_GRAD_START); grad.addColorStop(1, PALETTE.RUSHER.BODY_GRAD_END);
         ctx.fillStyle = grad;
@@ -365,7 +353,6 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
         ctx.quadraticCurveTo(5, -7, 15, 0); 
         ctx.fill();
 
-        // Wings/Legs
         ctx.strokeStyle = PALETTE.RUSHER.CARAPACE_STROKE;
         ctx.lineWidth = 2;
         ctx.beginPath(); 
@@ -373,12 +360,10 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
         ctx.moveTo(5, -3); ctx.lineTo(12, -12); ctx.lineTo(20, -6); 
         ctx.stroke();
 
-        // Details
         ctx.fillStyle = PALETTE.RUSHER.CARAPACE_STROKE;
         drawPolygon(ctx, [{x:-5, y:0}, {x:-2, y:-5}, {x:1, y:0}], PALETTE.RUSHER.CARAPACE_STROKE);
         drawPolygon(ctx, [{x:0, y:0}, {x:3, y:5}, {x:6, y:0}], PALETTE.RUSHER.CARAPACE_STROKE);
 
-        // Eyes
         drawCircle(ctx, 12, -2, 1.5, PALETTE.RUSHER.EYE);
         drawCircle(ctx, 12, 2, 1.5, PALETTE.RUSHER.EYE);
     }
@@ -419,9 +404,6 @@ export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, 
         }
 
         drawCircle(ctx, -5, 0, 20, PALETTE.TANK.BODY);
-        drawStrokeCircle(ctx, 5, 0, 18, PALETTE.TANK.SHELL);
-        ctx.fill(); // Fill the stroke circle? The helper only strokes. Let's stick to old logic
-        // Re-implementing correctly:
         ctx.fillStyle = PALETTE.TANK.SHELL;
         ctx.beginPath(); ctx.arc(5, 0, 18, 0, Math.PI*2); ctx.fill(); ctx.stroke();
 
@@ -527,6 +509,55 @@ export const drawViper = (ctx: CanvasRenderingContext2D, e: Enemy, time: number,
         drawCircle(ctx, -5, 10 + flap*5, 2, PALETTE.VIPER.GLOW);
         drawCircle(ctx, -5, -10 - flap*5, 2, PALETTE.VIPER.GLOW);
     }
+}
+
+export const drawPustule = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    const pulse = Math.sin(time * 0.002) * 2;
+    const r = e.radius + pulse;
+
+    // Outer fleshy mass
+    const grad = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r);
+    grad.addColorStop(0, '#bef264'); // Light lime
+    grad.addColorStop(0.6, '#65a30d'); // Lime green
+    grad.addColorStop(1, '#3f6212'); // Dark green
+    
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    // Bloated shape
+    for(let i=0; i<8; i++) {
+        const angle = (Math.PI * 2 / 8) * i;
+        const offset = Math.sin(angle * 3 + time * 0.001) * 3;
+        const lx = Math.cos(angle) * (r + offset);
+        const ly = Math.sin(angle) * (r + offset);
+        if (i===0) ctx.moveTo(lx, ly);
+        else ctx.lineTo(lx, ly);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Spawning Orifice
+    const orificeOpen = Math.sin(time * 0.005);
+    ctx.fillStyle = '#1a2e05';
+    ctx.beginPath();
+    ctx.ellipse(0, -5, r * 0.4 + orificeOpen * 2, r * 0.3 + orificeOpen * 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Veins/Thorns
+    ctx.strokeStyle = '#a3e635';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for(let i=0; i<6; i++) {
+        const angle = (Math.PI * 2 / 6) * i;
+        ctx.moveTo(Math.cos(angle) * r * 0.5, Math.sin(angle) * r * 0.5);
+        ctx.lineTo(Math.cos(angle) * (r + 5), Math.sin(angle) * (r + 5));
+    }
+    ctx.stroke();
+    
+    // Toxic Glow
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#a3e635';
+    drawCircle(ctx, 0, -5, 5, '#bef264');
+    ctx.shadowBlur = 0;
 }
 
 // --- BOSSES ---

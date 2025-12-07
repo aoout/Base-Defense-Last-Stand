@@ -24,6 +24,10 @@ export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
   
+  // World Bounds (Dynamic based on mode)
+  worldWidth: number;
+  worldHeight: number;
+
   // Exploration Data
   sectorName: string; // New: Procedurally generated sector name
   planets: Planet[];
@@ -42,6 +46,8 @@ export interface GameState {
 
   camera: { x: number; y: number };
   player: Player;
+  
+  // Bases
   base: {
     x: number;
     y: number
@@ -50,6 +56,17 @@ export interface GameState {
     hp: number;
     maxHp: number;
   };
+  
+  // Campaign Mode Only: Second Base
+  secondaryBase?: {
+    x: number;
+    y: number
+    width: number;
+    height: number;
+    hp: number;
+    maxHp: number;
+  };
+
   terrain: TerrainFeature[];
   bloodStains: BloodStain[];
   enemies: Enemy[];
@@ -65,6 +82,10 @@ export interface GameState {
   waveTimeRemaining: number;
   waveDuration: number;
   spawnTimer: number;
+  // Campaign specific timers
+  pustuleTimer: number; 
+  nextPustuleSpawnTime: number;
+
   enemiesPendingSpawn: number;
   enemiesSpawnedInWave: number;
   totalEnemiesInWave: number;
@@ -82,4 +103,5 @@ export interface GameState {
 
   settings: GameSettings;
   stats: GameStats;
+  time: number;
 }

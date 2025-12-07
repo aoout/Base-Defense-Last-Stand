@@ -1,7 +1,6 @@
 
 import { GameEngine } from '../gameService';
 import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource, GameEventType, SpawnProjectileEvent, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, SpawnParticleEvent, SpawnToxicZoneEvent, SpawnBloodStainEvent, ShowFloatingTextEvent, DamageAreaEvent, DamageEnemyEvent, StatId, EnemySummonEvent } from '../../types';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { GAS_INFO } from '../../data/world';
 import { calculateEnemyStats, selectEnemyType } from '../../utils/enemyUtils';
@@ -9,7 +8,7 @@ import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { StatManager } from './StatManager';
 import { AIBehavior } from '../ai/AIBehavior';
-import { StandardBehavior, KamikazeBehavior, ViperBehavior } from '../ai/StandardBehaviors';
+import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior } from '../ai/StandardBehaviors';
 import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior } from '../ai/BossBehaviors';
 
 export class EnemyManager {
@@ -66,6 +65,7 @@ export class EnemyManager {
         this.behaviors.set(EnemyType.TANK, standard);
         this.behaviors.set(EnemyType.KAMIKAZE, new KamikazeBehavior());
         this.behaviors.set(EnemyType.VIPER, new ViperBehavior());
+        this.behaviors.set(EnemyType.PUSTULE, new PustuleBehavior());
 
         // Bosses
         this.behaviors.set(BossType.RED_SUMMONER, new RedSummonerBehavior());
@@ -114,7 +114,7 @@ export class EnemyManager {
     public spawnEnemy() {
         const state = this.engine.state;
         const type = selectEnemyType(state.wave, state.gameMode, state.currentPlanet, state.activeSpecialEvent);
-        const x = Math.random() * WORLD_WIDTH;
+        const x = Math.random() * state.worldWidth;
         const y = -50; 
         this.spawnSpecificEnemy(type, x, y);
     }
@@ -131,20 +131,37 @@ export class EnemyManager {
         }
     }
 
+    public spawnPustule(x: number, y: number) {
+        const state = this.engine.state;
+        const type = EnemyType.PUSTULE;
+        const enemy = this.enemyPool.get();
+        
+        // Pustule has fixed stats in config, but using standard setup logic keeps it cleaner
+        this.setupEnemy(enemy, type, x, y);
+        enemy.bossSummonTimer = 15000; // Reuse property for 15s spawn cycle
+        enemy.lastAttackTime = this.engine.time.now; // Start timer from spawn
+
+        state.enemies.push(enemy);
+        if (!state.stats.encounteredEnemies.includes(type)) {
+            state.stats.encounteredEnemies.push(type);
+        }
+    }
+
     public spawnBoss() {
+        const state = this.engine.state;
         const roll = Math.random();
         let bossType = BossType.RED_SUMMONER;
         if (roll > 0.6) bossType = BossType.BLUE_BURST;
         if (roll > 0.85) bossType = BossType.PURPLE_ACID;
 
-        const x = WORLD_WIDTH / 2;
+        const x = state.worldWidth / 2;
         const y = 100;
 
         const baseStats = BOSS_STATS[bossType];
         let hp = baseStats.hp;
         
-        if (this.engine.state.gameMode === GameMode.EXPLORATION && this.engine.state.currentPlanet) {
-            let effectiveStr = this.engine.state.currentPlanet.geneStrength;
+        if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {
+            let effectiveStr = state.currentPlanet.geneStrength;
             const reduction = this.stats.get(StatId.GENE_REDUCTION, 0);
             effectiveStr = Math.max(0.5, effectiveStr - reduction);
             hp *= effectiveStr;
@@ -165,13 +182,14 @@ export class EnemyManager {
         enemy.lastAttackTime = 0;
         enemy.detectionRange = baseStats.detectionRange;
         
-        this.engine.state.enemies.push(enemy);
-        if (!this.engine.state.stats.encounteredEnemies.includes(bossType)) {
-            this.engine.state.stats.encounteredEnemies.push(bossType);
+        state.enemies.push(enemy);
+        if (!state.stats.encounteredEnemies.includes(bossType)) {
+            state.stats.encounteredEnemies.push(bossType);
         }
     }
 
     public spawnHiveMother(planet: Planet) {
+        const state = this.engine.state;
         const stats = BOSS_STATS[BossType.HIVE_MOTHER];
         let effectiveStr = planet.geneStrength;
         const reduction = this.stats.get(StatId.GENE_REDUCTION, 0);
@@ -184,7 +202,7 @@ export class EnemyManager {
         enemy.type = EnemyType.TANK;
         enemy.isBoss = true;
         enemy.bossType = BossType.HIVE_MOTHER;
-        enemy.x = WORLD_WIDTH / 2;
+        enemy.x = state.worldWidth / 2;
         enemy.y = 400;
         enemy.angle = Math.PI/2;
         enemy.hp = hp;
@@ -198,9 +216,9 @@ export class EnemyManager {
         enemy.detectionRange = 2000;
         enemy.armorValue = 90;
         
-        this.engine.state.enemies.push(enemy);
-        if (!this.engine.state.stats.encounteredEnemies.includes(BossType.HIVE_MOTHER)) {
-            this.engine.state.stats.encounteredEnemies.push(BossType.HIVE_MOTHER);
+        state.enemies.push(enemy);
+        if (!state.stats.encounteredEnemies.includes(BossType.HIVE_MOTHER)) {
+            state.stats.encounteredEnemies.push(BossType.HIVE_MOTHER);
         }
     }
 

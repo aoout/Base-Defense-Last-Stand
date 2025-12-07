@@ -107,10 +107,10 @@ const generateRockPoints = (minR: number, maxR: number) => {
     });
 };
 
-export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType): TerrainFeature[] => {
+export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): TerrainFeature[] => {
     const terrain: TerrainFeature[] = [];
-    const baseX = WORLD_WIDTH / 2;
-    const baseY = WORLD_HEIGHT - 100;
+    const baseX = width / 2;
+    const baseY = height - 100;
 
     const isSafe = (x: number, y: number, margin = 400) => {
         const dist = Math.sqrt((x - baseX)**2 + (y - baseY)**2);
@@ -135,22 +135,25 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType):
             const x = centerX + Math.cos(angle) * dist;
             const y = centerY + Math.sin(angle) * dist;
             
-            if (x > 0 && x < WORLD_WIDTH && y > 0 && y < WORLD_HEIGHT && isSafe(x, y, 150)) {
+            // Check bounds against dynamic width/height
+            if (x > 0 && x < width && y > 0 && y < height && isSafe(x, y, 150)) {
                 addFeature(typeFn(), x, y, sizeFn(), extraFn());
             }
         }
     };
 
-    // 1. Global Ambient Dust (Background noise) - Kept high for texture
-    createCluster(200, WORLD_WIDTH/2, WORLD_HEIGHT/2, Math.max(WORLD_WIDTH, WORLD_HEIGHT), () => TerrainType.DUST, () => 5 + Math.random() * 10, () => ({ opacity: 0.05 + Math.random() * 0.1 }));
+    // 1. Global Ambient Dust (Background noise)
+    createCluster(200, width/2, height/2, Math.max(width, height), () => TerrainType.DUST, () => 5 + Math.random() * 10, () => ({ opacity: 0.05 + Math.random() * 0.1 }));
 
     // 2. Biome Specific Clusters
-    const numClusters = 4; // Significantly reduced from 20
+    // Calculate cluster count based on map area to scale density
+    const areaFactor = (width * height) / (WORLD_WIDTH * WORLD_HEIGHT);
+    const numClusters = Math.max(4, Math.floor(4 * areaFactor));
 
     if (visualType === PlanetVisualType.LAVA) {
         for(let c=0; c<numClusters; c++) {
-            const cx = Math.random() * WORLD_WIDTH;
-            const cy = Math.random() * (WORLD_HEIGHT - 300);
+            const cx = Math.random() * width;
+            const cy = Math.random() * (height - 300);
             if (isSafe(cx, cy)) {
                 // Magma Cluster - Dangerous looking patch
                 createCluster(4, cx, cy, 120, () => TerrainType.MAGMA_POOL, () => 50 + Math.random() * 50, () => ({ variant: Math.floor(Math.random()*3) }));
@@ -161,8 +164,8 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType):
     }
     else if (visualType === PlanetVisualType.ICE) {
          for(let c=0; c<numClusters; c++) {
-            const cx = Math.random() * WORLD_WIDTH;
-            const cy = Math.random() * (WORLD_HEIGHT - 300);
+            const cx = Math.random() * width;
+            const cy = Math.random() * (height - 300);
             if (isSafe(cx, cy)) {
                 // Ice Spike Field
                 createCluster(12, cx, cy, 140, () => TerrainType.ICE_SPIKE, () => 25 + Math.random() * 35);
@@ -173,8 +176,8 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType):
     }
     else if (visualType === PlanetVisualType.TERRAN || (biome === BiomeType.TOXIC && visualType !== PlanetVisualType.GAS_GIANT)) {
          for(let c=0; c<numClusters; c++) {
-            const cx = Math.random() * WORLD_WIDTH;
-            const cy = Math.random() * (WORLD_HEIGHT - 300);
+            const cx = Math.random() * width;
+            const cy = Math.random() * (height - 300);
             if (isSafe(cx, cy)) {
                 // Dense Forest Patch
                 createCluster(20, cx, cy, 180, () => TerrainType.ALIEN_TREE, () => 35 + Math.random() * 35, () => ({ variant: Math.floor(Math.random()*3) }));
@@ -186,8 +189,8 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType):
     else if (visualType === PlanetVisualType.GAS_GIANT) {
         // Crystal Fields
         for(let c=0; c<numClusters; c++) {
-            const cx = Math.random() * WORLD_WIDTH;
-            const cy = Math.random() * (WORLD_HEIGHT - 300);
+            const cx = Math.random() * width;
+            const cy = Math.random() * (height - 300);
             if (isSafe(cx, cy)) {
                 createCluster(15, cx, cy, 150, () => TerrainType.CRYSTAL, () => 20 + Math.random() * 30);
                 createCluster(6, cx, cy, 150, () => TerrainType.SPORE_POD, () => 25 + Math.random() * 25);
@@ -197,8 +200,8 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType):
     else {
         // Barren / Default
         for(let c=0; c<numClusters; c++) {
-            const cx = Math.random() * WORLD_WIDTH;
-            const cy = Math.random() * (WORLD_HEIGHT - 300);
+            const cx = Math.random() * width;
+            const cy = Math.random() * (height - 300);
             if (isSafe(cx, cy)) {
                 // Rock Field
                 createCluster(10, cx, cy, 160, () => TerrainType.ROCK, () => 25 + Math.random() * 35, () => ({ points: generateRockPoints(20, 40) }));

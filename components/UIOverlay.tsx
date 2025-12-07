@@ -20,6 +20,7 @@ import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
 import { PlanetConstructionUI } from './ui/PlanetConstructionUI';
 import { PlanetaryYieldReport } from './ui/PlanetaryYieldReport';
 import { MissionFailedScreen } from './ui/MissionFailed';
+import { CampaignFailureScreen } from './ui/CampaignFailureScreen';
 import { ExtractionScreen } from './ui/ExtractionScreen';
 import { MissionSuccessScreen } from './ui/MissionSuccessScreen';
 import { GalacticEventModal } from './ui/GalacticEventModal';
@@ -71,7 +72,9 @@ const UIOverlay: React.FC = () => {
 
                 {/* Overlays */}
                 {state.isGameOver && (
-                    state.gameMode === GameMode.EXPLORATION ? (
+                    state.gameMode === GameMode.CAMPAIGN ? (
+                        <CampaignFailureScreen />
+                    ) : state.gameMode === GameMode.EXPLORATION ? (
                         <ExtractionScreen state={state} onEvac={() => engine.emergencyEvac()} />
                     ) : (
                         <MissionFailedScreen />

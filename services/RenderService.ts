@@ -6,7 +6,7 @@ import {
     renderStaticTerrainToCache, drawDynamicTerrainFeatures, drawCachedTerrain,
     drawBloodStains, drawToxicZones, drawTurret, 
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
-    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
+    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule,
     drawBase, drawTurretSpot, drawProjectilesBatch,
     drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
     isVisible, drawParticlesBatch
@@ -81,7 +81,8 @@ export class RenderService {
         // 1. Draw Space Terrain (Background) - Optimized Cache
         if (state.terrain !== this.lastTerrainRef) {
             // Regenerate cache if terrain reference changed (New planet or reset)
-            this.terrainCache = renderStaticTerrainToCache(state.terrain, state.gameMode, state.currentPlanet);
+            // Pass world dimensions to cache generator
+            this.terrainCache = renderStaticTerrainToCache(state.terrain, state.gameMode, state.currentPlanet, state.worldWidth, state.worldHeight);
             this.lastTerrainRef = state.terrain;
             // Also clear sprite cache on level change to free memory
             this.assetManager.clearCache();
@@ -107,7 +108,7 @@ export class RenderService {
         // Draw World Borders
         ctx.strokeStyle = '#4B5563';
         ctx.lineWidth = 5;
-        ctx.strokeRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        ctx.strokeRect(0, 0, state.worldWidth, state.worldHeight);
 
         // Draw Turret Spots
         state.turretSpots.forEach(spot => {
@@ -117,8 +118,11 @@ export class RenderService {
             }
         });
 
-        // Draw Base
+        // Draw Base(s)
         drawBase(ctx, state.base, state.settings.showShadows);
+        if (state.secondaryBase) {
+            drawBase(ctx, state.secondaryBase, state.settings.showShadows);
+        }
 
         // Draw Turrets
         state.turretSpots.forEach(spot => {
@@ -179,7 +183,7 @@ export class RenderService {
 
             ctx.rotate(e.angle);
 
-            if (useCachedSprites) {
+            if (useCachedSprites && e.type !== 'PUSTULE') {
                 const sprite = this.assetManager.getEnemySprite(e.type, e.bossType, e.color, e.radius);
                 const size = sprite.width;
                 const offset = size / 2;
@@ -200,6 +204,7 @@ export class RenderService {
                         case 'TANK': drawTank(ctx, e, time, lodLevel); break;
                         case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
                         case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
+                        case 'PUSTULE': drawPustule(ctx, e, time, lodLevel); break;
                     }
                 }
             }

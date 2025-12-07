@@ -21,6 +21,10 @@ export class PhysicsSystem {
         this.spatialGrid = new SpatialHashGrid<Enemy>(100);
     }
 
+    public resize(width: number, height: number) {
+        this.spatialGrid.resize(width, height);
+    }
+
     public update(dt: number) {
         this.updateSpatialHash();
         this.handleProjectileCollisions();
@@ -145,13 +149,23 @@ export class PhysicsSystem {
                     }
                 }
 
-                // 4. Vs Base
+                // 4. Vs Bases
                 if (!shouldRemove) {
+                    // Check primary base
                     const b = state.base;
-                    // Base is a Rectangle, p is a Circle
                     if (circleIntersectsAABB(p.x, p.y, p.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
+                        state.base.hp -= p.damage;
                         this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
                         shouldRemove = true;
+                    } 
+                    // Check secondary base
+                    else if (state.secondaryBase) {
+                        const sb = state.secondaryBase;
+                        if (circleIntersectsAABB(p.x, p.y, p.radius, sb.x - sb.width/2, sb.y - sb.height/2, sb.width, sb.height)) {
+                            state.secondaryBase.hp -= p.damage;
+                            this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
+                            shouldRemove = true;
+                        }
                     }
                 }
             }
@@ -175,11 +189,19 @@ export class PhysicsSystem {
                     continue; 
                 }
                 
-                // Check Collision with Base
+                // Check Collision with Bases
                 const b = state.base;
                 if (circleIntersectsAABB(enemy.x, enemy.y, enemy.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
                     this.triggerKamikazeExplosion(enemy);
                     continue;
+                }
+                
+                if (state.secondaryBase) {
+                    const sb = state.secondaryBase;
+                    if (circleIntersectsAABB(enemy.x, enemy.y, enemy.radius, sb.x - sb.width/2, sb.y - sb.height/2, sb.width, sb.height)) {
+                        this.triggerKamikazeExplosion(enemy);
+                        continue;
+                    }
                 }
 
                 // Check Collision with Allies

@@ -47,6 +47,8 @@ import {
   CANVAS_HEIGHT,
   WORLD_WIDTH,
   WORLD_HEIGHT,
+  CAMPAIGN_WIDTH,
+  CAMPAIGN_HEIGHT,
   INVENTORY_SIZE,
 } from '../constants';
 import {
@@ -276,8 +278,16 @@ export class GameEngine {
               case UserAction.SHOP: 
                   if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
                       const p = this.state.player;
-                      const dist = Math.sqrt(Math.pow(p.x - this.state.base.x, 2) + Math.pow(p.y - this.state.base.y, 2));
-                      if (dist < 300 || this.state.isShopOpen) { 
+                      const bases = [this.state.base];
+                      if (this.state.secondaryBase) bases.push(this.state.secondaryBase);
+                      
+                      let canOpen = false;
+                      for (const base of bases) {
+                          const dist = Math.sqrt(Math.pow(p.x - base.x, 2) + Math.pow(p.y - base.y, 2));
+                          if (dist < 300) { canOpen = true; break; }
+                      }
+
+                      if (canOpen || this.state.isShopOpen) { 
                           if (this.state.isShopOpen) this.closeShop(); 
                           else { this.state.isShopOpen = true; this.notifyUI('SHOP_OPEN'); }
                       }
@@ -318,13 +328,33 @@ export class GameEngine {
   }
   private persistSettings() { if (this.state && this.state.settings) localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings)); }
 
-  public reset(fullReset: boolean = false) {
-    const basePos = { x: WORLD_WIDTH / 2, y: WORLD_HEIGHT - 100 };
+  public reset(fullReset: boolean = false, mode: GameMode = GameMode.SURVIVAL) {
+    const isCampaign = mode === GameMode.CAMPAIGN;
+    
+    // Set Dimensions
+    const w = isCampaign ? CAMPAIGN_WIDTH : WORLD_WIDTH;
+    const h = isCampaign ? CAMPAIGN_HEIGHT : WORLD_HEIGHT;
+    
+    // Ensure Physics Grid matches the new world size
+    if (this.physics) {
+        this.physics.resize(w, h);
+    }
+    
+    let basePos = { x: w / 2, y: h - 100 };
+    let playerPos = { x: w / 2, y: h - 250 };
+    
+    // Campaign: Central Base, Symmetric Map
+    if (isCampaign) {
+        const cx = w / 2;
+        const cy = h / 2;
+        basePos = { x: cx, y: cy }; 
+        playerPos = { x: cx, y: cy + 150 };
+    }
+
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets();
     existingPlanets.forEach(p => { if (!p.buildings) p.buildings = []; });
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
     
-    // IMPORTANT: Preserve Snake Reward Status if not full reset, otherwise default to false
     const existingSpaceship = !fullReset && this.state?.spaceship ? this.state.spaceship : { 
         installedModules: [], 
         orbitalUpgradeTree: [], 
@@ -346,20 +376,53 @@ export class GameEngine {
 
     const initialWeapons: Record<string, WeaponState> = {};
     Object.values(WeaponType).forEach(type => { initialWeapons[type] = { type, ammoInMag: WEAPONS[type].magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; });
-    const initialTurretSpots = TURRET_POSITIONS.map((pos, idx) => ({ id: idx, x: basePos.x + pos.x, y: basePos.y + pos.y, }));
-    const terrain = generateTerrain(PlanetVisualType.BARREN, 'BARREN' as any);
+    
+    // Generate Turret Spots
+    let initialTurretSpots = [];
+    
+    if (isCampaign) {
+        // Symmetric 8 Spots for Campaign
+        const offsets = [
+            { x: 0, y: -180 }, { x: 0, y: 180 }, // Top, Bottom
+            { x: -220, y: 0 }, { x: 220, y: 0 }, // Left, Right
+            { x: -150, y: -150 }, { x: 150, y: -150 }, // Top Diagonals
+            { x: -150, y: 150 }, { x: 150, y: 150 }    // Bottom Diagonals
+        ];
+        initialTurretSpots = offsets.map((pos, idx) => ({ id: idx, x: basePos.x + pos.x, y: basePos.y + pos.y }));
+    } else {
+        // Default Survival/Exploration Spots
+        initialTurretSpots = TURRET_POSITIONS.map((pos, idx) => ({ id: idx, x: basePos.x + pos.x, y: basePos.y + pos.y }));
+    }
+
+    const terrain = generateTerrain(PlanetVisualType.BARREN, 'BARREN' as any, w, h);
     const sectorName = !fullReset && this.state?.sectorName ? this.state.sectorName : generateSectorName();
 
     this.state = {
-      appMode: AppMode.GAMEPLAY, gameMode: GameMode.SURVIVAL, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
+      appMode: AppMode.GAMEPLAY, gameMode: mode, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
+      worldWidth: w, worldHeight: h,
       camera: { x: 0, y: 0 },
-      player: { id: 'player', x: basePos.x, y: basePos.y - 150, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
+      player: { id: 'player', x: playerPos.x, y: playerPos.y, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
       base: { x: basePos.x, y: basePos.y, width: BASE_STATS.width, height: BASE_STATS.height, hp: BASE_STATS.maxHp, maxHp: BASE_STATS.maxHp, },
+      secondaryBase: undefined,
       terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [], activeSpecialEvent: SpecialEventType.NONE,
       wave: 1, waveTimeRemaining: 30000, waveDuration: 30000, spawnTimer: 0, enemiesPendingSpawn: 17, enemiesSpawnedInWave: 0, totalEnemiesInWave: 99999, lastAllySpawnTime: 0,
+      
+      pustuleTimer: 0,
+      nextPustuleSpawnTime: 65000 + Math.random() * 130000, // 65-195s
+
       isGameOver: false, missionComplete: false, isPaused: false, isTacticalMenuOpen: false, isInventoryOpen: false, isShopOpen: false, floatingTexts: [],
-      settings: currentSettings, stats: { shotsFired: 0, shotsHit: 0, damageDealt: 0, damageBySource: { [DamageSource.PLAYER]: 0, [DamageSource.TURRET]: 0, [DamageSource.ALLY]: 0, [DamageSource.ORBITAL]: 0, [DamageSource.ENEMY]: 0 }, killsByType: { [EnemyType.GRUNT]: 0, [EnemyType.RUSHER]: 0, [EnemyType.TANK]: 0, [EnemyType.KAMIKAZE]: 0, [EnemyType.VIPER]: 0, 'BOSS': 0 }, encounteredEnemies: [] }
+      settings: currentSettings, stats: { shotsFired: 0, shotsHit: 0, damageDealt: 0, damageBySource: { [DamageSource.PLAYER]: 0, [DamageSource.TURRET]: 0, [DamageSource.ALLY]: 0, [DamageSource.ORBITAL]: 0, [DamageSource.ENEMY]: 0 }, killsByType: { [EnemyType.GRUNT]: 0, [EnemyType.RUSHER]: 0, [EnemyType.TANK]: 0, [EnemyType.KAMIKAZE]: 0, [EnemyType.VIPER]: 0, [EnemyType.PUSTULE]: 0, 'BOSS': 0 }, encounteredEnemies: [] },
+      time: 0
     };
+
+    if (isCampaign) {
+        // Init campaign specific stats
+        this.state.waveTimeRemaining = 0; // Not used as wave timer
+        this.state.wave = 0;
+        this.state.enemiesPendingSpawn = 0;
+        this.state.base.maxHp *= 2; // Buff base for campaign
+        this.state.base.hp = this.state.base.maxHp;
+    }
 
     if (!fullReset) { if (this.spaceshipManager) this.spaceshipManager.registerModifiers(); }
     
@@ -404,6 +467,8 @@ export class GameEngine {
     // Fixed Time Step Logic (dt is always ~16.66ms)
     // Scale is 1.0 because we are running at target speed
     const timeScale = 1.0; 
+    
+    this.state.time += dt;
 
     // --- PHYSICS UPDATE (Centralized Collision) ---
     this.physics.update(dt);
@@ -435,8 +500,9 @@ export class GameEngine {
     // --- Camera Follow ---
     const targetCamX = this.state.player.x - CANVAS_WIDTH / 2;
     const targetCamY = this.state.player.y - CANVAS_HEIGHT / 2;
-    this.state.camera.x = Math.max(0, Math.min(targetCamX, WORLD_WIDTH - CANVAS_WIDTH));
-    this.state.camera.y = Math.max(0, Math.min(targetCamY, WORLD_HEIGHT - CANVAS_HEIGHT));
+    // Use state dimensions
+    this.state.camera.x = Math.max(0, Math.min(targetCamX, this.state.worldWidth - CANVAS_WIDTH));
+    this.state.camera.y = Math.max(0, Math.min(targetCamY, this.state.worldHeight - CANVAS_HEIGHT));
     
     // Update Audio Listener Position
     this.audio.updateCamera(this.state.camera.x, this.state.camera.y);
@@ -461,10 +527,19 @@ export class GameEngine {
   public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
   public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) { this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, { x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules }); }
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.eventBus.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x, y, color, count, speed }); }
-  public damageBase(amount: number) { this.state.base.hp -= amount; this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE', x: this.state.base.x, y: this.state.base.y }); if (this.state.base.hp <= 0) { this.state.isGameOver = true; this.state.isPaused = true; this.notifyUI('GAME_OVER'); } }
+  
+  public damageBase(amount: number) { 
+      this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE' }); 
+      
+      // Since Campaign no longer uses secondary base in this version, check logic is simpler.
+      if (this.state.base.hp <= 0) { 
+          this.state.isGameOver = true; 
+          this.state.isPaused = true; 
+          this.notifyUI('GAME_OVER'); 
+      } 
+  }
   
   public damageArea(x: number, y: number, radius: number, damage: number, source: DamageSource = DamageSource.PLAYER) {
-      // Replaced manual logic with Physics/Spatial query using shared physics system
       this.aoeCache.length = 0;
       this.physics.spatialGrid.query(x, y, radius, this.aoeCache);
       for (const e of this.aoeCache) {
@@ -503,8 +578,10 @@ export class GameEngine {
   public togglePin(id: string) { this.saveManager.togglePin(id); this.notifyUI('SAVE_PIN'); }
   public exportSave(id: string) { return this.saveManager.exportSaveString(id); }
   public importSave(json: string) { const res = this.saveManager.importSave(json); if(res) this.notifyUI('SAVE_IMPORT'); return res; }
-  public enterSurvivalMode() { this.reset(true); this.state.appMode = AppMode.GAMEPLAY; this.state.gameMode = GameMode.SURVIVAL; this.notifyUI('MODE_SWITCH'); }
-  public enterExplorationMode() { this.reset(true); this.state.appMode = AppMode.EXPLORATION_MAP; this.state.gameMode = GameMode.EXPLORATION; this.notifyUI('MODE_SWITCH'); }
+  public enterSurvivalMode() { this.reset(true, GameMode.SURVIVAL); this.notifyUI('MODE_SWITCH'); }
+  public enterExplorationMode() { this.reset(true, GameMode.EXPLORATION); this.notifyUI('MODE_SWITCH'); }
+  public enterCampaignMode() { this.reset(true, GameMode.CAMPAIGN); this.notifyUI('MODE_SWITCH'); }
+  
   public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
   public exitSpaceshipView() { this.state.appMode = AppMode.EXPLORATION_MAP; this.notifyUI('MODE_SWITCH'); }
   public enterOrbitalUpgradeMenu() { this.state.appMode = AppMode.ORBITAL_UPGRADES; this.notifyUI('MODE_SWITCH'); }
@@ -528,7 +605,7 @@ export class GameEngine {
   public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
   public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; } this.notifyUI('ASCEND'); }
   public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.notifyUI('EVAC'); }
-  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
+  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", this.state.player.x, this.state.player.y, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }

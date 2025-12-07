@@ -141,6 +141,19 @@ export const MainMenu: React.FC = () => {
                             ▲
                         </div>
                     </button>
+
+                    <button onClick={() => engine.enterCampaignMode()} className="group relative w-[420px] h-24 bg-slate-900/60 border-l-4 border-yellow-500/50 hover:border-yellow-400 transition-all flex items-center justify-between px-8 overflow-hidden backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                        <div className="absolute inset-0 bg-yellow-600/10 translate-x-[-100%] group-hover:translate-x-0 transition-transform duration-500"></div>
+                        
+                        <div className="relative z-10 flex flex-col items-start">
+                            <span className="text-4xl font-display font-bold text-white tracking-widest group-hover:text-yellow-100 transition-colors">{isCN ? "战役模式" : "CAMPAIGN"}</span>
+                            <span className="text-[10px] text-yellow-600 group-hover:text-yellow-300 font-mono uppercase tracking-[0.2em]">{isCN ? "双基地 // 边境防守" : "DUAL BASE // BORDER DEFENSE"}</span>
+                        </div>
+
+                        <div className="relative z-10 w-8 h-8 border border-yellow-800 flex items-center justify-center text-yellow-500 group-hover:bg-yellow-500 group-hover:text-black transition-all">
+                            ★
+                        </div>
+                    </button>
                 </div>
             </div>
 

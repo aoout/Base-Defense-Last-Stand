@@ -1,6 +1,6 @@
 
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
-import { Enemy, GameEventType, DamageSource } from '../../types';
+import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType } from '../../types';
 
 // Behavior for Grunt, Rusher, Tank
 export class StandardBehavior extends BaseEnemyBehavior {
@@ -63,5 +63,39 @@ export class ViperBehavior extends BaseEnemyBehavior {
         });
         events.emit(GameEventType.PLAY_SOUND, { type: 'VIPER_SHOOT' });
         enemy.lastAttackTime = time;
+    }
+}
+
+export class PustuleBehavior extends BaseEnemyBehavior {
+    public update(enemy: Enemy, context: AIContext): void {
+        // Stationary: No movement logic
+        
+        // Passive Melee Check (Thorns/Contact Damage) handled by PhysicsSystem 
+        // since Pustule has 30 damage. However, PhysicsSystem handles *movement* based collisions mainly.
+        // Or we can invoke melee check here against player/allies if they get too close.
+        const target = this.acquireTarget(enemy, context);
+        // Using performMeleeAttack triggers standard melee hit with sound
+        this.performMeleeAttack(enemy, target, context, 500);
+
+        // Summon Logic
+        const spawnInterval = enemy.bossSummonTimer || 15000;
+        
+        if (context.time - enemy.lastAttackTime > spawnInterval) {
+            enemy.lastAttackTime = context.time; // Reset timer
+            
+            // Spawn 2 Random Enemies
+            for (let i = 0; i < 2; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 50 + Math.random() * 30;
+                const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER];
+                const type = types[Math.floor(Math.random() * types.length)];
+                
+                context.events.emit<EnemySummonEvent>(GameEventType.ENEMY_SUMMON, {
+                    type: type,
+                    x: enemy.x + Math.cos(angle) * dist,
+                    y: enemy.y + Math.sin(angle) * dist
+                });
+            }
+        }
     }
 }

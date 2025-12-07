@@ -7,3 +7,4 @@ export * from './drawEnvironment';
 export * from './drawUnits';
 export * from './drawProjectiles';
 export * from './drawUI';
+export * from './drawTurretSpot';

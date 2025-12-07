@@ -26,6 +26,10 @@ export const HUD: React.FC = () => {
     const bossHpTextRef = useRef<HTMLSpanElement>(null);
     const enemiesRemainingRef = useRef<HTMLSpanElement>(null);
     
+    // Campaign Refs
+    const secHealthBarRef = useRef<HTMLDivElement>(null);
+    const secHealthTextRef = useRef<HTMLSpanElement>(null);
+
     // Lure Refs
     const lureContainerRef = useRef<HTMLDivElement>(null);
     const lureRewardRef = useRef<HTMLDivElement>(null);
@@ -35,6 +39,8 @@ export const HUD: React.FC = () => {
     const wepStats = WEAPONS[currentWeaponType];
 
     const isOffenseMode = state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE;
+    const isCampaign = state.gameMode === GameMode.CAMPAIGN;
+    
     const hiveMother = state.enemies.find(e => e.bossType === BossType.HIVE_MOTHER);
 
     // Defense Mode Logic
@@ -47,8 +53,8 @@ export const HUD: React.FC = () => {
                            state.waveTimeRemaining <= 0;
 
     // Theme Colors
-    const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
-    const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
+    const primaryColor = isOffenseMode ? 'border-red-600' : isCampaign ? 'border-yellow-600' : 'border-cyan-600';
+    const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : isCampaign ? 'shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
 
     // --- TRANSIENT UPDATE LOOP ---
     useGameLoop(() => {
@@ -60,6 +66,11 @@ export const HUD: React.FC = () => {
         // 1. Base Health
         if (healthBarRef.current) healthBarRef.current.style.width = `${Math.max(0, s.base.hp / s.base.maxHp * 100)}%`;
         if (healthTextRef.current) healthTextRef.current.innerText = `${Math.ceil(s.base.hp)} / ${s.base.maxHp}`;
+
+        if (s.secondaryBase && secHealthBarRef.current) {
+            secHealthBarRef.current.style.width = `${Math.max(0, s.secondaryBase.hp / s.secondaryBase.maxHp * 100)}%`;
+            if (secHealthTextRef.current) secHealthTextRef.current.innerText = `${Math.ceil(s.secondaryBase.hp)} / ${s.secondaryBase.maxHp}`;
+        }
 
         // 2. Scraps
         if (scrapTextRef.current) scrapTextRef.current.innerText = `${Math.floor(pl.score)}`;
@@ -77,18 +88,20 @@ export const HUD: React.FC = () => {
             ammoBarRef.current.style.width = `${pct * 100}%`;
         }
 
-        // 4. Wave Timer & Number
-        if (waveTimerRef.current) {
-            const sec = Math.ceil(s.waveTimeRemaining / 1000);
-            const fmt = `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
-            waveTimerRef.current.innerText = fmt;
-        }
-        if (waveProgressRef.current) {
-            const pct = s.waveTimeRemaining / s.waveDuration;
-            waveProgressRef.current.style.width = `${pct * 100}%`;
-        }
-        if (waveNumberRef.current) {
-            waveNumberRef.current.innerText = `${s.wave}`;
+        // 4. Wave Timer & Number (Disabled for Campaign)
+        if (!isCampaign) {
+            if (waveTimerRef.current) {
+                const sec = Math.ceil(s.waveTimeRemaining / 1000);
+                const fmt = `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
+                waveTimerRef.current.innerText = fmt;
+            }
+            if (waveProgressRef.current) {
+                const pct = s.waveTimeRemaining / s.waveDuration;
+                waveProgressRef.current.style.width = `${pct * 100}%`;
+            }
+            if (waveNumberRef.current) {
+                waveNumberRef.current.innerText = `${s.wave}`;
+            }
         }
 
         // 5. Boss HP
@@ -112,8 +125,8 @@ export const HUD: React.FC = () => {
             const isDef = s.gameMode === GameMode.SURVIVAL || (s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.DEFENSE);
             const noWaves = isDef && s.gameMode === GameMode.EXPLORATION && s.wave >= (s.currentPlanet?.totalWaves || 0);
             
-            // Show after 10 seconds if not game over/complete/offense/last wave
-            const showLure = !isOffense && elapsed >= 10000 && !noWaves && !s.missionComplete && !s.isGameOver;
+            // Show after 10 seconds if not game over/complete/offense/last wave/Campaign
+            const showLure = !isCampaign && !isOffense && elapsed >= 10000 && !noWaves && !s.missionComplete && !s.isGameOver;
 
             if (showLure) {
                 lureContainerRef.current.style.height = '3rem'; // h-12
@@ -188,6 +201,17 @@ export const HUD: React.FC = () => {
                                 <div className="text-red-500 font-mono text-sm animate-pulse">SEARCHING FOR TARGET...</div>
                             )}
                         </div>
+                    ) : isCampaign ? (
+                        /* CAMPAIGN MODE UI */
+                        <div className="flex flex-col items-center w-full z-10">
+                            <div className="flex justify-between w-full items-baseline border-b border-yellow-900/50 pb-1 mb-1">
+                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-yellow-500">CAMPAIGN OPS</span>
+                                <div className="text-[10px] font-mono text-yellow-600">FRONTIER DEFENSE</div>
+                            </div>
+                            <div className="text-lg font-mono text-yellow-100 mt-1">
+                                ACTIVE ZONES: 2
+                            </div>
+                        </div>
                     ) : (
                         /* DEFENSE MODE UI */
                         <div className="flex flex-col items-center w-full z-10">
@@ -229,39 +253,41 @@ export const HUD: React.FC = () => {
                 </div>
 
                 {/* --- THE LURE (SKIP BUTTON) --- */}
-                <div 
-                    ref={lureContainerRef}
-                    className="relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center h-0 opacity-0 -translate-y-4"
-                >
-                    <div className="w-24 flex justify-between px-2">
-                        <div className="w-1 h-3 bg-yellow-600/50"></div>
-                        <div className="w-1 h-3 bg-yellow-600/50"></div>
-                    </div>
-
-                    <button 
-                        onClick={() => engine.skipWave()}
-                        className="
-                            group relative bg-yellow-500/10 hover:bg-yellow-500/90 
-                            border-x border-b border-yellow-500 
-                            text-yellow-400 hover:text-black
-                            px-6 py-1 
-                            font-black text-xs tracking-[0.2em] uppercase
-                            transition-all cursor-pointer
-                            clip-path-trapezoid-bottom
-                            backdrop-blur-sm
-                        "
-                        style={{ clipPath: 'polygon(10% 0, 90% 0, 100% 100%, 0% 100%)' }}
+                {!isCampaign && (
+                    <div 
+                        ref={lureContainerRef}
+                        className="relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center h-0 opacity-0 -translate-y-4"
                     >
-                        <div className="flex items-center gap-2">
-                            <span className="animate-pulse">►►</span>
-                            <span>{t('SKIP_WAVE')}</span>
-                            <span className="animate-pulse">◄◄</span>
+                        <div className="w-24 flex justify-between px-2">
+                            <div className="w-1 h-3 bg-yellow-600/50"></div>
+                            <div className="w-1 h-3 bg-yellow-600/50"></div>
                         </div>
-                        <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
-                            REWARD: 0
-                        </div>
-                    </button>
-                </div>
+
+                        <button 
+                            onClick={() => engine.skipWave()}
+                            className="
+                                group relative bg-yellow-500/10 hover:bg-yellow-500/90 
+                                border-x border-b border-yellow-500 
+                                text-yellow-400 hover:text-black
+                                px-6 py-1 
+                                font-black text-xs tracking-[0.2em] uppercase
+                                transition-all cursor-pointer
+                                clip-path-trapezoid-bottom
+                                backdrop-blur-sm
+                            "
+                            style={{ clipPath: 'polygon(10% 0, 90% 0, 100% 100%, 0% 100%)' }}
+                        >
+                            <div className="flex items-center gap-2">
+                                <span className="animate-pulse">►►</span>
+                                <span>{t('SKIP_WAVE')}</span>
+                                <span className="animate-pulse">◄◄</span>
+                            </div>
+                            <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
+                                REWARD: 0
+                            </div>
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Top Right: Resource Monitor */}
@@ -279,7 +305,7 @@ export const HUD: React.FC = () => {
             </div>
 
             {/* Bottom Left: Integrity Monitor */}
-            <div className="absolute bottom-8 left-8 w-64">
+            <div className="absolute bottom-8 left-8 w-64 flex flex-col gap-4">
                 <div className="flex items-end gap-2 mb-2">
                     <span className="text-4xl font-display font-black text-white/20 select-none">BASE</span>
                     <div className="h-px bg-white/20 flex-1 mb-2"></div>
@@ -287,7 +313,7 @@ export const HUD: React.FC = () => {
                 
                 <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                     <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
-                        <span className="text-blue-400">STRUCTURE</span>
+                        <span className="text-blue-400">{isCampaign ? "PRIMARY" : "STRUCTURE"}</span>
                         <span ref={healthTextRef} className="text-white">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
                     </div>
                     {/* Health Bar */}
@@ -301,6 +327,25 @@ export const HUD: React.FC = () => {
                     {/* Background Grid */}
                     <div className="absolute inset-0 bg-[size:10px_10px] bg-[linear-gradient(to_right,#1e3a8a1a_1px,transparent_1px),linear-gradient(to_bottom,#1e3a8a1a_1px,transparent_1px)] pointer-events-none"></div>
                 </div>
+
+                {state.secondaryBase && (
+                    <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
+                        <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
+                            <span className="text-blue-400">SECONDARY</span>
+                            <span ref={secHealthTextRef} className="text-white">{Math.ceil(state.secondaryBase.hp)} / {state.secondaryBase.maxHp}</span>
+                        </div>
+                        {/* Health Bar */}
+                        <div className="w-full h-3 bg-slate-800 relative z-10">
+                            <div 
+                                ref={secHealthBarRef}
+                                className={`h-full transition-all duration-300 bg-blue-500`} 
+                                style={{ width: `${Math.max(0, state.secondaryBase.hp / state.secondaryBase.maxHp * 100)}%` }}
+                            ></div>
+                        </div>
+                        {/* Background Grid */}
+                        <div className="absolute inset-0 bg-[size:10px_10px] bg-[linear-gradient(to_right,#1e3a8a1a_1px,transparent_1px),linear-gradient(to_bottom,#1e3a8a1a_1px,transparent_1px)] pointer-events-none"></div>
+                    </div>
+                )}
             </div>
 
             {/* Bottom Right: Weapon Systems */}

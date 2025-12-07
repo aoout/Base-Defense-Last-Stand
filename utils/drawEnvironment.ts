@@ -1,14 +1,14 @@
 
-import { TerrainFeature, TerrainType, Planet, GameMode, BiomeType, TurretSpot, PlanetVisualType, MissionType } from '../types';
+import { TerrainFeature, TerrainType, Planet, GameMode, BiomeType, PlanetVisualType, MissionType } from '../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES } from '../data/world';
 import { pRand, isVisible } from './drawHelpers';
 
 // New Optimization: Render static terrain to an off-screen canvas once
-export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null): HTMLCanvasElement => {
+export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): HTMLCanvasElement => {
     const canvas = document.createElement('canvas');
-    canvas.width = WORLD_WIDTH;
-    canvas.height = WORLD_HEIGHT;
+    canvas.width = width;
+    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
@@ -19,14 +19,14 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
 
     // 1. Ground Color
     ctx.fillStyle = style.groundColor; 
-    ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    ctx.fillRect(0, 0, width, height);
 
     // 2. Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    for(let i=0; i<WORLD_WIDTH; i+=200) { ctx.moveTo(i,0); ctx.lineTo(i, WORLD_HEIGHT); }
-    for(let i=0; i<WORLD_HEIGHT; i+=200) { ctx.moveTo(0,i); ctx.lineTo(WORLD_WIDTH, i); }
+    for(let i=0; i<width; i+=200) { ctx.moveTo(i,0); ctx.lineTo(i, height); }
+    for(let i=0; i<height; i+=200) { ctx.moveTo(0,i); ctx.lineTo(width, i); }
     ctx.stroke();
 
     // 3. Static Features
@@ -139,7 +139,7 @@ export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: 
 
     if (style.atmosphereColor !== 'rgba(0,0,0,0)') {
         ctx.fillStyle = style.atmosphereColor;
-        ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+        ctx.fillRect(0, 0, width, height);
     }
 
     return canvas;
@@ -225,20 +225,6 @@ export const drawDynamicTerrainFeatures = (ctx: CanvasRenderingContext2D, terrai
 export const drawCachedTerrain = (ctx: CanvasRenderingContext2D, cache: HTMLCanvasElement) => {
     ctx.drawImage(cache, 0, 0);
 };
-
-export const drawTurretSpot = (ctx: CanvasRenderingContext2D, spot: TurretSpot, time: number) => {
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-    ctx.beginPath();
-    ctx.arc(spot.x, spot.y, 15, 0, Math.PI*2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.stroke();
-    const pulse = (Math.sin(time * 0.005) + 1) * 0.5;
-    ctx.fillStyle = `rgba(16, 185, 129, ${pulse * 0.3})`;
-    ctx.beginPath();
-    ctx.arc(spot.x, spot.y, 10, 0, Math.PI*2);
-    ctx.fill();
-}
 
 export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, x: number, y: number, radius: number, time: number, isSelected: boolean) => {
     ctx.save();

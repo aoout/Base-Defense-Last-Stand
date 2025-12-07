@@ -1,6 +1,6 @@
 
 import { WeaponType, ModuleType, DefenseUpgradeType, GameState, Projectile, DamageSource, GameEventType, SpawnProjectileEvent, PlaySoundEvent, PlayerSwitchWeaponEvent, PlayerReloadEvent, UserAction, StatId } from '../../types';
-import { WEAPONS, PLAYER_STATS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
+import { WEAPONS, PLAYER_STATS } from '../../constants';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
@@ -24,7 +24,8 @@ export class PlayerManager {
     }
 
     public update(dt: number, time: number, timeScale: number) {
-        const p = this.getState().player;
+        const state = this.getState();
+        const p = state.player;
         const input = this.input;
 
         // 1. Movement
@@ -39,12 +40,12 @@ export class PlayerManager {
             p.x += (dx/len) * p.speed * timeScale;
             p.y += (dy/len) * p.speed * timeScale;
             
-            p.x = Math.max(0, Math.min(WORLD_WIDTH, p.x));
-            p.y = Math.max(0, Math.min(WORLD_HEIGHT, p.y));
+            p.x = Math.max(0, Math.min(state.worldWidth, p.x));
+            p.y = Math.max(0, Math.min(state.worldHeight, p.y));
         }
 
         // 2. Aiming
-        const camera = this.getState().camera;
+        const camera = state.camera;
         p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
         p.isAiming = input.isActive(UserAction.ALT_FIRE);
 

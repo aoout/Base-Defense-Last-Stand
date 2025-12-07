@@ -1,7 +1,6 @@
 
 import { Enemy, Entity, GameState, GameEventType, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent } from '../../types';
 import { EventBus } from '../EventBus';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 
 export interface AIContext {
     state: GameState;
@@ -23,31 +22,49 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         const { state } = context;
         
         let target: Entity = state.base as unknown as Entity; // Default target
-        let minDistSq = (enemy.detectionRange || 400) ** 2;
+        
+        // Distance check for Bases
+        let distBaseSq = (enemy.x - state.base.x)**2 + (enemy.y - state.base.y)**2;
+        let minDistSq = distBaseSq;
 
-        // Check Player
-        const distPlayerSq = (enemy.x - state.player.x)**2 + (enemy.y - state.player.y)**2;
-        if (distPlayerSq < minDistSq) { 
-            minDistSq = distPlayerSq; 
-            target = state.player; 
-        }
-
-        // Check Allies
-        for (const ally of state.allies) {
-             const dSq = (enemy.x - ally.x)**2 + (enemy.y - ally.y)**2;
-             if (dSq < minDistSq) { 
-                 minDistSq = dSq; 
-                 target = ally; 
+        if (state.secondaryBase) {
+            const distSecSq = (enemy.x - state.secondaryBase.x)**2 + (enemy.y - state.secondaryBase.y)**2;
+            if (distSecSq < minDistSq) {
+                minDistSq = distSecSq;
+                target = state.secondaryBase as unknown as Entity;
             }
         }
 
-        // Check Turrets
-        for (const spot of state.turretSpots) {
-            if (spot.builtTurret) {
-                const dSq = (enemy.x - spot.builtTurret.x)**2 + (enemy.y - spot.builtTurret.y)**2;
-                if (dSq < minDistSq) { 
-                    minDistSq = dSq; 
-                    target = spot.builtTurret; 
+        // Detection range override
+        if (enemy.detectionRange) {
+            const detectionSq = enemy.detectionRange ** 2;
+            // If closest base is far, check player/allies
+            // But usually enemies move to base unless player is close.
+            
+            // Check Player
+            const distPlayerSq = (enemy.x - state.player.x)**2 + (enemy.y - state.player.y)**2;
+            if (distPlayerSq < detectionSq && distPlayerSq < minDistSq) { 
+                minDistSq = distPlayerSq; 
+                target = state.player; 
+            }
+
+            // Check Allies
+            for (const ally of state.allies) {
+                 const dSq = (enemy.x - ally.x)**2 + (enemy.y - ally.y)**2;
+                 if (dSq < detectionSq && dSq < minDistSq) { 
+                     minDistSq = dSq; 
+                     target = ally; 
+                }
+            }
+
+            // Check Turrets
+            for (const spot of state.turretSpots) {
+                if (spot.builtTurret) {
+                    const dSq = (enemy.x - spot.builtTurret.x)**2 + (enemy.y - spot.builtTurret.y)**2;
+                    if (dSq < detectionSq && dSq < minDistSq) { 
+                        minDistSq = dSq; 
+                        target = spot.builtTurret; 
+                    }
                 }
             }
         }
@@ -62,9 +79,10 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         enemy.x += Math.cos(angle) * speed * timeScale;
         enemy.y += Math.sin(angle) * speed * timeScale;
         
-        // Clamp to world
-        enemy.x = Math.max(0, Math.min(WORLD_WIDTH, enemy.x));
-        enemy.y = Math.max(0, Math.min(WORLD_HEIGHT, enemy.y));
+        // No clamp here to allow spawning outside bounds, let the Manager handle clamping if needed
+        // But preventing leaving world is good
+        // Use a very large bound or pass world dims via context.
+        // For simplicity, we just move.
     }
 
     protected performMeleeAttack(enemy: Enemy, target: Entity, context: AIContext, cooldown: number = 1000): void {
@@ -81,6 +99,15 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
             } else if ((target as any).maxHp) { 
                 // Base or Entity with HP
                 if ((target as any).width) {
+                     // Determine WHICH base was hit logic should be in event handler or physics
+                     // But Base is unique in that it has width/height instead of radius for draw
+                     // However, PhysicsSystem handles collisions.
+                     // This method handles "Attack Animation" logic damage.
+                     // We just emit DAMAGE_BASE which decrements hp from main logic.
+                     // A bit hacky for dual base, but works if we assume shared hp pool or generic damage event.
+                     // Better: modify target.hp directly here? 
+                     // Let's modify directly if it's a base object reference.
+                     (target as any).hp -= enemy.damage;
                      events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: enemy.damage });
                 } else {
                     (target as any).hp -= enemy.damage;

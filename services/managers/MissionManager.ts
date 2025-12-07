@@ -1,7 +1,7 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, SpecialEventType, FloatingTextType, StatId } from '../../types';
-import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
+import { GameMode, MissionType, SpecialEventType, FloatingTextType, StatId, EnemyType } from '../../types';
+import { selectEnemyType } from '../../utils/enemyUtils';
 
 export class MissionManager {
     private engine: GameEngine;
@@ -17,6 +17,79 @@ export class MissionManager {
 
         // Offense Mode (No waves, just boss)
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE) {
+            return;
+        }
+
+        // Campaign Mode Logic
+        if (state.gameMode === GameMode.CAMPAIGN) {
+            state.spawnTimer += dt;
+            state.pustuleTimer += dt;
+            
+            // Spawn normal enemies every 30 seconds
+            if (state.spawnTimer >= 30000) {
+                state.spawnTimer = 0;
+                
+                // Spawn 15 enemies
+                for(let i=0; i<15; i++) {
+                    // Random border spawn
+                    let x, y;
+                    const side = Math.floor(Math.random() * 4);
+                    const w = state.worldWidth;
+                    const h = state.worldHeight;
+                    
+                    if (side === 0) { // Top
+                        x = Math.random() * w;
+                        y = 0;
+                    } else if (side === 1) { // Right
+                        x = w;
+                        y = Math.random() * h;
+                    } else if (side === 2) { // Bottom
+                        x = Math.random() * w;
+                        y = h;
+                    } else { // Left
+                        x = 0;
+                        y = Math.random() * h;
+                    }
+                    
+                    // Random type (no scaling for now, just random mix or based on some flat logic)
+                    const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER];
+                    const type = types[Math.floor(Math.random() * types.length)];
+                    
+                    this.engine.enemyManager.spawnSpecificEnemy(type, x, y);
+                }
+                
+                this.engine.addMessage("HOSTILE DETECTED ON PERIMETER", state.player.x, state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
+            }
+
+            // Pustule Spawning Logic
+            if (state.pustuleTimer >= state.nextPustuleSpawnTime) {
+                state.pustuleTimer = 0;
+                state.nextPustuleSpawnTime = 65000 + Math.random() * 130000; // 65-195s
+
+                // Find valid position > 1000 units from base
+                let validPos = false;
+                let px = 0, py = 0;
+                let attempts = 0;
+                const minDistSq = 1000 * 1000;
+                const bx = state.base.x;
+                const by = state.base.y;
+
+                while (!validPos && attempts < 20) {
+                    px = Math.random() * (state.worldWidth - 200) + 100;
+                    py = Math.random() * (state.worldHeight - 200) + 100;
+                    const distSq = (px - bx)**2 + (py - by)**2;
+                    if (distSq > minDistSq) {
+                        validPos = true;
+                    }
+                    attempts++;
+                }
+
+                if (validPos) {
+                    this.engine.enemyManager.spawnPustule(px, py);
+                    this.engine.addMessage(this.engine.t('BOSS_DETECTED'), px, py, '#a3e635', FloatingTextType.SYSTEM);
+                }
+            }
+
             return;
         }
 
@@ -78,16 +151,16 @@ export class MissionManager {
             if (roll < 0.3) {
                 state.activeSpecialEvent = SpecialEventType.FRENZY;
                 isFrenzy = true;
-                this.engine.addMessage(this.engine.t('FRENZY_DETECTED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red', FloatingTextType.SYSTEM);
+                this.engine.addMessage(this.engine.t('FRENZY_DETECTED'), state.worldWidth/2, state.worldHeight/2, 'red', FloatingTextType.SYSTEM);
             } else {
                 if (state.gameMode === GameMode.SURVIVAL || (state.currentPlanet?.missionType === MissionType.DEFENSE)) {
                     state.activeSpecialEvent = SpecialEventType.BOSS;
                     this.engine.enemyManager.spawnBoss(); 
-                    this.engine.addMessage(this.engine.t('BOSS_DETECTED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'purple', FloatingTextType.SYSTEM);
+                    this.engine.addMessage(this.engine.t('BOSS_DETECTED'), state.worldWidth/2, state.worldHeight/2, 'purple', FloatingTextType.SYSTEM);
                 }
             }
         } else {
-            this.engine.addMessage(this.engine.t('WAVE_STARTED', {0: state.wave}), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'yellow', FloatingTextType.SYSTEM);
+            this.engine.addMessage(this.engine.t('WAVE_STARTED', {0: state.wave}), state.worldWidth/2, state.worldHeight/2, 'yellow', FloatingTextType.SYSTEM);
         }
 
         // Enemy Count Scaling
