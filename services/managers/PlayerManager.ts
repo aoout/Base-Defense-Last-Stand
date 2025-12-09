@@ -1,9 +1,9 @@
-
-import { WeaponType, ModuleType, DefenseUpgradeType, GameState, Projectile, DamageSource, GameEventType, SpawnProjectileEvent, PlaySoundEvent, PlayerSwitchWeaponEvent, PlayerReloadEvent, UserAction, StatId } from '../../types';
-import { WEAPONS, PLAYER_STATS, INITIAL_AMMO } from '../../data/registry';
+import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
+import { UserAction } from '../../types';
+import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 
 export class PlayerManager {
     private getState: () => GameState;
@@ -11,257 +11,221 @@ export class PlayerManager {
     private input: InputManager;
     private stats: StatManager;
 
-    constructor(getState: () => GameState, eventBus: EventBus, inputManager: InputManager, statManager: StatManager) {
+    constructor(getState: () => GameState, eventBus: EventBus, input: InputManager, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
-        this.input = inputManager;
+        this.input = input;
         this.stats = statManager;
 
-        // Subscribe to Input Events
-        this.events.on<PlayerSwitchWeaponEvent>(GameEventType.PLAYER_SWITCH_WEAPON, (e) => this.switchWeapon(e.index));
-        this.events.on<PlayerReloadEvent>(GameEventType.PLAYER_RELOAD, (e) => this.reloadWeapon(e.time));
+        this.events.on(GameEventType.PLAYER_SWITCH_WEAPON, (e: any) => this.switchWeapon(e.index));
+        this.events.on(GameEventType.PLAYER_RELOAD, (e: any) => this.reload(e.time));
         this.events.on(GameEventType.PLAYER_THROW_GRENADE, () => this.throwGrenade());
     }
 
     public update(dt: number, time: number, timeScale: number) {
         const state = this.getState();
         const p = state.player;
-        const input = this.input;
 
-        // 1. Movement
-        let dx = 0; let dy = 0;
-        if (input.isActive(UserAction.MOVE_UP)) dy -= 1;
-        if (input.isActive(UserAction.MOVE_DOWN)) dy += 1;
-        if (input.isActive(UserAction.MOVE_LEFT)) dx -= 1;
-        if (input.isActive(UserAction.MOVE_RIGHT)) dx += 1;
-        
+        if (p.hp <= 0) return;
+
+        // Movement
+        let dx = 0;
+        let dy = 0;
+        if (this.input.isActive(UserAction.MOVE_UP)) dy -= 1;
+        if (this.input.isActive(UserAction.MOVE_DOWN)) dy += 1;
+        if (this.input.isActive(UserAction.MOVE_LEFT)) dx -= 1;
+        if (this.input.isActive(UserAction.MOVE_RIGHT)) dx += 1;
+
         if (dx !== 0 || dy !== 0) {
-            const len = Math.sqrt(dx*dx + dy*dy);
-            p.x += (dx/len) * p.speed * timeScale;
-            p.y += (dy/len) * p.speed * timeScale;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            // Apply speed stat
             
+            p.x += (dx / length) * p.speed * timeScale;
+            p.y += (dy / length) * p.speed * timeScale;
+
+            // Clamp
             p.x = Math.max(0, Math.min(state.worldWidth, p.x));
             p.y = Math.max(0, Math.min(state.worldHeight, p.y));
         }
 
-        // 2. Aiming
-        const camera = state.camera;
-        p.angle = Math.atan2(input.mouse.y - (p.y - camera.y), input.mouse.x - (p.x - camera.x));
-        p.isAiming = input.isActive(UserAction.ALT_FIRE);
+        // Aiming
+        const angle = Math.atan2(this.input.mouse.y - p.y + state.camera.y, this.input.mouse.x - p.x + state.camera.x);
+        p.angle = angle;
+        
+        // Scope
+        p.isAiming = this.input.isActive(UserAction.ALT_FIRE);
 
-        // 3. Combat / Weapon Logic
-        this.updateWeapons(dt, time);
+        // Firing
+        if (this.input.isActive(UserAction.FIRE)) {
+            this.fireWeapon(time);
+        }
 
-        // 4. Regeneration Logic
-        if (time - p.lastHitTime > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
+        // Reload Logic
+        const currentWeaponType = p.loadout[p.currentWeaponIndex];
+        const weaponState = p.weapons[currentWeaponType];
+        const weaponStats = WEAPONS[currentWeaponType];
+
+        if (weaponState.reloading) {
+            if (time - weaponState.reloadStartTime >= weaponStats.reloadTime) {
+                this.finishReload(weaponState, weaponStats);
+            }
+        }
+
+        // Regen
+        this.updateRegen(dt, time);
+    }
+
+    private updateRegen(dt: number, time: number) {
+        const state = this.getState();
+        const p = state.player;
+        const timeSinceHit = time - p.lastHitTime;
+
+        // Armor Regen
+        if (timeSinceHit > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
             p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
         }
-        
-        if (time - p.lastHitTime > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
+
+        // HP Regen (slower)
+        if (timeSinceHit > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
             p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate * dt);
         }
     }
 
-    private updateWeapons(dt: number, time: number) {
-        const p = this.getState().player;
-        const currentWep = p.loadout[p.currentWeaponIndex];
+    private fireWeapon(time: number) {
+        const state = this.getState();
+        const p = state.player;
+        const weaponType = p.loadout[p.currentWeaponIndex];
+        const wState = p.weapons[weaponType];
+        const wStats = WEAPONS[weaponType];
+
+        if (wState.reloading || time - wState.lastFireTime < wStats.fireRate) return;
+
+        if (wState.ammoInMag <= 0) {
+            this.reload(time);
+            return;
+        }
+
+        // Fire
+        wState.ammoInMag--;
+        wState.lastFireTime = time;
+        this.events.emit(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: weaponType, x: p.x, y: p.y });
+
+        // Calculate Projectile Properties
+        // Spread
+        const spread = p.isAiming ? wStats.spread * 0.5 : wStats.spread;
         
-        // Safety: Auto-recover missing weapon state (e.g. from bad save data)
-        if (!p.weapons[currentWep]) {
-            console.warn(`Recovering missing weapon state for: ${currentWep}`);
-            p.weapons[currentWep] = {
-                type: currentWep,
-                ammoInMag: WEAPONS[currentWep].magSize,
-                ammoReserve: INITIAL_AMMO[currentWep],
-                lastFireTime: 0,
-                reloading: false,
-                reloadStartTime: 0,
-                modules: [],
-                consecutiveShots: 0
-            };
-        }
-
-        const wepState = p.weapons[currentWep];
-        const wepStats = WEAPONS[currentWep];
-
-        if (!wepState || !wepStats) return;
-
-        // Ensure Pistol is infinite
-        if (currentWep === WeaponType.PISTOL && wepState.ammoReserve !== Infinity) {
-            wepState.ammoReserve = Infinity;
-        }
-
-        // Reload Logic
-        if (wepState.reloading) {
-            let reloadTime = wepStats.reloadTime;
-            if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) {
-                reloadTime *= 0.8;
-            }
-
-            if (time - wepState.reloadStartTime > reloadTime) {
-                wepState.reloading = false;
-                const needed = wepStats.magSize - wepState.ammoInMag;
-                if (wepState.ammoReserve === Infinity) {
-                    wepState.ammoInMag = wepStats.magSize;
-                } else {
-                    const toLoad = Math.min(needed, wepState.ammoReserve);
-                    wepState.ammoInMag += toLoad;
-                    wepState.ammoReserve -= toLoad;
-                }
-            }
-        } 
-        // Firing Logic
-        else if (this.input.isActive(UserAction.FIRE)) {
-            if (wepState.ammoInMag <= 0) {
-                this.reloadWeapon(time);
-            } else if (time - wepState.lastFireTime > wepStats.fireRate) {
-                 this.fireWeapon(time, p, wepState, wepStats);
-            }
-        } else {
-            if (time - wepState.lastFireTime > 500) wepState.consecutiveShots = 0;
-        }
-    }
-
-    private fireWeapon(time: number, p: any, wepState: any, wepStats: any) {
-        let dmgMult = 1;
-        let fireRateMod = 1;
-        
-        // Apply Modules
-        if (wepState.modules.some((m: any) => m.type === ModuleType.GEL_BARREL)) dmgMult += 0.4;
-        if (wepState.modules.some((m: any) => m.type === ModuleType.MICRO_RUPTURER)) dmgMult += 0.6;
-        if (wepState.modules.some((m: any) => m.type === ModuleType.TENSION_SPRING)) dmgMult += 0.2;
-
-        if (wepState.modules.some((m: any) => m.type === ModuleType.PRESSURIZED_BOLT)) {
-            wepState.consecutiveShots = Math.min(5, wepState.consecutiveShots + 1);
-            fireRateMod = 1 / (1 + wepState.consecutiveShots * 0.1);
-        } else {
-            wepState.consecutiveShots = 0;
-        }
-
-        // Base damage including modules
-        let baseDmg = wepStats.damage * dmgMult;
-        
-        // Apply Global Damage Buffs (Carapace Row Bonuses, Bio Buffs, Modules)
-        // StatManager query for PLAYER_DAMAGE
-        const finalDmg = this.stats.get(StatId.PLAYER_DAMAGE, baseDmg);
-
-        const type = wepState.type; 
-
-        if (time - wepState.lastFireTime > wepStats.fireRate * fireRateMod) {
-            if (type === WeaponType.SG) {
-                const pellets = wepStats.pellets || 8;
-                for(let i=0; i<pellets; i++) {
-                    this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, wepState.modules);
-                }
-            } else if (type === WeaponType.FLAMETHROWER) {
-                this.firePlayerProjectile(p.x, p.y, p.angle + (Math.random()-0.5)*wepStats.spread, finalDmg, wepStats, type, wepState.modules);
-            } else {
-                this.firePlayerProjectile(p.x, p.y, p.angle, finalDmg, wepStats, type, wepState.modules);
-            }
+        const spawnProjectile = (angleOffset: number = 0) => {
+            const finalAngle = p.angle + (Math.random() - 0.5) * spread + angleOffset;
+            const targetX = p.x + Math.cos(finalAngle) * 1000;
+            const targetY = p.y + Math.sin(finalAngle) * 1000;
             
-            wepState.ammoInMag--;
-            wepState.lastFireTime = time;
-            this.getState().stats.shotsFired++;
-            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: type, x: p.x, y: p.y });
-        }
-    }
-
-    private firePlayerProjectile(x: number, y: number, angle: number, dmg: number, stats: any, type: WeaponType, modules: any[]) {
-        const speed = stats.projectileSpeed;
-        
-        let color = '#FBBF24'; 
-        if (type === WeaponType.SG) color = '#FCD34D';
-        if (type === WeaponType.SR) color = '#FFFFFF';
-        if (type === WeaponType.PULSE_RIFLE) color = '#22D3EE';
-        if (type === WeaponType.FLAMETHROWER) color = '#F97316';
-        if (type === WeaponType.GRENADE_LAUNCHER) color = '#1F2937';
-        
-        const dist = 1000;
-        const targetX = x + Math.cos(angle) * dist;
-        const targetY = y + Math.sin(angle) * dist;
-
-        const spawnX = x + Math.cos(angle) * 20;
-        const spawnY = y + Math.sin(angle) * 20;
-
-        this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-            x: spawnX, 
-            y: spawnY, 
-            targetX, 
-            targetY, 
-            speed, 
-            damage: dmg, 
-            fromPlayer: true, 
-            color, 
-            maxRange: stats.range, 
-            source: DamageSource.PLAYER,
-            activeModules: modules
-        });
-    }
-
-    public reloadWeapon(time: number) {
-        const p = this.getState().player;
-        const w = p.weapons[p.loadout[p.currentWeaponIndex]];
-        
-        if (w && !w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
-            if (w.ammoReserve > 0 || w.ammoReserve === Infinity) {
-                w.reloading = true;
-                w.reloadStartTime = time;
-                // Emit Reload Sound
-                this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'RELOAD', variant: w.type, x: p.x, y: p.y });
-            }
-        }
-    }
-
-    public switchWeapon(index: number) {
-        if (index >= 0 && index < 4) {
-            this.getState().player.currentWeaponIndex = index;
-            const p = this.getState().player;
-            const newWep = p.loadout[index];
+            // Damage calculation
+            let damage = this.stats.get(StatId.PLAYER_DAMAGE, wStats.damage); // Apply global damage mods
             
-            // Immediate Safety Check to prevent render crash before next update
-            if (!p.weapons[newWep]) {
-                 console.warn(`Recovering missing weapon state on switch: ${newWep}`);
-                 p.weapons[newWep] = {
-                    type: newWep,
-                    ammoInMag: WEAPONS[newWep].magSize,
-                    ammoReserve: INITIAL_AMMO[newWep],
-                    lastFireTime: 0,
-                    reloading: false,
-                    reloadStartTime: 0,
-                    modules: [],
-                    consecutiveShots: 0
-                };
-            }
-
-            Object.values(p.weapons).forEach(w => { if(w) w.reloading = false; });
-        }
-    }
-
-    public throwGrenade() {
-        const p = this.getState().player;
-        if (p.grenades > 0) {
-            p.grenades--;
-            const targetX = p.x + Math.cos(p.angle) * 300;
-            const targetY = p.y + Math.sin(p.angle) * 300;
-            
-            // Grenade damage could also be boosted by stats
-            const dmg = this.stats.get(StatId.PLAYER_DAMAGE, PLAYER_STATS.grenadeDamage);
+            // Module Bonuses
+            wState.modules.forEach(m => {
+                if (m.type === ModuleType.GEL_BARREL) damage *= 1.4;
+                if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
+                // Tension spring handled in reload/damage
+                if (m.type === ModuleType.TENSION_SPRING) damage *= 1.2;
+            });
 
             this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-                x: p.x, 
-                y: p.y, 
-                targetX, 
-                targetY, 
-                speed: 12, 
-                damage: dmg, 
-                fromPlayer: true, 
-                color: '#f97316', 
-                maxRange: 1000, 
+                x: p.x,
+                y: p.y,
+                targetX,
+                targetY,
+                speed: wStats.projectileSpeed,
+                damage,
+                fromPlayer: true,
+                color: weaponType === WeaponType.PULSE_RIFLE ? '#22d3ee' : '#fbbf24', // Cyan or Yellow
+                maxRange: wStats.range,
                 source: DamageSource.PLAYER,
-                isExplosive: true // Fix for AOE
+                activeModules: wState.modules,
+                isPiercing: wStats.isPiercing,
+                isExplosive: wStats.isExplosive
             });
+        };
+
+        if (wStats.pellets) {
+            for (let i = 0; i < wStats.pellets; i++) {
+                spawnProjectile();
+            }
+        } else {
+            spawnProjectile();
+        }
+    }
+
+    private reload(time: number) {
+        const state = this.getState();
+        const p = state.player;
+        const weaponType = p.loadout[p.currentWeaponIndex];
+        const wState = p.weapons[weaponType];
+        const wStats = WEAPONS[weaponType];
+
+        if (wState.reloading || wState.ammoInMag >= wStats.magSize) return;
+        if (wState.ammoReserve <= 0 && wState.ammoReserve !== Infinity) {
+            this.events.emit(GameEventType.SHOW_FLOATING_TEXT, { text: "NO AMMO", x: p.x, y: p.y - 50, color: 'red', type: FloatingTextType.SYSTEM });
+            return;
+        }
+
+        wState.reloading = true;
+        
+        // Calculate Reload Time with Modules
+        let reloadTime = wStats.reloadTime;
+        if (wState.modules.some(m => m.type === ModuleType.TENSION_SPRING)) {
+            reloadTime *= 0.8;
+        }
+
+        wState.reloadStartTime = time;
+        this.events.emit(GameEventType.PLAY_SOUND, { type: 'RELOAD', variant: weaponType, x: p.x, y: p.y });
+    }
+
+    private finishReload(wState: any, wStats: any) {
+        const needed = wStats.magSize - wState.ammoInMag;
+        const available = wState.ammoReserve === Infinity ? needed : Math.min(needed, wState.ammoReserve);
+        
+        wState.ammoInMag += available;
+        if (wState.ammoReserve !== Infinity) {
+            wState.ammoReserve -= available;
+        }
+        wState.reloading = false;
+    }
+
+    private switchWeapon(index: number) {
+        const p = this.getState().player;
+        if (p.currentWeaponIndex !== index) {
+            p.weapons[p.loadout[p.currentWeaponIndex]].reloading = false; // Cancel reload
+            p.currentWeaponIndex = index;
+            // Play equip sound?
+        }
+    }
+
+    private throwGrenade() {
+        const state = this.getState();
+        const p = state.player;
+        if (p.grenades > 0) {
+            p.grenades--;
+            this.events.emit(GameEventType.PLAY_SOUND, { type: 'GRENADE_THROW', x: p.x, y: p.y });
             
-            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'GRENADE_THROW', x: p.x, y: p.y });
+            // Grenade Logic (Spawn projectile that explodes)
+            const targetX = p.x + Math.cos(p.angle) * 400;
+            const targetY = p.y + Math.sin(p.angle) * 400;
+            
+            this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                x: p.x,
+                y: p.y,
+                targetX,
+                targetY,
+                speed: 12,
+                damage: PLAYER_STATS.grenadeDamage,
+                fromPlayer: true,
+                color: '#fff',
+                maxRange: 400,
+                source: DamageSource.PLAYER,
+                isExplosive: true,
+                activeModules: p.grenadeModules
+            });
         }
     }
 
@@ -292,7 +256,8 @@ export class PlayerManager {
         }
 
         p.hp -= actualDmg;
-        p.lastHitTime = Date.now(); 
+        // FIX: Use simulation time instead of Date.now() to match the update loop's time source
+        p.lastHitTime = state.time; 
         
         if (p.hp <= 0) {
             state.isGameOver = true;
