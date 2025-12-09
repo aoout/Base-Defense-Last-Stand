@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.3";
+export const CURRENT_VERSION = "1.0.4";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.4",
+        date: "2248.07.10",
+        title: "FORTRESS & MUTATION",
+        titleCN: "堡垒与变异",
+        changes: [
+            "BALANCE: Strategic fortification protocols enacted. All Turret structures receive +50% Base HP.",
+            "VISUAL: Apex Strains (Bosses) have evolved. Complete visual redesign for Hive Lord, Cobalt Reaper, and Plague Bringer.",
+            "UI: Added 'Low Ammo' critical warning indicators to HUD.",
+            "VISUAL: Enhanced Boss Health Bar with organic gradient textures."
+        ],
+        changesCN: [
+            "平衡：战略防御协议生效。所有炮塔的基础生命值提升 50%。",
+            "视觉：顶级变种（Boss）发生进化。虫巢领主、钴蓝收割者和瘟疫使者获得全新的异形外观。",
+            "界面：HUD 新增“低弹药”暴击警告提示。",
+            "视觉：优化了 Boss 血条样式，使其更具生物质感。"
+        ]
+    },
     {
         version: "1.0.3",
         date: "2248.07.05",

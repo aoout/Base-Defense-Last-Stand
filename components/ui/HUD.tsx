@@ -81,10 +81,16 @@ export const HUD: React.FC = () => {
         // 2. Scraps
         if (scrapTextRef.current) scrapTextRef.current.innerText = `${Math.floor(pl.score)}`;
 
-        // 3. Ammo
+        // 3. Ammo Logic
+        const isLowAmmo = !w.reloading && w.ammoInMag / stats.magSize <= 0.25;
         if (ammoTextRef.current) {
-            if (w.reloading) ammoTextRef.current.innerText = "RELOAD";
-            else ammoTextRef.current.innerText = `${w.ammoInMag}`; 
+            if (w.reloading) {
+                ammoTextRef.current.innerText = "RELOAD";
+                ammoTextRef.current.className = "text-6xl font-display font-black tracking-wide text-yellow-500 animate-pulse";
+            } else {
+                ammoTextRef.current.innerText = `${w.ammoInMag}`;
+                ammoTextRef.current.className = `text-6xl font-display font-black tracking-wide ${isLowAmmo ? 'text-red-500 animate-pulse' : 'text-white'}`;
+            }
         }
         if (ammoReserveRef.current) {
             ammoReserveRef.current.innerText = `/ ${w.ammoReserve === Infinity ? '∞' : w.ammoReserve}`;
@@ -92,6 +98,9 @@ export const HUD: React.FC = () => {
         if (ammoBarRef.current) {
             const pct = w.ammoInMag / stats.magSize;
             ammoBarRef.current.style.width = `${pct * 100}%`;
+            // Color shift for ammo bar
+            if (isLowAmmo) ammoBarRef.current.style.backgroundColor = '#ef4444';
+            else ammoBarRef.current.style.backgroundColor = '#ffffff';
         }
 
         // 4. Wave Timer & Number (Disabled for Campaign)
@@ -195,7 +204,7 @@ export const HUD: React.FC = () => {
                                     <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
                                         <div 
                                             ref={bossHpRef}
-                                            className="h-full bg-red-600 transition-all duration-300"
+                                            className="h-full bg-gradient-to-r from-red-900 via-red-600 to-red-500 transition-all duration-300"
                                             style={{ width: `${Math.max(0, (hiveMother.hp / hiveMother.maxHp) * 100)}%` }}
                                         />
                                     </div>
@@ -366,16 +375,13 @@ export const HUD: React.FC = () => {
                     </div>
                     
                     <div className="mt-4 flex justify-between items-end">
-                        {currentWep.reloading ? (
-                            <div className="text-3xl font-display font-black text-yellow-500 animate-pulse tracking-widest">RELOADING</div>
-                        ) : (
-                            <div className="flex items-baseline gap-1">
-                                <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
-                                    {currentWep.ammoInMag}
-                                </span>
-                                <span ref={ammoReserveRef} className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
-                            </div>
-                        )}
+                        {/* Text will be updated by REF, initial state placeholder */}
+                        <div className="flex items-baseline gap-1">
+                            <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
+                                {currentWep.ammoInMag}
+                            </span>
+                            <span ref={ammoReserveRef} className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
+                        </div>
                         <WeaponIcon type={currentWeaponType} className="w-12 h-12 text-slate-600" />
                     </div>
 

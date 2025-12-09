@@ -684,56 +684,237 @@ export const drawPustule = (ctx: CanvasRenderingContext2D, e: Enemy, time: numbe
 }
 
 // --- BOSSES ---
+
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    const pulse = Math.sin(time * 0.003) * 3;
-    ctx.strokeStyle = PALETTE.BOSS_RED.STROKE; ctx.lineWidth = 4;
-    for(let i=0; i<8; i++) { 
-        const angle = (Math.PI*2/8)*i + time*0.001; 
-        const len = 50 + Math.sin(time*0.005 + i)*10; 
-        ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(angle)*len*0.5, Math.sin(angle)*len*0.5, Math.cos(angle+0.2)*len, Math.sin(angle+0.2)*len); ctx.stroke(); 
-    }
-    const grad = ctx.createRadialGradient(0,0, 10, 0,0, 40); 
-    grad.addColorStop(0, PALETTE.BOSS_RED.GRAD_START); grad.addColorStop(1, PALETTE.BOSS_RED.GRAD_END); 
-    ctx.fillStyle = grad;
+    // "THE HIVE LORD" - Organic, Fleshy, Pulsating Spawner
     
-    ctx.beginPath(); for(let i=0; i<=20; i++) { const a = (i/20) * Math.PI*2; const r = 35 + Math.sin(a*5 + time*0.002)*2 + pulse; ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r); } ctx.fill();
-    ctx.fillStyle = PALETTE.BOSS_RED.ORB; for(let i=0; i<5; i++) { const angle = (Math.PI*2/5) * i; const x = Math.cos(angle)*20; const y = Math.sin(angle)*20; ctx.beginPath(); ctx.arc(x, y, 6 + Math.sin(time*0.01 + i)*2, 0, Math.PI*2); ctx.fill(); }
-    drawEllipse(ctx, 0, 0, 10, 10, PALETTE.BOSS_RED.CORE);
-    drawEllipse(ctx, 0, 0, 3, 8, PALETTE.BOSS_RED.CORE_GLOW);
+    const scale = 1.2;
+    const pulse = Math.sin(time * 0.003) * 2;
+    const breathe = Math.sin(time * 0.005) * 1.5;
+
+    // Rear Sac (Gestation)
+    const sacGrad = ctx.createRadialGradient(-30, 0, 10, -20, 0, 50);
+    sacGrad.addColorStop(0, '#fca5a5'); // fleshy pink
+    sacGrad.addColorStop(0.5, '#b91c1c'); // red
+    sacGrad.addColorStop(1, '#450a0a'); // dark red
+    
+    ctx.fillStyle = sacGrad;
+    ctx.beginPath();
+    ctx.ellipse(-25, 0, 40 + pulse, 35 + breathe, 0, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Veins on Sac
+    ctx.strokeStyle = 'rgba(254, 202, 202, 0.3)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-25, -10); ctx.quadraticCurveTo(-40, 0, -25, 10);
+    ctx.moveTo(-15, -20); ctx.quadraticCurveTo(-50, 0, -15, 20);
+    ctx.stroke();
+
+    // Spawning Tubes (Ovipositors)
+    ctx.fillStyle = '#7f1d1d';
+    for(let i=0; i<3; i++) {
+        const angle = (i-1) * 0.5;
+        const wiggle = Math.sin(time * 0.005 + i) * 5;
+        ctx.save();
+        ctx.translate(-50, 0);
+        ctx.rotate(angle);
+        ctx.beginPath();
+        ctx.moveTo(0, 5);
+        ctx.quadraticCurveTo(-20, wiggle, -30, 0);
+        ctx.lineTo(0, -5);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Front Carapace (Armored Head)
+    ctx.fillStyle = '#7f1d1d'; // Dark red plate
+    ctx.beginPath();
+    ctx.moveTo(10, -25);
+    ctx.lineTo(40, -15); // Mandible start
+    ctx.lineTo(50, 0);   // Beak
+    ctx.lineTo(40, 15);
+    ctx.lineTo(10, 25);
+    ctx.quadraticCurveTo(0, 0, 10, -25);
+    ctx.fill();
+    
+    // Highlights on Carapace
+    ctx.strokeStyle = '#f87171';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Eyes
+    ctx.fillStyle = '#fef08a'; // Yellow eyes
+    drawCircle(ctx, 35, -10, 3, '#fef08a');
+    drawCircle(ctx, 35, 10, 3, '#fef08a');
+    drawCircle(ctx, 40, -5, 2, '#fef08a');
+    drawCircle(ctx, 40, 5, 2, '#fef08a');
+
+    // Legs
+    ctx.strokeStyle = '#450a0a';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 6;
+    for(let i=0; i<6; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        const xOff = (Math.floor(i/2) * 15) - 10;
+        const legWiggle = Math.sin(time * 0.01 + i) * 5;
+        
+        ctx.beginPath();
+        ctx.moveTo(xOff, side * 20);
+        ctx.lineTo(xOff + 10, side * 45 + legWiggle);
+        ctx.lineTo(xOff + 20, side * 60 + legWiggle);
+        ctx.stroke();
+    }
 }
 
 export const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    ctx.fillStyle = PALETTE.BOSS_BLUE.AURA;
-    for(let i=0; i<3; i++) { 
-        const angle = time * 0.001 + (i * Math.PI*2/3); 
-        ctx.save(); ctx.rotate(angle); 
-        drawCircle(ctx, 50, 0, 8, PALETTE.BOSS_BLUE.AURA); // reusing fill logic is hard with helpers that auto-fill, so we draw manually for complex composite
-        ctx.beginPath(); ctx.arc(50, 0, 8, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(40, -5); ctx.lineTo(60, 0); ctx.lineTo(40, 5); ctx.fill(); 
-        ctx.restore(); 
-    }
-    ctx.fillStyle = PALETTE.BOSS_BLUE.BODY; 
-    ctx.beginPath(); ctx.moveTo(30, 0); ctx.lineTo(15, 25); ctx.lineTo(-20, 15); ctx.lineTo(-30, 0); ctx.lineTo(-20, -15); ctx.lineTo(15, -25); ctx.closePath(); ctx.fill(); 
-    ctx.strokeStyle = PALETTE.BOSS_BLUE.STROKE; ctx.lineWidth = 2; ctx.stroke();
+    // "COBALT REAPER" - Crystalline, Angular, Energy Artillery
     
-    ctx.fillStyle = PALETTE.BOSS_BLUE.PLATE; 
-    ctx.beginPath(); ctx.rect(10, -20, 30, 8); ctx.fill(); 
-    ctx.beginPath(); ctx.rect(10, 12, 30, 8); ctx.fill();
+    const charge = Math.abs(Math.sin(time * 0.005));
+    const glowIntensity = 10 + charge * 20;
+
+    // Back Crystal Structures (Energy vents)
+    ctx.fillStyle = `rgba(6, 182, 212, ${0.5 + charge * 0.5})`; // Cyan glow
+    ctx.shadowBlur = glowIntensity;
+    ctx.shadowColor = '#06b6d4';
     
-    const charge = Math.abs(Math.sin(time * 0.005)); 
-    ctx.fillStyle = `rgba(147, 197, 253, ${charge})`; 
-    ctx.shadowColor = PALETTE.BOSS_BLUE.STROKE; ctx.shadowBlur = 15; 
-    ctx.beginPath(); ctx.rect(35, -18, 5, 4); ctx.fill(); 
-    ctx.beginPath(); ctx.rect(35, 14, 5, 4); ctx.fill(); 
+    // Left Crystal
+    ctx.beginPath();
+    ctx.moveTo(-20, -10); ctx.lineTo(-40, -30); ctx.lineTo(-10, -20);
+    ctx.fill();
+    
+    // Right Crystal
+    ctx.beginPath();
+    ctx.moveTo(-20, 10); ctx.lineTo(-40, 30); ctx.lineTo(-10, 20);
+    ctx.fill();
     ctx.shadowBlur = 0;
+
+    // Main Body (Triangular/Beetle)
+    ctx.fillStyle = '#1e3a8a'; // Dark Blue
+    ctx.strokeStyle = '#60a5fa'; // Light Blue Edge
+    ctx.lineWidth = 3;
+    
+    ctx.beginPath();
+    ctx.moveTo(30, 0); // Nose
+    ctx.lineTo(10, 30); // Right Wingtip
+    ctx.lineTo(-20, 20); // Right Rear
+    ctx.lineTo(-30, 0); // Rear Center
+    ctx.lineTo(-20, -20); // Left Rear
+    ctx.lineTo(10, -30); // Left Wingtip
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Central Cannon / Spine
+    ctx.fillStyle = '#172554';
+    ctx.fillRect(-20, -8, 50, 16); // Barrel housing
+    
+    // Cannon Glow (Pulse)
+    const barrelGlow = ctx.createLinearGradient(0, 0, 40, 0);
+    barrelGlow.addColorStop(0, '#2563eb');
+    barrelGlow.addColorStop(1, '#93c5fd');
+    ctx.fillStyle = barrelGlow;
+    ctx.fillRect(0, -4, 40, 8); // The plasma rail
+
+    // Charging Particles
+    if (charge > 0.7) {
+        ctx.fillStyle = '#fff';
+        for(let i=0; i<3; i++) {
+            const rx = 30 + Math.random() * 20;
+            const ry = (Math.random() - 0.5) * 20;
+            ctx.fillRect(rx, ry, 2, 2);
+        }
+    }
+
+    // Armored Legs (Sharp)
+    ctx.strokeStyle = '#1d4ed8';
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 4; i++) {
+        const side = i % 2 === 0 ? 1 : -1;
+        const xOff = (i > 1 ? -10 : 10);
+        ctx.beginPath();
+        ctx.moveTo(xOff, side * 20);
+        ctx.lineTo(xOff + 10, side * 40); // Knee
+        ctx.lineTo(xOff + 5, side * 55); // Sharp tip
+        ctx.stroke();
+    }
 }
 
 export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
-    ctx.fillStyle = PALETTE.BOSS_PURPLE.BODY_ALPHA; 
-    ctx.beginPath(); const radius = 40; for (let i = 0; i <= 30; i++) { const angle = (i / 30) * Math.PI * 2; const wobble = Math.sin(angle * 5 + time * 0.002) * 5 + Math.cos(angle * 3 - time * 0.003) * 5; const r = radius + wobble; ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r); } ctx.fill();
-    ctx.fillStyle = PALETTE.BOSS_PURPLE.ORB; 
-    for(let i=0; i<5; i++) { const bx = Math.sin(time * 0.001 * (i+1)) * 20; const by = Math.cos(time * 0.0013 * (i+1)) * 20; const s = 5 + Math.sin(time*0.005 + i)*2; ctx.beginPath(); ctx.arc(bx, by, s, 0, Math.PI*2); ctx.fill(); }
-    const grad = ctx.createRadialGradient(0,0, 30, 0,0, 60); grad.addColorStop(0, PALETTE.BOSS_PURPLE.AURA_GRAD_START); grad.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0,0, 60, 0, Math.PI*2); ctx.fill();
+    // "PLAGUE BRINGER" - Jellyfish-like floater, Toxic, Amorphous
+    
+    const wobble = (angle: number) => Math.sin(angle * 5 + time * 0.002) * 3;
+    
+    // Gas Haze (Particles)
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.2)';
+    for(let i=0; i<5; i++) {
+        const angle = time * 0.001 + i;
+        const r = 50 + Math.sin(time*0.003 + i)*10;
+        drawCircle(ctx, Math.cos(angle)*r, Math.sin(angle)*r, 10, 'rgba(168, 85, 247, 0.1)');
+    }
+
+    // Main Membrane Body
+    const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 45);
+    grad.addColorStop(0, '#581c87'); // Deep Purple
+    grad.addColorStop(0.7, 'rgba(147, 51, 234, 0.8)'); // Purple
+    grad.addColorStop(1, 'rgba(192, 132, 252, 0.4)'); // Light Edge
+    
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    for (let i = 0; i <= 30; i++) {
+        const angle = (i / 30) * Math.PI * 2;
+        const r = 45 + wobble(angle);
+        ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Internal Organs (Visible through transparency)
+    ctx.fillStyle = '#3b0764'; // Dark core
+    drawCircle(ctx, -10, -10, 12 + Math.sin(time*0.004)*2, '#3b0764');
+    drawCircle(ctx, 10, 15, 8 + Math.cos(time*0.004)*2, '#3b0764');
+    drawCircle(ctx, 15, -15, 6, '#3b0764');
+
+    // The Maw (Mortar)
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 15, 15, 0, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Toxic Drip from Maw
+    const drip = (time % 1000) / 1000; // 0 to 1
+    ctx.fillStyle = '#a3e635'; // Neon Green Acid
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0, Math.PI*2); // Inner glow
+    ctx.fill();
+    
+    if (drip > 0.5) {
+        ctx.beginPath();
+        ctx.arc(0, 15 + drip * 20, 4 * (1-drip), 0, Math.PI*2);
+        ctx.fill();
+    }
+
+    // Floating Tentacles
+    ctx.strokeStyle = '#d8b4fe';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    for(let i=0; i<6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const startX = Math.cos(angle) * 40;
+        const startY = Math.sin(angle) * 40;
+        
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        // Wavy line
+        const wave = Math.sin(time * 0.005 + i);
+        ctx.quadraticCurveTo(
+            startX * 1.5 + wave * 10, 
+            startY * 1.5 + wave * 10, 
+            startX * 1.8, 
+            startY * 1.8
+        );
+        ctx.stroke();
+    }
 }
 
 export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
@@ -801,7 +982,7 @@ const drawUnitBars = (ctx: CanvasRenderingContext2D, hp: number, maxHp: number, 
     // Ah, it's called inside the main RenderService (or drawUnits export?) 
     // Actually, drawUnitBars is only used for Player in drawPlayerSprite (line 120).
     // Enemies have their own inline bar logic in RenderService.ts (line 200 approx).
-    // WAIT! RenderService.ts imports drawUnitBars? No, it implements its own Enemy bar logic.
+    // Wait! RenderService.ts imports drawUnitBars? No, it implements its own Enemy bar logic.
     // We need to update RenderService.ts as well to show the shell bar for enemies.
     // BUT since I am editing drawUnits.ts, I should probably export a standard drawEnemyBars function
     // to unify it, or update the logic in RenderService if I can't touch it.

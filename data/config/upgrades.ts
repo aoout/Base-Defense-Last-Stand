@@ -10,10 +10,11 @@ export const TURRET_COSTS = {
 };
 
 export const TURRET_STATS = {
-  [TurretType.STANDARD]: { hp: 1200, range: 400, damage: 60, fireRate: 120 },
-  [TurretType.GAUSS]:    { hp: 3600, range: 650, damage: 110, fireRate: 240 },
-  [TurretType.SNIPER]:   { hp: 3000, range: 1300, damage: 190, fireRate: 780 },
-  [TurretType.MISSILE]:  { hp: 2400, range: 9999, damage: 220, fireRate: 1230 }, 
+  // HP increased by 50% (1200->1800, 3600->5400, 3000->4500, 2400->3600)
+  [TurretType.STANDARD]: { hp: 1800, range: 400, damage: 60, fireRate: 120 },
+  [TurretType.GAUSS]:    { hp: 5400, range: 650, damage: 110, fireRate: 240 },
+  [TurretType.SNIPER]:   { hp: 4500, range: 1300, damage: 190, fireRate: 780 },
+  [TurretType.MISSILE]:  { hp: 3600, range: 9999, damage: 220, fireRate: 1230 }, 
 };
 
 export const DEFENSE_UPGRADE_INFO = {
