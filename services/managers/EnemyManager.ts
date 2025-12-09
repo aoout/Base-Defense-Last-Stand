@@ -1,6 +1,5 @@
-
 import { GameEngine } from '../gameService';
-import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource, GameEventType, SpawnProjectileEvent, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, SpawnParticleEvent, SpawnToxicZoneEvent, SpawnBloodStainEvent, ShowFloatingTextEvent, DamageAreaEvent, DamageEnemyEvent, StatId, EnemySummonEvent } from '../../types';
+import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource, GameEventType, SpawnProjectileEvent, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, SpawnParticleEvent, SpawnToxicZoneEvent, SpawnBloodStainEvent, ShowFloatingTextEvent, DamageAreaEvent, DamageEnemyEvent, StatId, EnemySummonEvent, WeaponType } from '../../types';
 import { ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { GAS_INFO } from '../../data/world';
 import { calculateEnemyStats, selectEnemyType } from '../../utils/enemyUtils';
@@ -8,7 +7,7 @@ import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { StatManager } from './StatManager';
 import { AIBehavior } from '../ai/AIBehavior';
-import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior } from '../ai/StandardBehaviors';
+import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior } from '../ai/StandardBehaviors';
 import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior } from '../ai/BossBehaviors';
 
 export class EnemyManager {
@@ -39,6 +38,13 @@ export class EnemyManager {
                 e.armorValue = undefined;
                 e.shedTimer = undefined;
                 e.shedCount = undefined;
+                // Rusher properties reset
+                e.dashCharges = undefined;
+                e.dashTimer = undefined;
+                // Tank properties reset
+                e.shellValue = undefined;
+                e.maxShell = undefined;
+                e.shellRegenTimer = undefined;
             }
         );
 
@@ -48,7 +54,7 @@ export class EnemyManager {
         this.events.on<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, (e) => {
             const enemy = this.engine.state.enemies.find(en => en.id === e.targetId);
             if (enemy) {
-                this.damageEnemy(enemy, e.amount, e.source);
+                this.damageEnemy(enemy, e.amount, e.source, e.weaponType);
             }
         });
 
@@ -61,7 +67,7 @@ export class EnemyManager {
         // Standard
         const standard = new StandardBehavior();
         this.behaviors.set(EnemyType.GRUNT, standard);
-        this.behaviors.set(EnemyType.RUSHER, standard);
+        this.behaviors.set(EnemyType.RUSHER, new RusherBehavior());
         this.behaviors.set(EnemyType.TANK, standard);
         this.behaviors.set(EnemyType.KAMIKAZE, new KamikazeBehavior());
         this.behaviors.set(EnemyType.VIPER, new ViperBehavior());
@@ -101,13 +107,25 @@ export class EnemyManager {
         e.hp = stats.maxHp;
         e.maxHp = stats.maxHp;
         e.damage = stats.damage;
-        e.speed = baseStats.speed;
+        // Use calculated speed if available (from environmental mods), otherwise base
+        e.speed = stats.speed !== undefined ? stats.speed : baseStats.speed;
         e.scoreReward = baseStats.scoreReward;
         e.radius = baseStats.radius;
         e.color = baseStats.color;
         e.lastAttackTime = 0;
         e.detectionRange = baseStats.detectionRange;
         
+        if (type === EnemyType.RUSHER) {
+            e.dashCharges = 0;
+            e.dashTimer = 0;
+        }
+
+        if (type === EnemyType.TANK) {
+            e.shellValue = 100;
+            e.maxShell = 100;
+            e.shellRegenTimer = 0;
+        }
+
         return e;
     }
 
@@ -231,11 +249,9 @@ export class EnemyManager {
             const shedCount = mother.shedCount || 0;
             const simulatedWave = Math.max(1, shedCount);
             
-            let effectiveGeneStrength = this.engine.state.currentPlanet?.geneStrength || 1;
-            const reduction = this.stats.get(StatId.GENE_REDUCTION, 0);
-            effectiveGeneStrength = Math.max(0.5, effectiveGeneStrength - reduction);
-
-            const count = Math.ceil(12 * (effectiveGeneStrength + shedCount));
+            // New Formula: 10 + (3 * ShedCount)
+            // Gene Strength not used for count, only for stats of individual enemies
+            const count = 10 + 3 * shedCount;
 
             for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
@@ -285,7 +301,7 @@ export class EnemyManager {
         }
     }
 
-    public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) {
+    public damageEnemy(enemy: Enemy, amount: number, source: DamageSource, weaponType?: WeaponType) {
         if (enemy.hp <= 0) return;
 
         this.engine.state.stats.damageDealt += amount;
@@ -295,16 +311,39 @@ export class EnemyManager {
 
         let dmg = amount;
         
+        // Hive Mother Armor Logic
         if (enemy.bossType === BossType.HIVE_MOTHER && enemy.armorValue) {
             const mitigation = enemy.armorValue / 100;
             dmg = dmg * (1 - mitigation);
             dmg = Math.max(1, dmg);
         }
+
+        // Tank Shell Logic
+        if (enemy.type === EnemyType.TANK && !enemy.isBoss) {
+            // Flamethrower bypasses shell reduction mechanics (but also doesn't reduce shell)
+            // Everything else reduces shell
+            if (weaponType !== WeaponType.FLAMETHROWER) {
+                if (enemy.shellValue && enemy.shellValue > 0) {
+                    enemy.shellValue = Math.max(0, enemy.shellValue - 8);
+                }
+            }
+
+            // Damage Reduction if Shell is active
+            if (enemy.shellValue && enemy.shellValue > 0) {
+                dmg *= 0.7; // 30% Damage Reduction
+            }
+        }
   
         enemy.hp -= dmg;
         if (this.engine.state.settings.showDamageNumbers) {
+            let color = '#ffffff';
+            // Visual feedback for resisted damage
+            if (enemy.type === EnemyType.TANK && enemy.shellValue && enemy.shellValue > 0) {
+                color = '#9ca3af'; // Grey for mitigated damage
+            }
+
             this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: `${Math.ceil(dmg)}`, x: enemy.x, y: enemy.y, color: '#ffffff', type: FloatingTextType.DAMAGE
+                text: `${Math.ceil(dmg)}`, x: enemy.x, y: enemy.y, color: color, type: FloatingTextType.DAMAGE
             });
         }
   

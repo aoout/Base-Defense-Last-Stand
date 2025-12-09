@@ -9,7 +9,7 @@ import {
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule,
     drawBase, drawTurretSpot, drawProjectilesBatch,
     drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
-    isVisible, drawParticlesBatch
+    isVisible, drawParticlesBatch, drawEnemyBars
 } from '../utils/renderers';
 import { InputManager } from './InputManager';
 import { AssetManager } from './managers/AssetManager';
@@ -209,39 +209,14 @@ export class RenderService {
                 }
             }
             
-            // HP Bar
-            ctx.rotate(-e.angle);
+            // UI Bars (HP / Shell)
+            // Note: We already rotated by angle, so we are in local entity space (facing right/up depending on base model)
+            // drawEnemyBars expects to handle counter-rotation itself if it assumes passed context is rotated.
+            // Let's check drawEnemyBars implementation...
+            // It does `ctx.rotate(-e.angle)`. This assumes the context is currently rotated by `e.angle`.
+            // Yes, we are currently rotated by `e.angle`.
             
-            const barWidth = e.isBoss ? e.radius * 3 : e.radius * 2.5;
-            const barY = -e.radius - 15;
-            const hpPct = Math.max(0, e.hp / e.maxHp);
-            
-            if (lodLevel === 0 || e.isBoss) {
-                ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(-barWidth/2 + 2, barY - 2); ctx.lineTo(-barWidth/2, barY - 2); ctx.lineTo(-barWidth/2, barY + 6); ctx.lineTo(-barWidth/2 + 2, barY + 6);
-                ctx.moveTo(barWidth/2 - 2, barY - 2); ctx.lineTo(barWidth/2, barY - 2); ctx.lineTo(barWidth/2, barY + 6); ctx.lineTo(barWidth/2 - 2, barY + 6);
-                ctx.stroke();
-            }
-
-            if (lodLevel < 2 || e.isBoss) {
-                const totalSegments = e.isBoss ? 20 : (lodLevel > 0 ? 1 : 5);
-                const activeSegments = Math.ceil(totalSegments * hpPct);
-                const segWidth = (barWidth - (lodLevel > 0 ? 0 : 4)) / totalSegments;
-                
-                ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
-                for(let i=0; i<activeSegments; i++) {
-                    ctx.fillRect(-barWidth/2 + 2 + (i * segWidth), barY, segWidth - 1, 4);
-                }
-            }
-
-            if (e.isBoss) {
-                ctx.fillStyle = e.color;
-                ctx.font = 'bold 10px monospace';
-                ctx.textAlign = 'center';
-                ctx.fillText("APEX", 0, barY - 5);
-            }
+            drawEnemyBars(ctx, e, lodLevel);
             
             ctx.restore();
         });

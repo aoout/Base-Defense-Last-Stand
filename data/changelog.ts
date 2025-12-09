@@ -8,9 +8,31 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.1";
+export const CURRENT_VERSION = "1.0.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.2",
+        date: "2248.06.30",
+        title: "BIOLOGICAL EVOLUTION UPDATE",
+        titleCN: "生物进化更新",
+        changes: [
+            "NEW UNIT: 'Pustule' added to Campaign Mode. Spawns enemies and explodes on contact.",
+            "REWORK: 'Tank' visual overhaul and new Reactive Shell mechanic (Damage Reduction + Regen).",
+            "REWORK: 'Rusher' now possesses a Dash ability to close gaps quickly.",
+            "BALANCE: Adjusted Exploration Mode spawn rates and environmental stat scaling.",
+            "FIX: Resolved collision issues in Campaign Mode map boundaries.",
+            "SYSTEM: Default language set to Chinese."
+        ],
+        changesCN: [
+            "新单位：战役模式新增“脓包”。定期生成敌人，接触时造成伤害。",
+            "重制：“巨壳重躯”外观升级，新增“反应甲壳”机制（减伤 + 自动回复）。",
+            "重制：“掠流虫”现在拥有冲刺能力，可快速接近目标。",
+            "平衡：调整了探索模式的刷怪公式及环境属性修正算法。",
+            "修复：解决了战役模式下地图边缘的碰撞和寻路问题。",
+            "系统：默认语言更改为中文。"
+        ]
+    },
     {
         version: "1.0.1",
         date: "2248.06.25",

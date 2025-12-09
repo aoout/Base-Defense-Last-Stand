@@ -100,6 +100,7 @@ export interface DamageEnemyEvent {
     targetId: string;
     amount: number;
     source: DamageSource;
+    weaponType?: WeaponType; // For type-specific damage logic (e.g. Flamethrower vs Shell)
 }
 
 export interface DamageAreaEvent {

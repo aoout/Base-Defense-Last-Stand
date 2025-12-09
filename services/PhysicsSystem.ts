@@ -86,7 +86,8 @@ export class PhysicsSystem {
                         this.events.emit<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, { 
                             targetId: e.id, 
                             amount: finalDamage, 
-                            source: p.source 
+                            source: p.source,
+                            weaponType: p.weaponType // Pass specific weapon info for Tank shell logic
                         });
                         
                         // Hit Sound (Throttled by AudioService profile)

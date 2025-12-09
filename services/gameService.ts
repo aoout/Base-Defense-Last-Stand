@@ -322,7 +322,7 @@ export class GameEngine {
   }
 
   private loadSettings(): GameSettings {
-      const defaultSettings: GameSettings = { showHUD: true, showBlood: true, showDamageNumbers: true, language: 'EN', lightingQuality: 'HIGH', particleIntensity: 'HIGH', animatedBackground: true, performanceMode: 'BALANCED', resolutionScale: 1.0, showShadows: true };
+      const defaultSettings: GameSettings = { showHUD: true, showBlood: true, showDamageNumbers: true, language: 'CN', lightingQuality: 'HIGH', particleIntensity: 'HIGH', animatedBackground: true, performanceMode: 'BALANCED', resolutionScale: 1.0, showShadows: true };
       try { const raw = localStorage.getItem('VANGUARD_SETTINGS_V1'); if (raw) { const parsed = JSON.parse(raw); return { ...defaultSettings, ...parsed }; } } catch (e) { console.error("Failed to load settings:", e); }
       return defaultSettings;
   }

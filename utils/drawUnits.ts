@@ -370,53 +370,176 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
 }
 
 export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
+    // Redesign: "Armored Siege Beetle" - High Fidelity
+    
+    const fleshColor = '#18181b'; // Zinc-950 (Darker flesh)
+    const plateColorDark = '#3f3f46'; // Zinc-700
+    const plateColorLight = '#71717a'; // Zinc-500
+    const plateEdge = '#a1a1aa'; // Zinc-400
+    const glowColor = '#b91c1c';  // Red-700
+    const legColor = '#09090b';   // Zinc-950
+
     if (lodLevel >= 2) {
-        drawCircle(ctx, 0, 0, 15, PALETTE.TANK.BODY);
-        ctx.fillStyle = PALETTE.TANK.PLATE;
-        ctx.fillRect(-5, -5, 10, 10);
+        ctx.fillStyle = plateColorDark;
+        ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.fill();
         return;
     }
 
-    if (lodLevel === 1) {
-        drawCircle(ctx, 0, 0, 20, PALETTE.TANK.BODY);
-        ctx.fillStyle = PALETTE.TANK.SHELL; 
-        ctx.fillRect(-10, -15, 20, 30);
-    } else {
-        const walkOffset = Math.sin(time * 0.005) * 2;
+    const breathe = Math.sin(time * 0.002);
+    const walk = Math.sin(time * 0.005);
+    const walkAlt = Math.cos(time * 0.005);
+
+    // --- LEGS (Segmented & Spiked) ---
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = legColor;
+
+    const drawLeg = (offsetX: number, offsetY: number, kneeX: number, kneeY: number, tipX: number, tipY: number, width: number) => {
+        ctx.lineWidth = width;
+        ctx.beginPath();
+        ctx.moveTo(offsetX, offsetY);
+        ctx.lineTo(offsetX + kneeX, offsetY + kneeY);
+        ctx.lineTo(offsetX + kneeX + tipX, offsetY + kneeY + tipY);
+        ctx.stroke();
         
-        ctx.strokeStyle = PALETTE.TANK.LEG; 
-        ctx.lineWidth = 6; 
-        ctx.lineCap = 'round';
-        for(let i=0; i<4; i++) { 
-            const angle = Math.PI/4 + (i * Math.PI/6); 
-            const legX = Math.cos(angle) * 20;
-            const legY = Math.sin(angle) * 20;
-            
-            ctx.beginPath(); 
-            ctx.moveTo(5, 5); 
-            ctx.lineTo(legX + walkOffset, legY + walkOffset); 
+        // Spike at knee
+        ctx.fillStyle = plateColorDark;
+        ctx.beginPath();
+        ctx.moveTo(offsetX + kneeX, offsetY + kneeY);
+        ctx.lineTo(offsetX + kneeX + 5, offsetY + kneeY - 5);
+        ctx.lineTo(offsetX + kneeX + 2, offsetY + kneeY);
+        ctx.fill();
+    };
+
+    // Rear Legs
+    drawLeg(-20, 15, -15, 20 + walk*5, -10, 10, 8);
+    drawLeg(-20, -15, -15, -20 - walk*5, -10, -10, 8);
+
+    // Mid Legs
+    drawLeg(0, 20, 10, 25 - walkAlt*5, 10, 15, 6);
+    drawLeg(0, -20, 10, -25 + walkAlt*5, 10, -15, 6);
+
+    // Front Mandibles (Weapons)
+    ctx.strokeStyle = '#27272a';
+    drawLeg(25, 10, 20, 15, 15, -5, 5);
+    drawLeg(25, -10, 20, -15, 15, 5, 5);
+
+    // --- BODY UNDERLAYER ---
+    ctx.fillStyle = fleshColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 35, 25 + breathe*1, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // --- CARAPACE PLATING (Detailed) ---
+    
+    // 1. REAR PLATE (Abdomen)
+    ctx.fillStyle = plateColorDark;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.bezierCurveTo(-15, 25, -35, 20, -45, 0); // Bottom curve
+    ctx.bezierCurveTo(-35, -20, -15, -25, -10, 0); // Top curve
+    ctx.fill();
+    ctx.stroke();
+    
+    // Texture on Rear Plate
+    ctx.fillStyle = plateColorLight;
+    ctx.beginPath();
+    ctx.ellipse(-30, 0, 8, 12, 0, 0, Math.PI*2); // Central ridge hump
+    ctx.fill();
+    // Vents
+    ctx.fillStyle = glowColor;
+    ctx.globalAlpha = 0.5 + breathe * 0.2;
+    ctx.beginPath(); ctx.ellipse(-25, 8, 2, 4, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-25, -8, 2, 4, -0.5, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // 2. MID PLATE (Thorax) - Overlaps Rear
+    ctx.fillStyle = plateColorDark;
+    const midGradient = ctx.createLinearGradient(0, -20, 0, 20);
+    midGradient.addColorStop(0, plateColorDark);
+    midGradient.addColorStop(0.5, '#52525b');
+    midGradient.addColorStop(1, plateColorDark);
+    ctx.fillStyle = midGradient;
+
+    ctx.beginPath();
+    ctx.moveTo(20, 0);
+    ctx.lineTo(15, 20); // Front Right corner
+    ctx.bezierCurveTo(0, 28, -20, 25, -15, 0); // Back curve Right to Left
+    ctx.bezierCurveTo(-20, -25, 0, -28, 15, -20); // Back curve Left to Right
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Highlights / Ridges on Mid Plate
+    ctx.strokeStyle = plateEdge;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-5, -15); ctx.quadraticCurveTo(5, 0, -5, 15); // Ridge line
+    ctx.stroke();
+
+    // 3. HEAD PLATE (Cranial Shield)
+    ctx.fillStyle = plateColorLight;
+    ctx.beginPath();
+    ctx.moveTo(15, -15);
+    ctx.quadraticCurveTo(45, -10, 50, 0); // Snout tip
+    ctx.quadraticCurveTo(45, 10, 15, 15);
+    ctx.quadraticCurveTo(20, 0, 15, -15); // Back of head
+    ctx.fill();
+    ctx.stroke();
+
+    // Eyes (Multiple)
+    ctx.fillStyle = '#ef4444';
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 5;
+    drawCircle(ctx, 40, -6, 2, '#ef4444');
+    drawCircle(ctx, 40, 6, 2, '#ef4444');
+    drawCircle(ctx, 45, -3, 1.5, '#ef4444');
+    drawCircle(ctx, 45, 3, 1.5, '#ef4444');
+    ctx.shadowBlur = 0;
+
+    // --- SHELL FX ---
+    if (e.shellValue && e.shellValue > 0) {
+        const shellPct = e.shellValue / (e.maxShell || 100);
+        ctx.save();
+        
+        // Dynamic Shield Pulse
+        const shieldPulse = Math.sin(time * 0.01) * 0.1 + 0.9;
+        ctx.globalAlpha = (shellPct * 0.3 + 0.1) * shieldPulse;
+        
+        // Hex Grid Pattern
+        ctx.strokeStyle = '#22d3ee'; // Cyan
+        ctx.lineWidth = 1;
+        
+        // Draw a few hexagons over the body
+        const hexPoints = [
+            {x: 0, y: 0}, {x: -20, y: 15}, {x: -20, y: -15}, 
+            {x: 20, y: 15}, {x: 20, y: -15}, {x: 40, y: 0}
+        ];
+        
+        hexPoints.forEach(p => {
+            if (Math.random() > 0.5) return; // Flicker
+            ctx.beginPath();
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const r = 8;
+                ctx.lineTo(p.x + Math.cos(angle) * r, p.y + Math.sin(angle) * r);
+            }
+            ctx.closePath();
             ctx.stroke();
-            
-            ctx.beginPath(); 
-            ctx.moveTo(5, -5); 
-            ctx.lineTo(legX + walkOffset, -legY - walkOffset); 
-            ctx.stroke(); 
-        }
+        });
 
-        drawCircle(ctx, -5, 0, 20, PALETTE.TANK.BODY);
-        ctx.fillStyle = PALETTE.TANK.SHELL;
-        ctx.beginPath(); ctx.arc(5, 0, 18, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        // Outer Ellipse Shield
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 55, 40, 0, 0, Math.PI*2);
+        ctx.strokeStyle = `rgba(34, 211, 238, ${shellPct})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.fillStyle = `rgba(34, 211, 238, 0.05)`;
+        ctx.fill();
 
-        ctx.fillStyle = PALETTE.TANK.PLATE;
-        ctx.beginPath(); ctx.arc(12, 0, 14, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-
-        ctx.fillStyle = PALETTE.TANK.HIGHLIGHT;
-        ctx.beginPath(); ctx.moveTo(18, -8); ctx.quadraticCurveTo(35, -12, 30, -2); ctx.lineTo(20, -6); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(18, 8); ctx.quadraticCurveTo(35, 12, 30, 2); ctx.lineTo(20, 6); ctx.fill();
-
-        ctx.shadowColor = PALETTE.TANK.EYE; ctx.shadowBlur = 5; 
-        drawCircle(ctx, 20, 0, 2, PALETTE.TANK.EYE);
-        ctx.shadowBlur = 0;
+        ctx.restore();
     }
 }
 
@@ -669,16 +792,35 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
 }
 
 // Helper for drawing UI bars
-const drawUnitBars = (ctx: CanvasRenderingContext2D, hp: number, maxHp: number, armor: number, maxArmor: number, weaponState: any, wepStats: any) => {
+const drawUnitBars = (ctx: CanvasRenderingContext2D, hp: number, maxHp: number, armor: number, maxArmor: number, weaponState: any, wepStats: any, shellValue?: number, maxShell?: number) => {
+    // NOTE: This function receives raw arguments. 
+    // In drawUnits.ts (the file it resides in), when we call it for player (line 120), we pass 7 arguments.
+    // For Enemy, we MUST ensure we pass shellValue if needed.
+    // However, drawUnitBars helper is internal here. 
+    // Let's check where it is called for Enemies. 
+    // Ah, it's called inside the main RenderService (or drawUnits export?) 
+    // Actually, drawUnitBars is only used for Player in drawPlayerSprite (line 120).
+    // Enemies have their own inline bar logic in RenderService.ts (line 200 approx).
+    // WAIT! RenderService.ts imports drawUnitBars? No, it implements its own Enemy bar logic.
+    // We need to update RenderService.ts as well to show the shell bar for enemies.
+    // BUT since I am editing drawUnits.ts, I should probably export a standard drawEnemyBars function
+    // to unify it, or update the logic in RenderService if I can't touch it.
+    // The prompt says "I didn't see the shell bar".
+    // I will check RenderService.ts content.
+    // RenderService.ts line 220: Draws Enemy HP bar manually.
+    // So I need to update RenderService.ts OR move that logic here and export it.
+    // Moving logic to drawUnits.ts and exporting `drawEnemyBars` is cleaner.
+    
+    // For Player (lines 120), it uses this function.
     const barWidth = 40;
-    const barYOffset = 30; 
+    let barYOffset = 30; 
     const barHeight = 4;
     const spacing = 2;
 
     const hpPct = Math.max(0, hp / maxHp);
     const armorPct = Math.max(0, armor / maxArmor);
 
-    // Ammo Bar
+    // Ammo Bar (Player only)
     if (weaponState && wepStats) {
         const ammoPct = weaponState.ammoInMag / wepStats.magSize;
         ctx.fillStyle = weaponState.reloading ? PALETTE.UI.RELOAD : PALETTE.UI.AMMO;
@@ -708,5 +850,55 @@ const drawUnitBars = (ctx: CanvasRenderingContext2D, hp: number, maxHp: number, 
             const w = (barWidth / totalSegments) - 1;
             ctx.fillRect(x, armorY, w, barHeight);
         }
+    }
+}
+
+// NEW EXPORT: Draw bars for enemies including Shell
+export const drawEnemyBars = (ctx: CanvasRenderingContext2D, e: Enemy, lodLevel: number) => {
+    // Rotate to face up (cancel enemy rotation)
+    ctx.rotate(-e.angle);
+            
+    const barWidth = e.isBoss ? e.radius * 3 : e.radius * 2.5;
+    let barY = -e.radius - 15;
+    const hpPct = Math.max(0, e.hp / e.maxHp);
+    
+    // Shell Bar (Cyan) - Above HP
+    if (e.shellValue !== undefined && e.maxShell && e.shellValue > 0) {
+        const shellPct = e.shellValue / e.maxShell;
+        const shellH = 3;
+        
+        ctx.fillStyle = '#06b6d4'; // Cyan
+        ctx.fillRect(-barWidth/2, barY - 5, barWidth * shellPct, shellH);
+        
+        // Background for shell
+        ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+        ctx.fillRect(-barWidth/2 + (barWidth * shellPct), barY - 5, barWidth * (1-shellPct), shellH);
+    }
+
+    if (lodLevel === 0 || e.isBoss) {
+        ctx.strokeStyle = e.isBoss ? '#ef4444' : 'rgba(255,255,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-barWidth/2 + 2, barY - 2); ctx.lineTo(-barWidth/2, barY - 2); ctx.lineTo(-barWidth/2, barY + 6); ctx.lineTo(-barWidth/2 + 2, barY + 6);
+        ctx.moveTo(barWidth/2 - 2, barY - 2); ctx.lineTo(barWidth/2, barY - 2); ctx.lineTo(barWidth/2, barY + 6); ctx.lineTo(barWidth/2 - 2, barY + 6);
+        ctx.stroke();
+    }
+
+    if (lodLevel < 2 || e.isBoss) {
+        const totalSegments = e.isBoss ? 20 : (lodLevel > 0 ? 1 : 5);
+        const activeSegments = Math.ceil(totalSegments * hpPct);
+        const segWidth = (barWidth - (lodLevel > 0 ? 0 : 4)) / totalSegments;
+        
+        ctx.fillStyle = e.isBoss ? '#ef4444' : '#10b981';
+        for(let i=0; i<activeSegments; i++) {
+            ctx.fillRect(-barWidth/2 + 2 + (i * segWidth), barY, segWidth - 1, 4);
+        }
+    }
+
+    if (e.isBoss) {
+        ctx.fillStyle = e.color;
+        ctx.font = 'bold 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText("APEX", 0, barY - 8);
     }
 }

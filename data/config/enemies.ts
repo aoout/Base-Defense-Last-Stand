@@ -7,11 +7,11 @@ export const ENEMY_STATS: Record<EnemyType, EnemyStatsConfig> = {
       detectionRange: 400 // Short sighted
   },
   [EnemyType.RUSHER]: { 
-      hp: 300, speed: 1.68, damage: 15, scoreReward: 20, radius: 12, color: '#FCD34D',
+      hp: 300, speed: 1.43, damage: 15, scoreReward: 20, radius: 12, color: '#FCD34D',
       detectionRange: 600 // High alertness
   },
   [EnemyType.TANK]: { 
-      hp: 1500, speed: 0.48, damage: 30, scoreReward: 50, radius: 25, color: '#1F2937',
+      hp: 1320, speed: 0.48, damage: 30, scoreReward: 50, radius: 40, color: '#1F2937',
       detectionRange: 500
   },
   [EnemyType.KAMIKAZE]: { 
@@ -66,9 +66,9 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
     },
     [EnemyType.TANK]: {
         codeName: "TANK",
-        classification: "HEAVY ARMOR",
+        classification: "WALKING FORTRESS",
         danger: 4,
-        description: "Heavily plated bio-form resembling a terrestrial beetle. Extremely resilient to kinetic impacts. Slow movement speed allows for kiting tactics."
+        description: "A colossal fusion of heavy bone plates and steel reinforced limbs. Possesses a reactive 'Shell' that reduces incoming damage by 30%. The Shell degrades under fire but regenerates rapidly. Use continuous fire or Incendiary weapons to bypass its defenses."
     },
     [EnemyType.KAMIKAZE]: {
         codeName: "KAMIKAZE",

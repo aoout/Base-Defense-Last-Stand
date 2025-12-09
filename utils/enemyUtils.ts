@@ -14,6 +14,7 @@ interface EnemyBaseStats {
 interface CalculatedStats {
     maxHp: number;
     damage: number;
+    speed?: number; // Added speed override
 }
 
 /**
@@ -30,7 +31,8 @@ export const calculateEnemyStats = (
     if (gameMode === GameMode.SURVIVAL || !planet) {
         return {
             maxHp: baseStats.hp,
-            damage: baseStats.damage
+            damage: baseStats.damage,
+            speed: baseStats.speed
         };
     }
 
@@ -38,6 +40,7 @@ export const calculateEnemyStats = (
     // Use effective strength if provided, otherwise base planet strength
     let hpMultiplier = effectiveGeneStrength !== undefined ? effectiveGeneStrength : planet.geneStrength;
     let damageMultiplier = 1.0;
+    let speedMultiplier = 1.0;
 
     // Extract Environmental Variables
     const oxygenGas = planet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id);
@@ -48,12 +51,14 @@ export const calculateEnemyStats = (
     switch (type) {
         case EnemyType.GRUNT:
             // High oxygen boosts Grunt metabolism significantly
-            hpMultiplier *= (1 + 1.2 * oxygenPercent);
+            hpMultiplier *= (1 + 1.4 * oxygenPercent); // Updated from 1.2 to 1.4
             break;
         
         case EnemyType.RUSHER:
             // Rushers benefit moderately from oxygen
             hpMultiplier *= (1 + 0.8 * oxygenPercent);
+            // New: Rusher Speed scales with Oxygen
+            speedMultiplier = (1 + 0.4 * oxygenPercent);
             break;
 
         case EnemyType.KAMIKAZE:
@@ -73,7 +78,8 @@ export const calculateEnemyStats = (
 
     return {
         maxHp: baseStats.hp * hpMultiplier,
-        damage: baseStats.damage * damageMultiplier
+        damage: baseStats.damage * damageMultiplier,
+        speed: baseStats.speed * speedMultiplier
     };
 };
 

@@ -163,8 +163,10 @@ export class MissionManager {
             this.engine.addMessage(this.engine.t('WAVE_STARTED', {0: state.wave}), state.worldWidth/2, state.worldHeight/2, 'yellow', FloatingTextType.SYSTEM);
         }
 
-        // Enemy Count Scaling
-        let newEnemies = 12 + 5 * state.wave;
+        // Enemy Count Scaling (UPDATED)
+        // Old: 12 + 5 * wave
+        // New: 10 + 4 * wave
+        let newEnemies = 10 + 4 * state.wave;
         
         // Exploration Scaling
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {

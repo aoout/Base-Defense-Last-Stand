@@ -47,6 +47,11 @@ export interface Enemy extends Entity {
   lastAttackTime: number;
   detectionRange: number; // Instance value
   
+  // Tank Mechanics
+  shellValue?: number; // Current Shell
+  maxShell?: number;   // Max Shell (100)
+  shellRegenTimer?: number;
+
   // Boss Specifics
   isBoss?: boolean;
   bossType?: BossType;
@@ -58,6 +63,10 @@ export interface Enemy extends Entity {
   armorValue?: number; // Percentage 0-100
   shedTimer?: number;
   shedCount?: number;
+
+  // Rusher Ability
+  dashCharges?: number;
+  dashTimer?: number;
 }
 
 export interface Ally extends Entity {
