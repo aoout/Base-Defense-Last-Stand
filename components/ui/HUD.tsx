@@ -38,6 +38,9 @@ export const HUD: React.FC = () => {
     const currentWep = p.weapons[currentWeaponType];
     const wepStats = WEAPONS[currentWeaponType];
 
+    // Safety return if weapon data missing
+    if (!currentWep || !wepStats) return null;
+
     const isOffenseMode = state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE;
     const isCampaign = state.gameMode === GameMode.CAMPAIGN;
     
@@ -61,7 +64,10 @@ export const HUD: React.FC = () => {
         const s = engine.state;
         const pl = s.player;
         const w = pl.weapons[pl.loadout[pl.currentWeaponIndex]];
+        
+        if (!w) return; // Skip update if weapon state invalid
         const stats = WEAPONS[w.type];
+        if (!stats) return;
 
         // 1. Base Health
         if (healthBarRef.current) healthBarRef.current.style.width = `${Math.max(0, s.base.hp / s.base.maxHp * 100)}%`;

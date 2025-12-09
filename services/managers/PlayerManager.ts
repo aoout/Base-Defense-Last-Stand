@@ -1,6 +1,6 @@
 
 import { WeaponType, ModuleType, DefenseUpgradeType, GameState, Projectile, DamageSource, GameEventType, SpawnProjectileEvent, PlaySoundEvent, PlayerSwitchWeaponEvent, PlayerReloadEvent, UserAction, StatId } from '../../types';
-import { WEAPONS, PLAYER_STATS } from '../../constants';
+import { WEAPONS, PLAYER_STATS, INITIAL_AMMO } from '../../constants';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
@@ -65,8 +65,26 @@ export class PlayerManager {
     private updateWeapons(dt: number, time: number) {
         const p = this.getState().player;
         const currentWep = p.loadout[p.currentWeaponIndex];
+        
+        // Safety: Auto-recover missing weapon state (e.g. from bad save data)
+        if (!p.weapons[currentWep]) {
+            console.warn(`Recovering missing weapon state for: ${currentWep}`);
+            p.weapons[currentWep] = {
+                type: currentWep,
+                ammoInMag: WEAPONS[currentWep].magSize,
+                ammoReserve: INITIAL_AMMO[currentWep],
+                lastFireTime: 0,
+                reloading: false,
+                reloadStartTime: 0,
+                modules: [],
+                consecutiveShots: 0
+            };
+        }
+
         const wepState = p.weapons[currentWep];
         const wepStats = WEAPONS[currentWep];
+
+        if (!wepState || !wepStats) return;
 
         // Ensure Pistol is infinite
         if (currentWep === WeaponType.PISTOL && wepState.ammoReserve !== Infinity) {
@@ -184,7 +202,7 @@ export class PlayerManager {
         const p = this.getState().player;
         const w = p.weapons[p.loadout[p.currentWeaponIndex]];
         
-        if (!w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
+        if (w && !w.reloading && w.ammoInMag < WEAPONS[w.type].magSize) {
             if (w.ammoReserve > 0 || w.ammoReserve === Infinity) {
                 w.reloading = true;
                 w.reloadStartTime = time;
