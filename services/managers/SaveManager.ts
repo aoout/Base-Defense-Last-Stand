@@ -1,5 +1,5 @@
 
-import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType } from '../../types';
+import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType, WeaponType } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
 import { CURRENT_VERSION } from '../../data/changelog';
@@ -165,19 +165,33 @@ export class SaveManager {
                      this.engine.state.appMode = AppMode.EXPLORATION_MAP;
                 }
 
-                // --- TIMESTAMP HYDRATION (Crucial Fix) ---
+                // --- TIMESTAMP HYDRATION & FIXES ---
                 
-                // 1. Player Regeneration Logic
-                // We need to preserve how long ago we were hit relative to the game state.
-                const timeSinceHit = oldSaveTime - this.engine.state.player.lastHitTime;
-                this.engine.state.player.lastHitTime = currentNow - timeSinceHit;
+                // 1. Player Regeneration Logic (Sanitization)
+                let loadedHitTime = this.engine.state.player.lastHitTime;
+                
+                // Detection for Legacy Unix Timestamp saves (numbers > 1 trillion)
+                // OR null/undefined values
+                if (!loadedHitTime || loadedHitTime > 1000000000000) {
+                    // Reset to a safe value so regen can start immediately
+                    this.engine.state.player.lastHitTime = currentNow - 999999;
+                } else {
+                    // Standard Sim Time Hydration
+                    const timeSinceHit = oldSaveTime - loadedHitTime;
+                    this.engine.state.player.lastHitTime = currentNow - timeSinceHit;
+                }
 
-                // 2. Weapon Reloading & Cooldowns
+                // 2. Weapon Reloading & Ammo Fixes
                 Object.values(this.engine.state.player.weapons).forEach(w => {
                     // Prevent jamming: Reset fire timer to allow shooting immediately
                     w.lastFireTime = 0; 
 
-                    // Reloading is critical to preserve
+                    // FIX: JSON serializes Infinity as null. Restore it for Pistol.
+                    if (w.type === WeaponType.PISTOL || w.ammoReserve === null) {
+                        w.ammoReserve = Infinity;
+                    }
+
+                    // Reloading hydration
                     if (w.reloading) {
                         const timeSinceReloadStart = oldSaveTime - w.reloadStartTime;
                         w.reloadStartTime = currentNow - timeSinceReloadStart;
@@ -199,8 +213,6 @@ export class SaveManager {
                 });
                 
                 // 5. Re-register Stats
-                // Since the stat modifiers are not strictly serialized (they are runtime calculated),
-                // we must re-run the registration logic based on the loaded upgrade state.
                 if (this.engine.spaceshipManager) {
                     this.engine.statManager.clear(); // Clear old stats
                     this.engine.spaceshipManager.registerModifiers(); // Rebuild from persistent data
