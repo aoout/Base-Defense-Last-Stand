@@ -1,6 +1,6 @@
 
 import { WeaponType, ModuleType, DefenseUpgradeType, GameState, Projectile, DamageSource, GameEventType, SpawnProjectileEvent, PlaySoundEvent, PlayerSwitchWeaponEvent, PlayerReloadEvent, UserAction, StatId } from '../../types';
-import { WEAPONS, PLAYER_STATS, INITIAL_AMMO } from '../../constants';
+import { WEAPONS, PLAYER_STATS, INITIAL_AMMO } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
@@ -216,7 +216,24 @@ export class PlayerManager {
         if (index >= 0 && index < 4) {
             this.getState().player.currentWeaponIndex = index;
             const p = this.getState().player;
-            Object.values(p.weapons).forEach(w => w.reloading = false);
+            const newWep = p.loadout[index];
+            
+            // Immediate Safety Check to prevent render crash before next update
+            if (!p.weapons[newWep]) {
+                 console.warn(`Recovering missing weapon state on switch: ${newWep}`);
+                 p.weapons[newWep] = {
+                    type: newWep,
+                    ammoInMag: WEAPONS[newWep].magSize,
+                    ammoReserve: INITIAL_AMMO[newWep],
+                    lastFireTime: 0,
+                    reloading: false,
+                    reloadStartTime: 0,
+                    modules: [],
+                    consecutiveShots: 0
+                };
+            }
+
+            Object.values(p.weapons).forEach(w => { if(w) w.reloading = false; });
         }
     }
 

@@ -83,7 +83,9 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
     // Weapon
     const currentWeaponType = p.loadout[p.currentWeaponIndex];
     const weaponState = p.weapons[currentWeaponType];
-    const isFiring = time - weaponState.lastFireTime < 50;
+    
+    // Safe access for firing check
+    const isFiring = weaponState ? (time - weaponState.lastFireTime < 50) : false;
     const recoil = isFiring ? -2 : 0;
 
     ctx.save();
@@ -110,7 +112,7 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
     drawUnitBars(ctx, p.hp, p.maxHp, p.armor, p.maxArmor, weaponState, WEAPONS[currentWeaponType]);
 };
 
-// --- ALLY ---
+// ... (Rest of file remains unchanged: drawAllySprite, drawTurret, drawBase, drawEnemies etc.)
 export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: number, isMoving: boolean, showShadows: boolean) => {
     if (showShadows) {
         ctx.save();
@@ -143,7 +145,6 @@ export const drawAllySprite = (ctx: CanvasRenderingContext2D, ally: Ally, time: 
     ctx.restore();
 };
 
-// --- TURRET ---
 export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number, showShadows: boolean) => {
     ctx.save();
     ctx.translate(t.x, t.y);
