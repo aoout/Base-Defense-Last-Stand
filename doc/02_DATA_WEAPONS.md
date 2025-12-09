@@ -1,12 +1,4 @@
 
-
-
-
-
-
-
-
-
 # 02. Tactical Arsenal Data
 
 **Code Reference**: 
@@ -51,8 +43,8 @@ Modules modify weapon behavior dynamically at runtime.
 | Type | Level | HP | Dmg | Rate | Range | Notes |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `STANDARD` | 1 | 1200 | 60 | 120ms| 400 | Basic Kinetic |
-| `GAUSS` | 2 | 3600 | 90 | 100ms| 650 | High DPS Upgrade |
-| `SNIPER` | 2 | 3000 | 140 | 250ms| 1300 | Long Range Upgrade |
-| `MISSILE` | 2 | 2400 | 160 | 840ms| 9999 | **Global Range**. Homing. AoE. |
+| `GAUSS` | 2 | 3600 | 110 | 240ms| 650 | **Spool-Up Mechanic**. Gains +1% Rate per shot (Max +200%). Resets after 2s idle. |
+| `SNIPER` | 2 | 3000 | 190 | 780ms| 1300 | **Railgun Beam**. Penetrates enemies (8% damage decay per hit). |
+| `MISSILE` | 2 | 2400 | 220 | 1230ms| 9999 | **Global Range**. Homing. Explosive Area of Effect (AoE). |
 
 *Note: Stats are further modified by Infrastructure Research bonuses.*

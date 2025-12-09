@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.2";
+export const CURRENT_VERSION = "1.0.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.3",
+        date: "2248.07.05",
+        title: "TURRET MECHANICS & BALANCE",
+        titleCN: "炮塔机制与平衡调整",
+        changes: [
+            "REWORK: 'Gauss Repeater' now features a spool-up mechanic. Fire rate increases by 1% per shot (Max +200%). Base rate lowered to 240ms.",
+            "REWORK: 'Railgun Turret' now fires a piercing beam (8% damage decay per target). Damage set to 190, Rate to 780ms.",
+            "BALANCE: 'Hydra Missile' damage increased to 220, rate adjusted to 1230ms. Added Area of Effect description.",
+            "DOCS: Updated in-game descriptions to reflect these mechanical changes."
+        ],
+        changesCN: [
+            "重制：“高斯机炮”新增预热机制。每次射击增加1%攻速（上限+200%）。基础射速调整为240ms。",
+            "重制：“轨道炮塔”现在发射穿透光束（每穿透一个目标衰减8%伤害）。伤害调整为190，射速780ms。",
+            "平衡：“九头蛇导弹”伤害提升至220，射速调整为1230ms。描述中明确了范围爆炸效果。",
+            "文档：更新了游戏内的描述文本以反映这些机制变化。"
+        ]
+    },
     {
         version: "1.0.2",
         date: "2248.06.30",

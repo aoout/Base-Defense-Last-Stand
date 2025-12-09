@@ -84,6 +84,7 @@ export interface Ally extends Entity {
 export interface Projectile extends Entity {
   vx: number;
   vy: number;
+  speed: number;
   damage: number;
   rangeRemaining: number;
   fromPlayer: boolean; // true if player/ally/turret, false if enemy
@@ -142,6 +143,7 @@ export interface Turret extends Entity {
   maxHp: number;
   damage: number;
   fireRate: number;
+  spinUp?: number; // 0.0 to 2.0 (0% to 200%)
 }
 
 export interface TurretSpot {

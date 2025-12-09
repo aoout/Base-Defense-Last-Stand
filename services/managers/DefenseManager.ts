@@ -150,7 +150,24 @@ export class DefenseManager {
                 return;
             }
             
-            if (time - t.lastFireTime > t.fireRate) {
+            // Logic for Gauss Spin-Up Decay (reset if idle for > 2s)
+            if (t.type === TurretType.GAUSS && t.spinUp && t.spinUp > 0) {
+                if (time - t.lastFireTime > 2000) {
+                    t.spinUp = 0;
+                }
+            }
+
+            // Calculate Effective Fire Rate
+            // Base Fire Rate is stored in t.fireRate (already includes stat modifiers from upgrade/build time)
+            // Apply Dynamic Modifiers (Spin Up)
+            let currentFireRate = t.fireRate;
+            if (t.type === TurretType.GAUSS) {
+                // Formula: Base / (1 + Bonus%)
+                // SpinUp ranges 0.0 to 2.0
+                currentFireRate = t.fireRate / (1 + (t.spinUp || 0));
+            }
+
+            if (time - t.lastFireTime > currentFireRate) {
                 let target: Enemy | null = null;
                 let minDistSq = t.range * t.range;
                 let possibleTargets: Enemy[] = [];
@@ -172,16 +189,17 @@ export class DefenseManager {
                 if (target) {
                     t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
                     
-                    // Determine projectile type based on turret type
                     let isExplosive = false;
+                    let isPiercing = false;
                     let speed = 20;
                     let color = '#10b981';
                     let explosionRadius = 0;
 
-                    if (t.type === TurretType.SNIPER) { // Long-Range Cannon
-                        isExplosive = false; // Disabled AOE for precision mechanical feel
-                        color = '#ffffff';
-                        speed = 35;
+                    if (t.type === TurretType.SNIPER) { // Railgun
+                        isExplosive = false; 
+                        isPiercing = true; // Penetration
+                        color = '#FAFAFA'; // White/Cyan beam color
+                        speed = 60; // Very fast, beam-like
                     } else if (t.type === TurretType.MISSILE) {
                         isExplosive = true;
                         explosionRadius = 100;
@@ -201,11 +219,17 @@ export class DefenseManager {
                         maxRange: t.range, 
                         source: DamageSource.TURRET,
                         isExplosive: isExplosive,
+                        isPiercing: isPiercing,
                         // @ts-ignore - passing extra prop to be handled by ProjectileManager/Physics
                         explosionRadius: explosionRadius 
                     });
                     t.lastFireTime = time;
                     this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: t.type });
+
+                    // Increment Spin Up
+                    if (t.type === TurretType.GAUSS) {
+                        t.spinUp = Math.min(2.0, (t.spinUp || 0) + 0.01);
+                    }
                 }
             }
         });
@@ -255,7 +279,8 @@ export class DefenseManager {
                         type: TurretType.STANDARD, lastFireTime: 0,
                         range: baseStats.range,
                         hp: finalHp, maxHp: finalHp,
-                        damage: finalDmg, fireRate: finalRate
+                        damage: finalDmg, fireRate: finalRate,
+                        spinUp: 0
                     };
                     this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'BUILD' });
                 } else {
@@ -308,6 +333,7 @@ export class DefenseManager {
             if (type === TurretType.GAUSS) specificMult = this.stats.get(StatId.TURRET_GAUSS_RATE, 1.0);
             
             spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
+            spot.builtTurret.spinUp = 0; // Reset spinup on upgrade
             
             this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
             this.closeTurretUpgrade();

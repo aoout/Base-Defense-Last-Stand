@@ -49,7 +49,7 @@ export class PhysicsSystem {
             let shouldRemove = false;
 
             if (p.fromPlayer) {
-                // --- Player Projectiles vs Enemies ---
+                // --- Player/Ally/Turret Projectiles vs Enemies ---
                 this.nearbyCache.length = 0;
                 this.spatialGrid.query(p.x, p.y, 70, this.nearbyCache); // Broad phase
 
@@ -72,6 +72,14 @@ export class PhysicsSystem {
                             const hitCount = p.hitIds ? p.hitIds.length : 0;
                             if (hitCount > 0) {
                                 finalDamage *= Math.pow(0.9, hitCount);
+                            }
+                        }
+
+                        // Turret Logic: Railgun Decay (Piercing + Source Turret)
+                        if (p.isPiercing && p.source === DamageSource.TURRET) {
+                            const hitCount = p.hitIds ? p.hitIds.length : 0;
+                            if (hitCount > 0) {
+                                finalDamage *= Math.pow(0.92, hitCount); // 8% decay per hit
                             }
                         }
 

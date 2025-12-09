@@ -1,5 +1,5 @@
 
-import { Projectile, Particle, OrbitalBeam, ToxicZone, BloodStain, WeaponType, ModuleType } from '../types';
+import { Projectile, Particle, OrbitalBeam, ToxicZone, BloodStain, WeaponType, ModuleType, DamageSource } from '../types';
 import { isVisible, getSprite } from './drawHelpers';
 
 // BATCHED & CACHED PARTICLE RENDERER
@@ -45,14 +45,23 @@ export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Par
 
 export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => {
     ctx.translate(p.x, p.y);
+    ctx.rotate(p.angle);
     
     if (p.isHoming) {
-        ctx.rotate(p.angle);
         ctx.fillStyle = p.color; 
         ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-4, -3); ctx.lineTo(-4, 3); ctx.closePath(); ctx.fill();
         ctx.fillStyle = '#FBBF24'; 
         ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(-8, -2); ctx.lineTo(-8, 2); ctx.fill();
-        ctx.rotate(-p.angle);
+    } else if (p.source === DamageSource.TURRET && p.speed > 50) {
+        // High Speed Turret Railgun (Beam)
+        ctx.fillStyle = p.color;
+        // Draw elongated beam
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = p.color;
+        ctx.fillRect(-20, -1.5, 40, 3);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-15, -0.5, 30, 1);
+        ctx.shadowBlur = 0;
     } else if (p.createsToxicZone) {
         ctx.fillStyle = '#A855F7'; ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
         if (Math.random() < 0.3) { ctx.fillStyle = '#D8B4FE'; ctx.beginPath(); ctx.arc(0, 0, 1, 0, Math.PI*2); ctx.fill(); }
@@ -66,8 +75,6 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
          if (lifePct > 0.6) color = 'rgba(200, 20, 20, 0.5)'; 
          if (lifePct > 0.8) color = 'rgba(50, 50, 50, 0.3)'; 
          
-         // Performance Hack: Avoid composite op if possible, but flame needs it. 
-         // Assuming this is called only for complex projectiles anyway.
          ctx.globalCompositeOperation = 'lighter'; 
          ctx.fillStyle = color; 
          ctx.beginPath(); ctx.arc(0, 0, currentRadius, 0, Math.PI * 2); ctx.fill(); 
@@ -78,6 +85,7 @@ export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => 
         ctx.beginPath(); ctx.arc(0, 0, p.radius, 0, Math.PI*2); ctx.fill();
     }
 
+    ctx.rotate(-p.angle);
     ctx.translate(-p.x, -p.y);
 }
 
@@ -94,7 +102,8 @@ export const drawProjectilesBatch = (ctx: CanvasRenderingContext2D, projectiles:
         const p = projectiles[i];
         if (!isVisible(p.x, p.y, p.radius + 20, camera)) continue;
 
-        if (p.isHoming || p.createsToxicZone || p.weaponType === WeaponType.FLAMETHROWER) {
+        // Check for complex rendering types including the new Railgun logic (high speed turret shots)
+        if (p.isHoming || p.createsToxicZone || p.weaponType === WeaponType.FLAMETHROWER || (p.source === DamageSource.TURRET && p.speed > 50)) {
             complexList.push(p);
         } else {
             if (!simpleBatches[p.color]) {
@@ -140,9 +149,7 @@ export const drawOrbitalBeam = (ctx: CanvasRenderingContext2D, beam: OrbitalBeam
     ctx.fillStyle = grad;
     ctx.fillRect(beam.x - currentWidth/2, beam.y - 1000, currentWidth, 1000);
     
-    // Disable expensive radial gradient on low settings if passed? 
-    // Currently no settings access here, but Orbital beams are rare enough to keep high quality usually.
-    const safeRadius = Math.max(0.1, currentWidth * 2); // Prevent 0 or negative radius
+    const safeRadius = Math.max(0.1, currentWidth * 2); 
     const grdRadial = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, safeRadius);
     grdRadial.addColorStop(0, `rgba(255, 255, 255, ${opacity})`);
     grdRadial.addColorStop(0.5, `rgba(6, 182, 212, ${opacity * 0.5})`);
@@ -182,14 +189,12 @@ export const drawToxicZones = (ctx: CanvasRenderingContext2D, zones: ToxicZone[]
         ctx.save();
         ctx.translate(zone.x, zone.y);
         
-        // Use a string hash for seed instead of parseInt, as IDs are strings like "tz-1"
         let seed = 0;
         for(let i=0; i<zone.id.length; i++) seed += zone.id.charCodeAt(i);
         
         const scale = 1 + Math.sin(time * 0.005 + seed) * 0.05;
         
-        // This gradient is somewhat expensive, but toxic zones are limited.
-        const radius = Math.max(0.1, zone.radius * scale); // Ensure positive radius
+        const radius = Math.max(0.1, zone.radius * scale); 
         const grad = ctx.createRadialGradient(0,0, 0, 0,0, radius);
         grad.addColorStop(0, 'rgba(124, 58, 237, 0.8)');
         grad.addColorStop(0.7, 'rgba(124, 58, 237, 0.4)');

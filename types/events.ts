@@ -56,9 +56,12 @@ export interface SpawnProjectileEvent {
     isHoming?: boolean;
     createsToxicZone?: boolean;
     isExplosive?: boolean;
+    isPiercing?: boolean;
     maxRange?: number;
     source: DamageSource;
     activeModules?: WeaponModule[];
+    // @ts-ignore
+    explosionRadius?: number;
 }
 
 export interface SpawnParticleEvent {
@@ -72,6 +75,7 @@ export interface SpawnParticleEvent {
 export interface SpawnToxicZoneEvent {
     x: number;
     y: number;
+    radius?: number;
 }
 
 export interface SpawnBloodStainEvent {

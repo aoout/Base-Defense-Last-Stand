@@ -18,6 +18,7 @@ export class ProjectileManager {
                 id: '',
                 x: 0, y: 0, radius: 4, angle: 0, color: '#fff',
                 vx: 0, vy: 0,
+                speed: 0,
                 damage: 0,
                 rangeRemaining: 0,
                 fromPlayer: false,
@@ -36,7 +37,7 @@ export class ProjectileManager {
         );
 
         this.events.on<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, (e) => {
-            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive);
+            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing);
         });
     }
 
@@ -44,12 +45,13 @@ export class ProjectileManager {
         this.getState().projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean) {
         const angle = Math.atan2(ty - y, tx - x);
         
         const proj = this.pool.get();
         proj.id = generateId('p');
         proj.x = x; proj.y = y;
+        proj.speed = speed;
         proj.vx = Math.cos(angle) * speed;
         proj.vy = Math.sin(angle) * speed;
         proj.damage = dmg;
@@ -66,6 +68,7 @@ export class ProjectileManager {
         proj.createsToxicZone = !!createsToxicZone;
         proj.activeModules = activeModules;
         proj.isExplosive = !!isExplosive;
+        proj.isPiercing = !!isPiercing;
 
         // Auto-detect flags based on modules or legacy color mapping if not explicitly set
         if (activeModules) {
