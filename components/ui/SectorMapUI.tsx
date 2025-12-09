@@ -105,7 +105,7 @@ export const SectorMapUI: React.FC = () => {
             {/* Current Scraps Display */}
             <div className="absolute bottom-8 left-64 bg-slate-900/80 p-4 border border-blue-900/50">
                 <div className="text-xs text-blue-400 font-bold uppercase tracking-widest">{t('AVAILABLE_FUNDS')}</div>
-                <div ref={fundsRef} className="text-2xl text-white font-mono">{Math.floor(state.player.score)} SCRAPS</div>
+                <div ref={fundsRef} className="text-2xl text-white font-mono"></div>
             </div>
 
             {/* Modals */}

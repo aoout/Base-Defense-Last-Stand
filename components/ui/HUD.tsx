@@ -199,13 +199,13 @@ export const HUD: React.FC = () => {
                                 <div className="w-full mt-1">
                                     <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
                                         <span>BOSS INTEGRITY</span>
-                                        <span ref={bossHpTextRef} className="font-display text-lg">{Math.ceil(hiveMother.hp).toLocaleString()}</span>
+                                        <span ref={bossHpTextRef} className="font-display text-lg"></span>
                                     </div>
                                     <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
                                         <div 
                                             ref={bossHpRef}
                                             className="h-full bg-gradient-to-r from-red-900 via-red-600 to-red-500 transition-all duration-300"
-                                            style={{ width: `${Math.max(0, (hiveMother.hp / hiveMother.maxHp) * 100)}%` }}
+                                            style={{ width: '100%' }}
                                         />
                                     </div>
                                     <div className="flex justify-between text-[10px] font-mono text-red-500 mt-1">
@@ -234,7 +234,7 @@ export const HUD: React.FC = () => {
                                 <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
-                                    <span ref={waveNumberRef} className="text-2xl font-display font-black text-white leading-none">{state.wave}</span>
+                                    <span ref={waveNumberRef} className="text-2xl font-display font-black text-white leading-none"></span>
                                 </div>
                             </div>
 
@@ -242,14 +242,10 @@ export const HUD: React.FC = () => {
                                 {isCleanupPhase ? (
                                     <div className="flex flex-col items-center">
                                         <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
-                                        <span ref={enemiesRemainingRef} className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]">
-                                            {state.enemies.length}
-                                        </span>
+                                        <span ref={enemiesRemainingRef} className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
                                     </div>
                                 ) : (
-                                    <span ref={waveTimerRef} className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]">
-                                        00:00
-                                    </span>
+                                    <span ref={waveTimerRef} className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"></span>
                                 )}
                             </div>
 
@@ -297,9 +293,7 @@ export const HUD: React.FC = () => {
                                 <span>{t('SKIP_WAVE')}</span>
                                 <span className="animate-pulse">◄◄</span>
                             </div>
-                            <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold">
-                                REWARD: 0
-                            </div>
+                            <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold"></div>
                         </button>
                     </div>
                 )}
@@ -313,7 +307,7 @@ export const HUD: React.FC = () => {
                         <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
                     </div>
                     <div className="flex items-baseline gap-2">
-                        <span ref={scrapTextRef} className="text-4xl font-display font-bold text-white tracking-wide">{Math.floor(p.score)}</span>
+                        <span ref={scrapTextRef} className="text-4xl font-display font-bold text-white tracking-wide"></span>
                         <span className="text-xs text-slate-500 font-bold">{t('SCRAPS')}</span>
                     </div>
                 </div>
@@ -329,14 +323,14 @@ export const HUD: React.FC = () => {
                 <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                     <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
                         <span className="text-blue-400">{isCampaign ? "PRIMARY" : "STRUCTURE"}</span>
-                        <span ref={healthTextRef} className="text-white">{Math.ceil(state.base.hp)} / {state.base.maxHp}</span>
+                        <span ref={healthTextRef} className="text-white"></span>
                     </div>
                     {/* Health Bar */}
                     <div className="w-full h-3 bg-slate-800 relative z-10">
                         <div 
                             ref={healthBarRef}
                             className={`h-full transition-all duration-300 bg-blue-500`} 
-                            style={{ width: `${Math.max(0, state.base.hp / state.base.maxHp * 100)}%` }}
+                            style={{ width: '100%' }}
                         ></div>
                     </div>
                     {/* Background Grid */}
@@ -347,14 +341,14 @@ export const HUD: React.FC = () => {
                     <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                         <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
                             <span className="text-blue-400">SECONDARY</span>
-                            <span ref={secHealthTextRef} className="text-white">{Math.ceil(state.secondaryBase.hp)} / {state.secondaryBase.maxHp}</span>
+                            <span ref={secHealthTextRef} className="text-white"></span>
                         </div>
                         {/* Health Bar */}
                         <div className="w-full h-3 bg-slate-800 relative z-10">
                             <div 
                                 ref={secHealthBarRef}
                                 className={`h-full transition-all duration-300 bg-blue-500`} 
-                                style={{ width: `${Math.max(0, state.secondaryBase.hp / state.secondaryBase.maxHp * 100)}%` }}
+                                style={{ width: '100%' }}
                             ></div>
                         </div>
                         {/* Background Grid */}
@@ -378,9 +372,8 @@ export const HUD: React.FC = () => {
                         {/* Text will be updated by REF, initial state placeholder */}
                         <div className="flex items-baseline gap-1">
                             <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
-                                {currentWep.ammoInMag}
                             </span>
-                            <span ref={ammoReserveRef} className="text-sm text-slate-500 font-bold font-mono">/ {currentWep.ammoReserve === Infinity ? '∞' : currentWep.ammoReserve}</span>
+                            <span ref={ammoReserveRef} className="text-sm text-slate-500 font-bold font-mono"></span>
                         </div>
                         <WeaponIcon type={currentWeaponType} className="w-12 h-12 text-slate-600" />
                     </div>
@@ -389,7 +382,7 @@ export const HUD: React.FC = () => {
                         <div 
                             ref={ammoBarRef}
                             className="h-full bg-white" 
-                            style={{ width: `${(currentWep.ammoInMag / wepStats.magSize) * 100}%` }}
+                            style={{ width: '100%' }}
                         ></div>
                     </div>
                 </div>
