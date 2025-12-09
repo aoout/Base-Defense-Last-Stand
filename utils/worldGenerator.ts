@@ -77,6 +77,12 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
         // Configurable Sulfur Index
         const sulfurIndex = Math.floor(Math.random() * (maxSulfur + 1));
 
+        // Wave Calculation: Range 8-40, skewed lower using quadratic random
+        // random^2 gives a curve biased towards 0
+        const waveRandom = Math.random();
+        const skewedRandom = waveRandom * waveRandom; 
+        const waves = 8 + Math.floor(skewedRandom * 33); // max 8 + 32 = 40
+
         planets.push({
             id: `planet-${i}`,
             name: generatePlanetName(), // Use procedural name generator
@@ -85,7 +91,7 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
             radius: visualType === PlanetVisualType.GAS_GIANT ? 50 + Math.random() * 30 : 30 + Math.random() * 30,
             color: style.planetColor,
             missionType,
-            totalWaves: missionType === MissionType.OFFENSE ? 0 : 5 + Math.floor(Math.random() * 10),
+            totalWaves: missionType === MissionType.OFFENSE ? 0 : waves,
             geneStrength: geneStrength,
             sulfurIndex: sulfurIndex,
             landingDifficulty: landingDifficulty,

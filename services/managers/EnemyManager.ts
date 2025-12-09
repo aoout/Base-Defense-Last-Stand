@@ -1,3 +1,4 @@
+
 import { GameEngine } from '../gameService';
 import { Enemy, EnemyType, BossType, GameMode, MissionType, Entity, Planet, SpecialEventType, FloatingTextType, DamageSource, GameEventType, SpawnProjectileEvent, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, SpawnParticleEvent, SpawnToxicZoneEvent, SpawnBloodStainEvent, ShowFloatingTextEvent, DamageAreaEvent, DamageEnemyEvent, StatId, EnemySummonEvent, WeaponType } from '../../types';
 import { ENEMY_STATS, BOSS_STATS } from '../../data/registry';
@@ -353,11 +354,21 @@ export class EnemyManager {
     }
 
     public killEnemy(e: Enemy) {
-        let score = e.scoreReward;
+        // Calculate Gene Strength Multiplier
+        let geneMultiplier = 1;
+        if (this.engine.state.gameMode === GameMode.EXPLORATION && this.engine.state.currentPlanet) {
+            geneMultiplier = this.engine.state.currentPlanet.geneStrength;
+        }
+
+        // Base reward scaled by gene strength
+        let score = Math.floor(e.scoreReward * geneMultiplier);
         
         if (e.bossType === BossType.HIVE_MOTHER) {
             const gene = this.engine.state.currentPlanet?.geneStrength || 1;
             const armor = e.armorValue || 0;
+            // The dominance bonus is additive on top of the (now scaled) base reward.
+            // Note: The base reward of 5000 is now scaled by geneStrength as requested.
+            // The extra bonus calculation uses gene strength in its own formula so we don't apply the multiplier to it again.
             const bonus = Math.floor(20 * Math.pow(gene, 2) * Math.pow(armor, 1.6));
             score += bonus;
             
