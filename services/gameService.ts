@@ -329,6 +329,9 @@ export class GameEngine {
   private persistSettings() { if (this.state && this.state.settings) localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings)); }
 
   public reset(fullReset: boolean = false, mode: GameMode = GameMode.SURVIVAL) {
+    // STOP AMBIENCE
+    this.audio.stopAmbience();
+
     const isCampaign = mode === GameMode.CAMPAIGN;
     
     // Set Dimensions
@@ -525,7 +528,7 @@ export class GameEngine {
       this.notifyUI('MISSION_COMPLETE');
   }
   public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
-  private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.notifyUI('RETURN_MAP'); }
+  private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.audio.stopAmbience(); this.notifyUI('RETURN_MAP'); }
   public skipWave() { this.missionManager.skipWave(); this.notifyUI('WAVE_UPDATE'); }
   public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
   public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) { this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, { x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules }); }
@@ -585,7 +588,7 @@ export class GameEngine {
   public enterExplorationMode() { this.reset(true, GameMode.EXPLORATION); this.notifyUI('MODE_SWITCH'); }
   public enterCampaignMode() { this.reset(true, GameMode.CAMPAIGN); this.notifyUI('MODE_SWITCH'); }
   
-  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
+  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.audio.stopAmbience(); this.notifyUI('MODE_SWITCH'); }
   public exitSpaceshipView() { this.state.appMode = AppMode.EXPLORATION_MAP; this.notifyUI('MODE_SWITCH'); }
   public enterOrbitalUpgradeMenu() { this.state.appMode = AppMode.ORBITAL_UPGRADES; this.notifyUI('MODE_SWITCH'); }
   public exitOrbitalUpgradeMenu() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
@@ -606,8 +609,8 @@ export class GameEngine {
   public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); this.notifyUI('BIO_UNLOCK'); }
   public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); this.notifyUI('BIO_TASK'); }
   public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
-  public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; } this.notifyUI('ASCEND'); }
-  public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.notifyUI('EVAC'); }
+  public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; this.audio.stopAmbience(); } this.notifyUI('ASCEND'); }
+  public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.audio.stopAmbience(); this.notifyUI('EVAC'); }
   public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", this.state.player.x, this.state.player.y, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }

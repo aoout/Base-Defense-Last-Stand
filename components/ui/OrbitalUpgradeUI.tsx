@@ -180,7 +180,7 @@ export const OrbitalUpgradeUI: React.FC = () => {
                  <div className="w-80 flex-shrink-0 flex flex-col gap-4 overflow-y-auto">
                      <div className="bg-black/40 border-r-4 border-slate-600 p-6 h-full flex flex-col justify-center relative rounded-l-lg">
                          <h3 className="text-slate-400 font-bold text-sm tracking-widest border-b border-slate-700 pb-2 mb-6 uppercase text-right">
-                             {t('ANALYSIS')}
+                             {t('SYSTEM_ANALYSIS')}
                          </h3>
 
                          {hoveredNode ? (

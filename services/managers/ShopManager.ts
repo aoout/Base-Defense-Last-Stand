@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, WeaponModule, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent } from '../../types';
+import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, WeaponModule, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent, PlaySoundEvent } from '../../types';
 import { SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS, SPACESHIP_MODULES } from '../../data/registry';
 
 export class ShopManager {
@@ -74,6 +74,10 @@ export class ShopManager {
             if (p.score >= m.cost) {
                  p.score -= m.cost;
                  this.engine.state.spaceship.installedModules.push(itemKey as SpaceshipModuleType);
+                 
+                 // Play Upgrade Sound
+                 this.engine.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
+
                  // Apply immediate effects
                  if (itemKey === SpaceshipModuleType.BASE_REINFORCEMENT) {
                      this.engine.state.base.maxHp += 3000;

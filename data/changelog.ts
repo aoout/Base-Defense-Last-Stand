@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.4";
+export const CURRENT_VERSION = "1.0.5";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.5",
+        date: "2248.07.15",
+        title: "ATMOSPHERE & BALANCE",
+        titleCN: "环境与平衡",
+        changes: [
+            "AUDIO: Added immersive ambient soundscapes for all planetary biomes (Ice, Lava, Toxic, etc.).",
+            "BALANCE: Pulse Rifle reload time increased (1300ms -> 1800ms) to align with its piercing capabilities.",
+            "UI: Corrected localization logic in Orbital Upgrade interface. 'Autopsy Report' label fixed to 'System Analysis'.",
+            "SYS: General stability improvements."
+        ],
+        changesCN: [
+            "音频：为所有行星生物群系（冰原、熔岩、剧毒等）添加了沉浸式环境音效。",
+            "平衡：脉冲卡宾枪换弹时间增加（1300ms -> 1800ms），以平衡其穿透能力。",
+            "界面：修正了轨道升级界面中的文本错误。‘解剖报告’标签已更正为‘系统解析’。",
+            "系统：常规稳定性改进。"
+        ]
+    },
     {
         version: "1.0.4",
         date: "2248.07.10",

@@ -76,6 +76,9 @@ export class GalaxyManager {
             newState.enemiesPendingSpawn = Math.ceil((12 + 5 * 1) * targetPlanet.geneStrength); 
         }
   
+        // TRIGGER AMBIENCE
+        this.engine.audio.startAmbience(targetPlanet.biome);
+
         setTimeout(() => {
           this.engine.addMessage(this.engine.t('ORBITAL_DROP_COST', {0: dropCost}), newState.player.x, newState.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
           
@@ -154,6 +157,8 @@ export class GalaxyManager {
     public triggerGalacticEvent() {
         const state = this.engine.state;
         const roll = Math.random();
+        
+        // Reverted to 8% probability (Cancelled change)
         if (roll > 0.08) return;
   
         const eventRoll = Math.random();

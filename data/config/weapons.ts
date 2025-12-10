@@ -49,7 +49,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     fireRate: 40,
     spread: 0.15,
     magSize: 100,
-    reloadTime: 2200, // BUFF: 3000 -> 2200
+    reloadTime: 2000, // BUFF: 2200 -> 2000
     range: 350,
     projectileSpeed: 12,
     isPiercing: true
@@ -60,7 +60,7 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     fireRate: 80,
     spread: 0.02,
     magSize: 45,
-    reloadTime: 1300, // NERF: 1200 -> 1300
+    reloadTime: 1800, // NERF: 1300 -> 1800
     range: 700,
     projectileSpeed: 30,
     isPiercing: true

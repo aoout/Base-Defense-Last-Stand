@@ -1,5 +1,5 @@
 
-import { SoundProfile, OscillatorLayer, NoiseLayer, OscillatorType } from "../types";
+import { SoundProfile, OscillatorLayer, NoiseLayer, OscillatorType, BiomeType } from "../types";
 import { SFX_LIBRARY } from "../data/registry";
 import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../constants";
 
@@ -32,11 +32,16 @@ export class AudioService {
   private ctx: AudioContext;
   private masterGain: GainNode;
   private musicGain: GainNode;
+  private ambienceGain: GainNode; // Dedicated bus for ambience
   private sfxCompressor: DynamicsCompressorNode;
   
   private isBgmPlaying: boolean = false;
   private noiseBuffer: AudioBuffer | null = null;
   private lastPlayTime: Record<string, number> = {};
+
+  // Ambience State
+  private activeAmbienceNodes: AudioNode[] = [];
+  private currentAmbienceBiome: BiomeType | null = null;
 
   // Sequencer State
   private nextNoteTime: number = 0;
@@ -56,11 +61,10 @@ export class AudioService {
     this.ctx = new AudioContextClass();
     
     // --- ROUTING ARCHITECTURE ---
-    // Old: All -> Compressor -> Master -> Dest
-    // New: 
-    //   Music -> MusicGain -> MasterGain
-    //   SFX   -> SFXCompressor -> MasterGain
-    //   MasterGain -> Dest
+    // Music -> MusicGain -> MasterGain
+    // Ambience -> AmbienceGain -> MasterGain
+    // SFX   -> SFXCompressor -> MasterGain
+    // MasterGain -> Dest
     
     // 1. Master Output (Volume Control)
     this.masterGain = this.ctx.createGain();
@@ -81,6 +85,11 @@ export class AudioService {
     this.musicGain.gain.value = 0.35; 
     this.musicGain.connect(this.masterGain);
 
+    // 4. Ambience Bus (Quiet background)
+    this.ambienceGain = this.ctx.createGain();
+    this.ambienceGain.gain.value = 0.15; // Base volume for ambience (low)
+    this.ambienceGain.connect(this.masterGain);
+
     this.createNoiseBuffer();
   }
 
@@ -99,7 +108,7 @@ export class AudioService {
   }
 
   private createNoiseBuffer() {
-    const bufferSize = this.ctx.sampleRate * 2;
+    const bufferSize = this.ctx.sampleRate * 2; // 2 seconds of noise
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
@@ -107,6 +116,189 @@ export class AudioService {
     }
     this.noiseBuffer = buffer;
   }
+
+  // --- AMBIENCE SYSTEM ---
+
+  public stopAmbience() {
+      if (this.activeAmbienceNodes.length > 0) {
+          const now = this.ctx.currentTime;
+          // Ramp down active gains
+          this.activeAmbienceNodes.forEach(node => {
+              if (node instanceof GainNode) {
+                  node.gain.cancelScheduledValues(now);
+                  node.gain.setValueAtTime(node.gain.value, now);
+                  node.gain.exponentialRampToValueAtTime(0.001, now + 2.0); // 2s fade out
+              } else if (node instanceof OscillatorNode || node instanceof AudioBufferSourceNode) {
+                  node.stop(now + 2.0);
+              }
+          });
+          // Clear array after fade time (approx)
+          setTimeout(() => {
+              this.activeAmbienceNodes = [];
+          }, 2100);
+      }
+      this.currentAmbienceBiome = null;
+  }
+
+  public startAmbience(biome: BiomeType) {
+      if (this.currentAmbienceBiome === biome) return; // Already playing
+      
+      this.stopAmbience();
+      this.currentAmbienceBiome = biome;
+      const now = this.ctx.currentTime;
+
+      // Ensure noise buffer is ready
+      if (!this.noiseBuffer) this.createNoiseBuffer();
+
+      // Common Setup
+      const masterAmbienceGain = this.ctx.createGain();
+      masterAmbienceGain.gain.setValueAtTime(0, now);
+      masterAmbienceGain.gain.linearRampToValueAtTime(1.0, now + 3.0); // 3s fade in
+      masterAmbienceGain.connect(this.ambienceGain);
+      this.activeAmbienceNodes.push(masterAmbienceGain);
+
+      // Biome Specific Recipes
+      switch(biome) {
+          case BiomeType.BARREN:
+              // Deep Space Wind: Lowpass Noise + Slow LFO
+              this.createWindLayer(masterAmbienceGain, 80, 0.05); // Low rumble
+              break;
+          
+          case BiomeType.ICE:
+              // Cold Wind: Bandpass Noise (Higher pitch)
+              this.createWindLayer(masterAmbienceGain, 600, 0.1, 'bandpass', 2);
+              // Subtle high whistle
+              this.createDroneLayer(masterAmbienceGain, 440, 0.02, 'sine'); 
+              break;
+
+          case BiomeType.VOLCANIC:
+              // Magma Rumble: Deep Sine AM Modulation
+              this.createRumbleLayer(masterAmbienceGain);
+              break;
+
+          case BiomeType.DESERT:
+              // Sandstorm: Mid-range noise
+              this.createWindLayer(masterAmbienceGain, 300, 0.08, 'bandpass', 1);
+              break;
+
+          case BiomeType.TOXIC:
+              // Swampy: Lowpass Noise + LFO on Filter (Breathing effect)
+              this.createLiquidLayer(masterAmbienceGain);
+              break;
+      }
+  }
+
+  private createWindLayer(output: AudioNode, freq: number, vol: number, filterType: BiquadFilterType = 'lowpass', lfoSpeed: number = 0.1) {
+      const source = this.ctx.createBufferSource();
+      source.buffer = this.noiseBuffer;
+      source.loop = true;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = filterType;
+      filter.frequency.value = freq;
+      filter.Q.value = 1;
+
+      const gain = this.ctx.createGain();
+      gain.gain.value = vol;
+
+      // LFO for wind swelling
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = lfoSpeed;
+      
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = vol * 0.3; // Modulation depth
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(gain.gain); // Modulate volume
+
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(output);
+
+      source.start();
+      lfo.start();
+
+      this.activeAmbienceNodes.push(source, filter, gain, lfo, lfoGain);
+  }
+
+  private createRumbleLayer(output: AudioNode) {
+      // FM Synthesis for Rumble
+      const carrier = this.ctx.createOscillator();
+      carrier.frequency.value = 60; // Base rumble pitch
+      
+      const modulator = this.ctx.createOscillator();
+      modulator.frequency.value = 4; // Rumble speed (Hz)
+      
+      const modGain = this.ctx.createGain();
+      modGain.gain.value = 30; // Rumble depth
+
+      modulator.connect(modGain);
+      modGain.connect(carrier.frequency);
+
+      const amp = this.ctx.createGain();
+      amp.gain.value = 0.15;
+
+      carrier.connect(amp);
+      amp.connect(output);
+
+      carrier.start();
+      modulator.start();
+
+      this.activeAmbienceNodes.push(carrier, modulator, modGain, amp);
+  }
+
+  private createLiquidLayer(output: AudioNode) {
+      const source = this.ctx.createBufferSource();
+      source.buffer = this.noiseBuffer;
+      source.loop = true;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.Q.value = 5; // Resonant to sound squishy
+
+      // LFO modulates filter frequency
+      const lfo = this.ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.2; // Slow breathing
+
+      const lfoGain = this.ctx.createGain();
+      lfoGain.gain.value = 200; // Sweep range
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+      
+      filter.frequency.value = 300; // Base center
+
+      const amp = this.ctx.createGain();
+      amp.gain.value = 0.08;
+
+      source.connect(filter);
+      filter.connect(amp);
+      amp.connect(output);
+
+      source.start();
+      lfo.start();
+
+      this.activeAmbienceNodes.push(source, filter, lfo, lfoGain, amp);
+  }
+
+  private createDroneLayer(output: AudioNode, freq: number, vol: number, type: OscillatorType) {
+      const osc = this.ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.value = freq;
+      
+      const gain = this.ctx.createGain();
+      gain.gain.value = vol;
+
+      osc.connect(gain);
+      gain.connect(output);
+      osc.start();
+
+      this.activeAmbienceNodes.push(osc, gain);
+  }
+
+  // --- SFX & MUSIC ---
 
   public play(profileId: string, x?: number, y?: number) {
     const profile = SFX_LIBRARY[profileId];

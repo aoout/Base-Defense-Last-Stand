@@ -13,8 +13,8 @@
 | `AR` | Assault Rifle | 45 | 100ms | 30 | 1.5s | 600 | Standard Issue. |
 | `SG` | Shotgun | 35x8 | 600ms | 8 | 2.0s | 300 | Fires 8 pellets (280 max dmg). |
 | `SR` | Sniper Rifle | 480 | 1100ms | 5 | 2.5s | 1200 | High Caliber. Penetrates via modules. |
-| `FLAMETHROWER` | Flamethrower | 18 | 40ms | 100 | 2.2s | 350 | **IsPiercing: True**. Hits all in line. |
-| `PULSE_RIFLE` | Pulse Rifle | 35 | 80ms | 45 | 1.3s | 700 | **IsPiercing: True**. 20% Dmg Decay per hit. |
+| `FLAMETHROWER` | Flamethrower | 18 | 40ms | 100 | 2.0s | 350 | **IsPiercing: True**. Hits all in line. |
+| `PULSE_RIFLE` | Pulse Rifle | 35 | 80ms | 45 | 1.8s | 700 | **IsPiercing: True**. 20% Dmg Decay per hit. |
 | `GRENADE_LAUNCHER`| Grenade Launcher| 360 | 1200ms | 6 | 3.2s | 600 | **IsExplosive: True**. AoE Radius 100. |
 
 ### Technical Notes
