@@ -26,6 +26,9 @@ export class DefenseManager {
     }
 
     public update(dt: number, time: number, timeScale: number) {
+        // Prevent defense logic (ally spawn/movement) if base is still dropping/deploying
+        if (this.getState().baseDrop?.active) return;
+
         this.updateAllies(dt, time, timeScale);
         this.updateTurrets(time);
     }
