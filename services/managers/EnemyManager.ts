@@ -325,7 +325,9 @@ export class EnemyManager {
             // Everything else reduces shell
             if (weaponType !== WeaponType.FLAMETHROWER) {
                 if (enemy.shellValue && enemy.shellValue > 0) {
-                    enemy.shellValue = Math.max(0, enemy.shellValue - 8);
+                    // Pulse Rifle nerf: only reduces shell by 1 (vs 8 for standard kinetic)
+                    const reduction = weaponType === WeaponType.PULSE_RIFLE ? 1 : 8;
+                    enemy.shellValue = Math.max(0, enemy.shellValue - reduction);
                 }
             }
 

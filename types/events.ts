@@ -62,6 +62,7 @@ export interface SpawnProjectileEvent {
     activeModules?: WeaponModule[];
     // @ts-ignore
     explosionRadius?: number;
+    weaponType?: WeaponType; // Added for precise identification
 }
 
 export interface SpawnParticleEvent {

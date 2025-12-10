@@ -37,7 +37,7 @@ export class ProjectileManager {
         );
 
         this.events.on<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, (e) => {
-            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing);
+            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing, e.weaponType);
         });
     }
 
@@ -45,7 +45,7 @@ export class ProjectileManager {
         this.getState().projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean, weaponType?: WeaponType) {
         const angle = Math.atan2(ty - y, tx - x);
         
         const proj = this.pool.get();
@@ -69,14 +69,29 @@ export class ProjectileManager {
         proj.activeModules = activeModules;
         proj.isExplosive = !!isExplosive;
         proj.isPiercing = !!isPiercing;
+        
+        // Directly assign explicit type if provided
+        if (weaponType) {
+            proj.weaponType = weaponType;
+        }
 
-        // Auto-detect flags based on modules or legacy color mapping if not explicitly set
+        // Auto-detect flags based on modules or explicit type
         if (activeModules) {
              if (activeModules.some(m => m.type === 'KINETIC_STABILIZER')) proj.isPiercing = true;
         }
-        if (color === '#22D3EE') { proj.isPiercing = true; proj.weaponType = WeaponType.PULSE_RIFLE; } // Pulse
-        if (color === '#F97316') { proj.isPiercing = true; proj.weaponType = WeaponType.FLAMETHROWER; } // Flame
-        if (color === '#1F2937') { proj.isExplosive = true; proj.weaponType = WeaponType.GRENADE_LAUNCHER; } // GL
+        
+        // Fallback for special properties if flags weren't explicitly set but type was known
+        if (proj.weaponType === WeaponType.PULSE_RIFLE) { proj.isPiercing = true; } 
+        if (proj.weaponType === WeaponType.FLAMETHROWER) { proj.isPiercing = true; } 
+        if (proj.weaponType === WeaponType.GRENADE_LAUNCHER) { proj.isExplosive = true; } 
+
+        // Legacy Color Sniffing (kept as fallback for older event calls, though ideally removed)
+        // Corrected casing just in case
+        if (!proj.weaponType) {
+            if (color.toUpperCase() === '#22D3EE') { proj.isPiercing = true; proj.weaponType = WeaponType.PULSE_RIFLE; } 
+            if (color.toUpperCase() === '#F97316') { proj.isPiercing = true; proj.weaponType = WeaponType.FLAMETHROWER; }
+            if (color.toUpperCase() === '#1F2937') { proj.isExplosive = true; proj.weaponType = WeaponType.GRENADE_LAUNCHER; }
+        }
 
         this.getState().projectiles.push(proj);
     }

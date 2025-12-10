@@ -12,7 +12,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | `GRUNT` | Infantry | 100 | 0.96 | 10 | Melee | Swarms target. Low threat alone. |
 | `RUSHER` | Assault | 300 | 1.43 | 15 | Melee | **Dash Ability**: Stores up to 2 charges (1 charge/10s). Dashes 65 units instantly when engaging. |
-| `TANK` | Heavy | 1200 | 0.48 | 30 | Melee | **Walking Fortress**. Has 100 Reactive Shell. Takes 30% less damage while Shell > 0. Any hit (non-fire) reduces Shell by 8. Regenerates 10 Shell every 10s. |
+| `TANK` | Heavy | 1200 | 0.48 | 30 | Melee | **Walking Fortress**. Has 100 Reactive Shell. Takes 30% less damage while Shell > 0. Any hit (non-fire) reduces Shell by 8 (Pulse Rifle reduces by 1). Regenerates 10 Shell every 10s. |
 | `KAMIKAZE`| Volatile | 50 | 2.40 | 200 | Melee | **Explodes** on contact. Leaves Toxic Zone. |
 | `VIPER` | Ranged | 150 | 0.72 | 40 | 450 | Stops at range to fire acid projectiles. |
 

@@ -71,7 +71,7 @@ export class PhysicsSystem {
                         if (p.isPiercing && p.weaponType === WeaponType.PULSE_RIFLE) {
                             const hitCount = p.hitIds ? p.hitIds.length : 0;
                             if (hitCount > 0) {
-                                finalDamage *= Math.pow(0.9, hitCount);
+                                finalDamage *= Math.pow(0.8, hitCount); // 20% Decay
                             }
                         }
 

@@ -1,3 +1,4 @@
+
 import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
@@ -143,7 +144,8 @@ export class PlayerManager {
                 source: DamageSource.PLAYER,
                 activeModules: wState.modules,
                 isPiercing: wStats.isPiercing,
-                isExplosive: wStats.isExplosive
+                isExplosive: wStats.isExplosive,
+                weaponType: weaponType // EXPLICITLY PASS WEAPON TYPE
             });
         };
 
@@ -224,7 +226,8 @@ export class PlayerManager {
                 maxRange: 400,
                 source: DamageSource.PLAYER,
                 isExplosive: true,
-                activeModules: p.grenadeModules
+                activeModules: p.grenadeModules,
+                weaponType: WeaponType.GRENADE_LAUNCHER // Identify as GL/Grenade for consistency
             });
         }
     }
