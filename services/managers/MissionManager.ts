@@ -14,6 +14,9 @@ export class MissionManager {
         const state = this.engine.state;
 
         if (state.missionComplete || state.isGameOver) return;
+        
+        // Prevent mission progress if base is dropping
+        if (state.baseDrop && state.baseDrop.active) return;
 
         // Offense Mode (No waves, just boss)
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.OFFENSE) {

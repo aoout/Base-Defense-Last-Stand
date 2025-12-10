@@ -67,6 +67,22 @@ export class GalaxyManager {
         this.engine.spaceshipManager.registerModifiers();
         
         newState.base.hp = newState.base.maxHp;
+        
+        // --- BASE DROP INITIALIZATION ---
+        // Start high above (e.g. 1500px up). Target is the configured base.y
+        newState.baseDrop = {
+            active: true,
+            y: newState.base.y - 1500, 
+            targetY: newState.base.y,
+            velocity: 0,
+            phase: 'ENTRY',
+            deployTimer: 0
+        };
+        
+        // Hide player initially (will be spawned by logic when base lands)
+        // We move player to base center to be ready
+        newState.player.x = newState.base.x;
+        newState.player.y = newState.base.y; 
   
         if (targetPlanet.missionType === MissionType.OFFENSE) {
             newState.enemiesPendingSpawn = 0; 

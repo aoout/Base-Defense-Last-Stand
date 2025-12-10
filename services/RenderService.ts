@@ -110,18 +110,27 @@ export class RenderService {
         ctx.lineWidth = 5;
         ctx.strokeRect(0, 0, state.worldWidth, state.worldHeight);
 
-        // Draw Turret Spots
-        state.turretSpots.forEach(spot => {
-            if (!isVisible(spot.x, spot.y, 20, camera)) return;
-            if (!spot.builtTurret) {
-                drawTurretSpot(ctx, spot, time);
-            }
-        });
+        // Draw Turret Spots (Only if base has landed)
+        if (!state.baseDrop || !state.baseDrop.active || state.baseDrop.phase === 'DEPLOY') {
+            state.turretSpots.forEach(spot => {
+                if (!isVisible(spot.x, spot.y, 20, camera)) return;
+                if (!spot.builtTurret) {
+                    drawTurretSpot(ctx, spot, time);
+                }
+            });
+        }
 
         // Draw Base(s)
-        drawBase(ctx, state.base, state.settings.showShadows);
+        const isDropping = state.baseDrop && state.baseDrop.active;
+        const baseY = isDropping ? state.baseDrop!.y : state.base.y;
+        
+        // Override base Y for drawing
+        const droppingBase = { ...state.base, y: baseY };
+        
+        drawBase(ctx, droppingBase, state.settings.showShadows, isDropping);
+        
         if (state.secondaryBase) {
-            drawBase(ctx, state.secondaryBase, state.settings.showShadows);
+            drawBase(ctx, state.secondaryBase, state.settings.showShadows, false);
         }
 
         // Draw Turrets
@@ -210,27 +219,50 @@ export class RenderService {
             }
             
             // UI Bars (HP / Shell)
-            // Note: We already rotated by angle, so we are in local entity space (facing right/up depending on base model)
-            // drawEnemyBars expects to handle counter-rotation itself if it assumes passed context is rotated.
-            // Let's check drawEnemyBars implementation...
-            // It does `ctx.rotate(-e.angle)`. This assumes the context is currently rotated by `e.angle`.
-            // Yes, we are currently rotated by `e.angle`.
-            
             drawEnemyBars(ctx, e, lodLevel);
             
             ctx.restore();
         });
 
-        // Draw Laser Sight
-        if (state.player.isAiming) {
-            ctx.beginPath();
-            ctx.moveTo(state.player.x, state.player.y);
-            const endX = state.player.x + Math.cos(state.player.angle) * 3000;
-            const endY = state.player.y + Math.sin(state.player.angle) * 3000;
-            ctx.lineTo(endX, endY);
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
+        // Draw Laser Sight & Player (Only if Base is NOT dropping)
+        if (!state.baseDrop || !state.baseDrop.active) {
+            if (state.player.isAiming) {
+                ctx.beginPath();
+                ctx.moveTo(state.player.x, state.player.y);
+                const endX = state.player.x + Math.cos(state.player.angle) * 3000;
+                const endY = state.player.y + Math.sin(state.player.angle) * 3000;
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            const isMoving = input.isActive(UserAction.MOVE_UP) || input.isActive(UserAction.MOVE_DOWN) ||
+                             input.isActive(UserAction.MOVE_LEFT) || input.isActive(UserAction.MOVE_RIGHT);
+            
+            const p = state.player;
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            
+            if (state.settings.showShadows) {
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.ellipse(0, 5, p.radius, p.radius*0.6, 0, 0, Math.PI*2);
+                ctx.fill();
+            }
+    
+            ctx.rotate(p.angle);
+            drawPlayerSprite(ctx, p, time, !!isMoving);
+            ctx.restore();
+    
+            // Reload Indicator
+            const currentWeaponType = p.loadout[p.currentWeaponIndex];
+            if (p.weapons[currentWeaponType].reloading) {
+                ctx.fillStyle = '#fcd34d';
+                ctx.font = '10px monospace';
+                ctx.textAlign = 'center';
+                ctx.fillText("[ RELOADING ]", p.x, p.y + 45);
+            }
         }
 
         // Draw Projectiles
@@ -238,34 +270,6 @@ export class RenderService {
 
         // Draw Particles
         drawParticlesBatch(ctx, state.particles, camera);
-
-        // Draw Player
-        const isMoving = input.isActive(UserAction.MOVE_UP) || input.isActive(UserAction.MOVE_DOWN) ||
-                         input.isActive(UserAction.MOVE_LEFT) || input.isActive(UserAction.MOVE_RIGHT);
-        
-        const p = state.player;
-        ctx.save();
-        ctx.translate(p.x, p.y);
-        
-        if (state.settings.showShadows) {
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
-            ctx.beginPath();
-            ctx.ellipse(0, 5, p.radius, p.radius*0.6, 0, 0, Math.PI*2);
-            ctx.fill();
-        }
-
-        ctx.rotate(p.angle);
-        drawPlayerSprite(ctx, p, time, !!isMoving);
-        ctx.restore();
-
-        // Reload Indicator
-        const currentWeaponType = p.loadout[p.currentWeaponIndex];
-        if (p.weapons[currentWeaponType].reloading) {
-            ctx.fillStyle = '#fcd34d';
-            ctx.font = '10px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText("[ RELOADING ]", p.x, p.y + 45);
-        }
 
         // Floating Text
         state.floatingTexts.forEach(ft => {

@@ -406,6 +406,7 @@ export class GameEngine {
     this.state = {
       appMode: initialAppMode, gameMode: mode, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
       worldWidth: w, worldHeight: h,
+      baseDrop: null, // Initial state, GalaxyManager overrides this for deployment
       camera: { x: 0, y: 0 },
       player: { id: 'player', x: playerPos.x, y: playerPos.y, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
       base: { x: basePos.x, y: basePos.y, width: BASE_STATS.width, height: BASE_STATS.height, hp: BASE_STATS.maxHp, maxHp: BASE_STATS.maxHp, },
@@ -476,6 +477,49 @@ export class GameEngine {
     
     this.state.time += dt;
 
+    // --- BASE DROP PHYSICS ---
+    if (this.state.baseDrop && this.state.baseDrop.active) {
+        const bd = this.state.baseDrop;
+        if (bd.phase === 'ENTRY') {
+            // Falling Phase
+            bd.velocity += 0.5 * timeScale; // Gravity
+            bd.y += bd.velocity * timeScale;
+            
+            // FX: Re-entry flames
+            if (Math.random() < 0.3) {
+                this.spawnParticle(this.state.base.x + (Math.random()-0.5)*100, bd.y - 100, '#f97316', 3, 10);
+            }
+
+            if (bd.y >= bd.targetY) {
+                bd.y = bd.targetY;
+                bd.phase = 'IMPACT';
+                
+                // Big Impact FX
+                this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: this.state.base.x, y: bd.targetY });
+                this.spawnParticle(this.state.base.x, bd.targetY, '#9ca3b8', 50, 20); // Dust wave
+                this.damageArea(this.state.base.x, bd.targetY, 300, 1000, DamageSource.ORBITAL); // Landing Crush
+                
+                // Shake (Simple logic via camera reset later)
+                // Next frame transition
+                setTimeout(() => { 
+                    if(this.state.baseDrop) this.state.baseDrop.phase = 'DEPLOY'; 
+                }, 500);
+            }
+        } else if (bd.phase === 'DEPLOY') {
+            // Deployment Phase (Door opening delay)
+            bd.deployTimer += dt;
+            if (bd.deployTimer > 1500) {
+                // Done
+                bd.active = false;
+                // Player "steps out"
+                this.state.player.x = this.state.base.x;
+                this.state.player.y = this.state.base.y + 50; 
+                this.spawnParticle(this.state.player.x, this.state.player.y, '#3b82f6', 20, 5); // Teleport/Spawn FX
+                this.addMessage("OPERATIVE DEPLOYED", this.state.player.x, this.state.player.y - 60, '#3b82f6', FloatingTextType.SYSTEM);
+            }
+        }
+    }
+
     // --- PHYSICS UPDATE (Centralized Collision) ---
     this.physics.update(dt);
 
@@ -497,7 +541,12 @@ export class GameEngine {
 
     // --- Managers Update ---
     this.spaceshipManager.update(dt);
-    this.playerManager.update(dt, this.time.now, timeScale);
+    
+    // Only update player controls if Base Drop is finished or not active
+    if (!this.state.baseDrop || !this.state.baseDrop.active) {
+        this.playerManager.update(dt, this.time.now, timeScale);
+    }
+    
     this.projectileManager.update(dt, timeScale);
     this.enemyManager.update(dt, timeScale);
     this.defenseManager.update(dt, this.time.now, timeScale);
@@ -509,6 +558,12 @@ export class GameEngine {
     // Use state dimensions
     this.state.camera.x = Math.max(0, Math.min(targetCamX, this.state.worldWidth - CANVAS_WIDTH));
     this.state.camera.y = Math.max(0, Math.min(targetCamY, this.state.worldHeight - CANVAS_HEIGHT));
+    
+    // Base Drop Camera Override (Follow Base)
+    if (this.state.baseDrop && this.state.baseDrop.active) {
+        const baseCamY = this.state.baseDrop.y - CANVAS_HEIGHT / 2;
+        this.state.camera.y = Math.max(0, Math.min(baseCamY, this.state.worldHeight - CANVAS_HEIGHT));
+    }
     
     // Update Audio Listener Position
     this.audio.updateCamera(this.state.camera.x, this.state.camera.y);

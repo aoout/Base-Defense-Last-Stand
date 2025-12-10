@@ -20,6 +20,15 @@ export interface GameSettings {
   showShadows: boolean; // Toggle drop shadows
 }
 
+export interface BaseDropState {
+    active: boolean;
+    y: number;       // Current visual Y position of the base
+    targetY: number; // The final ground Y position
+    velocity: number;
+    phase: 'ORBIT' | 'ENTRY' | 'IMPACT' | 'DEPLOY';
+    deployTimer: number; // Timer for door opening/player spawn
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -40,6 +49,9 @@ export interface GameState {
   // Spaceship
   spaceship: SpaceshipState;
   orbitalSupportTimer: number; // Tracks time for ORBITAL_CANNON module
+
+  // Base Drop Animation State (Replaces dropPod)
+  baseDrop: BaseDropState | null;
 
   // Save System
   saveSlots: SaveFile[];

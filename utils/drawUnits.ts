@@ -61,6 +61,15 @@ const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
     ctx.closePath(); ctx.fill(); 
 };
 
+// --- DROP POD ---
+// Previously used for player, now unused or repurposed for base detail. Keeping for ref but base draw handles drop visual.
+export const drawDropPod = (ctx: CanvasRenderingContext2D, x: number, y: number) => {
+    ctx.save();
+    ctx.translate(x, y);
+    // ... drawing ...
+    ctx.restore();
+};
+
 // --- PLAYER ---
 export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time: number, isMoving: boolean) => {
     const stride = isMoving ? Math.sin(time * 0.015) * 4 : 0;
@@ -199,8 +208,50 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
 };
 
 // --- BASE ---
-export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }, showShadows: boolean) => {
-    if (showShadows) {
+export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }, showShadows: boolean, isDropping: boolean = false) => {
+    
+    // Thruster Flames if dropping
+    if (isDropping) {
+        ctx.save();
+        ctx.translate(base.x, base.y);
+        
+        // Main Thrusters (4 corners)
+        const corners = [
+            {x: -base.width/2 + 20, y: base.height/2},
+            {x: base.width/2 - 20, y: base.height/2},
+            {x: -base.width/2 + 20, y: -base.height/2}, // Sides? No, just bottom for "Retro rockets"
+            {x: base.width/2 - 20, y: -base.height/2}
+        ];
+        
+        // Actually, retro thrusters usually fire DOWN to slow descent.
+        // Let's draw big flames under the base.
+        const flameLength = 80 + Math.random() * 20;
+        
+        const grad = ctx.createLinearGradient(0, base.height/2, 0, base.height/2 + flameLength);
+        grad.addColorStop(0, '#3b82f6'); // Blue core
+        grad.addColorStop(0.4, '#f97316'); // Orange mid
+        grad.addColorStop(1, 'rgba(255, 69, 0, 0)'); // Red fade
+        
+        ctx.fillStyle = grad;
+        
+        // Left Thruster
+        ctx.beginPath();
+        ctx.moveTo(-base.width/2 + 10, base.height/2);
+        ctx.lineTo(-base.width/2 + 30, base.height/2 + flameLength);
+        ctx.lineTo(-base.width/2 + 50, base.height/2);
+        ctx.fill();
+
+        // Right Thruster
+        ctx.beginPath();
+        ctx.moveTo(base.width/2 - 50, base.height/2);
+        ctx.lineTo(base.width/2 - 30, base.height/2 + flameLength);
+        ctx.lineTo(base.width/2 - 10, base.height/2);
+        ctx.fill();
+        
+        ctx.restore();
+    }
+
+    if (showShadows && !isDropping) {
         ctx.fillStyle = PALETTE.UI.SHADOW;
         ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width, base.height);
     }
@@ -251,8 +302,7 @@ const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, ti
     drawCircle(ctx, x, y - 20, 2, pulse ? '#22c55e' : '#14532d');
 };
 
-// --- ENEMIES ---
-
+// ... (Rest of file enemies draw functions)
 export const drawGrunt = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
     if (lodLevel >= 2) {
         ctx.fillStyle = PALETTE.ZERG.SKIN_LIGHT;
@@ -975,24 +1025,6 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
 
 // Helper for drawing UI bars
 const drawUnitBars = (ctx: CanvasRenderingContext2D, hp: number, maxHp: number, armor: number, maxArmor: number, weaponState: any, wepStats: any, shellValue?: number, maxShell?: number) => {
-    // NOTE: This function receives raw arguments. 
-    // In drawUnits.ts (the file it resides in), when we call it for player (line 120), we pass 7 arguments.
-    // For Enemy, we MUST ensure we pass shellValue if needed.
-    // However, drawUnitBars helper is internal here. 
-    // Let's check where it is called for Enemies. 
-    // Ah, it's called inside the main RenderService (or drawUnits export?) 
-    // Actually, drawUnitBars is only used for Player in drawPlayerSprite (line 120).
-    // Enemies have their own inline bar logic in RenderService.ts (line 200 approx).
-    // Wait! RenderService.ts imports drawUnitBars? No, it implements its own Enemy bar logic.
-    // We need to update RenderService.ts as well to show the shell bar for enemies.
-    // BUT since I am editing drawUnits.ts, I should probably export a standard drawEnemyBars function
-    // to unify it, or update the logic in RenderService if I can't touch it.
-    // The prompt says "I didn't see the shell bar".
-    // I will check RenderService.ts content.
-    // RenderService.ts line 220: Draws Enemy HP bar manually.
-    // So I need to update RenderService.ts OR move that logic here and export it.
-    // Moving logic to drawUnits.ts and exporting `drawEnemyBars` is cleaner.
-    
     // For Player (lines 120), it uses this function.
     const barWidth = 40;
     let barYOffset = 30; 

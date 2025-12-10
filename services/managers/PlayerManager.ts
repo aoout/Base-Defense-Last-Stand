@@ -1,5 +1,5 @@
 
-import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType } from '../../types';
+import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
