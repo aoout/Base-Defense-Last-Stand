@@ -1,6 +1,6 @@
 
 import React, { useRef } from 'react';
-import { WeaponType, GameMode, MissionType, BossType, StatId } from '../../types';
+import { WeaponType, GameMode, MissionType, BossType, StatId, AppMode } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
 import { useLocale } from '../contexts/LocaleContext';
@@ -140,16 +140,14 @@ export const HUD: React.FC = () => {
             const isDef = s.gameMode === GameMode.SURVIVAL || (s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.DEFENSE);
             const noWaves = isDef && s.gameMode === GameMode.EXPLORATION && s.wave >= (s.currentPlanet?.totalWaves || 0);
             
-            // Show after 10 seconds if not game over/complete/offense/last wave/Campaign
             const showLure = !isCampaign && !isOffense && elapsed >= 10000 && !noWaves && !s.missionComplete && !s.isGameOver;
 
             if (showLure) {
-                lureContainerRef.current.style.height = '3rem'; // h-12
+                lureContainerRef.current.style.height = '3rem'; 
                 lureContainerRef.current.style.opacity = '1';
                 lureContainerRef.current.style.transform = 'translateY(0)';
                 lureContainerRef.current.style.pointerEvents = 'auto';
                 
-                // Update Reward Text
                 if (lureRewardRef.current) {
                     const baseReward = Math.max(0, Math.floor((s.waveTimeRemaining / 1000) * s.wave));
                     const finalReward = engine.statManager.get(StatId.LURE_BONUS, baseReward);
@@ -166,6 +164,34 @@ export const HUD: React.FC = () => {
 
     return (
         <>
+            {/* Top Left: Campaign Heroism Button (Redesigned) */}
+            {isCampaign && (
+                <div className="absolute top-6 left-6 z-20">
+                    <button 
+                        onClick={() => {
+                            engine.state.appMode = AppMode.HEROIC_ZEAL;
+                            engine.notifyUI();
+                        }}
+                        className="group relative w-16 h-16 flex items-center justify-center bg-gradient-to-b from-red-950 to-black border border-red-700/50 hover:border-red-500 transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:scale-105 active:scale-95 hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                        style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                        title={t('HEROIC_BTN')}
+                    >
+                        {/* Inner Pulse */}
+                        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(220,38,38,0.4)_0%,transparent_70%)] animate-pulse"></div>
+                        
+                        {/* Star Icon */}
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-red-500 group-hover:text-white transition-colors drop-shadow-[0_0_5px_rgba(220,38,38,0.8)] relative z-10">
+                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                        </svg>
+                        
+                        {/* Floating Label */}
+                        <div className="absolute -bottom-8 w-32 text-center pointer-events-none">
+                            <div className="text-[9px] font-black uppercase text-red-500 tracking-[0.2em] bg-black/90 border border-red-900/50 px-2 py-0.5 rounded shadow-sm">{t('HEROIC_BTN')}</div>
+                        </div>
+                    </button>
+                </div>
+            )}
+
             {/* --- TOP CENTER: TACTICAL CHRONOMETER --- */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
                 
@@ -249,7 +275,6 @@ export const HUD: React.FC = () => {
                                 )}
                             </div>
 
-                            {/* Wave Progress Micro-Bar */}
                             {!isCleanupPhase && (
                                 <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
                                     <div 
@@ -263,7 +288,6 @@ export const HUD: React.FC = () => {
                     )}
                 </div>
 
-                {/* --- THE LURE (SKIP BUTTON) --- */}
                 {!isCampaign && (
                     <div 
                         ref={lureContainerRef}
@@ -299,7 +323,6 @@ export const HUD: React.FC = () => {
                 )}
             </div>
 
-            {/* Top Right: Resource Monitor */}
             <div className="absolute top-6 right-6 group">
                 <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1">
                     <div className="flex items-center gap-2 mb-1">
@@ -313,7 +336,6 @@ export const HUD: React.FC = () => {
                 </div>
             </div>
 
-            {/* Bottom Left: Integrity Monitor */}
             <div className="absolute bottom-8 left-8 w-64 flex flex-col gap-4">
                 <div className="flex items-end gap-2 mb-2">
                     <span className="text-4xl font-display font-black text-white/20 select-none">BASE</span>
@@ -325,7 +347,6 @@ export const HUD: React.FC = () => {
                         <span className="text-blue-400">{isCampaign ? "PRIMARY" : "STRUCTURE"}</span>
                         <span ref={healthTextRef} className="text-white"></span>
                     </div>
-                    {/* Health Bar */}
                     <div className="w-full h-3 bg-slate-800 relative z-10">
                         <div 
                             ref={healthBarRef}
@@ -333,7 +354,6 @@ export const HUD: React.FC = () => {
                             style={{ width: '100%' }}
                         ></div>
                     </div>
-                    {/* Background Grid */}
                     <div className="absolute inset-0 bg-[size:10px_10px] bg-[linear-gradient(to_right,#1e3a8a1a_1px,transparent_1px),linear-gradient(to_bottom,#1e3a8a1a_1px,transparent_1px)] pointer-events-none"></div>
                 </div>
 
@@ -343,7 +363,6 @@ export const HUD: React.FC = () => {
                             <span className="text-blue-400">SECONDARY</span>
                             <span ref={secHealthTextRef} className="text-white"></span>
                         </div>
-                        {/* Health Bar */}
                         <div className="w-full h-3 bg-slate-800 relative z-10">
                             <div 
                                 ref={secHealthBarRef}
@@ -351,16 +370,12 @@ export const HUD: React.FC = () => {
                                 style={{ width: '100%' }}
                             ></div>
                         </div>
-                        {/* Background Grid */}
                         <div className="absolute inset-0 bg-[size:10px_10px] bg-[linear-gradient(to_right,#1e3a8a1a_1px,transparent_1px),linear-gradient(to_bottom,#1e3a8a1a_1px,transparent_1px)] pointer-events-none"></div>
                     </div>
                 )}
             </div>
 
-            {/* Bottom Right: Weapon Systems */}
             <div className="absolute bottom-8 right-8 flex flex-col items-end gap-4">
-                
-                {/* Active Weapon Card */}
                 <div className="bg-slate-900/90 border-t-2 border-r-2 border-slate-600 p-4 min-w-[240px] relative overflow-hidden shadow-2xl">
                     <div className="absolute top-0 right-0 p-1 bg-slate-800">
                         <div className="text-[12px] text-slate-400 font-display font-bold uppercase tracking-wider">
@@ -369,7 +384,6 @@ export const HUD: React.FC = () => {
                     </div>
                     
                     <div className="mt-4 flex justify-between items-end">
-                        {/* Text will be updated by REF, initial state placeholder */}
                         <div className="flex items-baseline gap-1">
                             <span ref={ammoTextRef} className={`text-6xl font-display font-black tracking-wide text-white`}>
                             </span>
@@ -387,7 +401,6 @@ export const HUD: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Tactical Grenades */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-500 tracking-wider">GRENADE [G]</span>
                     <div className="flex gap-1">
@@ -400,7 +413,6 @@ export const HUD: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Weapon Selector Dots */}
                 <div className="flex gap-2">
                     {p.loadout.map((wType, idx) => (
                         <div 

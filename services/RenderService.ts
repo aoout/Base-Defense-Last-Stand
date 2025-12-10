@@ -6,7 +6,7 @@ import {
     renderStaticTerrainToCache, drawDynamicTerrainFeatures, drawCachedTerrain,
     drawBloodStains, drawToxicZones, drawTurret, 
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
-    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule,
+    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule, drawTubeWorm,
     drawBase, drawTurretSpot, drawProjectilesBatch,
     drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
     isVisible, drawParticlesBatch, drawEnemyBars
@@ -174,6 +174,8 @@ export class RenderService {
 
         // Use Asset Manager for sprites if not in High Quality mode or if count is very high
         // We use cached sprites for LOD 1 and 2
+        // EXCEPTION: Tube Worm changes shape dynamically (scaleY), so we can't easily sprite cache it without multiple frames.
+        // For now, render it vectorially.
         const useCachedSprites = lodLevel > 0;
 
         // Draw Enemies
@@ -184,7 +186,7 @@ export class RenderService {
             ctx.translate(e.x, e.y);
             
             // Shadow
-            if (state.settings.showShadows) {
+            if (state.settings.showShadows && (e.visualScaleY === undefined || e.visualScaleY > 0.5)) {
                 ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 ctx.beginPath();
                 ctx.ellipse(0, 5, e.radius, e.radius*0.6, 0, 0, Math.PI*2);
@@ -193,7 +195,7 @@ export class RenderService {
 
             ctx.rotate(e.angle);
 
-            if (useCachedSprites && e.type !== 'PUSTULE') {
+            if (useCachedSprites && e.type !== 'PUSTULE' && e.type !== 'TUBE_WORM') {
                 const sprite = this.assetManager.getEnemySprite(e.type, e.bossType, e.color, e.radius);
                 const size = sprite.width;
                 const offset = size / 2;
@@ -215,12 +217,16 @@ export class RenderService {
                         case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
                         case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
                         case 'PUSTULE': drawPustule(ctx, e, time, lodLevel); break;
+                        case 'TUBE_WORM': drawTubeWorm(ctx, e, time); break;
                     }
                 }
             }
             
             // UI Bars (HP / Shell)
-            drawEnemyBars(ctx, e, lodLevel);
+            // Hide bars if underground
+            if (e.type !== 'TUBE_WORM' || (e.visualScaleY || 1) > 0.1) {
+                drawEnemyBars(ctx, e, lodLevel);
+            }
             
             ctx.restore();
         });

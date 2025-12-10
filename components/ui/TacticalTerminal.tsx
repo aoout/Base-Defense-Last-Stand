@@ -4,7 +4,7 @@ import * as d3 from 'd3';
 import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { CloseButton } from './Shared';
-import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother } from '../../utils/renderers';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { useLocale, Translator } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
@@ -21,6 +21,7 @@ const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t
         EnemyType.VIPER, 
         EnemyType.TANK, 
         EnemyType.KAMIKAZE, 
+        EnemyType.TUBE_WORM,
         BossType.RED_SUMMONER, 
         BossType.BLUE_BURST, 
         BossType.PURPLE_ACID,
@@ -70,7 +71,8 @@ const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t
             type: selectedId, 
             bossType: selectedId, 
             isBoss: isBoss,
-            armorValue: 90 // Visual for hive mother
+            armorValue: 90, // Visual for hive mother
+            visualScaleY: 1 // for Tube Worm
         };
         
         ctx.save();
@@ -95,6 +97,7 @@ const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t
             case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
             case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
             case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
+            case EnemyType.TUBE_WORM: drawTubeWorm(ctx, mockEntity, time); break;
             case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
             case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
             case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;

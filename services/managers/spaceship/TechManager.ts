@@ -22,7 +22,7 @@ export class TechManager {
         if (s.carapaceGrid) return; 
 
         const nodes: CarapaceNode[][] = [];
-        const targets = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER];
+        const targets = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER, EnemyType.TUBE_WORM];
 
         for (let r = 0; r < 4; r++) {
             const row: CarapaceNode[] = [];

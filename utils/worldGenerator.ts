@@ -4,7 +4,7 @@ import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../const
 import { BIOME_STYLES, GAS_INFO } from '../data/world';
 import { generatePlanetName } from './nameGenerator';
 
-export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
+export const generatePlanets = (config?: GalaxyConfig, width?: number, height?: number): Planet[] => {
     const planets: Planet[] = [];
     const biomes = Object.values(BiomeType);
     
@@ -14,9 +14,12 @@ export const generatePlanets = (config?: GalaxyConfig): Planet[] => {
     const maxOxygen = config && config.maxOxygen !== undefined ? config.maxOxygen : 1.0;
     const count = config && config.planetCount ? config.planetCount : 12;
 
+    const mapW = width || CANVAS_WIDTH;
+    const mapH = height || CANVAS_HEIGHT;
+
     for(let i=0; i<count; i++) {
-        const x = (Math.random() * (CANVAS_WIDTH - 200)) + 100;
-        const y = (Math.random() * (CANVAS_HEIGHT - 200)) + 100;
+        const x = (Math.random() * (mapW - 200)) + 100;
+        const y = (Math.random() * (mapH - 200)) + 100;
         const biome = biomes[Math.floor(Math.random() * biomes.length)];
         const style = BIOME_STYLES[biome];
         

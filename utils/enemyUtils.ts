@@ -9,6 +9,7 @@ interface EnemyBaseStats {
     scoreReward: number;
     radius: number;
     color: string;
+    detectionRange: number;
 }
 
 interface CalculatedStats {
@@ -71,6 +72,11 @@ export const calculateEnemyStats = (
             damageMultiplier *= (1 + 0.1 * sulfurIndex);
             break;
             
+        case EnemyType.TUBE_WORM:
+            // Tube Worm damage scales heavily with Oxygen
+            damageMultiplier *= (1 + 1.5 * oxygenPercent);
+            break;
+
         case EnemyType.TANK:
             // Tanks are purely gene-bound, no extra environmental mods defined yet
             break;
@@ -128,8 +134,11 @@ export const selectEnemyType = (
     const wTank = 3;
     // KAMIKAZE: 2 * (1 + 0.05 * Sulfur)
     const wKamikaze = 2 * (1 + 0.05 * sulfurIndex);
+    
+    // TUBE WORM: 5 (Only if O2 > 18%)
+    const wTubeWorm = oxygenPercent > 0.18 ? 5 : 0;
 
-    const totalWeight = wGrunt + wRusher + wViper + wTank + wKamikaze;
+    const totalWeight = wGrunt + wRusher + wViper + wTank + wKamikaze + wTubeWorm;
     let randomWeight = Math.random() * totalWeight;
 
     if (randomWeight < wGrunt) return EnemyType.GRUNT;
@@ -144,5 +153,8 @@ export const selectEnemyType = (
     if (randomWeight < wTank) return EnemyType.TANK;
     randomWeight -= wTank;
 
-    return EnemyType.KAMIKAZE;
+    if (randomWeight < wKamikaze) return EnemyType.KAMIKAZE;
+    randomWeight -= wKamikaze;
+
+    return EnemyType.TUBE_WORM;
 };

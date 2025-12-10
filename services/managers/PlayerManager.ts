@@ -39,10 +39,15 @@ export class PlayerManager {
 
         if (dx !== 0 || dy !== 0) {
             const length = Math.sqrt(dx * dx + dy * dy);
-            // Apply speed stat
             
-            p.x += (dx / length) * p.speed * timeScale;
-            p.y += (dy / length) * p.speed * timeScale;
+            // Apply speed stat (Base speed -> Modifiers)
+            // p.speed is the base defined in state init from PLAYER_STATS
+            // We fetch the dynamic value from StatManager
+            // Note: Currently p.speed in state IS the base stat.
+            const effectiveSpeed = this.stats.get(StatId.PLAYER_MOVE_SPEED, p.speed);
+            
+            p.x += (dx / length) * effectiveSpeed * timeScale;
+            p.y += (dy / length) * effectiveSpeed * timeScale;
 
             // Clamp
             p.x = Math.max(0, Math.min(state.worldWidth, p.x));
@@ -67,7 +72,20 @@ export class PlayerManager {
         const weaponStats = WEAPONS[currentWeaponType];
 
         if (weaponState.reloading) {
-            if (time - weaponState.reloadStartTime >= weaponStats.reloadTime) {
+            // Calculate Reload Time with Modules & Stats
+            let reloadTime = weaponStats.reloadTime;
+            
+            // Modules
+            if (weaponState.modules.some(m => m.type === ModuleType.TENSION_SPRING)) {
+                reloadTime *= 0.8;
+            }
+            
+            // Global Stat (Heroic Zeal)
+            // e.g. -0.1 reduction means reloadTime * 0.9
+            const reloadMod = this.stats.get(StatId.PLAYER_RELOAD_SPEED, 0); 
+            reloadTime = reloadTime * (1 + reloadMod);
+
+            if (time - weaponState.reloadStartTime >= reloadTime) {
                 this.finishReload(weaponState, weaponStats);
             }
         }
@@ -172,13 +190,6 @@ export class PlayerManager {
         }
 
         wState.reloading = true;
-        
-        // Calculate Reload Time with Modules
-        let reloadTime = wStats.reloadTime;
-        if (wState.modules.some(m => m.type === ModuleType.TENSION_SPRING)) {
-            reloadTime *= 0.8;
-        }
-
         wState.reloadStartTime = time;
         this.events.emit(GameEventType.PLAY_SOUND, { type: 'RELOAD', variant: weaponType, x: p.x, y: p.y });
     }

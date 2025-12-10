@@ -1,5 +1,5 @@
 
-import { BioBuffType, BioResource, BossType, DamageSource, DefenseUpgradeType, EnemyType, FloatingTextType, GameMode, InfrastructureUpgradeType, OrbitalUpgradeEffect, SpaceshipModuleType, WeaponType } from './enums';
+import { BioBuffType, BioResource, BossType, DamageSource, DefenseUpgradeType, EnemyType, FloatingTextType, GameMode, HeroicUpgradeType, InfrastructureUpgradeType, OrbitalUpgradeEffect, SpaceshipModuleType, WeaponType } from './enums';
 import { InventoryItem, WeaponModule, WeaponState } from './items';
 
 export interface BioNode {
@@ -20,6 +20,16 @@ export interface BioTask {
     progress: number;
     rewardResource: BioResource;
     rewardAmount: number;
+}
+
+export interface HeroicNode {
+    id: number;
+    x: number;
+    y: number; // Normalized coordinates -1 to 1 usually, mapped to UI
+    type: HeroicUpgradeType;
+    value: number;
+    cost: number;
+    purchased: boolean;
 }
 
 export interface EnemyStatsConfig {
@@ -137,6 +147,9 @@ export interface SpaceshipState {
     bioResources: Record<BioResource, number>;
     bioTasks: BioTask[]; // 3 available options
     activeBioTask: BioTask | null;
+
+    // Heroic Zeal (Campaign)
+    heroicNodes: HeroicNode[];
 
     // Mini-game State
     snakeRewardClaimed: boolean;

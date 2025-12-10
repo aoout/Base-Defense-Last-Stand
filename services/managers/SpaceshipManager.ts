@@ -6,6 +6,7 @@ import { StatManager } from './StatManager';
 import { OrbitalManager } from './spaceship/OrbitalManager';
 import { BioManager } from './spaceship/BioManager';
 import { TechManager } from './spaceship/TechManager';
+import { HeroicManager } from './spaceship/HeroicManager';
 
 export class SpaceshipManager {
     private getState: () => GameState;
@@ -16,6 +17,7 @@ export class SpaceshipManager {
     private orbitalManager: OrbitalManager;
     private bioManager: BioManager;
     private techManager: TechManager;
+    private heroicManager: HeroicManager;
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
@@ -26,6 +28,7 @@ export class SpaceshipManager {
         this.orbitalManager = new OrbitalManager(getState, eventBus, statManager);
         this.bioManager = new BioManager(getState, eventBus, statManager);
         this.techManager = new TechManager(getState, eventBus, statManager);
+        this.heroicManager = new HeroicManager(getState, eventBus, statManager);
     }
 
     public update(dt: number) {
@@ -89,6 +92,16 @@ export class SpaceshipManager {
         this.bioManager.checkTaskProgress(killedType);
     }
 
+    // --- HEROIC ZEAL DELEGATES ---
+    public generateHeroicGrid() {
+        this.heroicManager.generateGrid();
+    }
+
+    public purchaseHeroicNode(id: number) {
+        this.heroicManager.purchaseNode(id);
+        this.registerModifiers();
+    }
+
     /**
      * Attempts to claim the Snake Mini-game reward.
      * Returns the amount awarded. Now repeatable.
@@ -116,6 +129,7 @@ export class SpaceshipManager {
         // 1. Trigger Sub-Managers to register their source-specific stats
         this.bioManager.registerModifiers();
         this.techManager.registerModifiers();
+        this.heroicManager.registerModifiers();
         
         // 2. Register Global/Core Upgrades (Modules & Player)
         this.stats.removeSource('SPACESHIP_MODULES');
@@ -142,6 +156,10 @@ export class SpaceshipManager {
         // --- APPLY TO STATE PROPERTIES ---
         // After calculating stats, update persistent state values (MaxHP, etc.)
         
+        // Player Max HP
+        p.maxHp = this.stats.get(StatId.PLAYER_MAX_HP, PLAYER_STATS.maxHp);
+        if (p.hp > p.maxHp) p.hp = p.maxHp;
+
         // Player Max Armor
         p.maxArmor = this.stats.get(StatId.PLAYER_MAX_ARMOR, PLAYER_STATS.maxArmor);
         if (p.armor > p.maxArmor) p.armor = p.maxArmor;

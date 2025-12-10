@@ -8,7 +8,7 @@ import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { StatManager } from './StatManager';
 import { AIBehavior } from '../ai/AIBehavior';
-import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior } from '../ai/StandardBehaviors';
+import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior, TubeWormBehavior } from '../ai/StandardBehaviors';
 import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior } from '../ai/BossBehaviors';
 
 export class EnemyManager {
@@ -46,6 +46,14 @@ export class EnemyManager {
                 e.shellValue = undefined;
                 e.maxShell = undefined;
                 e.shellRegenTimer = undefined;
+                // Tube Worm properties reset
+                e.burrowState = undefined;
+                e.burrowTimer = undefined;
+                e.cannibalTimer = undefined;
+                e.visualScaleY = 1;
+                e.storedScore = 0;
+                e.huntingTargetId = undefined;
+                e.eatingTimer = 0;
             }
         );
 
@@ -73,6 +81,7 @@ export class EnemyManager {
         this.behaviors.set(EnemyType.KAMIKAZE, new KamikazeBehavior());
         this.behaviors.set(EnemyType.VIPER, new ViperBehavior());
         this.behaviors.set(EnemyType.PUSTULE, new PustuleBehavior());
+        this.behaviors.set(EnemyType.TUBE_WORM, new TubeWormBehavior());
 
         // Bosses
         this.behaviors.set(BossType.RED_SUMMONER, new RedSummonerBehavior());
@@ -364,6 +373,22 @@ export class EnemyManager {
 
         // Base reward scaled by gene strength
         let score = Math.floor(e.scoreReward * geneMultiplier);
+        
+        // Add inherited/cannibalized score
+        if (e.storedScore && e.storedScore > 0) {
+            // Stored score was already base reward from victim, we apply multiplier to it as well?
+            // Usually the "value" of a unit scales with current planet difficulty.
+            // Let's assume stored score is raw base value.
+            score += Math.floor(e.storedScore * geneMultiplier);
+            
+            // Show bonus text for big payout
+            if (e.storedScore > 50) {
+                this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
+                    text: `HOARD RECOVERED: +${Math.floor(e.storedScore * geneMultiplier)}`, 
+                    x: e.x, y: e.y - 20, color: '#fbbf24', type: FloatingTextType.LOOT 
+                });
+            }
+        }
         
         if (e.bossType === BossType.HIVE_MOTHER) {
             const gene = this.engine.state.currentPlanet?.geneStrength || 1;

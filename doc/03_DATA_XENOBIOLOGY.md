@@ -15,6 +15,7 @@
 | `TANK` | Heavy | 1200 | 0.48 | 30 | Melee | **Walking Fortress**. Has 100 Reactive Shell. Takes 30% less damage while Shell > 0. Any hit (non-fire) reduces Shell by 8 (Pulse Rifle reduces by 1). Regenerates 10 Shell every 10s. |
 | `KAMIKAZE`| Volatile | 50 | 2.40 | 200 | Melee | **Explodes** on contact. Leaves Toxic Zone. |
 | `VIPER` | Ranged | 150 | 0.72 | 40 | 450 | Stops at range to fire acid projectiles. |
+| `TUBE_WORM` | Predator | 200 | Burrow | 10 | Melee | **Ambush/Cannibal**. Found in high oxygen. Burrows to move. **Feeds on Grunts**: 50% chance every 2s to eat nearby Grunt, healing 200HP and growing. |
 
 ## 2. Apex Strains (Bosses)
 
@@ -43,6 +44,7 @@ In Exploration Mode, planet atmosphere fundamentally alters enemy physiology.
 *   **Effect**: Increases Health Points.
 *   **Formula**: `FinalHP = BaseHP * (1 + 1.2 * Oxygen%)`
 *   **Logic**: High oxygen allows the Scourge to grow denser muscle fibers and thicker chitin.
+*   **Tube Worm**: Scales Damage instead of HP (`1 + 1.5 * Oxygen%`).
 
 ### Sulfur (S) - "Volatile Chemistry"
 *   **Effect**: Increases specific unit potency.

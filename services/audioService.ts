@@ -55,6 +55,7 @@ export class AudioService {
   // Spatial State
   private cameraX: number = 0;
   private cameraY: number = 0;
+  private viewportWidth: number = CANVAS_WIDTH;
 
   constructor() {
     const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
@@ -102,9 +103,12 @@ export class AudioService {
     }
   }
 
-  public updateCamera(x: number, y: number) {
+  public updateCamera(x: number, y: number, viewportWidth?: number) {
       this.cameraX = x;
       this.cameraY = y;
+      if (viewportWidth) {
+          this.viewportWidth = viewportWidth;
+      }
   }
 
   private createNoiseBuffer() {
@@ -322,11 +326,12 @@ export class AudioService {
     let distanceGain = 1.0;
 
     if (x !== undefined && y !== undefined) {
-        const centerX = this.cameraX + CANVAS_WIDTH / 2;
-        const centerY = this.cameraY + CANVAS_HEIGHT / 2;
+        const width = this.viewportWidth || CANVAS_WIDTH;
+        const centerX = this.cameraX + width / 2;
+        const centerY = this.cameraY + CANVAS_HEIGHT / 2; // Assuming height doesn't vary much or logic simplified
 
         const screenX = x - this.cameraX;
-        pan = (screenX - CANVAS_WIDTH / 2) / (CANVAS_WIDTH / 2);
+        pan = (screenX - width / 2) / (width / 2);
         pan = Math.max(-1, Math.min(1, pan));
 
         const dx = x - centerX;

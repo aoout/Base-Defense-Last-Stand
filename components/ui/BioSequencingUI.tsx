@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { BioResource, BioBuffType, EnemyType } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
-import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper } from '../../utils/renderers';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CanvasView } from './common/CanvasView';
@@ -30,6 +30,7 @@ const EnemyPreview: React.FC<{ type: EnemyType, size?: number }> = ({ type, size
         // Scale based on size prop to keep it fitting
         let scale = size / 40; 
         if (type === EnemyType.TANK) scale *= 0.8;
+        if (type === EnemyType.TUBE_WORM) scale *= 0.9;
         
         ctx.scale(scale, scale);
 
@@ -39,6 +40,7 @@ const EnemyPreview: React.FC<{ type: EnemyType, size?: number }> = ({ type, size
             case EnemyType.TANK: drawTank(ctx, e, time); break;
             case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
             case EnemyType.VIPER: drawViper(ctx, e, time); break;
+            case EnemyType.TUBE_WORM: drawTubeWorm(ctx, e, time); break;
         }
         
         ctx.restore();

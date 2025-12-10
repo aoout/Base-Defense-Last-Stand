@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { CarapaceNode, EnemyType } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
-import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper } from '../../utils/renderers';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CanvasView } from './common/CanvasView';
@@ -33,6 +33,7 @@ const EnemyPreview: React.FC<{ type: EnemyType }> = ({ type }) => {
         if (type === EnemyType.GRUNT) scale = 4.0;
         if (type === EnemyType.VIPER) scale = 3.0;
         if (type === EnemyType.KAMIKAZE) scale = 3.5;
+        if (type === EnemyType.TUBE_WORM) scale = 3.0;
         
         ctx.scale(scale, scale);
 
@@ -42,6 +43,7 @@ const EnemyPreview: React.FC<{ type: EnemyType }> = ({ type }) => {
             case EnemyType.TANK: drawTank(ctx, e, time); break;
             case EnemyType.KAMIKAZE: drawKamikaze(ctx, e, time); break;
             case EnemyType.VIPER: drawViper(ctx, e, time); break;
+            case EnemyType.TUBE_WORM: drawTubeWorm(ctx, e, time); break;
         }
         
         ctx.restore();
@@ -96,6 +98,7 @@ export const CarapaceAnalyzerUI: React.FC = () => {
             case EnemyType.TANK: label = "T"; color = "text-slate-200"; break;
             case EnemyType.KAMIKAZE: label = "K"; color = "text-purple-400"; break;
             case EnemyType.VIPER: label = "V"; color = "text-green-400"; break;
+            case EnemyType.TUBE_WORM: label = "W"; color = "text-amber-300"; break;
         }
         return <span className={`font-black font-mono text-lg ${color}`}>{label}</span>;
     }

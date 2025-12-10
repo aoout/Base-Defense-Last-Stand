@@ -25,6 +25,7 @@ import { ExtractionScreen } from './ui/ExtractionScreen';
 import { MissionSuccessScreen } from './ui/MissionSuccessScreen';
 import { GalacticEventModal } from './ui/GalacticEventModal';
 import { BioSequencingUI } from './ui/BioSequencingUI';
+import { HeroicZealUI } from './ui/HeroicZealUI';
 
 const UIOverlay: React.FC = () => {
     const { state, engine } = useGame();
@@ -58,6 +59,8 @@ const UIOverlay: React.FC = () => {
         content = <PlanetaryYieldReport />;
     } else if (state.appMode === AppMode.BIO_SEQUENCING) {
         content = <BioSequencingUI />;
+    } else if (state.appMode === AppMode.HEROIC_ZEAL) {
+        content = <HeroicZealUI />;
     } else if (state.appMode === AppMode.GAMEPLAY) {
         content = (
             <>

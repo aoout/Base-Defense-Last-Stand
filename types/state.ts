@@ -36,6 +36,10 @@ export interface GameState {
   // World Bounds (Dynamic based on mode)
   worldWidth: number;
   worldHeight: number;
+  
+  // Viewport Dimensions (Current visible area)
+  viewportWidth: number;
+  viewportHeight: number;
 
   // Exploration Data
   sectorName: string; // New: Procedurally generated sector name

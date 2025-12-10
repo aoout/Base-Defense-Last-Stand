@@ -8,9 +8,25 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.5";
+export const CURRENT_VERSION = "1.0.6";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.6",
+        date: "2248.07.20",
+        title: "PREDATOR BEHAVIOR UPDATE",
+        titleCN: "捕食者行为更新",
+        changes: [
+            "AI: Tube Worms now correctly burrow underground to chase prey instead of sliding on the surface.",
+            "VISUAL: Improved burrowing visuals and particle effects for Tube Worm hunting sequence.",
+            "BALANCE: Increased Tube Worm underground speed during hunt to ensure they catch fleeing Grunts."
+        ],
+        changesCN: [
+            "AI：管虫在追捕猎物时现在会正确地潜入地下移动，不再是在地面滑行。",
+            "视觉：优化了管虫捕猎时的潜行视觉效果和粒子特效。",
+            "平衡：提高了管虫在地下追猎时的移动速度，以确保能追上逃跑的蠕铗。"
+        ]
+    },
     {
         version: "1.0.5",
         date: "2248.07.15",

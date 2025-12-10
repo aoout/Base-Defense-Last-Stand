@@ -878,6 +878,172 @@ export const drawPustule = (ctx: CanvasRenderingContext2D, e: Enemy, time: numbe
     ctx.shadowBlur = 0;
 }
 
+export const drawTubeWorm = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
+    // Redesigned Tube Worm - High Fidelity
+    // Color Palette: Yellow-400 (#FACC15) to Amber-600 (#D97706)
+    
+    // Scale Logic for Burrowing
+    // e.visualScaleY (0 to 1) handles diving/surfacing
+    const scaleY = e.visualScaleY !== undefined ? e.visualScaleY : 1;
+    
+    // Check if eating (for bulge animation)
+    const isEating = e.eatingTimer && e.eatingTimer > 0;
+    // Check if hunting (for aggressive animation)
+    const isHunting = !!e.huntingTargetId;
+
+    // If completely underground, show only a small disturbance
+    if (scaleY <= 0.05) {
+        ctx.fillStyle = '#574135'; // Dark dirt
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 18, 8, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Crumbs
+        if (Math.random() < 0.3) {
+            ctx.fillStyle = '#a16207';
+            for(let i=0; i<3; i++) {
+                const rx = (Math.random()-0.5)*20;
+                const ry = (Math.random()-0.5)*10;
+                ctx.fillRect(rx, ry, 2, 2);
+            }
+        }
+        return;
+    }
+
+    ctx.save();
+    
+    // Body Settings
+    const segmentCount = 8;
+    const maxLen = 55;
+    const currentLen = maxLen * scaleY;
+    const segSpacing = currentLen / segmentCount;
+    
+    // Animation: Peristalsis / Breathing / Frenzy
+    let breatheSpeed = 0.008;
+    let breatheAmp = 2;
+    
+    if (isHunting) {
+        breatheSpeed = 0.03; // Faster
+        breatheAmp = 4; // More intense
+    }
+    const breathe = Math.sin(time * breatheSpeed) * breatheAmp;
+    
+    // Use the actual radius for width reference, allowing it to grow with size (e.radius)
+    // Default radius is 15.
+    let baseWidth = e.radius ? e.radius * 1.6 : 24; 
+    
+    // Swallowing Bulge Animation
+    // A sine wave traveling down the body? Or just overall expansion?
+    // Let's do a bulge that travels down if eatingTimer is active
+    let bulgeOffset = 0;
+    if (isEating) {
+        // eatingTimer goes from 500 down to 0
+        // We want the bulge to move from head (segment 0) to tail (segment 8)
+        // Normalize time: 1.0 (start) to 0.0 (end)
+        const normalizedTime = 1 - (e.eatingTimer! / 500); 
+        bulgeOffset = normalizedTime * segmentCount;
+    }
+
+    // Draw Body Segments (Tail to Head)
+    for(let i = segmentCount; i >= 0; i--) {
+        const progress = i / segmentCount; // 1.0 (tail) to 0.0 (head)
+        
+        // Wiggle logic: S-curve
+        const wiggleSpeed = isHunting ? 0.02 : 0.005;
+        const wiggleAmp = isHunting ? 8 : 5;
+        const wiggle = Math.sin(progress * Math.PI * 1.5 + time * wiggleSpeed) * (wiggleAmp * scaleY);
+        
+        // Coordinate system: X is forward length. Y is lateral width.
+        const segX = (segmentCount - i) * (segSpacing * 0.8) - 10; 
+        const segY = wiggle;
+        
+        // Width tapers at tail and head slightly
+        let segWidth = baseWidth;
+        
+        // Apply Bulge logic
+        if (isEating) {
+             // If this segment is near the bulgeOffset, swell it
+             const distToBulge = Math.abs(i - bulgeOffset); // Note: i goes 8 down to 0. Head is 0.
+             // Actually, i is index. Head is i=0 (drawn last). Tail is i=8.
+             // We want bulge to go 0 -> 8.
+             // bulgeOffset goes 0 -> 8.
+             const dist = Math.abs(i - bulgeOffset);
+             if (dist < 2) {
+                 segWidth *= (1.5 - dist * 0.2);
+             }
+        }
+        
+        const width = (segWidth - Math.abs(progress - 0.5) * 8) * scaleY;
+        
+        // Color Gradient: Darker at base, brighter at head
+        const isHead = i === 0;
+        let color = i % 2 === 0 ? '#d97706' : '#f59e0b'; // Amber-600 / Amber-500
+        if (isHunting) color = i % 2 === 0 ? '#b45309' : '#d97706'; // Darker/Redder when angry
+        if (isHead) color = '#78350f'; // Dark head carapace
+        
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        // Ellipse segment
+        ctx.ellipse(segX, segY, segSpacing * 0.8, width / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#92400e'; // Darker stroke
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        
+        // Head Details (Small ring of teeth)
+        if (isHead) {
+            const headX = segX + 4;
+            const headY = segY;
+            
+            // Maw opening
+            const mawSize = width * 0.35;
+            ctx.fillStyle = '#451a03'; // Dark brown maw hole
+            ctx.beginPath();
+            ctx.arc(headX, headY, mawSize, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Teeth Ring
+            const teethCount = 8;
+            ctx.fillStyle = '#fef3c7'; // Bone white
+            
+            // Hunting animation: Teeth spin fast
+            const teethSpeed = isHunting ? 0.05 : 0.002;
+            const teethRadius = isHunting ? 2.5 : 1.5;
+
+            for(let t=0; t<teethCount; t++) {
+                const angle = (t / teethCount) * Math.PI * 2 + time * teethSpeed; 
+                const tx = headX + Math.cos(angle) * (mawSize - 1);
+                const ty = headY + Math.sin(angle) * (mawSize - 1);
+                
+                ctx.beginPath();
+                ctx.arc(tx, ty, teethRadius * scaleY, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
+    ctx.restore();
+    
+    // Base Dirt Mound (Always visible if scale > 0, drawn UNDER body technically but logic order here is fine)
+    if (scaleY > 0) {
+        ctx.fillStyle = 'rgba(63, 44, 34, 0.6)';
+        ctx.beginPath();
+        const moundSize = (e.radius || 15) + 3 + breathe;
+        ctx.ellipse(-5, 0, moundSize, moundSize * 0.6, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Particles
+        if (scaleY < 0.9) { // Only when moving/burrowing
+            ctx.fillStyle = '#a16207';
+            for(let i=0; i<4; i++) {
+                const px = (Math.random()-0.5)*30;
+                const py = (Math.random()-0.5)*20;
+                ctx.fillRect(px, py, 2, 2);
+            }
+        }
+    }
+}
+
 // --- BOSSES ---
 
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {

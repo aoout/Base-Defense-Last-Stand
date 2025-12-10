@@ -12,6 +12,8 @@ export enum StatId {
     PLAYER_MAX_ARMOR = 'PLAYER_MAX_ARMOR',
     PLAYER_ARMOR_DMG_REDUCTION = 'PLAYER_ARMOR_DMG_REDUCTION', // Infection Disposal
     PLAYER_DMG_TAKEN_MULT = 'PLAYER_DMG_TAKEN_MULT', // Impact Plate
+    PLAYER_MOVE_SPEED = 'PLAYER_MOVE_SPEED',
+    PLAYER_RELOAD_SPEED = 'PLAYER_RELOAD_SPEED', // Percentage reduction (e.g. -0.1)
 
     // Base
     BASE_MAX_HP = 'BASE_MAX_HP',
@@ -59,7 +61,8 @@ export enum StatId {
     DMG_VS_RUSHER = 'DMG_VS_RUSHER',
     DMG_VS_TANK = 'DMG_VS_TANK',
     DMG_VS_KAMIKAZE = 'DMG_VS_KAMIKAZE',
-    DMG_VS_VIPER = 'DMG_VS_VIPER'
+    DMG_VS_VIPER = 'DMG_VS_VIPER',
+    DMG_VS_TUBE_WORM = 'DMG_VS_TUBE_WORM'
 }
 
 export interface StatModifier {

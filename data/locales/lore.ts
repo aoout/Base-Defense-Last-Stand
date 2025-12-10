@@ -59,7 +59,7 @@ export const LORE_EN = {
     // CORRECTED KERNEL FILES
     KERNEL_0_CONTENT: "// FILE: spawn_logic.js\n// SUBJECT: WAVE SCALING ALGORITHM\n\n[TIMER LOGIC]\n- Wave 1-10 Duration: 30s + (Wave-1)*2s\n- Wave 11+ Duration: +1s per wave\n\n[SPAWN COUNT]\n- Enemies per Wave: 12 + (5 * WaveIndex)\n\n[SURVIVAL SPAWN TABLE]\n- Wave 1+: Grunts\n- Wave 3+: Rushers (Orange)\n- Wave 5+: Vipers (Green)\n- Wave 7+: Tanks (Black)\n- Wave 9+: Kamikazes (Purple)\n\n[SPECIAL EVENTS]\nTrigger: Every 5th Wave (5, 10, 15...)\n- 30% Chance: FRENZY (Spawn rate 250ms, Count x3)\n- 70% Chance: BOSS (Apex Variant Spawn)",
     
-    KERNEL_1_CONTENT: "// FILE: bio_scaling.sim\n// SUBJECT: ENVIRONMENTAL MODIFIERS\n\n[ATMOSPHERE: OXYGEN]\n- GRUNT HP = Base * (1 + 1.4 * O2_Pct)\n- RUSHER HP = Base * (1 + 0.8 * O2_Pct)\n- RUSHER SPD = Base * (1 + 0.4 * O2_Pct)\n\n[ATMOSPHERE: SULFUR]\n- KAMIKAZE HP = Base * (1 + 0.1 * Sulfur_Index)\n- VIPER DMG = Base * (1 + 0.1 * Sulfur_Index)\n\n[GENETIC TIER]\n- Gene Strength is a global HP multiplier.\n- Effective Strength = GeneStr - BioResearch_Reduction\n\nNOTE: Exploration Mode only. Survival Mode uses standard stats.",
+    KERNEL_1_CONTENT: "// FILE: bio_scaling.sim\n// SUBJECT: ENVIRONMENTAL MODIFIERS\n\n[ATMOSPHERE: OXYGEN]\n- GRUNT HP = Base * (1 + 1.4 * O2_Pct)\n- RUSHER HP = Base * (1 + 0.8 * O2_Pct)\n- RUSHER SPD = Base * (1 + 0.4 * O2_Pct)\n- TUBE WORM DMG = Base * (1 + 1.5 * O2_Pct)\n\n[ATMOSPHERE: SULFUR]\n- KAMIKAZE HP = Base * (1 + 0.1 * Sulfur_Index)\n- VIPER DMG = Base * (1 + 0.1 * Sulfur_Index)\n\n[GENETIC TIER]\n- Gene Strength is a global HP multiplier.\n- Effective Strength = GeneStr - BioResearch_Reduction\n\nNOTE: Exploration Mode only. Survival Mode uses standard stats.",
     
     KERNEL_2_CONTENT: "// FILE: armor_phys.dat\n// SUBJECT: PLAYER DEFENSE MECHANICS\n\n[DAMAGE MITIGATION]\n- Standard Suit: 80% Dmg -> Armor // 20% Dmg -> Health\n- With 'Infection Disposal': 90% Dmg -> Armor // 10% Dmg -> Health\n\n[DAMAGE REDUCTION]\n- 'Impact Plate': Reduces TOTAL incoming damage by 20% BEFORE distribution.\n\n[REGENERATION]\n- Armor Regen: 1.0 AP/sec.\n- Trigger Delay: 5.0 seconds after taking damage.",
     
@@ -126,7 +126,7 @@ export const LORE_CN = {
     // CORRECTED KERNEL FILES (CN)
     KERNEL_0_CONTENT: "// 文件: spawn_logic.js\n// 主题: 波次升级算法\n\n[计时逻辑]\n- 1-10波 持续时间: 30秒 + (当前波次-1)*2秒\n- 11波以上: 每波增加 1秒\n\n[敌人数量]\n- 每波生成: 12 + (5 * 波次索引)\n\n[生存模式刷怪表]\n- 第1波+: 蠕铗\n- 第3波+: 掠流虫 (橙色)\n- 第5波+: 飞蛇 (绿色远程)\n- 第7波+: 巨壳重躯 (黑色坦克)\n- 第9波+: 腔爆孢囊 (紫色自爆)\n\n[特殊事件]\n触发条件: 每5波 (5, 10, 15...)\n- 30% 概率: 狂暴 (生成间隔250ms, 数量x3)\n- 70% 概率: 首领 (生成顶级变种)",
     
-    KERNEL_1_CONTENT: "// 文件: bio_scaling.sim\n// 主题: 环境修正参数\n\n[大气: 氧气]\n- 蠕铗 生命值 = 基础 * (1 + 1.4 * 含氧量)\n- 掠流虫 生命值 = 基础 * (1 + 0.8 * 含氧量)\n- 掠流虫 移速 = 基础 * (1 + 0.4 * 含氧量)\n\n[大气: 硫化]\n- 腔爆孢囊 生命值 = 基础 * (1 + 0.1 * 硫化指数)\n- 飞蛇 伤害 = 基础 * (1 + 0.1 * 硫化指数)\n\n[基因层级]\n- 基因强度是全局生命值乘数。\n- 有效强度 = 基因强度 - 生物研究减免值\n\n注: 仅探索模式生效。生存模式使用标准数值。",
+    KERNEL_1_CONTENT: "// 文件: bio_scaling.sim\n// 主题: 环境修正参数\n\n[大气: 氧气]\n- 蠕铗 生命值 = 基础 * (1 + 1.4 * 含氧量)\n- 掠流虫 生命值 = 基础 * (1 + 0.8 * 含氧量)\n- 掠流虫 移速 = 基础 * (1 + 0.4 * 含氧量)\n- 管虫 伤害 = 基础 * (1 + 1.5 * 含氧量)\n\n[大气: 硫化]\n- 腔爆孢囊 生命值 = 基础 * (1 + 0.1 * 硫化指数)\n- 飞蛇 伤害 = 基础 * (1 + 0.1 * 硫化指数)\n\n[基因层级]\n- 基因强度是全局生命值乘数。\n- 有效强度 = 基因强度 - 生物研究减免值\n\n注: 仅探索模式生效。生存模式使用标准数值。",
     
     KERNEL_2_CONTENT: "// 文件: armor_phys.dat\n// 主题: 特工防御机制\n\n[伤害分流]\n- 标准防护: 80% 伤害扣除护甲 // 20% 伤害扣除生命\n- 装备 '感染液快速排散结构': 90% 伤害扣除护甲 // 10% 伤害扣除生命\n\n[伤害减免]\n- '复合角质穿刺抑制装甲': 在分流前，先将总伤害降低 20%。\n\n[再生协议]\n- 护甲回复: 1.0 点/秒。\n- 触发延迟: 受伤后 5.0 秒。",
     

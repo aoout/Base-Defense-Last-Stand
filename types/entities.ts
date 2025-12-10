@@ -67,6 +67,15 @@ export interface Enemy extends Entity {
   // Rusher Ability
   dashCharges?: number;
   dashTimer?: number;
+
+  // Tube Worm Mechanics
+  burrowState?: 'IDLE' | 'DIVING' | 'UNDERGROUND' | 'SURFACING';
+  burrowTimer?: number;
+  cannibalTimer?: number;
+  visualScaleY?: number; // For dive animation
+  storedScore?: number; // Biomass from eaten enemies
+  huntingTargetId?: string; // ID of the Grunt being chased
+  eatingTimer?: number; // Visual timer for swallowing animation
 }
 
 export interface Ally extends Entity {

@@ -1,7 +1,7 @@
 
 import { EnemyType, BossType, Projectile, Enemy } from '../../types';
 import { 
-    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper,
+    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm,
     drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
     drawProjectile
 } from '../../utils/renderers';
@@ -48,7 +48,8 @@ export class AssetManager {
                 color,
                 radius,
                 // Static mock data
-                x: 0, y: 0, angle: 0, hp: 100, maxHp: 100 
+                x: 0, y: 0, angle: 0, hp: 100, maxHp: 100,
+                visualScaleY: 1 // For Tube Worm
             };
 
             // Rotate -90deg because our draw functions assume facing right (0), 
@@ -71,6 +72,7 @@ export class AssetManager {
                     case EnemyType.TANK: drawTank(ctx, mockEnemy, 0, 0); break;
                     case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEnemy, 0, 0); break;
                     case EnemyType.VIPER: drawViper(ctx, mockEnemy, 0, 0); break;
+                    case EnemyType.TUBE_WORM: drawTubeWorm(ctx, mockEnemy, 0); break;
                 }
             }
         }

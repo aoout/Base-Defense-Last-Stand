@@ -62,6 +62,7 @@ export enum EnemyType {
   KAMIKAZE = 'KAMIKAZE',
   VIPER = 'VIPER',
   PUSTULE = 'PUSTULE',
+  TUBE_WORM = 'TUBE_WORM', // New Enemy
 }
 
 export enum BossType {
@@ -112,7 +113,8 @@ export enum AppMode {
     INFRASTRUCTURE_RESEARCH = 'INFRASTRUCTURE_RESEARCH',
     PLANET_CONSTRUCTION = 'PLANET_CONSTRUCTION',
     YIELD_REPORT = 'YIELD_REPORT',
-    BIO_SEQUENCING = 'BIO_SEQUENCING'
+    BIO_SEQUENCING = 'BIO_SEQUENCING',
+    HEROIC_ZEAL = 'HEROIC_ZEAL'
 }
 
 export enum GameMode {
@@ -164,6 +166,15 @@ export enum InfrastructureUpgradeType {
     GLOBAL_TURRET_DMG = 'GLOBAL_TURRET_DMG',
     GLOBAL_TURRET_RATE = 'GLOBAL_TURRET_RATE',
     TURRET_L1_COST = 'TURRET_L1_COST'
+}
+
+export enum HeroicUpgradeType {
+    MAX_HP = 'MAX_HP',
+    MAX_ARMOR = 'MAX_ARMOR',
+    RELOAD_SPEED = 'RELOAD_SPEED',
+    MOVE_SPEED = 'MOVE_SPEED',
+    DAMAGE = 'DAMAGE',
+    TURRET_MASTERY = 'TURRET_MASTERY'
 }
 
 export enum FloatingTextType {
