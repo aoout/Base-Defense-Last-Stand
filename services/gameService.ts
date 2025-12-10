@@ -481,14 +481,44 @@ export class GameEngine {
     if (this.state.baseDrop && this.state.baseDrop.active) {
         const bd = this.state.baseDrop;
         if (bd.phase === 'ENTRY') {
-            // Falling Phase
-            bd.velocity += 0.5 * timeScale; // Gravity
-            bd.y += bd.velocity * timeScale;
-            
-            // FX: Re-entry flames
-            if (Math.random() < 0.3) {
-                this.spawnParticle(this.state.base.x + (Math.random()-0.5)*100, bd.y - 100, '#f97316', 3, 10);
+            const dist = bd.targetY - bd.y;
+            const retroBurnHeight = 600;
+
+            // Phase 1: Re-entry Acceleration (Freefall)
+            if (dist > retroBurnHeight) {
+                bd.velocity += 0.5 * timeScale; // Gravity
+                
+                // Terminal Velocity
+                if (bd.velocity > 45) bd.velocity = 45;
+
+                // Re-entry FX: Trails
+                if (Math.random() < 0.4) {
+                    this.spawnParticle(this.state.base.x + (Math.random()-0.5)*90, bd.y - 60, '#f97316', 2, 20); // Orange heat
+                }
+            } 
+            // Phase 2: Retro-Thruster Braking
+            else {
+                // Deceleration force (Thrusters)
+                bd.velocity -= 1.8 * timeScale;
+                
+                // Clamp minimum speed for impact "thud"
+                if (bd.velocity < 15) bd.velocity = 15;
+
+                // Retro FX: Intense thruster exhaust
+                // Spawning visual particles that shoot DOWNwards relative to base
+                // Handled in render usually, but adding particles to world helps too
+                if (Math.random() < 0.8) {
+                     const bx = this.state.base.x;
+                     // Left Thrusters
+                     this.spawnParticle(bx - 40, bd.y + 50, '#60a5fa', 1, 15);
+                     this.spawnParticle(bx - 20, bd.y + 50, '#93c5fd', 1, 15);
+                     // Right Thrusters
+                     this.spawnParticle(bx + 40, bd.y + 50, '#60a5fa', 1, 15);
+                     this.spawnParticle(bx + 20, bd.y + 50, '#93c5fd', 1, 15);
+                }
             }
+
+            bd.y += bd.velocity * timeScale;
 
             if (bd.y >= bd.targetY) {
                 bd.y = bd.targetY;
@@ -496,25 +526,39 @@ export class GameEngine {
                 
                 // Big Impact FX
                 this.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: this.state.base.x, y: bd.targetY });
-                this.spawnParticle(this.state.base.x, bd.targetY, '#9ca3b8', 50, 20); // Dust wave
-                this.damageArea(this.state.base.x, bd.targetY, 300, 1000, DamageSource.ORBITAL); // Landing Crush
                 
-                // Shake (Simple logic via camera reset later)
-                // Next frame transition
+                // Dust Shockwave
+                for(let i=0; i<30; i++) {
+                    const a = Math.random() * Math.PI; // Semicircle upwards
+                    const s = 10 + Math.random() * 20;
+                    this.spawnParticle(this.state.base.x, bd.targetY, '#94a3b8', 1, s);
+                }
+                
+                this.damageArea(this.state.base.x, bd.targetY, 350, 2000, DamageSource.ORBITAL); // Landing Crush
+                
+                // Next frame transition to deployment
                 setTimeout(() => { 
                     if(this.state.baseDrop) this.state.baseDrop.phase = 'DEPLOY'; 
-                }, 500);
+                }, 800);
             }
         } else if (bd.phase === 'DEPLOY') {
             // Deployment Phase (Door opening delay)
             bd.deployTimer += dt;
-            if (bd.deployTimer > 1500) {
+            
+            // Steam vents during deployment
+            if (bd.deployTimer < 1000 && Math.random() < 0.2) {
+                 this.spawnParticle(this.state.base.x + (Math.random()-0.5)*100, this.state.base.y - 20, '#ffffff', 1, 2);
+            }
+
+            if (bd.deployTimer > 2000) {
                 // Done
                 bd.active = false;
                 // Player "steps out"
                 this.state.player.x = this.state.base.x;
                 this.state.player.y = this.state.base.y + 50; 
-                this.spawnParticle(this.state.player.x, this.state.player.y, '#3b82f6', 20, 5); // Teleport/Spawn FX
+                
+                // Teleport FX
+                this.spawnParticle(this.state.player.x, this.state.player.y, '#3b82f6', 20, 5);
                 this.addMessage("OPERATIVE DEPLOYED", this.state.player.x, this.state.player.y - 60, '#3b82f6', FloatingTextType.SYSTEM);
             }
         }

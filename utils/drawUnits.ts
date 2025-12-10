@@ -1,5 +1,5 @@
 
-import { Player, Enemy, Ally, Turret, WeaponType, TurretType, BossType } from '../types';
+import { Player, Enemy, Ally, Turret, WeaponType, TurretType, BossType, BaseDropState } from '../types';
 import { WEAPONS } from '../data/registry';
 import { isVisible, drawCircle, drawEllipse, drawPolygon, drawSmoothLeg, drawStrokeCircle } from './drawHelpers';
 import { PALETTE } from '../theme/colors';
@@ -207,99 +207,243 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
     ctx.restore();
 };
 
-// --- BASE ---
-export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }, showShadows: boolean, isDropping: boolean = false) => {
+// --- BASE (REFINED) ---
+export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: number, width: number, height: number, hp: number, maxHp: number }, showShadows: boolean, dropState: BaseDropState | null) => {
     
-    // Thruster Flames if dropping
-    if (isDropping) {
-        ctx.save();
-        ctx.translate(base.x, base.y);
-        
-        // Main Thrusters (4 corners)
-        const corners = [
-            {x: -base.width/2 + 20, y: base.height/2},
-            {x: base.width/2 - 20, y: base.height/2},
-            {x: -base.width/2 + 20, y: -base.height/2}, // Sides? No, just bottom for "Retro rockets"
-            {x: base.width/2 - 20, y: -base.height/2}
-        ];
-        
-        // Actually, retro thrusters usually fire DOWN to slow descent.
-        // Let's draw big flames under the base.
-        const flameLength = 80 + Math.random() * 20;
-        
-        const grad = ctx.createLinearGradient(0, base.height/2, 0, base.height/2 + flameLength);
-        grad.addColorStop(0, '#3b82f6'); // Blue core
-        grad.addColorStop(0.4, '#f97316'); // Orange mid
-        grad.addColorStop(1, 'rgba(255, 69, 0, 0)'); // Red fade
-        
-        ctx.fillStyle = grad;
-        
-        // Left Thruster
-        ctx.beginPath();
-        ctx.moveTo(-base.width/2 + 10, base.height/2);
-        ctx.lineTo(-base.width/2 + 30, base.height/2 + flameLength);
-        ctx.lineTo(-base.width/2 + 50, base.height/2);
-        ctx.fill();
+    const time = Date.now();
+    ctx.save();
+    ctx.translate(base.x, base.y);
 
-        // Right Thruster
+    // Determine State Phase
+    // ENTRY: Falling from sky (Thrusters ON)
+    // IMPACT/DEPLOY: On ground, but locked (Thrusters OFF, Hatch CLOSED)
+    // NULL: Active (Open, Vats visible)
+    const isEntry = dropState && dropState.phase === 'ENTRY';
+    const isDeploying = dropState && (dropState.phase === 'DEPLOY' || dropState.phase === 'IMPACT');
+    const isActive = !dropState;
+
+    // 1. RE-ENTRY HEAT SHIELD (Entry Phase Only)
+    // Drawn BEHIND the base
+    if (isEntry) {
+        ctx.save();
+        // Heat Shield Glow
+        const heatGrad = ctx.createRadialGradient(0, base.height/2, 20, 0, base.height/2, 120);
+        heatGrad.addColorStop(0, '#fff'); // White hot
+        heatGrad.addColorStop(0.3, '#f97316'); // Orange
+        heatGrad.addColorStop(0.6, '#dc2626'); // Red
+        heatGrad.addColorStop(1, 'rgba(0,0,0,0)');
+        
+        ctx.fillStyle = heatGrad;
+        ctx.globalCompositeOperation = 'lighter';
+        // Draw a wide arc at the bottom
         ctx.beginPath();
-        ctx.moveTo(base.width/2 - 50, base.height/2);
-        ctx.lineTo(base.width/2 - 30, base.height/2 + flameLength);
-        ctx.lineTo(base.width/2 - 10, base.height/2);
+        ctx.ellipse(0, base.height/2 + 10, 100, 30, 0, 0, Math.PI*2);
         ctx.fill();
         
+        // Speed Lines (Vertical streaks going UP)
+        ctx.strokeStyle = 'rgba(255,200,100,0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        for(let i=0; i<5; i++) {
+            const lx = (Math.random()-0.5) * base.width;
+            const ly = base.height/2;
+            const len = 100 + Math.random()*100;
+            ctx.moveTo(lx, ly);
+            ctx.lineTo(lx, ly - len);
+        }
+        ctx.stroke();
         ctx.restore();
     }
 
-    if (showShadows && !isDropping) {
-        ctx.fillStyle = PALETTE.UI.SHADOW;
-        ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width, base.height);
+    // 2. RETRO THRUSTERS (Braking Burn)
+    // Only active if falling
+    if (isEntry) {
+        // Main Thrusters (4 Corners firing DOWN)
+        const cornerOffset = base.width / 2 - 25;
+        const thrusterY = base.height / 2;
+        
+        const drawThruster = (x: number, scale: number) => {
+            const flicker = Math.random() * 0.2 + 0.8;
+            const len = 120 * scale * flicker;
+            const width = 20 * scale;
+            
+            const grad = ctx.createLinearGradient(0, thrusterY, 0, thrusterY + len);
+            grad.addColorStop(0, '#60a5fa'); // Blue core (high temp)
+            grad.addColorStop(0.3, '#ffffff'); // White hot
+            grad.addColorStop(0.6, '#f97316'); // Orange tail
+            grad.addColorStop(1, 'rgba(0,0,0,0)');
+            
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.moveTo(x - width/2, thrusterY);
+            ctx.lineTo(x, thrusterY + len);
+            ctx.lineTo(x + width/2, thrusterY);
+            ctx.fill();
+        };
+
+        // Left & Right Engines
+        drawThruster(-cornerOffset, 1.0);
+        drawThruster(cornerOffset, 1.0);
+        
+        // Center Stabilization (Smaller)
+        drawThruster(-20, 0.6);
+        drawThruster(20, 0.6);
     }
 
-    ctx.fillStyle = '#0F172A';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2, base.width, base.height);
-    ctx.fillStyle = '#1E293B';
-    ctx.fillRect(base.x - base.width/2 - 5, base.y - base.height/2 - 5, 20, 20);
-    ctx.fillRect(base.x + base.width/2 - 15, base.y - base.height/2 - 5, 20, 20);
-    ctx.fillRect(base.x - base.width/2 - 5, base.y + base.height/2 - 15, 20, 20);
-    ctx.fillRect(base.x + base.width/2 - 15, base.y + base.height/2 - 15, 20, 20);
-    ctx.fillStyle = '#172554';
-    ctx.fillRect(base.x - base.width/2 + 10, base.y - base.height/2 + 10, base.width - 20, base.height - 20);
+    // 3. SHADOW (Only if landed)
+    if (showShadows && !isEntry) {
+        ctx.fillStyle = PALETTE.UI.SHADOW;
+        // Rectangular shadow matching footprint
+        ctx.fillRect(-base.width/2 + 10, -base.height/2 + 10, base.width, base.height);
+    }
+
+    // 4. MAIN HULL CONSTRUCTION
+    // Base Color: Heavy Industrial Slate
+    ctx.fillStyle = '#1e293b'; // Slate-800
+    // Chamfered Rectangle shape
+    const chamfer = 20;
+    const w = base.width;
+    const h = base.height;
     
-    drawCircle(ctx, base.x, base.y, 20, '#2563EB');
-    drawStrokeCircle(ctx, base.x, base.y, 20, '#60A5FA', 2);
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + chamfer, -h/2);
+    ctx.lineTo(w/2 - chamfer, -h/2);
+    ctx.lineTo(w/2, -h/2 + chamfer);
+    ctx.lineTo(w/2, h/2 - chamfer);
+    ctx.lineTo(w/2 - chamfer, h/2);
+    ctx.lineTo(-w/2 + chamfer, h/2);
+    ctx.lineTo(-w/2, h/2 - chamfer);
+    ctx.lineTo(-w/2, -h/2 + chamfer);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Hull Plating Details (Inset lines)
+    ctx.strokeStyle = '#334155'; // Slate-700
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Top "Roof" details
+    ctx.fillStyle = '#0f172a'; // Slate-900 (Darker top)
+    ctx.fillRect(-w/2 + 10, -h/2 + 10, w - 20, h - 20);
 
-    const time = Date.now();
-    drawCloneCenter(ctx, base.x - base.width/2 - 35, base.y, time); 
-    drawCloneCenter(ctx, base.x + base.width/2 + 35, base.y, time); 
+    // Hazard Stripes (Industrial Look)
+    // Show stripes if dropping OR landed (provides texture)
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(-w/2 + 10, -h/2 + 10, w - 20, 10); // Top strip
+    ctx.rect(-w/2 + 10, h/2 - 20, w - 20, 10);  // Bottom strip
+    ctx.clip();
+    
+    ctx.fillStyle = '#f59e0b'; // Amber
+    ctx.fillRect(-w/2, -h/2, w, h);
+    
+    ctx.fillStyle = '#000';
+    for(let i=-w; i<w; i+=20) {
+        ctx.beginPath();
+        ctx.moveTo(i, -h/2);
+        ctx.lineTo(i+10, -h/2);
+        ctx.lineTo(i, h/2);
+        ctx.lineTo(i-10, h/2);
+        ctx.fill();
+    }
+    ctx.restore();
 
+    // 5. DEPLOYED DETAILS (Only if Active)
+    if (isActive) {
+        // Clone Vats (Cyan liquid)
+        drawCloneCenter(ctx, -35, 0, time); 
+        drawCloneCenter(ctx, 35, 0, time); 
+        
+        // Central Core (Molecular Printer)
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+        
+        // Active Core Glow
+        const pulse = Math.sin(time * 0.005) * 0.2 + 0.8;
+        const coreGrad = ctx.createRadialGradient(0,0, 5, 0,0, 18);
+        coreGrad.addColorStop(0, '#60a5fa');
+        coreGrad.addColorStop(1, 'rgba(37,99,235,0)');
+        ctx.fillStyle = coreGrad;
+        ctx.globalAlpha = pulse;
+        ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1.0;
+        
+        drawStrokeCircle(ctx, 0, 0, 20, '#3b82f6', 2);
+    } else {
+        // SEALED HATCH (Entry OR Deploying)
+        // If deploying, maybe show it opening? For now, keep it simple: sealed until done.
+        
+        // Base plate for Hatch
+        ctx.fillStyle = '#334155';
+        ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill();
+        
+        // Hatch lines
+        ctx.strokeStyle = '#475569';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        // Mercedes symbol shape for airlock
+        for(let i=0; i<3; i++) {
+            const a = (i * Math.PI * 2 / 3) - Math.PI/2;
+            ctx.moveTo(0,0);
+            ctx.lineTo(Math.cos(a)*25, Math.sin(a)*25);
+        }
+        ctx.stroke();
+
+        // Warning Light on Hatch (Red if entry/deploying)
+        const lightPulse = Math.sin(time * 0.01) * 0.5 + 0.5;
+        ctx.fillStyle = `rgba(239, 68, 68, ${lightPulse})`;
+        ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
+    }
+
+    // 6. HEALTH BAR (Always visible)
     const bHpPct = base.hp / base.maxHp;
     ctx.fillStyle = '#7F1D1D';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width, 6);
+    ctx.fillRect(-w/2, h/2 + 5, w, 6);
     ctx.fillStyle = '#10B981';
-    ctx.fillRect(base.x - base.width/2, base.y - base.height/2 - 15, base.width * bHpPct, 6);
+    ctx.fillRect(-w/2, h/2 + 5, w * bHpPct, 6);
+    // Bevel effect on HP bar
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.fillRect(-w/2, h/2 + 5, w * bHpPct, 2);
+
+    ctx.restore();
 }
 
 const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, time: number) => {
+    // Housing
     ctx.fillStyle = '#1e293b';
-    ctx.fillRect(x - 25, y - 25, 50, 50);
+    ctx.fillRect(x - 20, y - 25, 40, 50);
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 2;
-    ctx.strokeRect(x - 25, y - 25, 50, 50);
-    ctx.fillStyle = '#0c4a6e';
-    ctx.fillRect(x - 15, y - 15, 30, 30);
-    const liquidLevel = Math.sin(time * 0.002) * 2;
-    ctx.fillStyle = '#0ea5e9';
+    ctx.strokeRect(x - 20, y - 25, 40, 50);
+    
+    // Liquid Tank
+    ctx.fillStyle = '#0c4a6e'; // Dark liquid bg
+    ctx.fillRect(x - 15, y - 20, 30, 40);
+    
+    const liquidLevel = Math.sin(time * 0.002 + x) * 2;
+    ctx.fillStyle = '#0ea5e9'; // Bright liquid
     ctx.beginPath();
-    ctx.rect(x - 15, y - 5 + liquidLevel, 30, 20 - liquidLevel);
+    ctx.rect(x - 15, y - 10 + liquidLevel, 30, 30 - liquidLevel);
     ctx.fill();
+    
+    // Glass reflection
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    ctx.fillRect(x - 15, y - 15, 30, 10);
-    ctx.fillStyle = '#94a3b8';
-    ctx.fillRect(x - 28, y - 10, 3, 20); 
-    ctx.fillRect(x + 25, y - 10, 3, 20); 
+    ctx.beginPath();
+    ctx.moveTo(x - 15, y - 20);
+    ctx.lineTo(x + 5, y - 20);
+    ctx.lineTo(x - 15, y + 10);
+    ctx.fill();
+    
+    // Silhouette of clone inside
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.arc(x, y - 5, 6, 0, Math.PI*2); // Head
+    ctx.rect(x - 4, y, 8, 15); // Body
+    ctx.fill();
+    
+    // Status Light
     const pulse = Math.sin(time * 0.005) > 0;
-    drawCircle(ctx, x, y - 20, 2, pulse ? '#22c55e' : '#14532d');
+    drawCircle(ctx, x, y - 28, 2, pulse ? '#22c55e' : '#14532d');
 };
 
 // ... (Rest of file enemies draw functions)

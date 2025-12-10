@@ -121,16 +121,17 @@ export class RenderService {
         }
 
         // Draw Base(s)
-        const isDropping = state.baseDrop && state.baseDrop.active;
-        const baseY = isDropping ? state.baseDrop!.y : state.base.y;
+        // Pass the full baseDrop object, or null if not active
+        const dropState = (state.baseDrop && state.baseDrop.active) ? state.baseDrop : null;
+        const baseY = dropState ? dropState.y : state.base.y;
         
         // Override base Y for drawing
-        const droppingBase = { ...state.base, y: baseY };
+        const drawingBase = { ...state.base, y: baseY };
         
-        drawBase(ctx, droppingBase, state.settings.showShadows, isDropping);
+        drawBase(ctx, drawingBase, state.settings.showShadows, dropState);
         
         if (state.secondaryBase) {
-            drawBase(ctx, state.secondaryBase, state.settings.showShadows, false);
+            drawBase(ctx, state.secondaryBase, state.settings.showShadows, null);
         }
 
         // Draw Turrets
