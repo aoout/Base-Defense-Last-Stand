@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.8";
+export const CURRENT_VERSION = "1.0.9";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.9",
+        date: "2248.08.05",
+        title: "INTERFACE EVOLUTION",
+        titleCN: "界面进化",
+        changes: [
+            "UI: Redesigned Main Menu with holographic dashboard aesthetics.",
+            "UI: Overhauled Sector Map interface with improved telemetry and navigation controls.",
+            "UI: New 'Black Box' style Mission Failure screen for Survival Mode.",
+            "CONTENT: Expanded Famous Sectors with additional planetary bodies.",
+            "SYS: Localization files refactored for better maintenance."
+        ],
+        changesCN: [
+            "界面：重设主菜单，采用全息仪表盘美学风格。",
+            "界面：彻底重制扇区星图界面，改进了遥测和导航控制。",
+            "界面：为生存模式新增“黑匣子”风格的任务失败屏幕。",
+            "内容：扩展了著名星系，增加了额外的行星天体。",
+            "系统：重构本地化文件以提高可维护性。"
+        ]
+    },
     {
         version: "1.0.8",
         date: "2248.07.30",
