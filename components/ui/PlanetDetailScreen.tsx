@@ -1,15 +1,13 @@
 
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import * as d3 from 'd3';
-import { Planet, MissionType, AtmosphereGas } from '../../types';
-import { ModuleWindow } from './ModuleWindow';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Planet, MissionType } from '../../types';
 import { CyberButton } from './atoms/CyberButton';
-import { CyberPanel } from './atoms/CyberPanel';
 import { drawPlanetSprite } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
 import { CanvasView } from './common/CanvasView';
-import { GAS_INFO } from '../../data/world';
 import { DS } from '../../theme/designSystem';
+import { CloseButton } from './Shared';
+import { Icons } from './Icons';
 
 interface PlanetDetailScreenProps {
     planet: Planet;
@@ -21,6 +19,36 @@ interface PlanetDetailScreenProps {
     onOpenConstruction: () => void;
 }
 
+// A decorative bracket component for HUD elements
+const Bracket: React.FC<{ side: 'left' | 'right', children: React.ReactNode, className?: string, colorClass?: string }> = ({ side, children, className = "", colorClass = "border-cyan-500" }) => (
+    <div className={`relative p-4 ${className}`}>
+        {/* Bracket SVG */}
+        <div className={`absolute top-0 bottom-0 w-4 ${side === 'left' ? 'left-0 border-l-2 border-t-2 border-b-2 rounded-l-lg' : 'right-0 border-r-2 border-t-2 border-b-2 rounded-r-lg'} ${colorClass} opacity-60 pointer-events-none`}></div>
+        {/* Corner Accent */}
+        <div className={`absolute ${side === 'left' ? '-left-1 top-1/2 -translate-y-1/2' : '-right-1 top-1/2 -translate-y-1/2'} w-1 h-8 ${colorClass.replace('border-', 'bg-')}`}></div>
+        
+        <div className="relative z-10">
+            {children}
+        </div>
+    </div>
+);
+
+const HexStat: React.FC<{ label: string, value: string, sub?: string, color?: string }> = ({ label, value, sub, color = "cyan" }) => (
+    <div className="flex flex-col items-center justify-center w-24 h-24 relative group">
+        <svg viewBox="0 0 100 100" className={`absolute inset-0 w-full h-full text-${color}-900/40 fill-current`}>
+            <polygon points="50 0, 95 25, 95 75, 50 100, 5 75, 5 25" />
+        </svg>
+        <svg viewBox="0 0 100 100" className={`absolute inset-0 w-full h-full text-${color}-500/30 stroke-current stroke-2 fill-none group-hover:text-${color}-400 transition-colors`}>
+            <polygon points="50 0, 95 25, 95 75, 50 100, 5 75, 5 25" />
+        </svg>
+        <div className="relative z-10 text-center">
+            <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{label}</div>
+            <div className="text-xl font-display font-bold text-white">{value}</div>
+            {sub && <div className={`text-[9px] font-mono text-${color}-400`}>{sub}</div>}
+        </div>
+    </div>
+);
+
 export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({ 
     planet, 
     currentScraps, 
@@ -31,245 +59,222 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
     onOpenConstruction
 }) => {
     const { t } = useLocale();
-    const chartRef = useRef<SVGSVGElement>(null);
-    const [hoveredGas, setHoveredGas] = useState<AtmosphereGas | null>(null);
+    const [scanLineY, setScanLineY] = useState(0);
+
+    // Animation loop for scanning effect
+    useEffect(() => {
+        let frame = 0;
+        const loop = () => {
+            frame = (frame + 2) % 600;
+            setScanLineY(frame);
+            requestAnimationFrame(loop);
+        };
+        const id = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(id);
+    }, []);
 
     const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
-        // Transparent background used here so it blends with UI bg
-        drawPlanetSprite(ctx, planet, w/2, h/2, 120, time, false);
-    }, [planet]);
-
-    // D3 Atmosphere Chart
-    useEffect(() => {
-        if (!chartRef.current) return;
+        ctx.clearRect(0, 0, w, h);
         
-        const width = 300;
-        const height = 300;
-        const radius = Math.min(width, height) / 2;
+        // Draw Planet slightly larger
+        const centerX = w / 2;
+        const centerY = h / 2;
+        const radius = 180;
 
-        const svg = d3.select(chartRef.current);
-        svg.selectAll("*").remove();
+        // Draw selection ring/grid behind
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(centerX, centerY, radius + 40, 0, Math.PI * 2); ctx.stroke();
+        
+        ctx.setLineDash([10, 20]);
+        ctx.strokeStyle = 'rgba(6, 182, 212, 0.3)';
+        ctx.beginPath(); ctx.arc(centerX, centerY, radius + 20, time * 0.0001, time * 0.0001 + Math.PI*2); ctx.stroke();
+        ctx.setLineDash([]);
 
-        const g = svg.append("g")
-            .attr("transform", `translate(${width / 2},${height / 2})`);
-
-        const pie = d3.pie<AtmosphereGas>()
-            .value(d => d.percentage)
-            .sort(null);
-
-        const arc = d3.arc<d3.PieArcDatum<AtmosphereGas>>()
-            .innerRadius(radius * 0.6)
-            .outerRadius(radius * 0.9);
-
-        const paths = g.selectAll("path")
-            .data(pie(planet.atmosphere))
-            .enter()
-            .append("path")
-            .attr("d", arc)
-            .attr("fill", d => d.data.color)
-            .attr("stroke", "#0f172a")
-            .attr("stroke-width", "2px")
-            .style("cursor", "pointer")
-            .style("opacity", 0.8)
-            .on("mouseover", function(event, d) {
-                d3.select(this).style("opacity", 1).attr("transform", "scale(1.05)");
-                setHoveredGas(d.data);
-            })
-            .on("mouseout", function() {
-                d3.select(this).style("opacity", 0.8).attr("transform", "scale(1)");
-                setHoveredGas(null);
-            });
-
-        // Center Text
-        g.append("text")
-            .attr("text-anchor", "middle")
-            .attr("dy", "-0.2em")
-            .text("ATMOS")
-            .attr("fill", "#64748b")
-            .attr("font-family", "monospace")
-            .attr("font-size", "12px")
-            .attr("font-weight", "bold");
-            
-        g.append("text")
-            .attr("text-anchor", "middle")
-            .attr("dy", "1.2em")
-            .text("100%")
-            .attr("fill", "#ffffff")
-            .attr("font-family", "monospace")
-            .attr("font-size", "20px")
-            .attr("font-weight", "bold");
-
+        drawPlanetSprite(ctx, planet, centerX, centerY, radius, time, false);
     }, [planet]);
 
-    const headerRight = (
-        <div className="text-right">
-            <div className="text-cyan-700 font-mono text-xs mb-1">{t('SCAN_ID')}</div>
-            <div className="text-cyan-400 font-mono text-xl">#{planet.id.toUpperCase().substring(0,8)}</div>
-        </div>
-    );
+    const isOffense = planet.missionType === MissionType.OFFENSE;
+    const themeColor = isOffense ? 'red' : 'cyan';
+    const mainColorClass = isOffense ? 'text-red-500' : 'text-cyan-500';
+    const borderColorClass = isOffense ? 'border-red-500' : 'border-cyan-500';
 
     return (
-        <ModuleWindow
-            title={planet.name}
-            subtitle={t('PLANETARY_SCAN')}
-            theme="cyan"
-            onClose={onClose}
-            headerRight={headerRight}
-            maxWidth="max-w-7xl"
+        <div 
+            role="button" // Capture input clicks to prevent map fallback logic
+            className="absolute inset-0 z-[250] bg-slate-950/95 flex flex-col overflow-hidden animate-fadeIn select-none pointer-events-auto cursor-default"
         >
-            <div className="flex-1 grid grid-cols-3 gap-8 overflow-hidden min-h-0">
-                
-                {/* COL 1: Visuals & Bio-Data */}
-                <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-slate-900">
-                    <CyberPanel className="aspect-square flex items-center justify-center relative overflow-hidden shrink-0" decorated>
-                        <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_20%,rgba(0,0,0,0.8)_100%)] z-10 pointer-events-none"></div>
-                        <CanvasView 
-                            width={400} 
-                            height={400} 
-                            className="relative z-0 w-full h-full" 
-                            draw={handleDraw}
-                        />
-                        
-                        {/* Overlay Stats */}
-                        <div className="absolute bottom-4 left-4 z-20 text-xs font-mono text-cyan-300">
-                            <div>RADIUS: {Math.floor(planet.radius * 100)}km</div>
-                            <div>GRAVITY: {(planet.radius / 50).toFixed(2)}g</div>
-                        </div>
-                    </CyberPanel>
+            
+            {/* 1. Background Environment */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0)_0%,rgba(2,6,23,1)_100%)]"></div>
+                {/* Tech Grid */}
+                <div className="absolute inset-0 opacity-10 bg-[linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:100px_100px]"></div>
+            </div>
 
-                    <CyberPanel className="p-6 border-l-4 border-l-purple-500">
-                        <h3 className={`${DS.text.label} text-purple-400 mb-4`}>{t('HAZARD_ASSESSMENT')}</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
-                                    <span>{t('GENE_MODIFIER')}</span>
-                                    <span className={planet.geneStrength > 1.5 ? 'text-red-400' : 'text-white'}>x{planet.geneStrength.toFixed(2)}</span>
-                                </div>
-                                <div className="h-1 bg-slate-800 w-full overflow-hidden">
-                                    <div className={`h-full ${planet.geneStrength > 1.5 ? 'bg-red-500' : 'bg-purple-500'}`} style={{width: `${(planet.geneStrength / 3) * 100}%`}}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
-                                    <span>{t('SULFUR_INDEX')}</span>
-                                    <span className={planet.sulfurIndex > 5 ? 'text-yellow-400' : 'text-white'}>{planet.sulfurIndex}/10</span>
-                                </div>
-                                <div className="h-1 bg-slate-800 w-full overflow-hidden">
-                                    <div className={`h-full ${planet.sulfurIndex > 5 ? 'bg-yellow-500' : 'bg-green-500'}`} style={{width: `${(planet.sulfurIndex / 10) * 100}%`}}></div>
-                                </div>
-                            </div>
-                        </div>
-                    </CyberPanel>
+            {/* 2. Top Header Bar */}
+            <div className="relative z-20 flex justify-between items-start p-8">
+                <div className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-2 h-2 rounded-full ${isOffense ? 'bg-red-500 animate-pulse' : 'bg-cyan-500'}`}></div>
+                        <span className={`font-mono text-xs font-bold tracking-[0.3em] uppercase ${mainColorClass}`}>
+                            {t('PLANETARY_SCAN')} // {planet.id.toUpperCase().substring(0,8)}
+                        </span>
+                    </div>
+                    <h1 className="text-6xl font-display font-black text-white tracking-wide uppercase drop-shadow-lg">{planet.name}</h1>
+                </div>
+                <CloseButton onClick={onClose} colorClass={`border-${themeColor}-500 text-${themeColor}-500 hover:bg-${themeColor}-900`} />
+            </div>
+
+            {/* 3. Main Content Layer */}
+            <div className="flex-1 relative w-full h-full">
+                
+                {/* CENTRAL VISUAL (The Planet) - MOVED UP */}
+                <div className="absolute inset-0 flex items-center justify-center z-0 -translate-y-16 pointer-events-none">
+                    <CanvasView width={800} height={600} draw={handleDraw} className="opacity-90" />
+                    {/* Scanning Line Effect */}
+                    <div 
+                        className={`absolute left-1/2 -translate-x-1/2 w-[600px] h-[2px] bg-${themeColor}-400/50 shadow-[0_0_20px_rgba(6,182,212,0.8)] pointer-events-none`}
+                        style={{ top: `${(scanLineY / 600) * 100}%` }}
+                    ></div>
                 </div>
 
-                {/* COL 2: Atmosphere */}
-                <CyberPanel className="flex flex-col relative h-full overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-slate-900" noBorder>
-                    <div className="sticky top-0 left-0 bg-slate-800 px-4 py-1 text-xs font-bold text-slate-300 z-10">{t('ATMOSPHERIC_BREAKDOWN')}</div>
-                    
-                    <div className="flex-1 flex flex-col items-center justify-center p-8 min-h-[300px]">
-                        <svg ref={chartRef} width={300} height={300} className="filter drop-shadow-[0_0_10px_rgba(0,0,0,0.5)]"></svg>
-                        
-                        <div className="mt-8 h-24 w-full flex flex-col items-center justify-center text-center">
-                            {hoveredGas ? (
-                                <div className="animate-fadeIn">
-                                    <div className="text-2xl font-display font-black" style={{color: hoveredGas.color}}>{t(`GAS_${hoveredGas.id}_NAME`)}</div>
-                                    <div className="text-4xl font-mono text-white font-bold mb-1">{(hoveredGas.percentage * 100).toFixed(1)}%</div>
-                                    <div className="text-[10px] text-slate-400 max-w-xs leading-tight">{t(`GAS_${hoveredGas.id}_DESC`)}</div>
+                {/* LEFT HUD: Scientific Data */}
+                <div className="absolute left-12 top-1/2 -translate-y-24 flex flex-col gap-8 z-10 w-80">
+                    <Bracket side="left" colorClass={borderColorClass}>
+                        <h3 className={`${DS.text.label} ${mainColorClass} mb-4 border-b border-${themeColor}-900/50 pb-2`}>
+                            {t('ATMOSPHERIC_BREAKDOWN')}
+                        </h3>
+                        <div className="space-y-3">
+                            {planet.atmosphere.map(gas => (
+                                <div key={gas.id} className="relative">
+                                    <div className="flex justify-between text-xs mb-1 relative z-10">
+                                        <span className="text-slate-300 font-bold drop-shadow-md" style={{color: gas.color}}>{t(`GAS_${gas.id}_NAME`)}</span>
+                                        <span className="font-mono text-white">{(gas.percentage * 100).toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-slate-900/80 rounded-sm overflow-hidden border border-slate-700">
+                                        <div className="h-full shadow-[0_0_10px_currentColor]" style={{width: `${gas.percentage * 100}%`, backgroundColor: gas.color}}></div>
+                                    </div>
+                                    <div className="text-[9px] text-slate-400 mt-0.5 opacity-80">{t(`GAS_${gas.id}_DESC`)}</div>
                                 </div>
-                            ) : (
-                                <div className="text-slate-600 text-xs font-mono animate-pulse">HOVER SECTOR FOR DATA</div>
-                            )}
+                            ))}
                         </div>
-                    </div>
+                    </Bracket>
 
-                    {/* List */}
-                    <div className="border-t border-slate-800 p-4">
-                        {planet.atmosphere.map(gas => (
-                            <div key={gas.id} className="flex justify-between items-center py-2 border-b border-slate-800/50 last:border-0 hover:bg-slate-800/50 px-2 transition-colors">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: gas.color}}></div>
-                                    <span className="text-xs font-bold text-slate-300">{t(`GAS_${gas.id}_NAME`)}</span>
-                                </div>
-                                <span className="text-xs font-mono text-slate-500">{(gas.percentage * 100).toFixed(1)}%</span>
-                            </div>
-                        ))}
+                    <div className="flex gap-4 pl-4">
+                        <HexStat 
+                            label={t('GENE_MODIFIER')} 
+                            value={`x${planet.geneStrength.toFixed(2)}`} 
+                            color={planet.geneStrength > 2 ? 'red' : 'purple'} 
+                        />
+                        <HexStat 
+                            label={t('SULFUR_INDEX')} 
+                            value={planet.sulfurIndex.toString()} 
+                            sub="/ 10"
+                            color={planet.sulfurIndex > 5 ? 'yellow' : 'emerald'} 
+                        />
                     </div>
-                </CyberPanel>
+                </div>
 
-                {/* COL 3: Tactical & Launch */}
-                <div className="flex flex-col gap-6 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-slate-900 pr-2">
-                    
-                    {/* Mission Type Card */}
-                    <CyberPanel className={`p-6 border-l-4 shrink-0 ${planet.missionType === MissionType.OFFENSE ? 'border-red-600 bg-red-900/10' : 'border-blue-600 bg-blue-900/10'}`}>
-                        <h3 className={`text-sm font-bold tracking-widest mb-2 ${planet.missionType === MissionType.OFFENSE ? 'text-red-500' : 'text-blue-500'}`}>
+                {/* RIGHT HUD: Tactical Data */}
+                <div className="absolute right-12 top-1/2 -translate-y-24 flex flex-col gap-8 z-10 w-80 items-end text-right">
+                    <Bracket side="right" colorClass={borderColorClass} className="w-full">
+                        <h3 className={`${DS.text.label} ${mainColorClass} mb-4 border-b border-${themeColor}-900/50 pb-2`}>
                             {t('TACTICAL_ASSESSMENT')}
                         </h3>
-                        <div className="text-3xl font-display font-black text-white mb-4">
-                            {planet.missionType === MissionType.OFFENSE ? t('MISSION_ASSAULT') : t('CMD_DEFEND')}
+                        
+                        <div className="mb-6">
+                            <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{t('MISSION_OBJ')}</div>
+                            <div className={`text-2xl font-black uppercase tracking-wide text-white drop-shadow-md ${isOffense ? 'text-red-100' : 'text-cyan-100'}`}>
+                                {isOffense ? t('MISSION_ASSAULT') : t('CMD_DEFEND')}
+                            </div>
+                            <p className="text-xs text-slate-400 font-mono mt-2 leading-relaxed">
+                                {isOffense ? t('MANUAL_OFFENSE_DESC') : t('MANUAL_DEFENSE_DESC')}
+                            </p>
                         </div>
-                        <div className="text-xs text-slate-400 font-mono leading-relaxed">
-                            {planet.missionType === MissionType.OFFENSE 
-                                ? t('MANUAL_OFFENSE_DESC')
-                                : t('MANUAL_DEFENSE_DESC')
-                            }
-                        </div>
-                    </CyberPanel>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-4 shrink-0">
-                        <div className="bg-black/40 p-4 border border-slate-800">
-                            <div className="text-[10px] text-slate-500 mb-1">{t('ESTIMATED_HOSTILES')}</div>
-                            <div className="text-xl text-white font-mono">{planet.missionType === MissionType.OFFENSE ? "UNKNOWN" : planet.totalWaves * 20 + "+"}</div>
-                        </div>
-                        <div className="bg-black/40 p-4 border border-slate-800">
-                            <div className="text-[10px] text-slate-500 mb-1">{t('RESOURCE_DENSITY')}</div>
-                            <div className="text-xl text-yellow-400 font-mono">{t(planet.landingDifficulty > 20 ? 'HIGH' : planet.landingDifficulty > 10 ? 'MEDIUM' : 'LOW')}</div>
-                        </div>
-                    </div>
-
-                    {/* Launch Control */}
-                    <CyberPanel className="mt-auto p-6 flex flex-col gap-4 shrink-0" decorated>
-                        {planet.completed ? (
-                            <>
-                                <div className="flex justify-between items-center text-sm font-bold">
-                                    <span className="text-yellow-500">{t('PC_TITLE')}</span>
-                                    <span className="text-green-500">{t('CLEARED_TAG')}</span>
+                        <div className="bg-black/40 p-4 border-r-2 border-slate-700">
+                            <div className="flex justify-between items-center mb-2">
+                                <span className="text-xs text-slate-500 font-bold">{t('THREAT_LEVEL')}</span>
+                                <div className="flex gap-1">
+                                    {Array.from({length: 5}).map((_,i) => (
+                                        <div key={i} className={`w-1.5 h-3 ${i < (planet.landingDifficulty/6) ? 'bg-red-500' : 'bg-slate-800'}`}></div>
+                                    ))}
                                 </div>
-                                
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-xs text-slate-500 font-bold">{t('RESOURCE_DENSITY')}</span>
+                                <span className="text-yellow-400 font-mono font-bold">
+                                    {t(planet.landingDifficulty > 20 ? 'HIGH' : planet.landingDifficulty > 10 ? 'MEDIUM' : 'LOW')}
+                                </span>
+                            </div>
+                        </div>
+                    </Bracket>
+                </div>
+
+                {/* BOTTOM: Launch Console (Redesigned Glass) */}
+                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 w-[600px] flex flex-col items-center">
+                    
+                    {/* Vertical Link */}
+                    <div className="w-px h-12 bg-gradient-to-b from-transparent via-white/20 to-white/50 mb-0"></div>
+                    
+                    {/* Main Console Container */}
+                    <div className="w-full bg-slate-900/40 backdrop-blur-2xl border-t border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden relative group">
+                        
+                        {/* Top Glow Edge */}
+                        <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-50"></div>
+
+                        {planet.completed ? (
+                            <div className="p-6 flex flex-col items-center gap-4">
+                                <div className="text-emerald-400 font-black text-2xl tracking-widest uppercase flex items-center gap-3">
+                                    <span className="text-3xl"><Icons.Lock /></span> {t('SECTOR_PACIFIED')}
+                                </div>
                                 <CyberButton 
                                     onClick={onOpenConstruction}
                                     variant="yellow"
-                                    className="py-6 text-xl"
+                                    className="w-64 py-3"
                                     label={t('PC_BTN')}
-                                    fullWidth
+                                    icon={<div className="w-6 h-6"><Icons.Crane /></div>}
                                 />
-                            </>
+                            </div>
                         ) : (
-                            <>
-                                <div className="flex justify-between items-center text-sm font-bold">
-                                    <span className="text-cyan-500">{t('LAUNCH_WINDOW')}</span>
-                                    <span className={canAfford ? 'text-green-500' : 'text-red-500'}>{canAfford ? 'READY' : 'INSUFFICIENT FUEL'}</span>
-                                </div>
-                                
-                                <div className="flex justify-between items-center bg-black/50 p-3 border border-slate-800">
-                                    <span className="text-slate-400 text-xs">{t('DROP_COST')}</span>
-                                    <span className="text-yellow-400 font-mono font-bold text-lg">-{dropCost} SCRAPS</span>
+                            <div className="p-6 flex justify-between items-center gap-8">
+                                <div className="flex-1 text-right">
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">{t('DROP_COST')}</div>
+                                    <div className={`text-4xl font-mono font-bold tracking-tighter ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>
+                                        {dropCost} <span className="text-sm text-yellow-700">BIO</span>
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 font-mono mt-1">RESERVES: {Math.floor(currentScraps)}</div>
                                 </div>
 
-                                <CyberButton 
-                                    onClick={onDeploy}
-                                    disabled={!canAfford}
-                                    variant="cyan"
-                                    className="py-6 text-xl"
-                                    label={t('INITIATE_DROP')}
-                                    fullWidth
-                                />
-                            </>
+                                {/* Divider */}
+                                <div className="w-px h-12 bg-white/10"></div>
+
+                                <div className="flex-1">
+                                    <CyberButton 
+                                        onClick={onDeploy}
+                                        disabled={!canAfford}
+                                        variant={themeColor}
+                                        className={`w-full py-4 text-lg font-black tracking-widest shadow-lg ${canAfford ? 'shadow-cyan-500/20' : ''}`}
+                                        label={canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}
+                                        icon={
+                                            canAfford 
+                                                ? <div className="w-6 h-6 animate-bounce"><Icons.DropPod /></div> 
+                                                : <div className="w-5 h-5 opacity-50"><Icons.Lock /></div>
+                                        }
+                                    />
+                                </div>
+                            </div>
                         )}
-                    </CyberPanel>
-
+                    </div>
+                    
+                    {/* Bottom Decorative Text */}
+                    <div className="text-[9px] text-slate-500 font-mono mt-3 tracking-[0.5em] uppercase opacity-50">
+                        Orbital Trajectory Locked
+                    </div>
                 </div>
+
             </div>
-        </ModuleWindow>
+        </div>
     );
 };

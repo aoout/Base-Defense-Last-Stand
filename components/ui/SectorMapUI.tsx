@@ -7,7 +7,6 @@ import { GalaxyIndexModal } from './GalaxyIndexModal';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame, useGameLoop } from '../contexts/GameContext';
 import { Icons } from './Icons';
-import { CyberPanel } from './atoms/CyberPanel';
 import { CyberButton } from './atoms/CyberButton';
 import { DS } from '../../theme/designSystem';
 
@@ -98,7 +97,7 @@ export const SectorMapUI: React.FC = () => {
                         fullWidth
                         className="py-1 px-4 text-[10px]"
                         label={t('SAVE_STATE')}
-                        icon={<Icons.Save />}
+                        icon={<div className="w-4 h-4"><Icons.Save /></div>}
                     />
                     <CyberButton 
                         onClick={() => engine.returnToMainMenu()}
@@ -111,64 +110,83 @@ export const SectorMapUI: React.FC = () => {
             </div>
 
             {/* --- MIDDLE: INTERACTION LAYER (Planet Panel) --- */}
-            <div className="flex-1 relative z-10 pointer-events-none flex flex-col justify-center items-end pr-8 min-h-0">
+            <div className="flex-1 relative z-10 pointer-events-none flex flex-col justify-center items-end pr-12 min-h-0">
                 {planet && !viewingDetail && (
-                    <div className="pointer-events-auto animate-slideInRight max-h-full flex flex-col justify-center py-4 w-[450px]">
-                        <CyberPanel className="flex flex-col gap-4 shadow-2xl overflow-y-auto max-h-full p-6">
-                            <div className="flex justify-between items-start border-b border-cyan-900/50 pb-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="text-cyan-400 animate-spin-slow text-2xl">⌖</div>
-                                    <div>
-                                        <div className={`${DS.text.label} text-cyan-600`}>TARGET LOCKED</div>
-                                        <div className={`${DS.text.header} text-2xl text-white`}>{planet.name}</div>
-                                    </div>
-                                </div>
-                                <button onClick={() => engine.selectPlanet(null)} className="text-slate-500 hover:text-white transition-colors">✕</button>
-                            </div>
-
+                    <div className="pointer-events-auto animate-slideInRight w-[400px] flex flex-col gap-2">
+                        
+                        {/* 1. The Info Panel Card */}
+                        <div className="relative">
+                            <button 
+                                onClick={() => engine.selectPlanet(null)} 
+                                className="absolute -top-3 -right-3 z-50 bg-black text-slate-500 hover:text-white border border-slate-700 rounded-full w-6 h-6 flex items-center justify-center text-sm shadow-lg hover:border-white transition-all"
+                            >
+                                ✕
+                            </button>
                             <PlanetInfoPanel 
                                 planet={planet} 
                                 spaceship={state.spaceship}
                                 onShowDetail={() => setViewingDetail(true)}
                             />
+                        </div>
 
-                            {/* Tactical Footer inside Panel */}
-                            <div className="bg-black/40 p-4 border border-cyan-900/30 mt-2 shrink-0">
-                                <div className="flex justify-between items-center mb-3">
-                                    <span className={`${DS.text.label} text-slate-400`}>{t('DROP_COST')}</span>
-                                    <div className="flex items-baseline gap-1">
-                                        <span className={`text-xl font-mono font-bold ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>{dropCost}</span>
-                                        <span className="text-[9px] text-slate-500">BIO</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    {planet.completed ? (
-                                        <CyberButton 
-                                            onClick={() => engine.enterPlanetConstruction()}
-                                            variant="yellow"
-                                            className="col-span-2 py-3"
-                                            label={t('PC_BTN')}
-                                        />
-                                    ) : (
-                                        <CyberButton 
-                                            onClick={() => handleDeploy(planet.id)}
-                                            disabled={!canAfford}
-                                            variant="red"
-                                            className="col-span-2 py-4"
-                                            label={canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}
-                                            icon={canAfford ? <span className="animate-pulse">⚠</span> : undefined}
-                                        />
-                                    )}
-                                    <CyberButton 
-                                        onClick={() => setViewingDetail(true)}
-                                        variant="cyan"
-                                        className="col-span-2 py-2"
-                                        label={t('FULL_ANALYSIS_BTN')}
-                                    />
+                        {/* 2. Docked Action Bar (Glass Style) */}
+                        <div className="bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-xl p-4 flex flex-col gap-3 shadow-2xl">
+                            
+                            {/* Cost Indicator */}
+                            <div className="flex justify-between items-center px-2">
+                                <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">{t('DROP_COST')}</span>
+                                <div className="flex items-baseline gap-1">
+                                    <span className={`text-xl font-mono font-bold tracking-tighter ${canAfford ? 'text-yellow-400' : 'text-red-500'}`}>
+                                        {dropCost}
+                                    </span>
+                                    <span className="text-[9px] text-slate-500">BIO</span>
                                 </div>
                             </div>
-                        </CyberPanel>
+
+                            {/* Action Buttons */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {planet.completed ? (
+                                    <button
+                                        onClick={() => engine.enterPlanetConstruction()}
+                                        className="col-span-2 bg-yellow-900/40 hover:bg-yellow-900/60 border border-yellow-600/50 text-yellow-100 py-3 rounded font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(234,179,8,0.2)]"
+                                    >
+                                        <div className="w-4 h-4"><Icons.Crane /></div>
+                                        {t('PC_BTN')}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleDeploy(planet.id)}
+                                        disabled={!canAfford}
+                                        className={`col-span-2 py-4 rounded font-black text-sm tracking-[0.2em] uppercase flex items-center justify-center gap-3 transition-all hover:scale-[1.02] shadow-lg
+                                            ${canAfford 
+                                                ? 'bg-red-600 hover:bg-red-500 text-white shadow-red-900/30' 
+                                                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'}
+                                        `}
+                                    >
+                                        {canAfford ? (
+                                            <>
+                                                <div className="w-4 h-4 animate-bounce"><Icons.DropPod /></div>
+                                                {t('INITIATE_DROP')}
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-4 h-4"><Icons.Lock /></div>
+                                                {t('INSUFFICIENT_FUNDS')}
+                                            </>
+                                        )}
+                                    </button>
+                                )}
+
+                                <button
+                                    onClick={() => setViewingDetail(true)}
+                                    className="col-span-2 bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-500/30 text-cyan-200 py-2 rounded font-bold text-[10px] tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:border-cyan-400"
+                                >
+                                    <div className="w-3 h-3"><Icons.Analysis /></div>
+                                    {t('FULL_ANALYSIS_BTN')}
+                                </button>
+                            </div>
+                        </div>
+
                     </div>
                 )}
             </div>
@@ -183,9 +201,9 @@ export const SectorMapUI: React.FC = () => {
                         className="flex items-center gap-6 w-full h-full hover:bg-white/5 transition-colors text-left"
                     >
                         <div className="w-16 h-16 border-2 border-cyan-500/50 rounded flex items-center justify-center bg-cyan-950/30 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_cyan] transition-all relative overflow-hidden">
-                            <svg viewBox="0 0 24 24" className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform" fill="currentColor">
+                            <div className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform">
                                 <Icons.Ship />
-                            </svg>
+                            </div>
                             <div className="absolute inset-0 bg-cyan-400/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
                         </div>
                         <div>

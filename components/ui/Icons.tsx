@@ -26,7 +26,12 @@ export const Icons = {
     Planet: () => <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z M4.93 4.93l14.14 14.14 M19.07 4.93L4.93 19.07" />,
     Logs: () => <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
     Hazard: () => <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z" />,
-    StarMap: () => <path d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" /> // Abstract star
+    StarMap: () => <path d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" />,
+    
+    // New Icons for Actions
+    DropPod: () => <path d="M12 2l-8 4v6l8 4 8-4V6l-8-4zm0 14v6m0-6l-8-4m8 4l8-4" />,
+    Crane: () => <path d="M4 20h16M4 16h2v4H4v-4zm4-9l4-4 4 4v9H8V7zm4 0v4m-4 0h8" />,
+    Analysis: () => <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
 };
 
 export const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
