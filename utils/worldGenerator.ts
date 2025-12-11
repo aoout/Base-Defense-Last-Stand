@@ -73,8 +73,9 @@ export const generatePlanets = (config?: GalaxyConfig, width?: number, height?: 
 
             preset.planets.forEach((def, i) => {
                 // Use RNG for position instead of Math.random()
+                // Adjusted Safe Zones: 100px Horizontal, 160px Vertical to avoid UI bars
                 const x = (rng.next() * (mapW - 200)) + 100;
-                const y = (rng.next() * (mapH - 200)) + 100;
+                const y = (rng.next() * (mapH - 320)) + 160; 
                 
                 // Defaults
                 const biome = def.biome || BiomeType.BARREN;
@@ -133,8 +134,10 @@ export const generatePlanets = (config?: GalaxyConfig, width?: number, height?: 
     const enableOffense = config && config.enableOffense !== undefined ? config.enableOffense : true;
 
     for(let i=0; i<count; i++) {
+        // Adjusted Safe Zones: 100px Horizontal, 160px Vertical to avoid UI bars
         const x = (Math.random() * (mapW - 200)) + 100;
-        const y = (Math.random() * (mapH - 200)) + 100;
+        const y = (Math.random() * (mapH - 320)) + 160;
+        
         const biome = biomes[Math.floor(Math.random() * biomes.length)];
         const style = BIOME_STYLES[biome];
         
