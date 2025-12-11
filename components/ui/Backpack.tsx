@@ -137,7 +137,7 @@ export const TacticalBackpack: React.FC = () => {
 
     // Get current weapon data
     const weaponStats = selectedWeapon === 'GRENADE' 
-        ? { name: "GRENADE", damage: PLAYER_STATS.grenadeDamage, range: 400, reloadTime: 0 } 
+        ? { name: "GRENADE", damage: PLAYER_STATS.grenadeDamage, range: 400, reloadTime: 0, fireRate: 0 } 
         : WEAPONS[selectedWeapon];
     
     const installedModules = selectedWeapon === 'GRENADE' ? p.grenadeModules : p.weapons[selectedWeapon].modules;
@@ -334,3 +334,4 @@ export const TacticalBackpack: React.FC = () => {
         </div>
     );
 };
+    

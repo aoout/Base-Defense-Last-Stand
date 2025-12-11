@@ -8,9 +8,29 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.9";
+export const CURRENT_VERSION = "1.1.0";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.1.0",
+        date: "2248.08.10",
+        title: "TACTICAL OS OVERHAUL",
+        titleCN: "战术系统重构",
+        changes: [
+            "UI: Complete redesign of 'Armory OS' (Backpack) with responsive 3-column layout.",
+            "UI: Overhauled 'Battle Net' (Tactical Tab) with real-time unit telemetry and reinforcement visualization.",
+            "UI: Refined Depot (Shop) interface aesthetics and responsiveness.",
+            "SYS: Major refactor of UI components for better readability and maintainability.",
+            "SYS: Improved responsive layout handling for various screen resolutions."
+        ],
+        changesCN: [
+            "界面：完全重设计‘军械库系统’（背包），采用响应式三栏布局。",
+            "界面：重制‘战场指挥网络’（战术Tab），新增实时单位遥测与增援可视化。",
+            "界面：优化了补给站（商店）的界面美学与响应速度。",
+            "系统：大规模重构UI组件代码，提升可读性与可维护性。",
+            "系统：改进了针对不同屏幕分辨率的响应式布局处理。"
+        ]
+    },
     {
         version: "1.0.9",
         date: "2248.08.05",
