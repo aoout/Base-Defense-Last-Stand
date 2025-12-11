@@ -2,6 +2,10 @@
 import React, { useEffect, useState } from 'react';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
+import { ModuleWindow } from './ModuleWindow';
+import { CyberPanel } from './atoms/CyberPanel';
+import { CyberButton } from './atoms/CyberButton';
+import { DS } from '../../theme/designSystem';
 
 export const PlanetaryYieldReport: React.FC = () => {
     const { state, engine } = useGame();
@@ -35,35 +39,33 @@ export const PlanetaryYieldReport: React.FC = () => {
 
     if (!report) return null;
 
+    const headerRight = (
+        <div className="text-right text-emerald-500 font-mono text-[10px]">
+            LOG_ID: {Date.now().toString(16).toUpperCase()}
+        </div>
+    );
+
     return (
-        <div className="absolute inset-0 z-[300] bg-slate-950 flex items-center justify-center pointer-events-auto font-mono">
-            {/* Background */}
-            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(16,185,129,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(16,185,129,0.1)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_0%,rgba(6,78,59,0.5)_100%)]"></div>
-
-            <div className="relative w-[800px] border-y-4 border-emerald-500 bg-slate-900/95 shadow-2xl p-12 flex flex-col backdrop-blur-md">
+        <ModuleWindow
+            title={t('REPORT_TITLE')}
+            subtitle={t('REPORT_SUB')}
+            theme="emerald"
+            onClose={() => {}} // No close button, must claim
+            headerRight={headerRight}
+            maxWidth="max-w-4xl"
+        >
+            <div className="flex flex-col h-full p-8 w-full">
                 
-                {/* Header */}
-                <div className="flex justify-between items-end border-b-2 border-emerald-900 pb-4 mb-8">
-                    <div>
-                        <h1 className="text-4xl font-display font-black text-white tracking-widest">{t('REPORT_TITLE')}</h1>
-                        <div className="text-emerald-500 text-xs tracking-[0.3em] font-bold">{t('REPORT_SUB')}</div>
-                    </div>
-                    <div className="text-right text-emerald-800 text-[10px] font-mono">
-                        LOG_ID: {Date.now().toString(16).toUpperCase()}
-                    </div>
-                </div>
-
                 {/* Table Header */}
-                <div className="grid grid-cols-4 gap-4 text-xs font-bold text-slate-500 border-b border-emerald-900/50 pb-2 mb-4 tracking-widest px-4">
-                    <div className="col-span-1">{t('REPORT_COL_PLANET')}</div>
-                    <div className="text-right text-green-400">{t('REPORT_COL_BIO')}</div>
-                    <div className="text-right text-blue-400">{t('REPORT_COL_OXY')}</div>
-                    <div className="text-right text-white">{t('REPORT_COL_TOTAL')}</div>
+                <div className="grid grid-cols-4 gap-4 pb-2 mb-4 border-b border-emerald-900/50 px-4">
+                    <div className={`${DS.text.label} text-slate-500`}>{t('REPORT_COL_PLANET')}</div>
+                    <div className={`${DS.text.label} text-right text-green-500`}>{t('REPORT_COL_BIO')}</div>
+                    <div className={`${DS.text.label} text-right text-blue-500`}>{t('REPORT_COL_OXY')}</div>
+                    <div className={`${DS.text.label} text-right text-white`}>{t('REPORT_COL_TOTAL')}</div>
                 </div>
 
                 {/* List */}
-                <div className="flex-1 overflow-y-auto max-h-[300px] space-y-2 mb-8 pr-2 scrollbar-thin scrollbar-thumb-emerald-900 scrollbar-track-transparent">
+                <div className="flex-1 overflow-y-auto space-y-2 mb-8 pr-2 scrollbar-thin scrollbar-thumb-emerald-900 scrollbar-track-transparent min-h-0">
                     {report.items.map((item, idx) => (
                         <div 
                             key={item.planetId} 
@@ -79,22 +81,20 @@ export const PlanetaryYieldReport: React.FC = () => {
                 </div>
 
                 {/* Footer Total */}
-                <div className="bg-black/40 border border-emerald-500/50 p-6 flex justify-between items-center mb-8">
-                    <div className="text-emerald-500 font-bold tracking-[0.2em] text-sm uppercase">{t('REPORT_NET_GAIN')}</div>
+                <CyberPanel className="p-6 flex justify-between items-center mb-8 bg-black/40" decorated>
+                    <div className={`${DS.text.label} text-emerald-500`}>{t('REPORT_NET_GAIN')}</div>
                     <div className="text-5xl font-mono font-bold text-yellow-400 drop-shadow-[0_0_10px_rgba(234,179,8,0.5)]">
                         +{animatedTotal}
                     </div>
-                </div>
+                </CyberPanel>
 
-                <button 
+                <CyberButton 
                     onClick={handleClaim}
-                    className="group w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-[0.2em] text-lg uppercase transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:shadow-[0_0_30px_rgba(16,185,129,0.6)] relative overflow-hidden"
-                >
-                    <span className="relative z-10">{t('REPORT_TRANSFER')}</span>
-                    <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-0 transition-transform skew-x-12 duration-300"></div>
-                </button>
-
+                    variant="emerald"
+                    className="w-full py-4 text-lg"
+                    label={t('REPORT_TRANSFER')}
+                />
             </div>
-        </div>
+        </ModuleWindow>
     );
 };

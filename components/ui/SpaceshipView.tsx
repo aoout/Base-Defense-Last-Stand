@@ -4,6 +4,10 @@ import { SpaceshipModuleType, GameEventType, ShopPurchaseEvent } from '../../typ
 import { SPACESHIP_MODULES } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
+import { CyberButton } from './atoms/CyberButton';
+import { CyberPanel } from './atoms/CyberPanel';
+import { DS } from '../../theme/designSystem';
+import { Icons } from './Icons';
 
 // Simple logic extraction
 const useBackdoorTrigger = (activate: () => void) => {
@@ -51,12 +55,16 @@ export const SpaceshipView: React.FC = () => {
                 <div className="flex flex-col gap-2 pointer-events-auto">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 bg-cyan-400 animate-pulse"></div>
-                        <span className="text-cyan-600 text-[10px] font-mono tracking-[0.2em] uppercase">{t('STORAGE_ACCESS')}</span>
+                        <span className={`${DS.text.label} text-cyan-600`}>{t('STORAGE_ACCESS')}</span>
                     </div>
-                    <div className="bg-slate-900/90 border-l-2 border-cyan-500 px-6 py-2 backdrop-blur-md shadow-lg flex items-baseline gap-3 cursor-pointer hover:bg-slate-800 transition-colors active:bg-cyan-900/20" onClick={handleScrapClick}>
+                    <CyberPanel 
+                        className="px-6 py-2 flex items-baseline gap-3 cursor-pointer hover:bg-slate-800 transition-colors active:bg-cyan-900/20" 
+                        onClick={handleScrapClick}
+                        noBorder={false}
+                    >
                          <span className="text-4xl font-display font-black text-white tracking-tighter tabular-nums">{Math.floor(state.player.score)}</span>
-                         <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-widest">{t('FRAGMENTS')}</span>
-                    </div>
+                         <span className={`${DS.text.label} text-cyan-400`}>{t('FRAGMENTS')}</span>
+                    </CyberPanel>
                 </div>
                  <div className="text-right pointer-events-auto opacity-80">
                      <h1 className="text-5xl font-display font-black italic text-slate-700 tracking-wide uppercase">{t('SHIP_CLASS_NAME')}</h1>
@@ -108,54 +116,56 @@ export const SpaceshipView: React.FC = () => {
                         </svg>
                         
                         {/* Installed Modules List */}
-                        <div className="absolute top-0 left-0 w-64 max-h-full bg-slate-900/80 border border-slate-700 p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent z-20">
-                            <h3 className="text-cyan-400 text-xs font-bold tracking-widest border-b border-slate-700 pb-2 mb-2">{t('SHIP_MODULES')}</h3>
+                        <CyberPanel className="absolute top-0 left-0 w-64 max-h-full p-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent z-20">
+                            <h3 className={`${DS.text.label} text-cyan-400 border-b border-slate-700 pb-2 mb-2`}>{t('SHIP_MODULES')}</h3>
                             {installed.length === 0 ? <div className="text-slate-500 text-xs italic">{t('NO_MODULES')}</div> : (
                                 <div className="space-y-2">
                                     {installed.map((modType) => {
-                                        let btnColorClass = "bg-slate-700 border-slate-600";
-                                        if (modType === SpaceshipModuleType.ORBITAL_CANNON) btnColorClass = "bg-cyan-900 hover:bg-cyan-700 text-cyan-100 border-cyan-600";
-                                        if (modType === SpaceshipModuleType.CARAPACE_ANALYZER) btnColorClass = "bg-emerald-900 hover:bg-emerald-700 text-emerald-100 border-emerald-600";
-                                        if (modType === SpaceshipModuleType.BASE_REINFORCEMENT) btnColorClass = "bg-yellow-900 hover:bg-yellow-700 text-yellow-100 border-yellow-600";
-                                        if (modType === SpaceshipModuleType.BIO_SEQUENCING) btnColorClass = "bg-purple-900 hover:bg-purple-700 text-purple-100 border-purple-600";
+                                        let btnVariant: 'cyan' | 'emerald' | 'yellow' | 'purple' = 'cyan';
+                                        let label = t('SYSTEM_UPGRADE');
+                                        let action = () => {};
+
+                                        if (modType === SpaceshipModuleType.ORBITAL_CANNON) { btnVariant = 'cyan'; action = () => engine.enterOrbitalUpgradeMenu(); }
+                                        if (modType === SpaceshipModuleType.CARAPACE_ANALYZER) { btnVariant = 'emerald'; label = t('XENO_MATRIX'); action = handleOpenCarapace; }
+                                        if (modType === SpaceshipModuleType.BASE_REINFORCEMENT) { btnVariant = 'yellow'; label = t('RESEARCH_BTN'); action = handleOpenInfrastructure; }
+                                        if (modType === SpaceshipModuleType.BIO_SEQUENCING) { btnVariant = 'purple'; label = t('BIO_TITLE'); action = handleOpenBioSequencing; }
 
                                         return (
-                                            <div key={modType} className={`flex flex-col gap-1 text-xs text-white p-2 border-l-2 ${btnColorClass.replace('bg-', 'border-').replace('text-', 'bg-').split(' ')[0]} bg-opacity-10 bg-slate-800`}>
+                                            <div key={modType} className="flex flex-col gap-1 text-xs text-white p-2 border-l-2 border-slate-600 bg-slate-800/50">
                                                 <div className="flex items-center gap-2"><span>✔️</span><span className="font-bold">{t(`SHIP_MOD_${modType}_NAME`)}</span></div>
-                                                {modType === SpaceshipModuleType.ORBITAL_CANNON && (
-                                                    <button onClick={() => engine.enterOrbitalUpgradeMenu()} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('SYSTEM_UPGRADE')}</button>
-                                                )}
-                                                {modType === SpaceshipModuleType.CARAPACE_ANALYZER && (
-                                                    <button onClick={handleOpenCarapace} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('XENO_MATRIX')}</button>
-                                                )}
-                                                {modType === SpaceshipModuleType.BASE_REINFORCEMENT && (
-                                                    <button onClick={handleOpenInfrastructure} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('RESEARCH_BTN')}</button>
-                                                )}
-                                                {modType === SpaceshipModuleType.BIO_SEQUENCING && (
-                                                    <button onClick={handleOpenBioSequencing} className={`mt-1 w-full text-[10px] py-1 font-bold uppercase tracking-wide border transition-colors ${btnColorClass}`}>{t('BIO_TITLE')}</button>
+                                                {modType !== SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR && (
+                                                    <CyberButton 
+                                                        variant={btnVariant}
+                                                        onClick={action}
+                                                        className="w-full mt-1 py-1 text-[10px]"
+                                                    >
+                                                        {label}
+                                                    </CyberButton>
                                                 )}
                                             </div>
                                         );
                                     })}
                                 </div>
                             )}
-                        </div>
+                        </CyberPanel>
                     </div>
 
                     <div className="mt-8 shrink-0">
-                        <button onClick={() => engine.enterShipComputer()} className="group relative flex flex-col items-center justify-center w-64 h-24 bg-slate-900 border-2 border-slate-700 hover:border-green-500 transition-all overflow-hidden">
-                            <div className="absolute inset-0 bg-[repeating-linear-gradient(0deg,transparent,transparent_2px,#00ff00_2px,#00ff00_4px)] opacity-5 pointer-events-none"></div>
-                            <div className="text-green-500 font-mono text-xs tracking-[0.2em] mb-1 group-hover:text-green-400">{t('CORE_DB')}</div>
-                            <div className="text-white font-display font-black text-2xl tracking-wide group-hover:text-green-300">{t('ACCESS_COMPUTER')}</div>
-                            <div className="absolute bottom-0 w-full h-1 bg-slate-800 group-hover:bg-green-500 transition-colors"></div>
-                        </button>
+                        <CyberButton 
+                            variant="cyan"
+                            onClick={() => engine.enterShipComputer()}
+                            className="w-64 h-24 flex flex-col items-center justify-center border-2"
+                        >
+                            <div className="text-green-500 font-mono text-xs tracking-[0.2em] mb-1">{t('CORE_DB')}</div>
+                            <div className="text-white font-display font-black text-2xl tracking-wide">{t('ACCESS_COMPUTER')}</div>
+                        </CyberButton>
                     </div>
                 </div>
 
                 {/* Right Panel: Module Shop */}
-                <div className="w-80 bg-slate-900/90 border-l border-cyan-900/50 backdrop-blur-md pointer-events-auto flex flex-col p-6 h-full overflow-hidden">
-                    <h2 className="text-xl font-display font-black text-white mb-1 uppercase tracking-wide shrink-0">{t('ENGINEERING')}</h2>
-                    <p className="text-xs text-cyan-500 mb-6 font-mono tracking-widest shrink-0">{t('MODULE_FAB')}</p>
+                <CyberPanel className="w-80 pointer-events-auto flex flex-col p-6 h-full overflow-hidden" decorated>
+                    <h2 className={`${DS.text.header} text-xl text-white mb-1 shrink-0`}>{t('ENGINEERING')}</h2>
+                    <p className={`${DS.text.label} text-cyan-500 mb-6 shrink-0`}>{t('MODULE_FAB')}</p>
                     <div className="flex-1 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent pr-2 min-h-0">
                         {availableModules.length === 0 && <div className="text-slate-500 text-center text-sm py-10">{t('ALL_INSTALLED')}</div>}
                         {availableModules.map(modType => {
@@ -167,27 +177,30 @@ export const SpaceshipView: React.FC = () => {
                                     <div className="text-slate-400 text-xs mb-3 leading-relaxed">{t(`SHIP_MOD_${modType}_DESC`)}</div>
                                     <div className="flex justify-between items-center">
                                         <div className="text-yellow-400 font-mono text-sm font-bold">{mod.cost}</div>
-                                        <button 
+                                        <CyberButton 
+                                            variant={canAfford ? 'cyan' : 'slate'}
                                             onClick={() => handlePurchase(modType)}
                                             disabled={!canAfford}
-                                            className={`px-3 py-1 text-[10px] font-bold tracking-widest uppercase transition-all ${canAfford ? 'bg-cyan-600 text-white hover:bg-cyan-400' : 'bg-slate-700 text-slate-500 cursor-not-allowed'}`}
+                                            className="px-3 py-1 text-[10px]"
                                         >
                                             {canAfford ? t('INSTALL_BTN') : t('NO_FUNDS')}
-                                        </button>
+                                        </CyberButton>
                                     </div>
                                 </div>
                             )
                         })}
                     </div>
-                </div>
+                </CyberPanel>
             </div>
 
             {/* Bottom Controls */}
             <div className="absolute bottom-8 left-8 z-20 pointer-events-auto">
-                <button onClick={() => engine.exitSpaceshipView()} className="group flex items-center gap-3 px-6 py-3 bg-slate-900/80 border border-slate-700 hover:border-cyan-500 transition-all text-slate-400 hover:text-white">
-                    <span className="text-xl">«</span>
-                    <span className="font-mono text-xs tracking-widest uppercase">{t('RETURN_SECTOR_BTN')}</span>
-                </button>
+                <CyberButton 
+                    onClick={() => engine.exitSpaceshipView()} 
+                    variant="slate"
+                    icon={<span className="text-xl">«</span>}
+                    label={t('RETURN_SECTOR_BTN')}
+                />
             </div>
             
             <div className="absolute bottom-8 right-8 z-20 pointer-events-none">

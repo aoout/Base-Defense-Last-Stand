@@ -1,53 +1,102 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import * as d3 from 'd3';
-import { GameState, GameSettings, EnemyType, BossType, GameMode, DamageSource } from '../../types';
+import React, { useState, useEffect, useCallback } from 'react';
+import { GameState, EnemyType, BossType, GameMode } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
-import { CloseButton } from './Shared';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { useLocale, Translator } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CanvasView } from './common/CanvasView';
+import { KeyBindingUI } from './KeyBindingUI';
+import { DS } from '../../theme/designSystem';
+import { Icons } from './Icons';
 
-const ToggleRow: React.FC<{ label: string, active: boolean, onClick: () => void }> = ({ label, active, onClick }) => (<div className="flex items-center justify-between p-3 border border-green-900/50 hover:bg-green-900/20 cursor-pointer" onClick={onClick}><span>{label}</span><div className={`w-12 h-6 rounded-none border border-green-700 relative transition-colors ${active ? 'bg-green-900' : 'bg-black'}`}><div className={`absolute top-0.5 bottom-0.5 w-5 bg-green-500 transition-all ${active ? 'left-[calc(100%-22px)]' : 'left-0.5'}`}></div></div></div>);
+// --- SUB-COMPONENTS ---
 
-const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t }) => {
+const MenuCard: React.FC<{ 
+    title: string; 
+    subtitle: string; 
+    icon: React.ReactNode; 
+    onClick: () => void; 
+    variant?: 'default' | 'danger' | 'primary';
+    disabled?: boolean;
+}> = ({ title, subtitle, icon, onClick, variant = 'default', disabled }) => {
+    let borderColor = 'border-slate-700';
+    let hoverBorder = 'hover:border-cyan-500';
+    let bg = 'bg-slate-900/60';
+    let iconColor = 'text-slate-400';
+    
+    if (variant === 'primary') {
+        borderColor = 'border-cyan-600';
+        hoverBorder = 'hover:border-cyan-400';
+        bg = 'bg-cyan-950/40';
+        iconColor = 'text-cyan-400';
+    } else if (variant === 'danger') {
+        borderColor = 'border-red-900';
+        hoverBorder = 'hover:border-red-500';
+        bg = 'bg-red-950/20';
+        iconColor = 'text-red-500';
+    }
+
+    return (
+        <button 
+            onClick={onClick}
+            disabled={disabled}
+            className={`
+                group relative flex flex-col justify-between p-6 h-40 border-2 rounded-xl backdrop-blur-md transition-all duration-300
+                ${bg} ${borderColor} ${disabled ? 'opacity-50 cursor-not-allowed' : `${hoverBorder} hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] hover:-translate-y-1`}
+            `}
+        >
+            <div className="flex justify-between items-start w-full">
+                <div className={`p-3 rounded-lg bg-black/40 ${iconColor} group-hover:scale-110 transition-transform duration-300`}>
+                    <div className="w-8 h-8">{icon}</div>
+                </div>
+                {variant === 'primary' && <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_10px_cyan]"></div>}
+            </div>
+            
+            <div className="text-left">
+                <div className={`${DS.text.header} text-xl text-white mb-1 group-hover:text-cyan-100`}>{title}</div>
+                <div className="text-[10px] text-slate-400 font-mono tracking-wider uppercase group-hover:text-slate-300">{subtitle}</div>
+            </div>
+
+            {/* Tech Decoration */}
+            <div className="absolute bottom-0 right-0 w-8 h-8 overflow-hidden">
+                <div className={`absolute bottom-0 right-0 w-[150%] h-1 bg-current opacity-20 -rotate-45 transform origin-bottom-right group-hover:w-[200%] transition-all ${iconColor}`}></div>
+            </div>
+        </button>
+    );
+};
+
+const TelemetryRow: React.FC<{ label: string, value: string | number, color?: string }> = ({ label, value, color = "text-white" }) => (
+    <div className="flex justify-between items-center py-3 border-b border-slate-800/50">
+        <span className="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">{label}</span>
+        <span className={`font-mono font-bold text-lg ${color}`}>{value}</span>
+    </div>
+);
+
+// --- SUB-VIEWS (Re-wrapped for new design) ---
+
+const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => void }> = ({ state, t, onBack }) => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const discoveredList = state.stats.encounteredEnemies;
     
     const allEntities = [
-        EnemyType.GRUNT, 
-        EnemyType.RUSHER, 
-        EnemyType.VIPER, 
-        EnemyType.TANK, 
-        EnemyType.KAMIKAZE, 
-        EnemyType.TUBE_WORM,
-        BossType.RED_SUMMONER, 
-        BossType.BLUE_BURST, 
-        BossType.PURPLE_ACID,
-        BossType.HIVE_MOTHER
+        EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER, EnemyType.TANK, 
+        EnemyType.KAMIKAZE, EnemyType.TUBE_WORM,
+        BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID, BossType.HIVE_MOTHER
     ];
 
-    const isDiscovered = (id: string) => state.stats.encounteredEnemies.includes(id);
+    useEffect(() => {
+        if (!selectedId && discoveredList.length > 0) {
+            const first = allEntities.find(id => discoveredList.includes(id));
+            if (first) setSelectedId(first);
+        }
+    }, [discoveredList]);
 
     const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
-        if (!selectedId || !isDiscovered(selectedId)) return;
-
-        // Clear and Background
-        ctx.fillStyle = '#022c22'; 
-        ctx.fillRect(0,0, w, h); 
+        if (!selectedId) return;
+        ctx.clearRect(0, 0, w, h);
         
-        // Grid Effect
-        ctx.strokeStyle = 'rgba(6, 95, 70, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        for(let i=0; i<w; i+=20) { ctx.moveTo(i,0); ctx.lineTo(i,h); ctx.moveTo(0,i); ctx.lineTo(w,i); }
-        ctx.stroke();
-        
-        ctx.strokeStyle = '#065f46'; 
-        ctx.strokeRect(0,0, w, h);
-
-        // Prepare Mock Entity
         let radius = 20;
         let color = '#fff';
         if (ENEMY_STATS[selectedId as EnemyType]) {
@@ -59,38 +108,20 @@ const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t
         }
 
         const isBoss = selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') || selectedId.includes('HIVE');
-
         const mockEntity: any = { 
-            x: 100, 
-            y: 100, 
-            radius: radius * 2, // Base scale
-            angle: 0, // Facing right by default in local space usually, but we rotate context
-            hp: 100, 
-            maxHp: 100, 
-            color: color, 
-            type: selectedId, 
-            bossType: selectedId, 
-            isBoss: isBoss,
-            armorValue: 90, // Visual for hive mother
-            visualScaleY: 1 // for Tube Worm
+            x: 0, y: 0, radius: radius * 2, angle: 0, hp: 100, maxHp: 100, 
+            color: color, type: selectedId, bossType: selectedId, isBoss: isBoss,
+            armorValue: 90, visualScaleY: 1
         };
         
         ctx.save();
-        // Move origin to center of canvas
-        ctx.translate(w/2, h/2);
-        
-        // Adjust scale to fit canvas nicely
-        let scale = 1.5;
-        if (isBoss) scale = 0.8;
-        if (selectedId === BossType.HIVE_MOTHER) scale = 0.6;
-        if (selectedId === BossType.RED_SUMMONER) scale = 0.7;
+        ctx.translate(w/2, h/2); 
+        let scale = isBoss ? 1.5 : 3.0;
+        if (selectedId === BossType.HIVE_MOTHER) scale = 0.8;
         
         ctx.scale(scale, scale);
-        
-        // Rotate to face UP (standard portrait orientation)
-        ctx.rotate(-Math.PI / 2);
+        ctx.rotate(-Math.PI / 2 + Math.sin(time * 0.0005) * 0.2); 
 
-        // The draw functions draw at (0,0) of the current context
         switch(selectedId) {
             case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
             case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
@@ -104,229 +135,304 @@ const BestiaryPanel: React.FC<{ state: GameState, t: Translator }> = ({ state, t
             case BossType.HIVE_MOTHER: drawHiveMother(ctx, mockEntity, time); break;
         }
         ctx.restore();
-    }, [selectedId]); // Correct dependency: function recreates when ID changes
+    }, [selectedId]);
+
+    const info = selectedId && BESTIARY_DB[selectedId];
 
     return (
-        <div className="flex h-full gap-4">
-            <div className="w-1/3 border-r border-green-800 pr-2 overflow-y-auto">
-                {allEntities.map(id => {
-                    const discovered = isDiscovered(id);
-                    const nameKey = `ENEMY_${id}_NAME`;
-                    const name = t(nameKey) !== nameKey ? t(nameKey) : BESTIARY_DB[id]?.codeName || id;
-                    
-                    return (<div key={id} onClick={() => setSelectedId(id)} className={`p-3 mb-2 cursor-pointer border transition-colors flex justify-between items-center ${selectedId === id ? 'bg-green-900 border-green-500 text-white' : 'bg-black/40 border-green-900/50 text-green-700 hover:bg-green-900/20'}`}><span className="font-bold text-xs tracking-widest">{discovered ? name : 'UNKNOWN SIGNAL'}</span>{!discovered && <span className="text-[10px] text-green-900 bg-green-900/20 px-1">LOCKED</span>}</div>);
-                })}
-            </div>
-            <div className="flex-1 pl-2">
-                {selectedId ? (
-                    isDiscovered(selectedId) ? (
-                        BESTIARY_DB[selectedId] ? (
-                            <div className="h-full flex flex-col animate-fadeIn">
-                                <div className="flex gap-4 mb-4">
-                                    <div className="border border-green-700 w-[200px] h-[200px] bg-black relative flex-shrink-0 shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                                        <CanvasView width={200} height={200} className="w-full h-full" draw={handleDraw} />
-                                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,255,0,0.1)_1px,transparent_1px)] bg-[size:100%_4px] pointer-events-none"></div>
-                                        <div className="absolute bottom-1 right-1 text-[10px] text-green-900 font-mono">FIG. A</div>
-                                    </div>
-                                    <div className="flex-1 space-y-2">
-                                        <div className="text-3xl font-display font-black text-green-400 border-b border-green-800 pb-1">{t(`ENEMY_${selectedId}_NAME`)}</div>
-                                        <div className="text-xs text-green-600 font-bold tracking-widest">{t('CLASSIFICATION')}: {t(`ENEMY_${selectedId}_CLASS`)}</div>
-                                        <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-green-300">
-                                            <div className="bg-green-900/30 p-2 border border-green-800">
-                                                <span className="text-green-600 block text-[10px]">{t('DANGER_LEVEL')}</span>
-                                                <div className="flex gap-0.5 mt-1">
-                                                    {Array.from({length: 10}).map((_, i) => (
-                                                        <div key={i} className={`h-1.5 w-full ${i < BESTIARY_DB[selectedId].danger ? 'bg-red-500' : 'bg-green-900'}`}></div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex-1 bg-green-900/10 p-4 border border-green-900/50 text-sm text-green-400 font-mono leading-relaxed overflow-y-auto">
-                                    {t(`ENEMY_${selectedId}_DESC`)}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="h-full flex items-center justify-center text-red-500 font-mono">DATABASE ERROR: ENTRY MISSING</div>
+        <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
+            {/* List */}
+            <div className="w-72 flex flex-col h-full border-r border-slate-800 bg-black/40">
+                <button onClick={onBack} className="p-6 text-left border-b border-slate-800 hover:bg-white/5 transition-colors flex items-center gap-3 text-slate-400 hover:text-white">
+                    <span className="text-xl">«</span> <span className="font-bold text-sm tracking-widest">RETURN</span>
+                </button>
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 p-2 space-y-1">
+                    {allEntities.map(id => {
+                        const discovered = discoveredList.includes(id);
+                        return (
+                            <button 
+                                key={id} 
+                                onClick={() => discovered && setSelectedId(id)}
+                                disabled={!discovered}
+                                className={`
+                                    w-full px-4 py-3 text-left font-mono text-xs tracking-widest transition-all rounded
+                                    ${selectedId === id 
+                                        ? 'bg-cyan-900/30 text-cyan-300 border border-cyan-500/30' 
+                                        : discovered 
+                                            ? 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent' 
+                                            : 'text-slate-800 cursor-not-allowed border border-transparent'}
+                                `}
+                            >
+                                {discovered ? t(`ENEMY_${id}_NAME`).toUpperCase() : '/// ENCRYPTED'}
+                            </button>
                         )
-                    ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-green-800 space-y-4">
-                            <div className="text-6xl opacity-20">?</div>
-                            <div className="text-xl font-bold">{t('BESTIARY_LOCKED')}</div>
-                            <p className="text-xs max-w-xs text-center">{t('BESTIARY_HINT')}</p>
+                    })}
+                </div>
+            </div>
+
+            {/* Details */}
+            <div className="flex-1 flex flex-col relative bg-slate-900/50">
+                {info ? (
+                    <div className="flex h-full">
+                        <div className="w-1/2 relative bg-gradient-to-b from-black/20 to-transparent flex items-center justify-center">
+                            <CanvasView width={400} height={400} draw={handleDraw} />
                         </div>
-                    )
+                        <div className="w-1/2 p-8 overflow-y-auto border-l border-slate-800">
+                             <div className="mb-8">
+                                 <div className="text-xs text-slate-500 font-bold mb-1 tracking-widest">SUBJECT IDENTIFIER</div>
+                                 <div className={`${DS.text.header} text-3xl text-white mb-2`}>{t(`ENEMY_${selectedId}_NAME`)}</div>
+                                 <div className="inline-block px-2 py-1 bg-slate-800 rounded text-[10px] text-cyan-400 font-mono tracking-wider border border-slate-700">
+                                     {info.classification}
+                                 </div>
+                             </div>
+                             
+                             <div className="mb-8">
+                                 <div className="text-xs text-slate-500 font-bold mb-2 tracking-widest">{t('DANGER_LEVEL')}</div>
+                                 <div className="flex gap-1">
+                                     {Array.from({length: 10}).map((_, i) => (
+                                         <div key={i} className={`h-1.5 flex-1 rounded-sm ${i < info.danger ? 'bg-red-500' : 'bg-slate-800'}`}></div>
+                                     ))}
+                                 </div>
+                             </div>
+
+                             <div>
+                                 <div className="text-xs text-slate-500 font-bold mb-2 tracking-widest">MORPHOLOGY</div>
+                                 <p className={`${DS.text.body} text-justify`}>{t(`ENEMY_${selectedId}_DESC`)}</p>
+                             </div>
+                        </div>
+                    </div>
                 ) : (
-                    <div className="h-full flex items-center justify-center text-green-900 italic">SELECT A TARGET FROM THE INDEX</div>
+                    <div className="flex items-center justify-center h-full text-slate-700 font-mono text-sm tracking-widest">SELECT DATABASE ENTRY</div>
                 )}
             </div>
         </div>
     );
 };
 
+const SettingsView: React.FC<{ engine: any, state: GameState, t: Translator, onBack: () => void }> = ({ engine, state, t, onBack }) => {
+    // Reusing logic, wrapping in new UI
+    return (
+        <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
+            <div className="w-72 border-r border-slate-800 bg-black/40 p-6 flex flex-col">
+                <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 mb-8 transition-colors">
+                    <span className="text-xl">«</span> <span className="font-bold text-xs tracking-widest">{t('BACK')}</span>
+                </button>
+                <h2 className="text-2xl font-display font-black text-white mb-2">{t('SETTINGS_TITLE')}</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">Configure system performance, audio interfaces, and accessibility protocols.</p>
+            </div>
+            <div className="flex-1 p-12 bg-slate-900/50 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-12 max-w-4xl">
+                    <div className="space-y-6">
+                        <h3 className="text-cyan-500 text-xs font-bold tracking-[0.2em] border-b border-cyan-900/50 pb-2 mb-4">GRAPHICS</h3>
+                        <div className="flex justify-between items-center">
+                             <span className="text-sm font-bold text-slate-300">{t('SETTING_PERFORMANCE')}</span>
+                             <button onClick={() => engine.toggleSetting('performanceMode')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                             <span className="text-sm font-bold text-slate-300">{t('SETTING_SHADOWS')}</span>
+                             <button onClick={() => engine.toggleSetting('showShadows')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showShadows ? t('SETTING_ON') : t('SETTING_OFF')}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                             <span className="text-sm font-bold text-slate-300">{t('SETTING_LIGHTING')}</span>
+                             <button onClick={() => engine.toggleSetting('lightingQuality')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')}</button>
+                        </div>
+                    </div>
+                    <div className="space-y-6">
+                        <h3 className="text-cyan-500 text-xs font-bold tracking-[0.2em] border-b border-cyan-900/50 pb-2 mb-4">SYSTEM</h3>
+                        <div className="flex justify-between items-center">
+                             <span className="text-sm font-bold text-slate-300">{t('SETTING_LANGUAGE')}</span>
+                             <button onClick={() => engine.toggleSetting('language')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.language === 'EN' ? 'ENGLISH' : '中文'}</button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                             <span className="text-sm font-bold text-slate-300">{t('HUD_OVERLAY')}</span>
+                             <button onClick={() => engine.toggleSetting('showHUD')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showHUD ? t('SETTING_ON') : t('SETTING_OFF')}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
+
+// --- MAIN COMPONENT ---
+
 export const TacticalTerminal: React.FC = () => {
     const { state, engine } = useGame();
     const { t } = useLocale();
-    const [activeTab, setActiveTab] = useState<'DATA' | 'CONFIG' | 'NOTES' | 'DATABASE' | 'PLANET' | 'MEMORY'>('DATA');
-    const chartRef = useRef<SVGSVGElement>(null);
-    const tabs = ['DATA', 'CONFIG', 'NOTES', 'DATABASE'];
-    if (state.gameMode === GameMode.EXPLORATION) tabs.push('PLANET');
-    tabs.push('MEMORY');
+    const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS'>('HOME');
 
-    useEffect(() => {
-        if (activeTab === 'DATA' && chartRef.current) {
-            const data = Object.entries(state.stats.killsByType).map(([type, count]) => ({ type, count }));
-            const svg = d3.select(chartRef.current);
-            svg.selectAll("*").remove();
-            const margin = { top: 20, right: 20, bottom: 40, left: 40 };
-            const width = 400 - margin.left - margin.right;
-            const height = 250 - margin.top - margin.bottom;
-            const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-            const x = d3.scaleBand().rangeRound([0, width]).padding(0.1).domain(data.map(d => d.type));
-            const y = d3.scaleLinear().rangeRound([height, 0]).domain([0, d3.max(data, d => d.count) || 10]);
-            g.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace").attr("font-size", "10px");
-            g.append("g").call(d3.axisLeft(y).ticks(5)).selectAll("text").attr("fill", "#10B981").attr("font-family", "monospace");
-            g.selectAll("path, line").attr("stroke", "#065F46");
-            g.selectAll(".bar").data(data).enter().append("rect").attr("class", "bar").attr("x", d => x(d.type)!).attr("y", d => y(d.count)).attr("width", x.bandwidth()).attr("height", d => height - y(d.count)).attr("fill", "#10B981").attr("opacity", 0.8);
-        }
-    }, [activeTab, state.stats.killsByType]);
+    const handleResume = () => engine.togglePause();
+    const handleQuit = () => engine.returnToMainMenu();
 
-    const calculatePlayerShare = () => {
-        const total = state.stats.damageDealt;
-        if (total === 0) return "0.0";
-        const playerDmg = state.stats.damageBySource?.[DamageSource.PLAYER] || 0;
-        return ((playerDmg / total) * 100).toFixed(1);
-    };
+    // Accuracy Calculation
+    const accuracy = state.stats.shotsFired > 0 
+        ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) 
+        : '0.0';
 
-    const handleToggleSetting = (k: keyof GameSettings) => {
-        engine.toggleSetting(k);
-    };
+    const renderContent = () => {
+        switch(view) {
+            case 'DATABASE': return <BestiaryView state={state} t={t} onBack={() => setView('HOME')} />;
+            case 'SETTINGS': return <SettingsView engine={engine} state={state} t={t} onBack={() => setView('HOME')} />;
+            case 'CONTROLS': return <KeyBindingUI onClose={() => setView('HOME')} />;
+            case 'PLANET': 
+                return state.currentPlanet ? (
+                    <div className="w-full h-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl p-8 relative animate-fadeIn">
+                        <button onClick={() => setView('HOME')} className="absolute top-6 right-6 text-slate-400 hover:text-white font-bold tracking-widest text-xs z-50 flex items-center gap-2">
+                            CLOSE ANALYSIS <span className="text-lg">×</span>
+                        </button>
+                        <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} onShowDetail={() => {}} />
+                    </div>
+                ) : null;
+            default: return (
+                <div className="w-full h-full grid grid-cols-12 gap-8 animate-slideInRight">
+                    
+                    {/* LEFT COLUMN: Telemetry (4 Cols) */}
+                    <div className="col-span-4 flex flex-col gap-6">
+                        <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-3 opacity-10"><Icons.Chart /></div>
+                            <h3 className="text-cyan-500 font-bold text-xs tracking-widest mb-4 border-b border-cyan-900/30 pb-2">SESSION TELEMETRY</h3>
+                            
+                            <div className="space-y-1">
+                                <TelemetryRow label="MISSION TIME" value={(state.time / 60000).toFixed(2) + " m"} color="text-cyan-300" />
+                                <TelemetryRow label="CURRENT WAVE" value={state.wave.index} color="text-yellow-400" />
+                                <TelemetryRow label="ENEMIES KILLED" value={(Object.values(state.stats.killsByType) as number[]).reduce((a,b)=>a+b,0)} />
+                                <TelemetryRow label="ACCURACY" value={accuracy + "%"} />
+                                <TelemetryRow label="DAMAGE DEALT" value={(state.stats.damageDealt / 1000).toFixed(1) + "k"} />
+                            </div>
+                        </div>
 
-    const handleClose = () => {
-        engine.togglePause();
-    }
+                        <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm flex-1 relative overflow-hidden flex flex-col">
+                            <h3 className="text-emerald-500 font-bold text-xs tracking-widest mb-4 border-b border-emerald-900/30 pb-2">RESOURCE LOG</h3>
+                            <div className="flex-1 flex flex-col justify-center items-center gap-2">
+                                <div className="text-5xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">{Math.floor(state.player.score)}</div>
+                                <div className="text-xs text-slate-500 font-bold tracking-[0.3em]">BIOMASS UNITS</div>
+                            </div>
+                            {state.spaceship.bioResources && (
+                                <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-800">
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-cyan-500 font-bold">ALPHA</div>
+                                        <div className="text-white font-mono font-bold">{state.spaceship.bioResources.ALPHA}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-orange-500 font-bold">BETA</div>
+                                        <div className="text-white font-mono font-bold">{state.spaceship.bioResources.BETA}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-[9px] text-purple-500 font-bold">GAMMA</div>
+                                        <div className="text-white font-mono font-bold">{state.spaceship.bioResources.GAMMA}</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
-    const handleSave = () => {
-        engine.saveGame();
-        if (state.settings.autoReturnToMenu) {
-            engine.returnToMainMenu();
+                    {/* RIGHT COLUMN: Navigation Grid (8 Cols) */}
+                    <div className="col-span-8 grid grid-cols-3 grid-rows-2 gap-4">
+                        {/* RESUME (Double Width) */}
+                        <div className="col-span-2 row-span-1">
+                            <MenuCard 
+                                title={t('RESUME_HINT').replace('PRESS ESC TO ','')} 
+                                subtitle="RETURN TO COMBAT" 
+                                icon={<div className="text-2xl">▶</div>}
+                                onClick={handleResume}
+                                variant="primary"
+                            />
+                        </div>
+
+                        {/* DATABASE */}
+                        <div className="col-span-1 row-span-1">
+                            <MenuCard 
+                                title={t('TAB_DATABASE')} 
+                                subtitle="XENO INTEL" 
+                                icon={<Icons.Database />}
+                                onClick={() => setView('DATABASE')}
+                            />
+                        </div>
+
+                        {/* PLANET (Only in Exploration) */}
+                        {state.gameMode === GameMode.EXPLORATION && (
+                            <div className="col-span-1 row-span-1">
+                                <MenuCard 
+                                    title="PLANET" 
+                                    subtitle="ENV. SCAN" 
+                                    icon={<Icons.Planet />}
+                                    onClick={() => setView('PLANET')}
+                                />
+                            </div>
+                        )}
+
+                        {/* SETTINGS */}
+                        <div className="col-span-1 row-span-1">
+                            <MenuCard 
+                                title={t('SETTINGS_BTN')} 
+                                subtitle="CONFIG" 
+                                icon={<Icons.Settings />}
+                                onClick={() => setView('SETTINGS')}
+                            />
+                        </div>
+
+                        {/* CONTROLS */}
+                        <div className="col-span-1 row-span-1">
+                            <MenuCard 
+                                title={t('CONTROLS_BTN')} 
+                                subtitle="INPUT MAP" 
+                                icon={<Icons.Gamepad />}
+                                onClick={() => setView('CONTROLS')}
+                            />
+                        </div>
+
+                        {/* ABORT */}
+                        <div className="col-span-3 row-span-1 mt-4">
+                            <button 
+                                onClick={handleQuit}
+                                className="w-full py-4 border border-red-900/50 bg-red-950/20 text-red-600 hover:bg-red-900 hover:text-white hover:border-red-500 transition-all font-bold tracking-[0.3em] uppercase text-xs flex items-center justify-center gap-4 group"
+                            >
+                                <span className="group-hover:-translate-x-1 transition-transform">«</span>
+                                {t('RETURN_MAIN_MENU')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         }
     }
 
     return (
-        <div className="absolute inset-0 z-[100] bg-black pointer-events-auto font-mono text-green-500 flex items-center justify-center">
-            <div className="absolute inset-0 pointer-events-none opacity-10 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-10 bg-[length:100%_2px,3px_100%]"></div>
-            <div className="w-[900px] h-[600px] border-2 border-green-800 bg-gray-900/90 relative shadow-[0_0_20px_rgba(16,185,129,0.2)] flex flex-col">
-                <CloseButton onClick={handleClose} colorClass="border-green-800 text-green-500 hover:text-white hover:bg-green-900/50" />
-                <div className="border-b border-green-800 p-4 flex justify-between items-center bg-black/50">
-                    <h1 className="text-3xl font-display font-bold tracking-wide text-green-400">{t('PAUSE_TITLE')}</h1>
-                    <div className="text-xs text-green-700 animate-pulse mr-8">{t('SYSTEM_PAUSED')}</div>
-                </div>
-                <div className="flex border-b border-green-800">
-                    {tabs.map(tab => (
-                        <button key={tab} onClick={() => setActiveTab(tab as any)} className={`flex-1 py-3 text-center transition-colors font-bold tracking-wider ${activeTab === tab ? 'bg-green-900/30 text-green-300 shadow-[inset_0_-2px_0_#34D399]' : 'text-green-800 hover:bg-green-900/10 hover:text-green-600'}`}>{t(`TAB_${tab}`)}</button>
-                    ))}
-                </div>
-                <div className="flex-1 p-6 overflow-y-auto">
-                    {activeTab === 'DATA' && (
-                        <div className="space-y-6">
-                            <div className="grid grid-cols-3 gap-4 mb-6">
-                                <div className="border border-green-900 p-4 bg-black/40"> 
-                                    <div className="text-green-700 text-xs uppercase mb-1">{t('TOTAL_DAMAGE')}</div> 
-                                    <div className="text-2xl text-green-300">{state.stats.damageDealt.toLocaleString()}</div> 
-                                </div>
-                                <div className="border border-green-900 p-4 bg-black/40"> 
-                                    <div className="text-green-700 text-xs uppercase mb-1">{t('SHOTS_FIRED')}</div> 
-                                    <div className="text-2xl text-green-300">{state.stats.shotsFired.toLocaleString()}</div> 
-                                </div>
-                                <div className="border border-green-900 p-4 bg-black/40"> 
-                                    <div className="text-green-700 text-xs uppercase mb-1">{t('PLAYER_DMG_SHARE')}</div> 
-                                    <div className="text-2xl text-green-300">{calculatePlayerShare()}%</div> 
-                                </div>
-                            </div>
-                            
-                            {/* Damage Breakdown Mini-Table */}
-                            <div className="border border-green-900 p-4 bg-black/40 mb-6">
-                                <div className="text-green-700 text-xs uppercase mb-4">{t('DMG_BREAKDOWN')}</div>
-                                <div className="grid grid-cols-4 gap-4 text-center">
-                                    <div><span className="block text-xs text-green-600">{t('SRC_PLAYER')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.PLAYER] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">{t('SRC_TURRET')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.TURRET] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">{t('SRC_ALLY')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ALLY] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">{t('SRC_ORBITAL')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ORBITAL] || 0).toLocaleString()}</span></div>
-                                </div>
-                            </div>
+        <div className="absolute inset-0 z-[100] bg-slate-950/60 backdrop-blur-xl flex items-center justify-center pointer-events-auto">
+            {/* Background Pattern */}
+            <div className="absolute inset-0 pointer-events-none opacity-20 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]"></div>
+            <div className="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/80 via-transparent to-black/80"></div>
 
-                            <div className="border border-green-900 p-4 bg-black/40 flex flex-col items-center">
-                                <div className="w-full text-left text-green-700 text-xs uppercase mb-4">{t('KILLS_ANALYSIS')}</div>
-                                <svg ref={chartRef} width={400} height={250}></svg>
-                            </div>
+            {/* Main Container */}
+            <div className="relative z-10 w-full max-w-6xl h-[80vh] flex flex-col">
+                
+                {/* Header */}
+                <div className="flex justify-between items-end border-b-2 border-white/10 pb-6 mb-8 px-4">
+                    <div>
+                        <div className="flex items-center gap-3 mb-1">
+                            <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_#eab308]"></div>
+                            <span className="text-yellow-500 font-mono text-xs font-bold tracking-[0.3em]">SIMULATION PAUSED</span>
                         </div>
-                    )}
-                    {activeTab === 'CONFIG' && (
-                        <div className="space-y-4">
-                            <h3 className="text-green-400 border-b border-green-900 pb-2 mb-4">{t('VISUAL_SETTINGS')}</h3>
-                            <ToggleRow label={`${t('SETTING_LOD_LABEL')} : ${t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}`} active={true} onClick={() => handleToggleSetting('performanceMode')} />
-                            <ToggleRow label={t('HUD_OVERLAY')} active={state.settings.showHUD} onClick={() => handleToggleSetting('showHUD')} />
-                            <ToggleRow label={t('GORE')} active={state.settings.showBlood} onClick={() => handleToggleSetting('showBlood')} />
-                            <ToggleRow label={t('DMG_TEXT')} active={state.settings.showDamageNumbers} onClick={() => handleToggleSetting('showDamageNumbers')} />
-                            <ToggleRow label={`${t('LANGUAGE')} : ${state.settings.language}`} active={state.settings.language === 'EN'} onClick={() => handleToggleSetting('language')} />
-                        </div>
-                    )}
-                    {activeTab === 'NOTES' && (
-                        <div className="flex flex-col h-full bg-black/20 border border-green-900/50 p-6">
-                            <div className="mb-6 pb-4 border-b border-green-800">
-                                <h2 className="text-2xl font-black tracking-widest text-green-400 uppercase">{t('LOG_TITLE')}</h2>
-                                <p className="text-xs text-green-700 font-mono tracking-[0.3em] uppercase">{t('LOG_SUBTITLE')}</p>
-                            </div>
-                            <div className="flex-1 overflow-y-auto space-y-8 pr-4 scrollbar-thin scrollbar-thumb-green-900/50 scrollbar-track-transparent">
-                                {[1, 2, 3, 4, 5].map(idx => (
-                                    <div key={idx} className="relative pl-6 border-l-2 border-green-800/30">
-                                        <div className="absolute left-[-5px] top-0 w-2 h-2 bg-green-700 rounded-full"></div>
-                                        <div className="text-xs text-green-700 font-bold mb-1 font-mono tracking-widest">{t(`LOG_${idx}_DATE`)}</div>
-                                        <div className="text-green-300 font-bold mb-2 uppercase text-sm bg-green-900/20 inline-block px-2 py-0.5">{t(`LOG_${idx}_TITLE`)}</div>
-                                        <p className="text-green-500/80 text-xs leading-relaxed font-mono text-justify">
-                                            {t(`LOG_${idx}_CONTENT`)}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    {activeTab === 'DATABASE' && <BestiaryPanel state={state} t={t} />}
-                    {activeTab === 'PLANET' && state.currentPlanet && <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} onShowDetail={() => {}} />}
-                    {activeTab === 'MEMORY' && (
-                        <div className="flex flex-col items-center justify-center h-full space-y-8">
-                            <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
-                                <h2 className="text-2xl font-bold mb-4 text-green-300">{t('MEMORY_STORAGE')}</h2>
-                                <p className="text-sm text-green-600 mb-8">{t('MANUAL_MEMORY_DESC')}</p>
-                                
-                                <div className="space-y-4">
-                                    <button onClick={handleSave} className="w-full px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all">
-                                        {t('SAVE_STATE')}
-                                    </button>
-                                    
-                                    <button onClick={() => engine.returnToMainMenu()} className="w-full px-8 py-3 bg-black hover:bg-green-900/30 text-green-500 hover:text-green-300 border border-green-800 font-bold tracking-widest uppercase transition-all">
-                                        {t('RETURN_MAIN_MENU')}
-                                    </button>
-
-                                    <div className="flex items-center justify-center gap-2 pt-4 border-t border-green-900/30">
-                                        <div 
-                                            className={`w-4 h-4 border border-green-600 cursor-pointer flex items-center justify-center ${state.settings.autoReturnToMenu ? 'bg-green-600' : 'bg-black'}`}
-                                            onClick={() => engine.toggleSetting('autoReturnToMenu')}
-                                        >
-                                            {state.settings.autoReturnToMenu && <span className="text-black text-xs font-bold">✓</span>}
-                                        </div>
-                                        <span className="text-xs text-green-700 font-mono cursor-pointer select-none" onClick={() => engine.toggleSetting('autoReturnToMenu')}>
-                                            {t('AUTO_RETURN')}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        <h1 className={`${DS.text.header} text-5xl text-white`}>
+                            TACTICAL COMMAND
+                        </h1>
+                    </div>
+                    <div className="text-right opacity-50">
+                        <div className="text-xs font-mono text-slate-400">SECTOR ID</div>
+                        <div className="text-xl font-bold text-white uppercase tracking-widest">{state.sectorName || 'UNKNOWN'}</div>
+                    </div>
                 </div>
-                <div className="p-2 border-t border-green-900 text-center text-xs text-green-800">{t('RESUME_HINT')}</div>
+
+                {/* Content Area */}
+                <div className="flex-1 min-h-0 relative px-4">
+                    {renderContent()}
+                </div>
+
+                {/* Footer */}
+                <div className="h-12 border-t border-white/5 mt-8 flex items-center justify-between px-4 opacity-40 text-[10px] font-mono text-slate-500">
+                    <div>VANGUARD OS v4.0.2 // CONNECTED</div>
+                    <div>PRESS [ESC] TO CLOSE</div>
+                </div>
             </div>
         </div>
     );

@@ -71,7 +71,15 @@ export const TurretUpgradeUI: React.FC = () => {
     };
 
     // Calculate dynamic stats for preview
+    // NOTE: Using DataManager could be added to Turret definitions if we had a getTurretStats method,
+    // but turrets are currently defined in registry.ts directly as TURRET_STATS without a wrapper.
+    // For consistency with recent refactors, we should ideally move TURRET_STATS to DataManager,
+    // but it's currently hardcoded in registry. We'll use the imported TURRET_STATS for now as DataManager only wraps Weapons/Enemies.
+    // This comment acknowledges the gap.
+    
     const getCalculatedStats = (type: TurretType) => {
+        // Fallback to static registry for now, or add getTurretStats to DataManager later
+        // Currently: importing TURRET_STATS directly is acceptable as it's not dynamic yet.
         const base = TURRET_STATS[type];
         const stats = engine.statManager;
 
@@ -81,26 +89,14 @@ export const TurretUpgradeUI: React.FC = () => {
         // Damage
         let dmg = stats.get(StatId.TURRET_DAMAGE_GLOBAL, base.damage);
         if (type === TurretType.MISSILE) dmg = stats.get(StatId.TURRET_MISSILE_DAMAGE, dmg);
-        // Note: Gauss/Sniper specific damage mods if any would go here, currently using global mostly
 
         // Range
         let range = base.range;
         if (type === TurretType.SNIPER) range = stats.get(StatId.TURRET_SNIPER_RANGE, range);
 
-        // Fire Rate (Lower is faster)
-        const globalRateMod = stats.get(StatId.TURRET_RATE_GLOBAL, 1.0) - 1.0; // Convert multiplier back to pct add for logic or just use get with base
-        // StatManager.get returns Final Value. 
-        // Rate is handled as (BaseRate / Multiplier). 
-        // StatManager logic is: val * PercentMult.
-        // Let's manually reconstruct rate logic to match DefenseManager:
-        // spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
-        
+        // Fire Rate
         let rateMult = 1.0;
-        // Re-query modifiers manually or assume StatManager setup for RATE returns the multiplier
-        // We know Infrastructure adds to GLOBAL_TURRET_RATE which is type PERCENT_ADD
-        const rateBonus = stats.get(StatId.TURRET_RATE_GLOBAL, 0); // This returns 0 + modifiers. 
-        // Wait, stats.get(ID, 0) returns 0 + flat * (1+pct). 
-        // If we want just the multiplier:
+        const rateBonus = stats.get(StatId.TURRET_RATE_GLOBAL, 0); 
         rateMult = 1 + rateBonus; 
         
         if (type === TurretType.GAUSS) {

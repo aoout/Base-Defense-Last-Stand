@@ -3,6 +3,7 @@ import { TerrainFeature, TerrainType, Planet, GameMode, BiomeType, PlanetVisualT
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
 import { BIOME_STYLES } from '../data/world';
 import { pRand, isVisible } from './drawHelpers';
+import { PALETTE } from '../theme/colors';
 
 // New Optimization: Render static terrain to an off-screen canvas once
 export const renderStaticTerrainToCache = (terrain: TerrainFeature[], gameMode: GameMode, planet: Planet | null, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): HTMLCanvasElement => {
@@ -361,7 +362,7 @@ export const drawPlanetSprite = (ctx: CanvasRenderingContext2D, planet: Planet, 
         const rRot = time * 0.0005;
         ctx.beginPath(); ctx.arc(x, y, radius + 8, rRot, rRot + Math.PI*2); ctx.stroke(); ctx.setLineDash([]);
         const br = radius + 15;
-        ctx.strokeStyle = '#06b6d4';
+        ctx.strokeStyle = PALETTE.UI.AMMO;
         ctx.lineWidth = 2;
         ctx.beginPath();
         ctx.moveTo(x - br, y - br + 10); ctx.lineTo(x - br, y - br); ctx.lineTo(x - br + 10, y - br);

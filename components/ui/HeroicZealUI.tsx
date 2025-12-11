@@ -4,6 +4,7 @@ import { HeroicNode, HeroicUpgradeType } from '../../types';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CloseButton } from './Shared';
+import { Icons } from './Icons';
 
 // Constants for the new visual layout
 const NODE_SIZE = 48; // Slightly larger for better icon visibility
@@ -11,43 +12,15 @@ const CANVAS_WIDTH = 800;
 const Y_SCALE = 120; 
 const X_SCALE = 100; 
 
-// --- SVG ICONS ---
+// --- SVG ICONS MAPPED FROM ICONS.TSX OR LOCAL FALLBACKS FOR SPECIFIC HEROIC TYPES ---
+// Since Icons.tsx has generic icons, we map logical types to visual metaphors
 const HeroicIcons: Record<HeroicUpgradeType, React.ReactNode> = {
-    [HeroicUpgradeType.MAX_HP]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke="none" fill="currentColor" fillOpacity="0.3"/>
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-    ),
-    [HeroicUpgradeType.MAX_ARMOR]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            <path d="M12 8v8" strokeLinecap="round" />
-            <path d="M8 12h8" strokeLinecap="round" />
-        </svg>
-    ),
-    [HeroicUpgradeType.DAMAGE]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
-    [HeroicUpgradeType.MOVE_SPEED]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-    ),
-    [HeroicUpgradeType.RELOAD_SPEED]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M23 4v6h-6" />
-            <path d="M20.49 15a9 9 0 1 1 2.12-9.36L23 10" />
-        </svg>
-    ),
-    [HeroicUpgradeType.TURRET_MASTERY]: (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5">
-            <path d="M12 2L8 6h3v10H8v4h8v-4h-3V6h3L12 2z" />
-            <rect x="4" y="20" width="16" height="2" />
-        </svg>
-    )
+    [HeroicUpgradeType.MAX_HP]: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>,
+    [HeroicUpgradeType.MAX_ARMOR]: <Icons.Lock />, // Reuse Lock for Armor/Defense metaphor
+    [HeroicUpgradeType.DAMAGE]: <Icons.Hazard />, // Reuse Hazard for Damage
+    [HeroicUpgradeType.MOVE_SPEED]: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>, // Bolt
+    [HeroicUpgradeType.RELOAD_SPEED]: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1 2.12-9.36L23 10"/></svg>, // Refresh
+    [HeroicUpgradeType.TURRET_MASTERY]: <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2L8 6h3v10H8v4h8v-4h-3V6h3L12 2z"/><rect x="4" y="20" width="16" height="2"/></svg> // Turret Base
 };
 
 export const HeroicZealUI: React.FC = () => {

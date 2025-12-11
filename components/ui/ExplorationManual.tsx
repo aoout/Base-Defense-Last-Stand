@@ -2,38 +2,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CloseButton, WeaponIcon } from './Shared';
 import { WeaponType } from '../../types';
+import { ModuleWindow } from './ModuleWindow';
+import { CyberPanel } from './atoms/CyberPanel';
+import { CyberButton } from './atoms/CyberButton';
+import { DS } from '../../theme/designSystem';
 
 interface ExplorationManualProps {
     onClose: () => void;
     onCheat: () => void;
     t: (key: string) => string;
 }
-
-const TabButton: React.FC<{ id: string, label: string, active: boolean, onClick: () => void }> = ({ id, label, active, onClick }) => (
-    <button
-        onClick={onClick}
-        className={`w-full text-left px-6 py-4 text-xs font-bold tracking-[0.2em] transition-all border-l-4 relative overflow-hidden group
-            ${active 
-                ? 'bg-cyan-900/30 text-cyan-300 border-cyan-500 shadow-[inset_0_0_20px_rgba(6,182,212,0.2)]' 
-                : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-900 hover:border-slate-700'}
-        `}
-    >
-        <span className="relative z-10">{label}</span>
-        {active && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse z-0"></div>}
-    </button>
-);
-
-const SubTabButton: React.FC<{ label: string, active: boolean, onClick: () => void, colorClass?: string }> = ({ label, active, onClick, colorClass = "cyan" }) => {
-    const activeClass = colorClass === 'red' ? 'bg-red-900/40 text-red-300 border-red-500' : 'bg-cyan-900/40 text-cyan-300 border-cyan-500';
-    return (
-        <button 
-            onClick={onClick}
-            className={`flex-1 py-2 text-xs font-bold tracking-widest border-b-2 transition-all ${active ? activeClass : 'text-slate-600 border-slate-800 hover:text-slate-400'}`}
-        >
-            {label}
-        </button>
-    );
-};
 
 // Component that types out text character by character
 const TypewriterText: React.FC<{ text: string, speed?: number, className?: string }> = ({ text, speed = 10, className }) => {
@@ -56,7 +34,6 @@ const TypewriterText: React.FC<{ text: string, speed?: number, className?: strin
         return () => clearInterval(interval);
     }, [text, speed]);
 
-    // Click to skip functionality via parent usually, but here we can just let it run or click to show all (simple implementation)
     const finish = () => {
         if (indexRef.current < text.length) {
             setDisplayedText(text);
@@ -76,7 +53,7 @@ const LoreCard: React.FC<{ title: string, bodyKey: string, t: any }> = ({ title,
     const [decrypted, setDecrypted] = useState(false);
 
     return (
-        <div className={`border border-slate-700 bg-slate-900/50 p-4 transition-all duration-500 ${decrypted ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.1)]' : ''}`}>
+        <CyberPanel className={`p-4 transition-all duration-500 ${decrypted ? 'border-cyan-500/50 shadow-[0_0_15px_rgba(6,182,212,0.1)]' : ''}`}>
             <div className="flex justify-between items-center mb-2">
                 <div className="text-cyan-400 font-bold text-sm tracking-widest uppercase">{title}</div>
                 {!decrypted && (
@@ -103,7 +80,7 @@ const LoreCard: React.FC<{ title: string, bodyKey: string, t: any }> = ({ title,
                     </p>
                 )}
             </div>
-        </div>
+        </CyberPanel>
     );
 };
 
@@ -163,7 +140,7 @@ const BootSequence: React.FC<{ onComplete: () => void, t: any }> = ({ onComplete
                 clearInterval(interval);
                 setTimeout(onComplete, 500);
             }
-        }, 150); // Faster lines
+        }, 150);
 
         return () => clearInterval(interval);
     }, [onComplete]);
@@ -250,8 +227,19 @@ export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, o
             case 'MISSION': return (
                 <div className="space-y-6 animate-fadeIn h-full flex flex-col">
                     <div className="flex gap-4 border-b border-slate-800 pb-2">
-                        <SubTabButton label={t('MANUAL_DEFENSE_TITLE')} active={missionSubTab === 'DEFENSE'} onClick={() => setMissionSubTab('DEFENSE')} />
-                        <SubTabButton label={t('MANUAL_OFFENSE_TITLE')} active={missionSubTab === 'OFFENSE'} onClick={() => setMissionSubTab('OFFENSE')} colorClass="red" />
+                        <CyberButton 
+                            className="flex-1 py-2 text-xs" 
+                            label={t('MANUAL_DEFENSE_TITLE')} 
+                            active={missionSubTab === 'DEFENSE'} 
+                            onClick={() => setMissionSubTab('DEFENSE')} 
+                        />
+                        <CyberButton 
+                            className="flex-1 py-2 text-xs" 
+                            label={t('MANUAL_OFFENSE_TITLE')} 
+                            active={missionSubTab === 'OFFENSE'} 
+                            onClick={() => setMissionSubTab('OFFENSE')} 
+                            variant="red"
+                        />
                     </div>
 
                     {missionSubTab === 'DEFENSE' ? (
@@ -556,24 +544,46 @@ export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, o
     }
 
     return (
-        <div className="absolute inset-0 z-[250] bg-slate-950/95 flex items-center justify-center pointer-events-auto backdrop-blur-sm select-none">
-            <div className="w-[1100px] h-[750px] bg-slate-900 border-2 border-slate-700 shadow-2xl relative flex overflow-hidden">
-                
+        <ModuleWindow
+            title={t('MANUAL_BTN')}
+            subtitle={t('MANUAL_SUB')}
+            theme="cyan"
+            onClose={onClose}
+            maxWidth="max-w-[1100px]"
+        >
+            <div className="flex h-full gap-0">
                 {/* Left Sidebar */}
-                <div className="w-64 bg-slate-950 border-r border-slate-700 flex flex-col z-10 overflow-y-auto">
-                    <div className="p-6 border-b border-slate-800 bg-slate-900 sticky top-0 z-20">
-                        <h1 className="text-xl font-black text-white tracking-widest">{t('MANUAL_BTN')}</h1>
-                        <div className="text-[10px] text-cyan-600 font-mono mt-1 tracking-[0.2em]">{t('MANUAL_SUB')}</div>
-                    </div>
-                    
+                <div className="w-64 border-r border-slate-700 flex flex-col bg-slate-950 overflow-y-auto">
                     <div className="flex-1 py-4 space-y-1">
                         <div className="px-6 text-[10px] text-slate-600 font-bold mb-2">TACTICAL</div>
                         {tabs.slice(0,6).map(tab => (
-                            <TabButton key={tab.id} id={tab.id} label={tab.label} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id as any)} />
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`w-full text-left px-6 py-4 text-xs font-bold tracking-[0.2em] transition-all border-l-4 relative overflow-hidden group
+                                    ${activeTab === tab.id 
+                                        ? 'bg-cyan-900/30 text-cyan-300 border-cyan-500 shadow-[inset_0_0_20px_rgba(6,182,212,0.2)]' 
+                                        : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-900 hover:border-slate-700'}
+                                `}
+                            >
+                                <span className="relative z-10">{tab.label}</span>
+                                {activeTab === tab.id && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse z-0"></div>}
+                            </button>
                         ))}
                         <div className="px-6 text-[10px] text-slate-600 font-bold mt-6 mb-2">DATABASE</div>
                         {tabs.slice(6).map(tab => (
-                            <TabButton key={tab.id} id={tab.id} label={tab.label} active={activeTab === tab.id} onClick={() => setActiveTab(tab.id as any)} />
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id as any)}
+                                className={`w-full text-left px-6 py-4 text-xs font-bold tracking-[0.2em] transition-all border-l-4 relative overflow-hidden group
+                                    ${activeTab === tab.id 
+                                        ? 'bg-cyan-900/30 text-cyan-300 border-cyan-500 shadow-[inset_0_0_20px_rgba(6,182,212,0.2)]' 
+                                        : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-900 hover:border-slate-700'}
+                                `}
+                            >
+                                <span className="relative z-10">{tab.label}</span>
+                                {activeTab === tab.id && <div className="absolute inset-0 bg-cyan-400/5 animate-pulse z-0"></div>}
+                            </button>
                         ))}
                     </div>
                     
@@ -584,12 +594,6 @@ export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, o
 
                 {/* Main Content Area */}
                 <div className="flex-1 flex flex-col relative bg-slate-900 overflow-hidden">
-                    <CloseButton onClick={onClose} colorClass="absolute top-6 right-6 border-slate-600 text-slate-500 hover:text-white hover:bg-slate-800 z-20" />
-                    
-                    {/* Holographic Effects */}
-                    <div className="absolute inset-0 opacity-10 pointer-events-none bg-[linear-gradient(rgba(6,182,212,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.1)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] pointer-events-none bg-[length:100%_4px,6px_100%] opacity-20"></div>
-
                     <div className="flex-1 p-12 overflow-y-auto relative z-10 scrollbar-thin scrollbar-thumb-cyan-900 scrollbar-track-transparent">
                         {renderContent()}
                     </div>
@@ -611,6 +615,6 @@ export const ExplorationManual: React.FC<ExplorationManualProps> = ({ onClose, o
                     </div>
                 </div>
             </div>
-        </div>
+        </ModuleWindow>
     );
 };

@@ -17,6 +17,13 @@ export const TURRET_STATS = {
   [TurretType.MISSILE]:  { hp: 3600, range: 9999, damage: 220, fireRate: 1230 }, 
 };
 
+export const ORBITAL_STATS = {
+    baseDamage: 400,
+    baseRate: 8000, // ms
+    beamDuration: 600, // ms
+    impactRadius: 100,
+};
+
 export const DEFENSE_UPGRADE_INFO = {
     [DefenseUpgradeType.INFECTION_DISPOSAL]: {
         cost: 3500,

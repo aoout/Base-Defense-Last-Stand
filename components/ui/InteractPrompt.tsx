@@ -1,12 +1,14 @@
 
-import React, { useState, useRef } from 'react';
-import { GameState, AppMode, Turret } from '../../types';
+import React, { useState } from 'react';
+import { GameState, AppMode } from '../../types';
 import { TURRET_COSTS } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame, useGameLoop } from '../contexts/GameContext';
+import { CyberPanel } from './atoms/CyberPanel';
+import { DS } from '../../theme/designSystem';
 
 export const InteractPrompt: React.FC<{ state: GameState }> = () => {
-    const { state, engine } = useGame();
+    const { engine } = useGame();
     const { t } = useLocale();
     
     // State to trigger render only when prompt changes
@@ -40,7 +42,6 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
         let closestSpotIdx = -1;
         let minDist = 60;
 
-        // Optimization: Don't use forEach for early exit potential, but for 8 spots it's fine.
         for (let i = 0; i < s.turretSpots.length; i++) {
             const spot = s.turretSpots[i];
             const d = Math.sqrt(Math.pow(p.x - spot.x, 2) + Math.pow(p.y - spot.y, 2));
@@ -57,27 +58,18 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
                 if (spot.builtTurret.level < 2) {
                     newType = 'UPGRADE';
                 } else {
-                    // Fully upgraded, maybe no prompt or "MAX LEVEL"
                     newType = null;
                 }
             } else {
                 newType = 'BUILD';
                 const currentCount = s.turretSpots.filter(ts => ts.builtTurret).length;
-                newCost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
-                
-                // Stat Check directly from engine
-                // Note: Infrastructure cost reduction isn't readily available in state without calc
-                // We'd need to replicate getInfrastructureBonus or check StatsManager
-                // For transient UI, assume exact cost or accept minor desync if logic is complex
-                // Better: Use engine.statManager.get('TURRET_COST', newCost)
-                newCost = engine.statManager.get('TURRET_COST', newCost);
-                newCost = Math.floor(newCost);
-                
+                let cost = TURRET_COSTS.baseCost + (currentCount * TURRET_COSTS.costIncrement);
+                cost = engine.statManager.get('TURRET_COST', cost);
+                newCost = Math.floor(cost);
                 newAfford = p.score >= newCost;
             }
         }
 
-        // Hysteresis/State Update
         if (
             newType !== promptData.type || 
             newCost !== promptData.cost || 
@@ -89,39 +81,49 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
 
     if (!promptData.type) return null;
 
+    let content = null;
+    let borderColor = 'border-slate-500';
+    let textColor = 'text-white';
+
     if (promptData.type === 'DEPOT') {
-        return (
-            <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
-                <div className="bg-yellow-500 text-black font-black tracking-wider px-4 py-1 rounded shadow-[0_0_15px_rgba(234,179,8,0.6)] border-2 border-white text-sm">
-                    {t('OPEN_DEPOT')}
-                </div>
-                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-yellow-500 border-r-[8px] border-r-transparent mt-[-1px]"></div>
+        borderColor = 'border-yellow-500';
+        textColor = 'text-yellow-400';
+        content = (
+            <div className="flex gap-2 items-center">
+                <span className="font-bold">[{t('ACT_INTERACT')}]</span>
+                <span>{t('OPEN_DEPOT')}</span>
+            </div>
+        );
+    } else if (promptData.type === 'UPGRADE') {
+        borderColor = 'border-emerald-500';
+        textColor = 'text-emerald-400';
+        content = (
+            <div className="flex gap-2 items-center">
+                <span className="font-bold">[{t('ACT_INTERACT')}]</span>
+                <span>{t('UPGRADE_TURRET')}</span>
+            </div>
+        );
+    } else if (promptData.type === 'BUILD') {
+        borderColor = promptData.canAfford ? 'border-cyan-500' : 'border-red-500';
+        textColor = promptData.canAfford ? 'text-cyan-400' : 'text-red-400';
+        content = (
+            <div className="flex gap-3 items-center">
+                <span className="font-bold">[{t('ACT_INTERACT')}]</span>
+                <span>{t('BUILD_TURRET')}</span>
+                <span className={`font-mono font-bold ${promptData.canAfford ? 'text-white' : 'text-red-500'}`}>-{promptData.cost}</span>
             </div>
         );
     }
 
-    if (promptData.type === 'UPGRADE') {
-        return (
-            <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
-                <div className="bg-emerald-500 text-black font-black tracking-wider px-4 py-1 rounded shadow-[0_0_15px_rgba(16,185,129,0.6)] border-2 border-white text-sm">
-                    {t('UPGRADE_TURRET')}
+    return (
+        <div className="absolute top-2/3 left-1/2 -translate-x-1/2 z-40 pointer-events-none animate-bounce">
+            <CyberPanel className={`px-4 py-2 ${borderColor} ${textColor} border-2`} noBorder={false}>
+                <div className={`${DS.text.label} flex items-center`}>
+                    {content}
                 </div>
-                <div className="w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] border-t-emerald-500 border-r-[8px] border-r-transparent mt-[-1px]"></div>
-            </div>
-        );
-    }
-
-    if (promptData.type === 'BUILD') {
-        return (
-            <div className="absolute top-2/3 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-40 pointer-events-none">
-                <div className={`${promptData.canAfford ? 'bg-blue-600 border-white' : 'bg-red-900 border-red-500'} text-white font-black tracking-wider px-4 py-1 rounded shadow-lg border-2 text-sm flex gap-2 items-center`}>
-                    <span>{t('BUILD_TURRET')}</span>
-                    <span className={`font-mono ${promptData.canAfford ? 'text-blue-200' : 'text-red-300'}`}>-{promptData.cost}</span>
-                </div>
-                <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-t-[8px] ${promptData.canAfford ? 'border-t-blue-600' : 'border-t-red-900'} border-r-[8px] border-r-transparent mt-[-1px]`}></div>
-            </div>
-        );
-    }
-
-    return null;
+            </CyberPanel>
+            {/* Triangle Pointer */}
+            <div className={`w-0 h-0 border-l-[6px] border-l-transparent border-t-[6px] ${borderColor.replace('border-','border-t-')} border-r-[6px] border-r-transparent mx-auto`}></div>
+        </div>
+    );
 }

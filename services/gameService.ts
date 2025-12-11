@@ -72,7 +72,7 @@ import { MissionManager } from './managers/MissionManager';
 import { GalaxyManager } from './managers/GalaxyManager';
 import { StatManager } from './managers/StatManager';
 import { PhysicsSystem } from './PhysicsSystem';
-import { DataManager } from './DataManager'; // IMPORT
+import { DataManager } from './DataManager'; 
 import { TRANSLATIONS } from '../data/locales';
 import { EventBus } from './EventBus';
 import { InputManager } from './InputManager';
@@ -94,7 +94,7 @@ export class GameEngine {
   audio: AudioService;
   eventBus: EventBus;
   statManager: StatManager;
-  dataManager: DataManager; // ADDED
+  dataManager: DataManager; 
   
   // Systems
   physics: PhysicsSystem;
@@ -128,7 +128,7 @@ export class GameEngine {
     this.audio = new AudioService();
     this.eventBus = new EventBus();
     this.statManager = new StatManager();
-    this.dataManager = new DataManager(); // INITIALIZE
+    this.dataManager = new DataManager(); 
     
     // Initialize Core Systems
     this.time = new TimeManager();
@@ -137,42 +137,37 @@ export class GameEngine {
     this.physics = new PhysicsSystem(() => this.state, this.eventBus, this.statManager, this.dataManager);
 
     // Initialize state
-    // Use window dimensions for initial Viewport, but constants for World
     const vpW = typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH;
     const vpH = typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT;
     
     this.reset(true, GameMode.SURVIVAL, vpW, vpH); 
     
-    // --- INSTANTIATE MANAGERS (With Dependency Injection) ---
+    // --- INSTANTIATE MANAGERS ---
     this.saveManager = new SaveManager(this);
     this.shopManager = new ShopManager(this);
-    
     this.spaceshipManager = new SpaceshipManager(() => this.state, this.eventBus, this.statManager);
-    
     this.fxManager = new FXManager(() => this.state, this.eventBus);
-    
     this.projectileManager = new ProjectileManager(() => this.state, this.eventBus, this.dataManager);
-    
-    // Pass DataManager to EnemyManager
     this.enemyManager = new EnemyManager(this, this.eventBus, this.statManager, this.dataManager);
-    
-    // Pass DataManager to PlayerManager
     this.playerManager = new PlayerManager(() => this.state, this.eventBus, this.inputManager, this.statManager, this.dataManager);
-    
     this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.physics.spatialGrid, this.statManager);
-    
     this.missionManager = new MissionManager(this);
     this.galaxyManager = new GalaxyManager(this);
     
     this.setupEventListeners();
 
+    // --- INPUT ATTACHMENT ---
+    // In a browser environment, attach to window immediately
+    if (typeof window !== 'undefined') {
+        this.inputManager.attach(window, (action) => this.handleAction(action));
+        // Add global event listener for game-action custom events (from UI)
+        window.addEventListener('game-action', this.handleCustomEvent.bind(this));
+    }
+
     this.state.appMode = AppMode.START_MENU;
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
   }
 
-  // ... (Rest of the file remains largely unchanged, just ensuring WEAPONS usage is replaced in reset if necessary, though WEAPONS usage in reset is minimal for initialization)
-  
-  // Need to update reset() because it accesses WEAPONS for initial ammo count
   public resize(width: number, height: number) {
       if (this.state) {
           this.state.viewportWidth = width;
@@ -226,6 +221,93 @@ export class GameEngine {
       this.eventBus.on(GameEventType.SHOP_UNEQUIP_MODULE, () => this.notifyUI('EQUIP'));
   }
 
+  // Handle Custom Events from UI (e.g. Sector Map scans, Module equips)
+  private handleCustomEvent(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (!detail) return;
+      
+      if (detail.type === 'SCAN_SECTOR') {
+          this.galaxyManager.scanSector(detail.config);
+      }
+      // Resume audio on any game action if suspended
+      this.audio.resume();
+  }
+
+  // Replacement for handleInput: Reacts to discrete actions triggered by InputManager
+  public handleAction(action: UserAction) {
+      // Resume audio context on first user action
+      this.audio.resume();
+
+      // Exploration Map Interaction logic
+      if (this.state.appMode === AppMode.EXPLORATION_MAP && action === UserAction.FIRE) {
+          const mx = this.inputManager.mouse.x;
+          const my = this.inputManager.mouse.y;
+          
+          let clickedPlanetId = null;
+
+          for (const p of this.state.planets) {
+              const dx = p.x - mx;
+              const dy = p.y - my;
+              // Generous hit box for planets
+              if (dx * dx + dy * dy < 70 * 70) {
+                  clickedPlanetId = p.id;
+                  break;
+              }
+          }
+          
+          this.selectPlanet(clickedPlanetId);
+          return;
+      }
+
+      if (this.state.appMode !== AppMode.GAMEPLAY) return;
+
+      switch (action) {
+          case UserAction.WEAPON_1: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 0 }); break;
+          case UserAction.WEAPON_2: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 1 }); break;
+          case UserAction.WEAPON_3: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 2 }); break;
+          case UserAction.WEAPON_4: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 3 }); break;
+          case UserAction.TACTICAL_MENU: if (!this.state.isPaused && !this.state.isShopOpen && !this.state.isInventoryOpen) this.toggleTacticalMenu(); break;
+          case UserAction.ORDER_1: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'PATROL' }); this.toggleTacticalMenu(); } break;
+          case UserAction.ORDER_2: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'FOLLOW' }); this.toggleTacticalMenu(); } break;
+          case UserAction.ORDER_3: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'ATTACK' }); this.toggleTacticalMenu(); } break;
+          case UserAction.INVENTORY: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isShopOpen) this.toggleInventory(); break;
+          case UserAction.SHOP: 
+              if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
+                  const p = this.state.player;
+                  const bases = [this.state.base];
+                  if (this.state.secondaryBase) bases.push(this.state.secondaryBase);
+                  let canOpen = false;
+                  for (const base of bases) {
+                      const dist = Math.sqrt(Math.pow(p.x - base.x, 2) + Math.pow(p.y - base.y, 2));
+                      if (dist < 300) { canOpen = true; break; }
+                  }
+                  if (canOpen || this.state.isShopOpen) { 
+                      if (this.state.isShopOpen) this.closeShop(); 
+                      else { this.state.isShopOpen = true; this.notifyUI('SHOP_OPEN'); }
+                  }
+              }
+              break;
+          case UserAction.INTERACT: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && !this.state.isShopOpen && !this.state.activeTurretId) { this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {}); this.notifyUI('INTERACT'); } break;
+          case UserAction.SKIP_WAVE: if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) { if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) return; this.skipWave(); } break;
+          case UserAction.PAUSE: 
+              if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) {
+                  if (this.state.isShopOpen) { this.closeShop(); } else { this.togglePause(); }
+              }
+              break;
+          case UserAction.ESCAPE: 
+              let updated = false;
+              if (this.state.isShopOpen) { this.closeShop(); updated = true; }
+              if (this.state.isTacticalMenuOpen) { this.toggleTacticalMenu(); updated = true; }
+              if (this.state.isInventoryOpen) { this.toggleInventory(); updated = true; }
+              if (this.state.activeTurretId !== undefined) { this.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {}); updated = true; } 
+              if (this.state.isPaused && !updated && this.state.activeTurretId === undefined) { this.togglePause(); updated = true; }
+              if (updated) this.notifyUI('ESCAPE');
+              break;
+          case UserAction.GRENADE: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) this.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {}); break;
+          case UserAction.RELOAD: if (!this.state.isPaused) this.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: this.time.now }); break;
+      }
+  }
+
   public t(key: string, params?: Record<string, any>): string {
       const lang = this.state.settings.language;
       const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
@@ -235,56 +317,7 @@ export class GameEngine {
       return str;
   }
 
-  public handleInput(code: string, isDown: boolean) {
-      const action = isDown ? this.inputManager.handleKeyDown(code) : this.inputManager.handleKeyUp(code);
-      if (isDown && action && this.state.appMode === AppMode.GAMEPLAY) {
-          switch (action) {
-              case UserAction.WEAPON_1: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 0 }); break;
-              case UserAction.WEAPON_2: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 1 }); break;
-              case UserAction.WEAPON_3: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 2 }); break;
-              case UserAction.WEAPON_4: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 3 }); break;
-              case UserAction.TACTICAL_MENU: if (!this.state.isPaused && !this.state.isShopOpen && !this.state.isInventoryOpen) this.toggleTacticalMenu(); break;
-              case UserAction.ORDER_1: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'PATROL' }); this.toggleTacticalMenu(); } break;
-              case UserAction.ORDER_2: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'FOLLOW' }); this.toggleTacticalMenu(); } break;
-              case UserAction.ORDER_3: if (this.state.isTacticalMenuOpen) { this.eventBus.emit(GameEventType.DEFENSE_ISSUE_ORDER, { order: 'ATTACK' }); this.toggleTacticalMenu(); } break;
-              case UserAction.INVENTORY: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isShopOpen) this.toggleInventory(); break;
-              case UserAction.SHOP: 
-                  if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) {
-                      const p = this.state.player;
-                      const bases = [this.state.base];
-                      if (this.state.secondaryBase) bases.push(this.state.secondaryBase);
-                      let canOpen = false;
-                      for (const base of bases) {
-                          const dist = Math.sqrt(Math.pow(p.x - base.x, 2) + Math.pow(p.y - base.y, 2));
-                          if (dist < 300) { canOpen = true; break; }
-                      }
-                      if (canOpen || this.state.isShopOpen) { 
-                          if (this.state.isShopOpen) this.closeShop(); 
-                          else { this.state.isShopOpen = true; this.notifyUI('SHOP_OPEN'); }
-                      }
-                  }
-                  break;
-              case UserAction.INTERACT: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && !this.state.isShopOpen && !this.state.activeTurretId) { this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {}); this.notifyUI('INTERACT'); } break;
-              case UserAction.SKIP_WAVE: if (!this.state.isPaused && this.state.appMode === AppMode.GAMEPLAY && !this.state.isGameOver && !this.state.missionComplete) { if (this.state.gameMode === GameMode.EXPLORATION && this.state.currentPlanet?.missionType === MissionType.OFFENSE) return; this.skipWave(); } break;
-              case UserAction.PAUSE: 
-                  if (!this.state.isTacticalMenuOpen && !this.state.isInventoryOpen && this.state.activeTurretId === undefined) {
-                      if (this.state.isShopOpen) { this.closeShop(); } else { this.togglePause(); }
-                  }
-                  break;
-              case UserAction.ESCAPE: 
-                  let updated = false;
-                  if (this.state.isShopOpen) { this.closeShop(); updated = true; }
-                  if (this.state.isTacticalMenuOpen) { this.toggleTacticalMenu(); updated = true; }
-                  if (this.state.isInventoryOpen) { this.toggleInventory(); updated = true; }
-                  if (this.state.activeTurretId !== undefined) { this.eventBus.emit(GameEventType.DEFENSE_CLOSE_MENU, {}); updated = true; } 
-                  if (this.state.isPaused && !updated && this.state.activeTurretId === undefined) { this.togglePause(); updated = true; }
-                  if (updated) this.notifyUI('ESCAPE');
-                  break;
-              case UserAction.GRENADE: if (!this.state.isPaused && !this.state.isTacticalMenuOpen && !this.state.isInventoryOpen) this.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {}); break;
-              case UserAction.RELOAD: if (!this.state.isPaused) this.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: this.time.now }); break;
-          }
-      }
-  }
+  // ... (Settings loading, Reset, Update and FixedUpdate methods remain same, removed legacy input handling)
 
   private loadSettings(): GameSettings {
       const defaultSettings: GameSettings = { 
@@ -309,11 +342,11 @@ export class GameEngine {
     this.audio.stopAmbience();
     const isCampaign = mode === GameMode.CAMPAIGN;
     
-    // Viewport Size (What the user sees)
+    // Viewport Size
     const vpW = customViewportW || (typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH);
     const vpH = customViewportH || (typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT);
 
-    // World Size (The play area) - Strictly defined by mode
+    // World Size
     let w = WORLD_WIDTH; 
     let h = WORLD_HEIGHT;
 
@@ -326,7 +359,6 @@ export class GameEngine {
         this.physics.resize(w, h);
     }
     
-    // Position entities relative to the FIXED World Size, not the screen size
     let basePos = { x: w / 2, y: h - 150 };
     let playerPos = { x: w / 2, y: h - 300 };
     
@@ -337,7 +369,6 @@ export class GameEngine {
         playerPos = { x: cx, y: cy + 150 };
     }
 
-    // GENERATE PLANETS FOR MAP VIEW (Use Viewport dimensions to ensure they are visible on map)
     const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets(undefined, vpW, vpH);
     existingPlanets.forEach(p => { if (!p.buildings) p.buildings = []; });
     
@@ -356,7 +387,7 @@ export class GameEngine {
         bioResources: { [BioResource.ALPHA]: 0, [BioResource.BETA]: 0, [BioResource.GAMMA]: 0 }, 
         bioTasks: [], 
         activeBioTask: null,
-        heroicNodes: [], // Init empty
+        heroicNodes: [],
         snakeRewardClaimed: false
     };
     
@@ -365,7 +396,6 @@ export class GameEngine {
 
     const initialWeapons: Record<string, WeaponState> = {};
     Object.values(WeaponType).forEach(type => { 
-        // USE DATAMANAGER HERE
         const stats = this.dataManager.getWeaponStats(type);
         initialWeapons[type] = { type, ammoInMag: stats.magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; 
     });
@@ -399,7 +429,6 @@ export class GameEngine {
       secondaryBase: undefined,
       terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [],
       
-      // New Sub-States
       wave: {
           index: 1,
           timer: 30000,
@@ -467,7 +496,6 @@ export class GameEngine {
     }
   }
 
-  // ... (fixedUpdate, spawnProjectile, etc. delegates unchanged but context of wrapper class)
   private fixedUpdate(dt: number) {
     const timeScale = 1.0; 
     this.state.time += dt;
@@ -586,7 +614,6 @@ export class GameEngine {
     this.audio.updateCamera(this.state.camera.x, this.state.camera.y, vw);
   }
 
-  // ... (Exposed Delegates unchanged)
   // --- Exposed Delegates ---
   public deployToPlanet(id: string) { this.galaxyManager.deployToPlanet(id); this.notifyUI('DEPLOY'); }
   public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) { this.galaxyManager.constructBuilding(planetId, type, slotIndex); this.notifyUI('CONSTRUCT'); }
@@ -599,7 +626,6 @@ export class GameEngine {
       const totalYield = yieldItems.reduce((sum, item) => sum + item.total, 0);
       if (totalYield > 0) { this.state.pendingYieldReport = { items: yieldItems, totalYield }; } else { this.state.pendingYieldReport = null; }
       
-      // RECORD HISTORY
       this.saveManager.addHistoryEntry({
           mode: this.state.gameMode,
           result: 'VICTORY',
@@ -623,7 +649,6 @@ export class GameEngine {
           this.state.isGameOver = true; 
           this.state.isPaused = true; 
           
-          // RECORD HISTORY
           this.saveManager.addHistoryEntry({
               mode: this.state.gameMode,
               result: 'DEFEAT',
@@ -730,7 +755,6 @@ export class GameEngine {
       this.state.isGameOver = false; 
       this.state.isPaused = false; 
       
-      // RECORD HISTORY FOR EVAC
       this.saveManager.addHistoryEntry({
           mode: this.state.gameMode,
           result: 'EXTRACTION',
@@ -760,7 +784,6 @@ export class GameEngine {
   public equipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.equipModule(target, modId); this.notifyUI('EQUIP'); }
   public unequipModule(target: WeaponType | 'GRENADE', modId: string) { this.shopManager.unequipModule(target, modId); this.notifyUI('EQUIP'); }
   
-  // Heroic Zeal Delegates
   public generateHeroicGrid() { this.spaceshipManager.generateHeroicGrid(); }
   public purchaseHeroicNode(id: number) { this.spaceshipManager.purchaseHeroicNode(id); this.notifyUI('UPGRADE'); }
 }

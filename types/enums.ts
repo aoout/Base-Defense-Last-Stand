@@ -189,3 +189,5 @@ export enum GalacticEventType {
     INVASION = 'INVASION',
     SALVAGE = 'SALVAGE'
 }
+
+export type SystemIconType = 'DASHBOARD' | 'DATABASE' | 'PLANET' | 'LOGS' | 'SETTINGS' | 'SAVE' | 'CLOSE' | 'BACK' | 'LOCK' | 'UNLOCK' | 'WARNING';

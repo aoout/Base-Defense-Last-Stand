@@ -575,12 +575,12 @@ export const drawRusher = (ctx: CanvasRenderingContext2D, e: Enemy, time: number
 }
 
 export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, lodLevel: number = 0) => {
-    const fleshColor = '#18181b'; 
-    const plateColorDark = '#3f3f46'; 
-    const plateColorLight = '#71717a'; 
-    const plateEdge = '#a1a1aa'; 
+    const fleshColor = PALETTE.TANK.BODY;
+    const plateColorDark = PALETTE.TANK.SHELL; 
+    const plateColorLight = PALETTE.TANK.PLATE; 
+    const plateEdge = PALETTE.TANK.HIGHLIGHT; 
     const glowColor = '#b91c1c';  
-    const legColor = '#09090b';   
+    const legColor = PALETTE.TANK.LEG;   
 
     if (lodLevel >= 2) {
         ctx.fillStyle = plateColorDark;
@@ -678,13 +678,13 @@ export const drawTank = (ctx: CanvasRenderingContext2D, e: Enemy, time: number, 
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#ef4444';
-    ctx.shadowColor = '#ef4444';
+    ctx.fillStyle = PALETTE.TANK.EYE;
+    ctx.shadowColor = PALETTE.TANK.EYE;
     ctx.shadowBlur = 5;
-    drawCircle(ctx, 40, -6, 2, '#ef4444');
-    drawCircle(ctx, 40, 6, 2, '#ef4444');
-    drawCircle(ctx, 45, -3, 1.5, '#ef4444');
-    drawCircle(ctx, 45, 3, 1.5, '#ef4444');
+    drawCircle(ctx, 40, -6, 2, PALETTE.TANK.EYE);
+    drawCircle(ctx, 40, 6, 2, PALETTE.TANK.EYE);
+    drawCircle(ctx, 45, -3, 1.5, PALETTE.TANK.EYE);
+    drawCircle(ctx, 45, 3, 1.5, PALETTE.TANK.EYE);
     ctx.shadowBlur = 0;
 
     if (e.shellValue && e.shellValue > 0) {
@@ -1115,8 +1115,8 @@ export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: numbe
 
     const sacGrad = ctx.createRadialGradient(-30, 0, 10, -20, 0, 50);
     sacGrad.addColorStop(0, '#fca5a5'); 
-    sacGrad.addColorStop(0.5, '#b91c1c'); 
-    sacGrad.addColorStop(1, '#450a0a'); 
+    sacGrad.addColorStop(0.5, PALETTE.BOSS_RED.GRAD_START); 
+    sacGrad.addColorStop(1, PALETTE.BOSS_RED.GRAD_END); 
     
     ctx.fillStyle = sacGrad;
     ctx.beginPath();
@@ -1130,7 +1130,7 @@ export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: numbe
     ctx.moveTo(-15, -20); ctx.quadraticCurveTo(-50, 0, -15, 20);
     ctx.stroke();
 
-    ctx.fillStyle = '#7f1d1d';
+    ctx.fillStyle = PALETTE.BOSS_RED.STROKE;
     for(let i=0; i<3; i++) {
         const angle = (i-1) * 0.5;
         const wiggle = Math.sin(time * 0.005 + i) * 5;
@@ -1145,7 +1145,7 @@ export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: numbe
         ctx.restore();
     }
 
-    ctx.fillStyle = '#7f1d1d'; 
+    ctx.fillStyle = PALETTE.BOSS_RED.STROKE; 
     ctx.beginPath();
     ctx.moveTo(10, -25);
     ctx.lineTo(40, -15); 
@@ -1198,8 +1198,8 @@ export const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: numb
     ctx.fill();
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = '#1e3a8a'; 
-    ctx.strokeStyle = '#60a5fa'; 
+    ctx.fillStyle = PALETTE.BOSS_BLUE.BODY; 
+    ctx.strokeStyle = PALETTE.BOSS_BLUE.STROKE; 
     ctx.lineWidth = 3;
     
     ctx.beginPath();
@@ -1231,7 +1231,7 @@ export const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: numb
         }
     }
 
-    ctx.strokeStyle = '#1d4ed8';
+    ctx.strokeStyle = PALETTE.BOSS_BLUE.PLATE;
     ctx.lineWidth = 4;
     for (let i = 0; i < 4; i++) {
         const side = i % 2 === 0 ? 1 : -1;
@@ -1247,7 +1247,7 @@ export const drawBossBlue = (ctx: CanvasRenderingContext2D, e: Enemy, time: numb
 export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const wobble = (angle: number) => Math.sin(angle * 5 + time * 0.002) * 3;
     
-    ctx.fillStyle = 'rgba(168, 85, 247, 0.2)';
+    ctx.fillStyle = PALETTE.BOSS_PURPLE.AURA_GRAD_START;
     for(let i=0; i<5; i++) {
         const angle = time * 0.001 + i;
         const r = 50 + Math.sin(time*0.003 + i)*10;
@@ -1256,7 +1256,7 @@ export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
 
     const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, 45);
     grad.addColorStop(0, '#581c87'); 
-    grad.addColorStop(0.7, 'rgba(147, 51, 234, 0.8)'); 
+    grad.addColorStop(0.7, PALETTE.BOSS_PURPLE.BODY_ALPHA); 
     grad.addColorStop(1, 'rgba(192, 132, 252, 0.4)'); 
     
     ctx.fillStyle = grad;
@@ -1291,7 +1291,7 @@ export const drawBossPurple = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
         ctx.fill();
     }
 
-    ctx.strokeStyle = '#d8b4fe';
+    ctx.strokeStyle = PALETTE.BOSS_PURPLE.ORB;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     for(let i=0; i<6; i++) {

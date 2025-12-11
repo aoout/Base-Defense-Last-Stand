@@ -2,6 +2,7 @@
 import { GameState, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgradeEffect, OrbitalBeam, GameEventType, PlaySoundEvent, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, DamageAreaEvent, DamageSource } from '../../../types';
 import { EventBus } from '../../EventBus';
 import { StatManager } from '../StatManager';
+import { ORBITAL_STATS } from '../../../data/config/upgrades';
 
 export class OrbitalManager {
     private getState: () => GameState;
@@ -21,7 +22,7 @@ export class OrbitalManager {
         if (state.gameMode === 'EXPLORATION' && state.spaceship.installedModules.includes(SpaceshipModuleType.ORBITAL_CANNON)) {
             state.orbitalSupportTimer += dt;
             
-            const baseRate = 8000;
+            const baseRate = ORBITAL_STATS.baseRate;
             const rateMultiplier = state.spaceship.orbitalRateMultiplier || 1;
             const effectiveRate = baseRate / rateMultiplier;
 
@@ -39,15 +40,8 @@ export class OrbitalManager {
                 });
 
                 if (closest) {
-                    const baseDamage = 400;
+                    const baseDamage = ORBITAL_STATS.baseDamage;
                     const damageMultiplier = state.spaceship.orbitalDamageMultiplier || 1;
-                    
-                    // We access the StatManager to get the carapace multiplier indirectly via total damage calculation if needed,
-                    // but here we just apply raw orbital stats. The carapace multiplier is enemy-specific.
-                    // For simplicity in this modular design, we'll calculate raw damage here.
-                    // If we need carapace interaction, we rely on the fact that DamageEnemyEvent handles it, 
-                    // OR we assume Orbital ignores carapace specific buffs unless we query StatManager.
-                    // Let's assume standard behavior:
                     
                     const finalDamage = baseDamage * damageMultiplier;
 
@@ -55,7 +49,7 @@ export class OrbitalManager {
                     this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, {
                         x: closest.x,
                         y: closest.y,
-                        radius: 100,
+                        radius: ORBITAL_STATS.impactRadius,
                         damage: finalDamage,
                         source: DamageSource.ORBITAL
                     });
@@ -65,7 +59,7 @@ export class OrbitalManager {
                         x: closest.x,
                         y: closest.y,
                         life: 1.0,
-                        maxLife: 600, 
+                        maxLife: ORBITAL_STATS.beamDuration, 
                         width: 60, // Slightly wider for impact visual
                         color: '#06b6d4'
                     };

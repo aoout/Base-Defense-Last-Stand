@@ -39,6 +39,14 @@ export const GAMEPLAY_EN = {
     MANUAL_MEMORY_LIMIT: "LIMIT",
     MANUAL_MEMORY_LIMIT_DESC: "Max 7 slots. Pin to prevent overwrite.",
     
+    // --- NEW TACTICAL METRICS ---
+    SECTOR_THREAT: "SECTOR THREAT",
+    ACTIVE_HOSTILES: "ACTIVE HOSTILES",
+    THREAT_LOW: "MINIMAL",
+    THREAT_MED: "ELEVATED",
+    THREAT_HIGH: "CRITICAL",
+    THREAT_EXTREME: "EXTREME",
+    
     // --- GAME OVER ---
     CRITICAL_FAILURE: "CRITICAL FAILURE",
     VITALS_CRITICAL: "VITALS CRITICAL",
@@ -149,6 +157,14 @@ export const GAMEPLAY_CN = {
     MANUAL_MEMORY_LIMIT: "限制",
     MANUAL_MEMORY_LIMIT_DESC: "最多7个槽位。锁定以防止覆盖。",
     
+    // --- NEW TACTICAL METRICS ---
+    SECTOR_THREAT: "扇区威胁度",
+    ACTIVE_HOSTILES: "活跃敌对目标",
+    THREAT_LOW: "极低",
+    THREAT_MED: "警示",
+    THREAT_HIGH: "高危",
+    THREAT_EXTREME: "极度危险",
+
     // --- GAME OVER ---
     CRITICAL_FAILURE: "严重故障",
     VITALS_CRITICAL: "生命体征危急",

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { ModuleWindow, ThemeColor } from './ModuleWindow';
+import { ModuleWindow } from './ModuleWindow';
+import { Variant } from '../../theme/designSystem';
 import { GalaxyConfig, BiomeType, PlanetVisualType } from '../../types';
 import { useLocale } from '../contexts/LocaleContext';
 import { FAMOUS_SECTORS } from '../../data/sectors';
@@ -290,10 +291,10 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
     const isLocked = mode !== 'CUSTOM';
     
     // Theme color based on mode
-    let themeColor: ThemeColor = 'cyan';
+    let themeColor: Variant = 'cyan';
     if (activeTab === 'ARCHIVES') {
         const sector = FAMOUS_SECTORS.find(s => s.id === selectedSectorId);
-        if (sector) themeColor = sector.difficultyColor as ThemeColor;
+        if (sector) themeColor = sector.difficultyColor as Variant;
     } else {
         if (mode === 'LOW') themeColor = 'emerald';
         if (mode === 'HIGH') themeColor = 'red';
