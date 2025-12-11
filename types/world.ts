@@ -74,4 +74,17 @@ export interface GalaxyConfig {
     maxSulfur?: number;
     maxOxygen?: number;
     planetCount?: number;
+    // New Params
+    minWaves?: number;
+    maxWaves?: number;
+    enableOffense?: boolean;
+    presetId?: string; // ID of a famous sector
+}
+
+export interface SectorPreset {
+    id: string;
+    nameKey: string;
+    descKey: string;
+    difficultyColor: string; // 'green', 'cyan', 'yellow', 'red', 'purple'
+    planets: Partial<Planet>[]; // Fixed definitions
 }
