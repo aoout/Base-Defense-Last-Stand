@@ -1,6 +1,6 @@
 
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
-import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnProjectileEvent } from '../../types';
+import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnProjectileEvent, SpawnBloodStainEvent, PlaySoundEvent } from '../../types';
 import { GAS_INFO } from '../../data/world';
 
 // Behavior for Grunt, Tank
@@ -200,8 +200,128 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
         const { dt, events, state, timeScale } = context;
         
-        // --- CAMPAIGN BOSS LOGIC (DEVOURER) ---
-        // Defaults
+        // --- 1. BOSS LOGIC (DEVOURER) - Unchanged ---
+        if (enemy.isBoss) {
+            this.handleBossBehavior(enemy, context);
+            return;
+        }
+
+        // --- 2. STANDARD TUBE WORM LOGIC ---
+        
+        // Init visual state if missing
+        if (enemy.visualScaleY === undefined) enemy.visualScaleY = 1;
+        if (enemy.cannibalTimer === undefined) enemy.cannibalTimer = 0;
+
+        // -- HUNTING CHECK (Every 2s) --
+        enemy.cannibalTimer += dt;
+        if (enemy.cannibalTimer >= 2000) {
+            enemy.cannibalTimer = 0;
+            // 50% chance to start hunting if not already hunting
+            if (!enemy.huntingTargetId && Math.random() < 0.5) {
+                this.findPrey(enemy, state);
+            }
+        }
+
+        // -- STATE MACHINE --
+        if (enemy.huntingTargetId) {
+            // HUNTING STATE
+            const prey = state.enemies.find(e => e.id === enemy.huntingTargetId);
+            
+            if (!prey || prey.hp <= 0) {
+                // Prey lost or dead, stop hunting
+                enemy.huntingTargetId = undefined;
+            } else {
+                // Dive / Burrow Animation
+                if (enemy.visualScaleY > 0.2) {
+                    enemy.visualScaleY -= 0.05 * timeScale; // Dive down
+                }
+
+                // Move towards prey (Fast when burrowed)
+                const speedMult = 2.5; // Very fast underground
+                this.moveTowards(enemy, prey, enemy.speed * speedMult, timeScale);
+                
+                // Spawn dirt particles while moving underground
+                if (Math.random() < 0.3) {
+                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
+                        x: enemy.x, y: enemy.y, color: '#a16207', count: 2, speed: 2
+                    });
+                }
+
+                // Check Consumption Distance
+                const distSq = (enemy.x - prey.x)**2 + (enemy.y - prey.y)**2;
+                if (distSq < (30 * 30)) {
+                    this.consumePrey(enemy, prey, context);
+                }
+            }
+        } else {
+            // IDLE STATE (Surfaced)
+            // Emerge Animation
+            if (enemy.visualScaleY < 1) {
+                enemy.visualScaleY += 0.05 * timeScale;
+                // Dust effect on emergence
+                if (enemy.visualScaleY > 0.8 && Math.random() < 0.2) {
+                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
+                        x: enemy.x, y: enemy.y, color: '#a16207', count: 5, speed: 5
+                    });
+                }
+            } else {
+                enemy.visualScaleY = 1;
+            }
+            
+            // Very slow random drift or stationary when idle
+            // It does NOT attack player actively
+        }
+    }
+
+    private findPrey(enemy: Enemy, state: any) {
+        const range = (enemy.detectionRange || 600) * 2; // Double detection range for food
+        let closestPrey: Enemy | null = null;
+        let minDst = range * range;
+
+        for (const other of state.enemies) {
+            if (other.id !== enemy.id && other.type === EnemyType.GRUNT) {
+                const dst = (enemy.x - other.x)**2 + (enemy.y - other.y)**2;
+                if (dst < minDst) {
+                    minDst = dst;
+                    closestPrey = other;
+                }
+            }
+        }
+
+        if (closestPrey) {
+            enemy.huntingTargetId = closestPrey.id;
+        }
+    }
+
+    private consumePrey(predator: Enemy, prey: Enemy, context: AIContext) {
+        // Kill Prey
+        prey.hp = 0; 
+        
+        // FX
+        context.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, {
+            x: prey.x, y: prey.y, color: prey.color, maxHp: prey.maxHp
+        });
+        context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'MELEE_HIT', x: predator.x, y: predator.y });
+        context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+            text: "CONSUMED", x: predator.x, y: predator.y - 20, color: '#ef4444', type: FloatingTextType.SYSTEM
+        });
+
+        // Buff Predator
+        predator.maxHp += 200;
+        predator.hp += 200;
+        predator.radius += 5; // Grow
+        predator.radius = Math.min(predator.radius, 60); // Cap size
+        
+        // Stop hunting this target
+        predator.huntingTargetId = undefined;
+        // Eating pause?
+        predator.eatingTimer = 500; // Visual pause
+    }
+
+    // --- Original Boss Logic (Preserved) ---
+    private handleBossBehavior(enemy: Enemy, context: AIContext) {
+        const { dt, events, state, timeScale } = context;
+        
         if (!enemy.burrowState) {
             enemy.burrowState = 'SURFACING';
             enemy.burrowTimer = 0;
@@ -209,17 +329,12 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
             enemy.activeTime = 0;
         }
 
-        // Global Life Timer
         enemy.activeTime = (enemy.activeTime || 0) + dt;
         
-        // Check for Timeout (1 min) -> Escape
-        // STRICT CHECK: Only Boss variant (Devourer) can escape
-        if (enemy.isBoss && enemy.activeTime >= 60000 && enemy.burrowState !== 'DIVING' && enemy.burrowState !== 'UNDERGROUND') {
+        if (enemy.activeTime >= 60000 && enemy.burrowState !== 'DIVING' && enemy.burrowState !== 'UNDERGROUND') {
             enemy.burrowState = 'DIVING';
             enemy.burrowTimer = 0;
-            // Force reset aggression to ensure it leaves
             enemy.isWandering = true; 
-            
             events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
                 text: "DEVOURER RETREATING", 
                 x: enemy.x, y: enemy.y - 100, 
@@ -227,19 +342,13 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
             });
         }
 
-        // --- STATE MACHINE ---
-
         if (enemy.burrowState === 'SURFACING') {
-            // Emerge Animation
             enemy.burrowTimer = (enemy.burrowTimer || 0) + dt;
-            const progress = Math.min(1, enemy.burrowTimer / 1000); // 1s emerge
+            const progress = Math.min(1, enemy.burrowTimer / 1000); 
             enemy.visualScaleY = progress;
-            
             if (enemy.burrowTimer > 1000) {
                 enemy.burrowState = 'IDLE';
                 enemy.burrowTimer = 0;
-                
-                // Init wandering point if needed
                 if (!enemy.wanderPoint && enemy.isWandering) {
                     enemy.wanderPoint = { 
                         x: 100 + Math.random() * (state.worldWidth - 200), 
@@ -251,69 +360,39 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         }
 
         if (enemy.burrowState === 'DIVING') {
-            // Escape Animation
             enemy.burrowTimer = (enemy.burrowTimer || 0) + dt;
-            const progress = Math.min(1, enemy.burrowTimer / 1500); // 1.5s dive
+            const progress = Math.min(1, enemy.burrowTimer / 1500); 
             enemy.visualScaleY = 1 - progress;
-            
             if (enemy.burrowTimer > 1500) {
                 enemy.burrowState = 'UNDERGROUND';
-                
-                // SAVE HP & REMOVE
-                if (enemy.isBoss) {
-                    state.campaign.bossHp = enemy.hp;
-                }
-                
+                state.campaign.bossHp = enemy.hp;
                 const idx = state.enemies.indexOf(enemy);
-                if (idx > -1) {
-                    state.enemies.splice(idx, 1);
-                }
+                if (idx > -1) state.enemies.splice(idx, 1);
             }
             return;
         }
 
         if (enemy.burrowState === 'IDLE') {
-            // Active Logic
-            
             if (enemy.isWandering) {
-                // PHASE 1: WANDERING
                 this.handleWandering(enemy, context);
             } else {
-                // PHASE 2: ENRAGED (ATTACK)
                 const target = this.acquireTarget(enemy, context);
-                
-                // Move towards target if out of range
                 const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
                 const attackRange = 550;
                 
                 if (distSq > attackRange * attackRange) {
                     this.moveTowards(enemy, target, enemy.speed, timeScale);
                 } else {
-                    // Face Target
                     enemy.angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
                 }
 
-                // Melee Attack
                 this.performMeleeAttack(enemy, target, context, 1000);
 
-                // Ranged Attack (Acid Bile) - Boss only usually, or reduced frequency for normal
-                const shotCooldown = enemy.isBoss ? 3300 : 5000;
-                
+                const shotCooldown = 3300;
                 if (context.time - enemy.lastAttackTime > shotCooldown) {
                     if (distSq <= attackRange * attackRange) {
                         context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-                            x: enemy.x, 
-                            y: enemy.y, 
-                            targetX: target.x, 
-                            targetY: target.y, 
-                            speed: 12, 
-                            damage: enemy.isBoss ? 55 : 20, 
-                            fromPlayer: false, 
-                            color: '#FACC15', 
-                            isHoming: false, 
-                            createsToxicZone: enemy.isBoss, // Only boss leaves acid pools
-                            maxRange: 550, 
-                            source: DamageSource.ENEMY
+                            x: enemy.x, y: enemy.y, targetX: target.x, targetY: target.y, speed: 12, damage: 55, fromPlayer: false, color: '#FACC15', isHoming: false, createsToxicZone: true, maxRange: 550, source: DamageSource.ENEMY
                         });
                         enemy.lastAttackTime = context.time;
                         context.events.emit(GameEventType.PLAY_SOUND, { type: 'VIPER_SHOOT' });
