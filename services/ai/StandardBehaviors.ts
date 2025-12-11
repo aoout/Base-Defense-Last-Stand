@@ -207,69 +207,90 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         }
 
         // --- 2. STANDARD TUBE WORM LOGIC ---
+        // Mechanics: 
+        // 1. Hostile to Player/Base (Default).
+        // 2. Hunger Override: Periodically checks for Grunts to eat.
+        // 3. Visuals: Burrows (low profile) when moving, Surfaces (full profile) when attacking.
         
         // Init visual state if missing
         if (enemy.visualScaleY === undefined) enemy.visualScaleY = 1;
         if (enemy.cannibalTimer === undefined) enemy.cannibalTimer = 0;
 
-        // -- HUNTING CHECK (Every 2s) --
-        enemy.cannibalTimer += dt;
-        if (enemy.cannibalTimer >= 2000) {
-            enemy.cannibalTimer = 0;
-            // 50% chance to start hunting if not already hunting
-            if (!enemy.huntingTargetId && Math.random() < 0.5) {
-                this.findPrey(enemy, state);
+        // -- HUNGER CHECK (Every 2s) --
+        // Only trigger if not already hunting
+        if (!enemy.huntingTargetId) {
+            enemy.cannibalTimer += dt;
+            if (enemy.cannibalTimer >= 2000) {
+                enemy.cannibalTimer = 0;
+                // 50% chance to succumb to hunger
+                if (Math.random() < 0.5) {
+                    this.findPrey(enemy, state);
+                }
             }
         }
 
-        // -- STATE MACHINE --
+        let target: any = null;
+        let isHunting = false;
+
+        // -- TARGET ACQUISITION --
+        // Priority 1: Prey (if hunting)
         if (enemy.huntingTargetId) {
-            // HUNTING STATE
             const prey = state.enemies.find(e => e.id === enemy.huntingTargetId);
-            
-            if (!prey || prey.hp <= 0) {
-                // Prey lost or dead, stop hunting
-                enemy.huntingTargetId = undefined;
+            if (prey && prey.hp > 0) {
+                target = prey;
+                isHunting = true;
             } else {
-                // Dive / Burrow Animation
-                if (enemy.visualScaleY > 0.2) {
-                    enemy.visualScaleY -= 0.05 * timeScale; // Dive down
-                }
+                enemy.huntingTargetId = undefined; // Prey lost/dead
+            }
+        } 
+        
+        // Priority 2: Player/Base (if not hunting)
+        if (!target) {
+            target = this.acquireTarget(enemy, context);
+        }
 
-                // Move towards prey (Fast when burrowed)
-                const speedMult = 2.5; // Very fast underground
-                this.moveTowards(enemy, prey, enemy.speed * speedMult, timeScale);
-                
-                // Spawn dirt particles while moving underground
-                if (Math.random() < 0.3) {
-                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
-                        x: enemy.x, y: enemy.y, color: '#a16207', count: 2, speed: 2
-                    });
-                }
+        // -- MOVEMENT & STATE LOGIC --
+        const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
+        const attackRange = 30; // Close melee range
+        
+        // Visuals: Burrow when moving, Surface when attacking
+        // It surfaces if it is very close to target
+        const isMoving = distSq > attackRange * attackRange;
 
-                // Check Consumption Distance
-                const distSq = (enemy.x - prey.x)**2 + (enemy.y - prey.y)**2;
-                if (distSq < (30 * 30)) {
-                    this.consumePrey(enemy, prey, context);
-                }
+        if (isMoving) {
+            // DIVE ANIMATION
+            if (enemy.visualScaleY > 0.2) {
+                enemy.visualScaleY -= 0.05 * timeScale;
+            }
+            
+            // Movement speed: Hunting grants speed boost (Underground rush)
+            const currentSpeed = isHunting ? enemy.speed * 2.5 : enemy.speed;
+            this.moveTowards(enemy, target, currentSpeed, timeScale);
+
+            // Particles when burrowing
+            if (Math.random() < 0.3) {
+                events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
+                    x: enemy.x, y: enemy.y, color: '#a16207', count: 1, speed: 1
+                });
             }
         } else {
-            // IDLE STATE (Surfaced)
-            // Emerge Animation
+            // SURFACE ANIMATION
             if (enemy.visualScaleY < 1) {
-                enemy.visualScaleY += 0.05 * timeScale;
-                // Dust effect on emergence
-                if (enemy.visualScaleY > 0.8 && Math.random() < 0.2) {
-                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
-                        x: enemy.x, y: enemy.y, color: '#a16207', count: 5, speed: 5
-                    });
-                }
-            } else {
-                enemy.visualScaleY = 1;
+                enemy.visualScaleY += 0.1 * timeScale; // Pop up fast
             }
-            
-            // Very slow random drift or stationary when idle
-            // It does NOT attack player actively
+            enemy.visualScaleY = Math.min(1, enemy.visualScaleY);
+
+            // ACTION: Attack or Eat
+            // Only perform action if fully surfaced (animation frame check)
+            if (enemy.visualScaleY > 0.8) {
+                if (isHunting) {
+                    // EAT PREY
+                    this.consumePrey(enemy, target as Enemy, context);
+                } else {
+                    // ATTACK PLAYER/BASE
+                    this.performMeleeAttack(enemy, target, context);
+                }
+            }
         }
     }
 
@@ -306,12 +327,15 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
             text: "CONSUMED", x: predator.x, y: predator.y - 20, color: '#ef4444', type: FloatingTextType.SYSTEM
         });
 
-        // Buff Predator
+        // Buff Predator (Growth Mechanic)
         predator.maxHp += 200;
         predator.hp += 200;
         predator.radius += 5; // Grow
         predator.radius = Math.min(predator.radius, 60); // Cap size
         
+        // Pop up animation to show dominance
+        predator.visualScaleY = 1.3;
+
         // Stop hunting this target
         predator.huntingTargetId = undefined;
         // Eating pause?
