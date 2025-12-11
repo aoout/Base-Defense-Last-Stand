@@ -35,7 +35,8 @@ export const MissionFailedScreen: React.FC = () => {
             ctx.fillStyle = '#ffffff'; ctx.fillText(String(value), x + 250, y);
         };
         let y = 200;
-        drawStat('WAVES SURVIVED', state.wave, 50, y); y += 40;
+        // UPDATE: Use state.wave.index
+        drawStat('WAVES SURVIVED', state.wave.index, 50, y); y += 40;
         drawStat('TOTAL SCORE', Math.floor(state.player.score), 50, y); y += 40;
         drawStat('DAMAGE DEALT', state.stats.damageDealt.toLocaleString(), 50, y); y += 40;
         drawStat('SHOTS FIRED', state.stats.shotsFired.toLocaleString(), 50, y); y += 40;
@@ -78,7 +79,8 @@ export const MissionFailedScreen: React.FC = () => {
                  </div>
                  <div className="grid grid-cols-2 gap-12 mb-12">
                      <div className="space-y-4">
-                         <StatRow label="WAVES SURVIVED" value={state.wave} />
+                         {/* UPDATE: Use state.wave.index */}
+                         <StatRow label="WAVES SURVIVED" value={state.wave.index} />
                          <StatRow label={t('FINAL_SCORE')} value={Math.floor(state.player.score)} />
                          <StatRow label={t('TOTAL_DAMAGE')} value={state.stats.damageDealt.toLocaleString()} />
                          <StatRow label={t('SHOTS_FIRED')} value={state.stats.shotsFired.toLocaleString()} />

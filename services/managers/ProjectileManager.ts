@@ -2,15 +2,18 @@
 import { GameState, Projectile, WeaponType, WeaponModule, GameEventType, SpawnProjectileEvent, DamageSource } from '../../types';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
+import { DataManager } from '../DataManager'; // IMPORT
 
 export class ProjectileManager {
     private getState: () => GameState;
     private events: EventBus;
+    private data: DataManager; // ADDED
     private pool: ObjectPool<Projectile>;
 
-    constructor(getState: () => GameState, eventBus: EventBus) {
+    constructor(getState: () => GameState, eventBus: EventBus, dataManager: DataManager) {
         this.getState = getState;
         this.events = eventBus;
+        this.data = dataManager;
 
         // Initialize Pool
         this.pool = new ObjectPool<Projectile>(

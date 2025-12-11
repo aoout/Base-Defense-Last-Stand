@@ -1,19 +1,19 @@
 
 import { GameState, FloatingText, FloatingTextType, MissionType } from '../types';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 import { drawPlanetSprite } from './drawEnvironment';
 
-export const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number) => {
+export const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number, width: number, height: number) => {
     ctx.fillStyle = '#020617';
-    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillRect(0, 0, width, height);
     
-    const cx = CANVAS_WIDTH / 2;
-    const cy = CANVAS_HEIGHT / 2;
+    const cx = width / 2;
+    const cy = height / 2;
+    const maxRadius = Math.max(width, height);
     
     for(let i = 0; i < 150; i++) {
         const t = (time * 0.5 + i * 100) % 3000;
         const pct = t / 3000;
-        const radius = pct * Math.max(CANVAS_WIDTH, CANVAS_HEIGHT) * 0.8;
+        const radius = pct * maxRadius * 0.8;
         
         const angle = i * (Math.PI * 2 / 150) * 13; 
         
@@ -38,14 +38,17 @@ export const drawStartScreen = (ctx: CanvasRenderingContext2D, time: number) => 
 }
 
 export const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameState, time: number) => {
-    const bgGradient = ctx.createRadialGradient(CANVAS_WIDTH/2, CANVAS_HEIGHT/2, 0, CANVAS_WIDTH/2, CANVAS_HEIGHT/2, CANVAS_WIDTH);
+    const w = state.viewportWidth;
+    const h = state.viewportHeight;
+
+    const bgGradient = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w);
     bgGradient.addColorStop(0, '#0f172a'); bgGradient.addColorStop(1, '#020617');
-    ctx.fillStyle = bgGradient; ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.fillStyle = bgGradient; ctx.fillRect(0, 0, w, h);
     
     for(let i=0; i<200; i++) {
         const seed = i * 1337;
-        const x = (seed * 123) % CANVAS_WIDTH;
-        const y = (seed * 456) % CANVAS_HEIGHT;
+        const x = (seed * 123) % w;
+        const y = (seed * 456) % h;
         const size = (seed % 2) + 0.5;
         ctx.fillStyle = `rgba(255,255,255,${(Math.sin(time*0.001 + i) + 1) * 0.4})`;
         ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
@@ -57,7 +60,10 @@ export const drawExplorationMap = (ctx: CanvasRenderingContext2D, state: GameSta
     for(let i=0; i<state.planets.length - 1; i++) {
         const p1 = state.planets[i];
         const p2 = state.planets[i+1];
-        if (Math.abs(p1.x - p2.x) < 300 && Math.abs(p1.y - p2.y) < 300) { ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); }
+        // Only draw lines if reasonably close (visual clutter reduction)
+        if (Math.abs(p1.x - p2.x) < w/3 && Math.abs(p1.y - p2.y) < h/3) { 
+            ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); 
+        }
     }
     ctx.stroke();
 

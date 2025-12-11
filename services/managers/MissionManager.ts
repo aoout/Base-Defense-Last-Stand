@@ -25,12 +25,12 @@ export class MissionManager {
 
         // Campaign Mode Logic
         if (state.gameMode === GameMode.CAMPAIGN) {
-            state.spawnTimer += dt;
-            state.pustuleTimer += dt;
+            state.wave.spawnTimer += dt;
+            state.campaign.pustuleTimer += dt;
             
             // Spawn normal enemies every 30 seconds
-            if (state.spawnTimer >= 30000) {
-                state.spawnTimer = 0;
+            if (state.wave.spawnTimer >= 30000) {
+                state.wave.spawnTimer = 0;
                 
                 // Spawn 15 enemies
                 for(let i=0; i<15; i++) {
@@ -54,8 +54,8 @@ export class MissionManager {
                         y = Math.random() * h;
                     }
                     
-                    // Random type (no scaling for now, just random mix or based on some flat logic)
-                    const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER];
+                    // Added TUBE_WORM to spawn list
+                    const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER, EnemyType.TUBE_WORM];
                     const type = types[Math.floor(Math.random() * types.length)];
                     
                     this.engine.enemyManager.spawnSpecificEnemy(type, x, y);
@@ -64,12 +64,11 @@ export class MissionManager {
                 this.engine.addMessage("HOSTILE DETECTED ON PERIMETER", state.player.x, state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
             }
 
-            // Pustule Spawning Logic
-            if (state.pustuleTimer >= state.nextPustuleSpawnTime) {
-                state.pustuleTimer = 0;
-                state.nextPustuleSpawnTime = 65000 + Math.random() * 130000; // 65-195s
+            // Pustule Spawning Logic (Standard Campaign Threat)
+            if (state.campaign.pustuleTimer >= state.campaign.nextPustuleSpawnTime) {
+                state.campaign.pustuleTimer = 0;
+                state.campaign.nextPustuleSpawnTime = 65000 + Math.random() * 130000; // 65-195s
 
-                // Find valid position > 1000 units from base
                 let validPos = false;
                 let px = 0, py = 0;
                 let attempts = 0;
@@ -93,33 +92,51 @@ export class MissionManager {
                 }
             }
 
+            // --- THE DEVOURER (Campaign Boss) LOGIC ---
+            // Timer checks every minute
+            state.campaign.bossTimer += dt;
+            if (state.campaign.bossTimer >= 60000) {
+                state.campaign.bossTimer = 0; // Reset for next cycle check
+
+                // 60% chance to spawn
+                if (Math.random() < 0.6) {
+                    // Check if already exists (sanity check)
+                    const existing = state.enemies.find(e => e.type === EnemyType.TUBE_WORM && e.isBoss);
+                    if (!existing) {
+                        this.engine.enemyManager.spawnCampaignBoss();
+                        // Global Alert
+                        this.engine.addMessage("SEISMIC WARNING: THE DEVOURER SURFACES", state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
+                        this.engine.audio.play('ORBITAL_STRIKE'); // Reuse deep rumble sound
+                    }
+                }
+            }
+
             return;
         }
 
         // Defense Mode (Survival & Defense Missions)
-        state.waveTimeRemaining -= dt;
-        state.spawnTimer += dt;
+        state.wave.timer -= dt;
+        state.wave.spawnTimer += dt;
         
         let spawnInterval = 500;
-        if (state.activeSpecialEvent === SpecialEventType.FRENZY) spawnInterval = 250;
-        else if (state.wave > 10) spawnInterval = 400;
+        if (state.wave.activeEvent === SpecialEventType.FRENZY) spawnInterval = 250;
+        else if (state.wave.index > 10) spawnInterval = 400;
 
-        if (state.spawnTimer > spawnInterval) {
-            if (state.enemiesPendingSpawn > 0) {
+        if (state.wave.spawnTimer > spawnInterval) {
+            if (state.wave.pendingCount > 0) {
                 this.engine.enemyManager.spawnEnemy();
-                state.enemiesPendingSpawn--;
+                state.wave.pendingCount--;
             }
-            // FIX: Subtract interval instead of resetting to 0 to prevent drift during fixed steps
-            state.spawnTimer -= spawnInterval; 
+            state.wave.spawnTimer -= spawnInterval; 
         }
 
-        if (state.waveTimeRemaining <= 0) {
+        if (state.wave.timer <= 0) {
             const isExplorationDefense = state.gameMode === GameMode.EXPLORATION &&
                                          state.currentPlanet?.missionType === MissionType.DEFENSE;
-            const isLastWave = isExplorationDefense && state.wave >= (state.currentPlanet?.totalWaves || 0);
+            const isLastWave = isExplorationDefense && state.wave.index >= (state.currentPlanet?.totalWaves || 0);
 
             if (isLastWave) {
-                const allEnemiesSpawned = state.enemiesPendingSpawn <= 0;
+                const allEnemiesSpawned = state.wave.pendingCount <= 0;
                 const allEnemiesDefeated = state.enemies.length === 0;
 
                 if (allEnemiesSpawned && allEnemiesDefeated) {
@@ -133,48 +150,44 @@ export class MissionManager {
 
     public nextWave() {
         const state = this.engine.state;
-        state.wave++;
-        state.activeSpecialEvent = SpecialEventType.NONE; 
+        state.wave.index++;
+        state.wave.activeEvent = SpecialEventType.NONE; 
 
         // Wave Duration Scaling
         let duration = 30;
-        if (state.wave <= 10) {
-            duration = 30 + (state.wave - 1) * 2;
+        if (state.wave.index <= 10) {
+            duration = 30 + (state.wave.index - 1) * 2;
         } else {
-            duration = 30 + (9 * 2) + (state.wave - 10) * 1;
+            duration = 30 + (9 * 2) + (state.wave.index - 10) * 1;
         }
-        state.waveDuration = duration * 1000;
-        state.waveTimeRemaining = duration * 1000;
-        state.spawnTimer = 0;
+        state.wave.duration = duration * 1000;
+        state.wave.timer = duration * 1000;
+        state.wave.spawnTimer = 0;
 
         // Event Roll
         let isFrenzy = false;
-        if (state.wave % 5 === 0) {
+        if (state.wave.index % 5 === 0) {
             const roll = Math.random();
             if (roll < 0.3) {
-                state.activeSpecialEvent = SpecialEventType.FRENZY;
+                state.wave.activeEvent = SpecialEventType.FRENZY;
                 isFrenzy = true;
                 this.engine.addMessage(this.engine.t('FRENZY_DETECTED'), state.worldWidth/2, state.worldHeight/2, 'red', FloatingTextType.SYSTEM);
             } else {
                 if (state.gameMode === GameMode.SURVIVAL || (state.currentPlanet?.missionType === MissionType.DEFENSE)) {
-                    state.activeSpecialEvent = SpecialEventType.BOSS;
+                    state.wave.activeEvent = SpecialEventType.BOSS;
                     this.engine.enemyManager.spawnBoss(); 
                     this.engine.addMessage(this.engine.t('BOSS_DETECTED'), state.worldWidth/2, state.worldHeight/2, 'purple', FloatingTextType.SYSTEM);
                 }
             }
         } else {
-            this.engine.addMessage(this.engine.t('WAVE_STARTED', {0: state.wave}), state.worldWidth/2, state.worldHeight/2, 'yellow', FloatingTextType.SYSTEM);
+            this.engine.addMessage(this.engine.t('WAVE_STARTED', {0: state.wave.index}), state.worldWidth/2, state.worldHeight/2, 'yellow', FloatingTextType.SYSTEM);
         }
 
-        // Enemy Count Scaling (UPDATED)
-        // Old: 12 + 5 * wave
-        // New: 10 + 4 * wave
-        let newEnemies = 10 + 4 * state.wave;
+        let newEnemies = 10 + 4 * state.wave.index;
         
         // Exploration Scaling
         if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {
             let effectiveStr = state.currentPlanet.geneStrength;
-            // Use StatManager instead of helper
             const reduction = this.engine.statManager.get(StatId.GENE_REDUCTION, 0);
             effectiveStr = Math.max(0.5, effectiveStr - reduction);
             newEnemies = Math.ceil(newEnemies * effectiveStr);
@@ -184,9 +197,7 @@ export class MissionManager {
             newEnemies *= 3;
         }
         
-        state.enemiesPendingSpawn += newEnemies;
-        
-        // Notify UI to ensure React state (e.g. for Menus) is synced, though HUD uses Ref for speed
+        state.wave.pendingCount += newEnemies;
         this.engine.notifyUI('WAVE_UPDATE');
     }
 
@@ -194,19 +205,15 @@ export class MissionManager {
         const state = this.engine.state;
         const isExplorationDefense = state.gameMode === GameMode.EXPLORATION &&
                                      state.currentPlanet?.missionType === MissionType.DEFENSE;
-        const isLastWave = isExplorationDefense && state.wave >= (state.currentPlanet?.totalWaves || 0);
+        const isLastWave = isExplorationDefense && state.wave.index >= (state.currentPlanet?.totalWaves || 0);
 
         if (isLastWave) return;
 
-        const elapsed = state.waveDuration - state.waveTimeRemaining;
+        const elapsed = state.wave.duration - state.wave.timer;
         
         if (elapsed >= 10000) { 
-            const remainingSeconds = Math.max(0, Math.floor(state.waveTimeRemaining / 1000));
-            const baseReward = remainingSeconds * state.wave;
-            
-            // Apply Bio-Sequencing Bonus using StatManager
-            // Note: StatManager uses multipliers on Base Value.
-            // Lure Bonus is Percent Additive. E.g. +30% -> 1.3
+            const remainingSeconds = Math.max(0, Math.floor(state.wave.timer / 1000));
+            const baseReward = remainingSeconds * state.wave.index;
             const finalReward = this.engine.statManager.get(StatId.LURE_BONUS, baseReward);
             
             state.player.score += Math.floor(finalReward);

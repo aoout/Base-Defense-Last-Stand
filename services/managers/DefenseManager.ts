@@ -1,5 +1,5 @@
 
-import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
@@ -37,7 +37,10 @@ export class DefenseManager {
         const state = this.getState();
         const player = state.player;
         
-        if (Date.now() - state.lastAllySpawnTime > 60000 && state.allies.length < ALLY_STATS.maxCount) {
+        // Campaign Mode allows 10 allies, others allow 5
+        const maxAllies = state.gameMode === GameMode.CAMPAIGN ? 10 : ALLY_STATS.maxCount;
+        
+        if (Date.now() - state.lastAllySpawnTime > 60000 && state.allies.length < maxAllies) {
             const spawnX = state.base.x + (Math.random() > 0.5 ? 60 : -60);
             
             const finalMaxHp = this.stats.get(StatId.ALLY_MAX_HP, ALLY_STATS.hp);

@@ -8,6 +8,7 @@ import { InteractPrompt } from './ui/InteractPrompt';
 import { ShopModal } from './ui/ShopModal';
 import { TacticalBackpack } from './ui/Backpack';
 import { TacticalCallInterface } from './ui/TacticalCall';
+import { CampaignTacticalMenu } from './ui/CampaignTacticalMenu'; // New Import
 import { TacticalTerminal } from './ui/TacticalTerminal';
 import { TurretUpgradeUI } from './ui/TurretUI';
 import { MainMenu } from './ui/MainMenu';
@@ -19,7 +20,7 @@ import { ShipComputer } from './ui/ShipComputer';
 import { InfrastructureResearchUI } from './ui/InfrastructureResearchUI';
 import { PlanetConstructionUI } from './ui/PlanetConstructionUI';
 import { PlanetaryYieldReport } from './ui/PlanetaryYieldReport';
-import { MissionFailedScreen } from './ui/MissionFailed';
+import { MissionFailedScreen } from './ui/MissionFailedScreen'; // Updated Path (was MissionFailed)
 import { CampaignFailureScreen } from './ui/CampaignFailureScreen';
 import { ExtractionScreen } from './ui/ExtractionScreen';
 import { MissionSuccessScreen } from './ui/MissionSuccessScreen';
@@ -69,7 +70,13 @@ const UIOverlay: React.FC = () => {
                 
                 {state.isShopOpen && <ShopModal />}
                 {state.isInventoryOpen && <TacticalBackpack />}
-                {state.isTacticalMenuOpen && <TacticalCallInterface />}
+                
+                {state.isTacticalMenuOpen && (
+                    state.gameMode === GameMode.CAMPAIGN 
+                        ? <CampaignTacticalMenu /> 
+                        : <TacticalCallInterface />
+                )}
+                
                 {state.isPaused && !state.missionComplete && !state.isGameOver && <TacticalTerminal />}
                 {state.activeTurretId !== undefined && <TurretUpgradeUI />}
 

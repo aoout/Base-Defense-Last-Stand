@@ -53,7 +53,6 @@ import {
 } from '../constants';
 import {
   PLAYER_STATS,
-  WEAPONS,
   INITIAL_AMMO,
   BASE_STATS,
 } from '../data/registry';
@@ -73,6 +72,7 @@ import { MissionManager } from './managers/MissionManager';
 import { GalaxyManager } from './managers/GalaxyManager';
 import { StatManager } from './managers/StatManager';
 import { PhysicsSystem } from './PhysicsSystem';
+import { DataManager } from './DataManager'; // IMPORT
 import { TRANSLATIONS } from '../data/locales';
 import { EventBus } from './EventBus';
 import { InputManager } from './InputManager';
@@ -94,6 +94,7 @@ export class GameEngine {
   audio: AudioService;
   eventBus: EventBus;
   statManager: StatManager;
+  dataManager: DataManager; // ADDED
   
   // Systems
   physics: PhysicsSystem;
@@ -127,17 +128,20 @@ export class GameEngine {
     this.audio = new AudioService();
     this.eventBus = new EventBus();
     this.statManager = new StatManager();
+    this.dataManager = new DataManager(); // INITIALIZE
     
     // Initialize Core Systems
     this.time = new TimeManager();
     
     // Initialize Physics System
-    this.physics = new PhysicsSystem(() => this.state, this.eventBus, this.statManager);
+    this.physics = new PhysicsSystem(() => this.state, this.eventBus, this.statManager, this.dataManager);
 
     // Initialize state
-    const w = typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH;
-    const h = typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT;
-    this.reset(true, GameMode.SURVIVAL, w, h); 
+    // Use window dimensions for initial Viewport, but constants for World
+    const vpW = typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH;
+    const vpH = typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT;
+    
+    this.reset(true, GameMode.SURVIVAL, vpW, vpH); 
     
     // --- INSTANTIATE MANAGERS (With Dependency Injection) ---
     this.saveManager = new SaveManager(this);
@@ -147,11 +151,13 @@ export class GameEngine {
     
     this.fxManager = new FXManager(() => this.state, this.eventBus);
     
-    this.projectileManager = new ProjectileManager(() => this.state, this.eventBus);
+    this.projectileManager = new ProjectileManager(() => this.state, this.eventBus, this.dataManager);
     
-    this.enemyManager = new EnemyManager(this, this.eventBus, this.statManager);
+    // Pass DataManager to EnemyManager
+    this.enemyManager = new EnemyManager(this, this.eventBus, this.statManager, this.dataManager);
     
-    this.playerManager = new PlayerManager(() => this.state, this.eventBus, this.inputManager, this.statManager);
+    // Pass DataManager to PlayerManager
+    this.playerManager = new PlayerManager(() => this.state, this.eventBus, this.inputManager, this.statManager, this.dataManager);
     
     this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.physics.spatialGrid, this.statManager);
     
@@ -164,18 +170,19 @@ export class GameEngine {
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
   }
 
-  // ... (Resize, LoopListener, notifyUI, closeShop, setupEventListeners, t, handleInput, settings methods unchanged)
-  // Included for context preservation but abbreviated here as no logic changes needed
-  // ...
-
+  // ... (Rest of the file remains largely unchanged, just ensuring WEAPONS usage is replaced in reset if necessary, though WEAPONS usage in reset is minimal for initialization)
+  
+  // Need to update reset() because it accesses WEAPONS for initial ammo count
   public resize(width: number, height: number) {
       if (this.state) {
           this.state.viewportWidth = width;
           this.state.viewportHeight = height;
+          
           if (this.state.appMode === AppMode.EXPLORATION_MAP || this.state.appMode === AppMode.START_MENU) {
               this.state.worldWidth = width;
               this.state.worldHeight = height;
           }
+          
           if (this.physics) {
               this.physics.resize(this.state.worldWidth, this.state.worldHeight);
           }
@@ -203,6 +210,7 @@ export class GameEngine {
               case 'BASE_DAMAGE': this.audio.play('BASE_DAMAGE', e.x, e.y); break;
               case 'BULLET_HIT': this.audio.play('BULLET_HIT', e.x, e.y); break;
               case 'ORBITAL_STRIKE': this.audio.play('ORBITAL_STRIKE', e.x, e.y); break;
+              case 'BOSS_DEATH': this.audio.play('BOSS_DEATH', e.x, e.y); break;
           }
       });
 
@@ -287,15 +295,17 @@ export class GameEngine {
   }
   private persistSettings() { if (this.state && this.state.settings) localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings)); }
 
-  public reset(fullReset: boolean = false, mode: GameMode = GameMode.SURVIVAL, customW?: number, customH?: number) {
+  public reset(fullReset: boolean = false, mode: GameMode = GameMode.SURVIVAL, customViewportW?: number, customViewportH?: number) {
     this.audio.stopAmbience();
     const isCampaign = mode === GameMode.CAMPAIGN;
     
-    const screenW = customW || (typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH);
-    const screenH = customH || (typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT);
+    // Viewport Size (What the user sees)
+    const vpW = customViewportW || (typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH);
+    const vpH = customViewportH || (typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT);
 
-    let w = screenW;
-    let h = Math.max(screenH, 3200); 
+    // World Size (The play area) - Strictly defined by mode
+    let w = WORLD_WIDTH; 
+    let h = WORLD_HEIGHT;
 
     if (isCampaign) {
         w = CAMPAIGN_WIDTH;
@@ -306,6 +316,7 @@ export class GameEngine {
         this.physics.resize(w, h);
     }
     
+    // Position entities relative to the FIXED World Size, not the screen size
     let basePos = { x: w / 2, y: h - 150 };
     let playerPos = { x: w / 2, y: h - 300 };
     
@@ -316,7 +327,8 @@ export class GameEngine {
         playerPos = { x: cx, y: cy + 150 };
     }
 
-    const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets(undefined, w, h);
+    // GENERATE PLANETS FOR MAP VIEW (Use Viewport dimensions to ensure they are visible on map)
+    const existingPlanets = !fullReset && this.state?.planets ? this.state.planets : generatePlanets(undefined, vpW, vpH);
     existingPlanets.forEach(p => { if (!p.buildings) p.buildings = []; });
     
     const existingSaveSlots = !fullReset && this.state?.saveSlots ? this.state.saveSlots : [];
@@ -342,7 +354,11 @@ export class GameEngine {
     if (!fullReset && this.state?.settings) currentSettings = this.state.settings; else currentSettings = this.loadSettings();
 
     const initialWeapons: Record<string, WeaponState> = {};
-    Object.values(WeaponType).forEach(type => { initialWeapons[type] = { type, ammoInMag: WEAPONS[type].magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; });
+    Object.values(WeaponType).forEach(type => { 
+        // USE DATAMANAGER HERE
+        const stats = this.dataManager.getWeaponStats(type);
+        initialWeapons[type] = { type, ammoInMag: stats.magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; 
+    });
     
     let initialTurretSpots = [];
     if (isCampaign) {
@@ -365,27 +381,42 @@ export class GameEngine {
     this.state = {
       appMode: initialAppMode, gameMode: mode, sectorName, planets: existingPlanets, currentPlanet: null, selectedPlanetId: null, savedPlayerState: null, spaceship: existingSpaceship, orbitalSupportTimer: 0, saveSlots: existingSaveSlots, activeGalacticEvent: null, pendingYieldReport: null,
       worldWidth: w, worldHeight: h,
-      viewportWidth: screenW, viewportHeight: screenH,
+      viewportWidth: vpW, viewportHeight: vpH,
       baseDrop: null,
       camera: { x: 0, y: 0 },
       player: { id: 'player', x: playerPos.x, y: playerPos.y, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
       base: { x: basePos.x, y: basePos.y, width: BASE_STATS.width, height: BASE_STATS.height, hp: BASE_STATS.maxHp, maxHp: BASE_STATS.maxHp, },
       secondaryBase: undefined,
-      terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [], activeSpecialEvent: SpecialEventType.NONE,
-      wave: 1, waveTimeRemaining: 30000, waveDuration: 30000, spawnTimer: 0, enemiesPendingSpawn: 17, enemiesSpawnedInWave: 0, totalEnemiesInWave: 99999, lastAllySpawnTime: 0,
+      terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [],
       
-      pustuleTimer: 0,
-      nextPustuleSpawnTime: 65000 + Math.random() * 130000, 
-
+      // New Sub-States
+      wave: {
+          index: 1,
+          timer: 30000,
+          duration: 30000,
+          spawnTimer: 0,
+          pendingCount: 17,
+          spawnedCount: 0,
+          totalCount: 99999,
+          activeEvent: SpecialEventType.NONE
+      },
+      campaign: {
+          pustuleTimer: 0,
+          nextPustuleSpawnTime: 65000 + Math.random() * 130000,
+          bossTimer: 0,
+          bossHp: 4000000
+      },
+      
+      lastAllySpawnTime: 0,
       isGameOver: false, missionComplete: false, isPaused: false, isTacticalMenuOpen: false, isInventoryOpen: false, isShopOpen: false, floatingTexts: [],
       settings: currentSettings, stats: { shotsFired: 0, shotsHit: 0, damageDealt: 0, damageBySource: { [DamageSource.PLAYER]: 0, [DamageSource.TURRET]: 0, [DamageSource.ALLY]: 0, [DamageSource.ORBITAL]: 0, [DamageSource.ENEMY]: 0 }, killsByType: { [EnemyType.GRUNT]: 0, [EnemyType.RUSHER]: 0, [EnemyType.TANK]: 0, [EnemyType.KAMIKAZE]: 0, [EnemyType.VIPER]: 0, [EnemyType.PUSTULE]: 0, [EnemyType.TUBE_WORM]: 0, 'BOSS': 0 }, encounteredEnemies: [] },
       time: 0
     };
 
     if (isCampaign) {
-        this.state.waveTimeRemaining = 0;
-        this.state.wave = 0;
-        this.state.enemiesPendingSpawn = 0;
+        this.state.wave.timer = 0;
+        this.state.wave.index = 0;
+        this.state.wave.pendingCount = 0;
         this.state.base.maxHp *= 2; 
         this.state.base.hp = this.state.base.maxHp;
     }
@@ -427,8 +458,6 @@ export class GameEngine {
   }
 
   // ... (fixedUpdate, spawnProjectile, etc. delegates unchanged but context of wrapper class)
-  // ... (Keeping rest of class intact for context)
-
   private fixedUpdate(dt: number) {
     const timeScale = 1.0; 
     this.state.time += dt;
@@ -547,6 +576,7 @@ export class GameEngine {
     this.audio.updateCamera(this.state.camera.x, this.state.camera.y, vw);
   }
 
+  // ... (Exposed Delegates unchanged)
   // --- Exposed Delegates ---
   public deployToPlanet(id: string) { this.galaxyManager.deployToPlanet(id); this.notifyUI('DEPLOY'); }
   public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) { this.galaxyManager.constructBuilding(planetId, type, slotIndex); this.notifyUI('CONSTRUCT'); }

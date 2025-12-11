@@ -76,6 +76,13 @@ export interface Enemy extends Entity {
   storedScore?: number; // Biomass from eaten enemies
   huntingTargetId?: string; // ID of the Grunt being chased
   eatingTimer?: number; // Visual timer for swallowing animation
+
+  // Campaign Wandering Logic
+  isWandering?: boolean;
+  wanderTimer?: number;     // How long they have been wandering or how long left
+  wanderDuration?: number;  // Total duration to wander
+  wanderPoint?: { x: number, y: number }; // Current random destination
+  activeTime?: number; // Total active surface time for campaign boss
 }
 
 export interface Ally extends Entity {

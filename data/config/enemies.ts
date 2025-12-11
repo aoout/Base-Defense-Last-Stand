@@ -28,8 +28,8 @@ export const ENEMY_STATS: Record<EnemyType, EnemyStatsConfig> = {
       detectionRange: 0 // Passive until touch
   },
   [EnemyType.TUBE_WORM]: { 
-      hp: 200, speed: 0, damage: 10, scoreReward: 40, radius: 15, color: '#FACC15', // Radius 15 matches Grunt
-      detectionRange: 500 // Range for hunting Grunts
+      hp: 250, speed: 0.8, damage: 15, scoreReward: 40, radius: 20, color: '#FACC15',
+      detectionRange: 600 // Normal range
   },
 };
 
@@ -93,10 +93,10 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
         description: "A stationary organic growth that acts as a forward spawning point for the swarm. Heavily armored and dangerous to touch. Destroy immediately to prevent reinforcement floods."
     },
     [EnemyType.TUBE_WORM]: {
-        codeName: "TUBE WORM",
-        classification: "AMBUSH PREDATOR",
-        danger: 4,
-        description: "A specialized yellow-hued mutation found only in high-oxygen environments. It moves by burrowing underground and emerging near prey. Known to cannibalize lesser drones (Grunts) to rapidly regenerate and grow in size. Kill it before it feeds."
+        codeName: "DEVOURER",
+        classification: "PLANETARY APEX",
+        danger: 10,
+        description: "A colossal subterranean organism detected in Campaign Sectors. It surfaces periodically to feed. Extremely durable (4M HP) and highly aggressive when provoked. Can attack from range with acid bile or crush targets in melee. Victory is achieved by slaying this beast."
     },
     [BossType.RED_SUMMONER]: {
         codeName: "THE HIVE LORD",

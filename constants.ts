@@ -5,10 +5,11 @@ export * from './data/locales';
 export * from './data/registry';
 export * from './data/world';
 
+// Default Canvas Resolution (Fallback if window not available)
 export const CANVAS_WIDTH = 1200;
 export const CANVAS_HEIGHT = 900;
 
-// Default World Dimensions (Long and Narrow)
+// Default World Dimensions (Long and Narrow for Survival/Exploration)
 export const WORLD_WIDTH = 1200;
 export const WORLD_HEIGHT = 3200; 
 

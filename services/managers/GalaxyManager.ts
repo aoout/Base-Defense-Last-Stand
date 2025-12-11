@@ -85,11 +85,11 @@ export class GalaxyManager {
         newState.player.y = newState.base.y; 
   
         if (targetPlanet.missionType === MissionType.OFFENSE) {
-            newState.enemiesPendingSpawn = 0; 
-            newState.wave = 0; 
+            newState.wave.pendingCount = 0; 
+            newState.wave.index = 0; 
             this.engine.enemyManager.spawnHiveMother(targetPlanet);
         } else {
-            newState.enemiesPendingSpawn = Math.ceil((12 + 5 * 1) * targetPlanet.geneStrength); 
+            newState.wave.pendingCount = Math.ceil((12 + 5 * 1) * targetPlanet.geneStrength); 
         }
   
         // TRIGGER AMBIENCE
@@ -224,7 +224,7 @@ export class GalaxyManager {
     }
 
     public scanSector(config: GalaxyConfig) {
-        this.engine.state.planets = generatePlanets(config);
+        this.engine.state.planets = generatePlanets(config, this.engine.state.viewportWidth, this.engine.state.viewportHeight);
         this.engine.state.sectorName = generateSectorName(); 
         this.engine.state.selectedPlanetId = null;
         this.engine.addMessage(this.engine.t('SCAN_COMPLETE'), WORLD_WIDTH / 2, WORLD_HEIGHT / 2, '#06b6d4', FloatingTextType.SYSTEM);

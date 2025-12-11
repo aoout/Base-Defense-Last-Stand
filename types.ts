@@ -9,3 +9,4 @@ export * from './types/events';
 export * from './types/input';
 export * from './types/stats';
 export * from './types/audio';
+export * from './types/manifest';

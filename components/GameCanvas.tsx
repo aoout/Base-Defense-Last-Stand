@@ -1,8 +1,7 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GameEngine } from '../services/gameService';
 import { RenderService } from '../services/RenderService';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from '../constants';
 
 interface GameCanvasProps {
   engine: GameEngine;
@@ -12,6 +11,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number>(0);
   const rendererRef = useRef<RenderService>(new RenderService());
+  
+  // Track window dimensions state
+  const [dimensions, setDimensions] = useState({
+      width: typeof window !== 'undefined' ? window.innerWidth : 1200,
+      height: typeof window !== 'undefined' ? window.innerHeight : 900
+  });
+
+  // Handle Resize
+  useEffect(() => {
+      const handleResize = () => {
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+          setDimensions({ width: w, height: h });
+          engine.resize(w, h);
+      };
+
+      window.addEventListener('resize', handleResize);
+      // Initial sync
+      handleResize();
+
+      return () => window.removeEventListener('resize', handleResize);
+  }, [engine]);
 
   const render = (time: number) => {
     // Update Game Logic
@@ -39,13 +60,14 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   return (
     <canvas
       ref={canvasRef}
-      width={CANVAS_WIDTH * resScale}
-      height={CANVAS_HEIGHT * resScale}
+      width={dimensions.width * resScale}
+      height={dimensions.height * resScale}
       style={{
-          width: `${CANVAS_WIDTH}px`,
-          height: `${CANVAS_HEIGHT}px`
+          width: '100%',
+          height: '100%',
+          display: 'block'
       }}
-      className="border border-gray-700 shadow-2xl bg-gray-900 cursor-crosshair mx-auto block"
+      className="bg-gray-900 cursor-crosshair block"
     />
   );
 };

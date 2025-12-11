@@ -1,16 +1,6 @@
 
-import { EnemyType, Planet, GameMode, SpecialEventType } from '../types';
+import { EnemyType, Planet, GameMode, SpecialEventType, UnitStatsDef } from '../types';
 import { GAS_INFO } from '../data/world';
-
-interface EnemyBaseStats {
-    hp: number;
-    damage: number;
-    speed: number;
-    scoreReward: number;
-    radius: number;
-    color: string;
-    detectionRange: number;
-}
 
 interface CalculatedStats {
     maxHp: number;
@@ -23,7 +13,7 @@ interface CalculatedStats {
  */
 export const calculateEnemyStats = (
     type: EnemyType, 
-    baseStats: EnemyBaseStats, 
+    baseStats: UnitStatsDef, 
     planet: Planet | null, 
     gameMode: GameMode,
     effectiveGeneStrength?: number // Optional override for Bio-Sequencing reduction
@@ -105,14 +95,16 @@ export const selectEnemyType = (
         return Math.random() > 0.5 ? EnemyType.RUSHER : EnemyType.GRUNT;
     }
 
-    // 2. SURVIVAL MODE LOGIC (Threshold based)
-    if (gameMode === GameMode.SURVIVAL || !planet) {
+    // 2. SURVIVAL / CAMPAIGN MODE LOGIC (Threshold based)
+    // Now includes TUBE_WORM as a rare spawn in later waves
+    if (gameMode === GameMode.SURVIVAL || gameMode === GameMode.CAMPAIGN || !planet) {
         const typeRoll = Math.random();
         
-        if (wave > 8 && typeRoll > 0.95) return EnemyType.KAMIKAZE;
-        if (wave > 6 && typeRoll > 0.9) return EnemyType.TANK;
-        if (wave > 4 && typeRoll > 0.85) return EnemyType.VIPER;
-        if (wave > 2 && typeRoll > 0.7) return EnemyType.RUSHER;
+        if (wave > 9 && typeRoll > 0.96) return EnemyType.TUBE_WORM; // New: Added Tube Worm
+        if (wave > 8 && typeRoll > 0.92) return EnemyType.KAMIKAZE;
+        if (wave > 6 && typeRoll > 0.85) return EnemyType.TANK;
+        if (wave > 4 && typeRoll > 0.80) return EnemyType.VIPER;
+        if (wave > 2 && typeRoll > 0.65) return EnemyType.RUSHER;
         
         return EnemyType.GRUNT;
     }
@@ -135,8 +127,9 @@ export const selectEnemyType = (
     // KAMIKAZE: 2 * (1 + 0.05 * Sulfur)
     const wKamikaze = 2 * (1 + 0.05 * sulfurIndex);
     
-    // TUBE WORM: 5 (Only if O2 > 18%)
-    const wTubeWorm = oxygenPercent > 0.18 ? 5 : 0;
+    // TUBE WORM: 3 Base + Bonus if High Oxygen
+    // Relaxed requirement: Always possible, but more likely in high oxygen
+    const wTubeWorm = 3 + (oxygenPercent > 0.15 ? 4 : 0);
 
     const totalWeight = wGrunt + wRusher + wViper + wTank + wKamikaze + wTubeWorm;
     let randomWeight = Math.random() * totalWeight;

@@ -85,6 +85,39 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         // For simplicity, we just move.
     }
 
+    protected handleWandering(enemy: Enemy, context: AIContext): boolean {
+        if (!enemy.isWandering) return false;
+
+        enemy.wanderTimer = (enemy.wanderTimer || 0) + context.dt;
+        if (enemy.wanderTimer >= (enemy.wanderDuration || 0)) {
+            enemy.isWandering = false;
+            return false;
+        }
+
+        if (!enemy.wanderPoint) {
+            enemy.wanderPoint = { 
+                x: 100 + Math.random() * (context.state.worldWidth - 200),
+                y: 100 + Math.random() * (context.state.worldHeight - 200)
+            };
+        }
+
+        const distSq = (enemy.x - enemy.wanderPoint.x)**2 + (enemy.y - enemy.wanderPoint.y)**2;
+        if (distSq < 50 * 50) {
+            // Reached point, pick new one
+            enemy.wanderPoint = { 
+                x: 100 + Math.random() * (context.state.worldWidth - 200),
+                y: 100 + Math.random() * (context.state.worldHeight - 200)
+            };
+        }
+
+        // Move to wander point (slower speed)
+        // Entity is just structure {x, y}
+        const targetEntity = { x: enemy.wanderPoint.x, y: enemy.wanderPoint.y, radius: 0, id: 'wander', angle: 0, color: '' };
+        this.moveTowards(enemy, targetEntity, enemy.speed * 0.7, context.timeScale);
+
+        return true; // Consumed update
+    }
+
     protected performMeleeAttack(enemy: Enemy, target: Entity, context: AIContext, cooldown: number = 1000): void {
         const { time, events } = context;
         if (time - enemy.lastAttackTime < cooldown) return;

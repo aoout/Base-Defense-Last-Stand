@@ -2,6 +2,7 @@
 import { GameState, Enemy, WeaponType, ModuleType, GameEventType, DamageEnemyEvent, DamagePlayerEvent, DamageBaseEvent, DamageAreaEvent, SpawnParticleEvent, SpawnToxicZoneEvent, PlaySoundEvent, DamageSource, StatId } from '../types';
 import { EventBus } from './EventBus';
 import { StatManager } from './managers/StatManager';
+import { DataManager } from './DataManager'; // IMPORT
 import { SpatialHashGrid } from '../utils/spatialHash';
 import { circlesIntersect, circleIntersectsAABB } from '../utils/collision';
 import { EnemyType } from '../types';
@@ -10,14 +11,16 @@ export class PhysicsSystem {
     private getState: () => GameState;
     private events: EventBus;
     private stats: StatManager;
+    private data: DataManager; // ADDED
     
     public spatialGrid: SpatialHashGrid<Enemy>;
     private nearbyCache: Enemy[] = [];
 
-    constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
+    constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager, dataManager: DataManager) {
         this.getState = getState;
         this.events = eventBus;
         this.stats = statManager;
+        this.data = dataManager;
         this.spatialGrid = new SpatialHashGrid<Enemy>(100);
     }
 
@@ -95,7 +98,7 @@ export class PhysicsSystem {
                             targetId: e.id, 
                             amount: finalDamage, 
                             source: p.source,
-                            weaponType: p.weaponType // Pass specific weapon info for Tank shell logic
+                            weaponType: p.weaponType 
                         });
                         
                         // Hit Sound (Throttled by AudioService profile)

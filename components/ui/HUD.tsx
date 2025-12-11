@@ -50,14 +50,15 @@ export const HUD: React.FC = () => {
     const isDefense = state.gameMode === GameMode.SURVIVAL || (state.gameMode === GameMode.EXPLORATION && state.currentPlanet?.missionType === MissionType.DEFENSE);
     
     // Check for Cleanup Phase (Last wave, no time left)
+    // NOTE: Updated state.wave.index logic
     const isCleanupPhase = isDefense && 
                            state.gameMode === GameMode.EXPLORATION && 
-                           state.wave >= (state.currentPlanet?.totalWaves || 0) &&
-                           state.waveTimeRemaining <= 0;
+                           state.wave.index >= (state.currentPlanet?.totalWaves || 0) &&
+                           state.wave.timer <= 0;
 
     // Theme Colors
-    const primaryColor = isOffenseMode ? 'border-red-600' : isCampaign ? 'border-yellow-600' : 'border-cyan-600';
-    const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : isCampaign ? 'shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
+    const primaryColor = isOffenseMode ? 'border-red-600' : 'border-cyan-600';
+    const glowShadow = isOffenseMode ? 'shadow-[0_0_20px_rgba(220,38,38,0.4)]' : 'shadow-[0_0_20px_rgba(8,145,178,0.4)]';
 
     // --- TRANSIENT UPDATE LOOP ---
     useGameLoop(() => {
@@ -106,16 +107,16 @@ export const HUD: React.FC = () => {
         // 4. Wave Timer & Number (Disabled for Campaign)
         if (!isCampaign) {
             if (waveTimerRef.current) {
-                const sec = Math.ceil(s.waveTimeRemaining / 1000);
+                const sec = Math.ceil(s.wave.timer / 1000);
                 const fmt = `${Math.floor(sec / 60).toString().padStart(2, '0')}:${(sec % 60).toString().padStart(2, '0')}`;
                 waveTimerRef.current.innerText = fmt;
             }
             if (waveProgressRef.current) {
-                const pct = s.waveTimeRemaining / s.waveDuration;
+                const pct = s.wave.timer / s.wave.duration;
                 waveProgressRef.current.style.width = `${pct * 100}%`;
             }
             if (waveNumberRef.current) {
-                waveNumberRef.current.innerText = `${s.wave}`;
+                waveNumberRef.current.innerText = `${s.wave.index}`;
             }
         }
 
@@ -136,9 +137,9 @@ export const HUD: React.FC = () => {
         // 7. Lure Logic (Real-time visibility check)
         if (lureContainerRef.current) {
             const isOffense = s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.OFFENSE;
-            const elapsed = s.waveDuration - s.waveTimeRemaining;
+            const elapsed = s.wave.duration - s.wave.timer;
             const isDef = s.gameMode === GameMode.SURVIVAL || (s.gameMode === GameMode.EXPLORATION && s.currentPlanet?.missionType === MissionType.DEFENSE);
-            const noWaves = isDef && s.gameMode === GameMode.EXPLORATION && s.wave >= (s.currentPlanet?.totalWaves || 0);
+            const noWaves = isDef && s.gameMode === GameMode.EXPLORATION && s.wave.index >= (s.currentPlanet?.totalWaves || 0);
             
             const showLure = !isCampaign && !isOffense && elapsed >= 10000 && !noWaves && !s.missionComplete && !s.isGameOver;
 
@@ -149,7 +150,7 @@ export const HUD: React.FC = () => {
                 lureContainerRef.current.style.pointerEvents = 'auto';
                 
                 if (lureRewardRef.current) {
-                    const baseReward = Math.max(0, Math.floor((s.waveTimeRemaining / 1000) * s.wave));
+                    const baseReward = Math.max(0, Math.floor((s.wave.timer / 1000) * s.wave.index));
                     const finalReward = engine.statManager.get(StatId.LURE_BONUS, baseReward);
                     lureRewardRef.current.innerText = `REWARD: ${Math.floor(finalReward)}`;
                 }
@@ -166,129 +167,124 @@ export const HUD: React.FC = () => {
         <>
             {/* Top Left: Campaign Heroism Button (Redesigned) */}
             {isCampaign && (
-                <div className="absolute top-6 left-6 z-20">
+                <div className="absolute top-8 left-8 z-50 pointer-events-auto">
                     <button 
                         onClick={() => {
                             engine.state.appMode = AppMode.HEROIC_ZEAL;
                             engine.notifyUI();
                         }}
-                        className="group relative w-16 h-16 flex items-center justify-center bg-gradient-to-b from-red-950 to-black border border-red-700/50 hover:border-red-500 transition-all shadow-[0_0_20px_rgba(220,38,38,0.3)] hover:scale-105 active:scale-95 hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
-                        style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
-                        title={t('HEROIC_BTN')}
+                        className="group flex items-center gap-3 bg-gradient-to-r from-black/80 to-transparent p-2 pr-6 rounded-l-full border-l-4 border-red-600 hover:border-red-400 transition-all hover:bg-black/60 shadow-lg"
                     >
-                        {/* Inner Pulse */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(220,38,38,0.4)_0%,transparent_70%)] animate-pulse"></div>
-                        
-                        {/* Star Icon */}
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-red-500 group-hover:text-white transition-colors drop-shadow-[0_0_5px_rgba(220,38,38,0.8)] relative z-10">
-                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
-                        </svg>
-                        
-                        {/* Floating Label */}
-                        <div className="absolute -bottom-8 w-32 text-center pointer-events-none">
-                            <div className="text-[9px] font-black uppercase text-red-500 tracking-[0.2em] bg-black/90 border border-red-900/50 px-2 py-0.5 rounded shadow-sm">{t('HEROIC_BTN')}</div>
+                        {/* Icon Container */}
+                        <div className="relative w-12 h-12 flex items-center justify-center">
+                            {/* Glow */}
+                            <div className="absolute inset-0 bg-red-900/20 rounded-full animate-pulse"></div>
+                            {/* Ring */}
+                            <div className="absolute inset-0 border border-red-500/30 rounded-full group-hover:scale-110 transition-transform"></div>
+                            {/* Spinner */}
+                            <div className="absolute inset-1 border-t-2 border-red-500 rounded-full animate-spin-slow"></div>
+                            {/* Star Icon */}
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5 text-red-500 group-hover:text-white transition-colors relative z-10 drop-shadow-[0_0_5px_rgba(220,38,38,0.8)]">
+                                <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+
+                        {/* Text Info */}
+                        <div className="flex flex-col items-start">
+                            <span className="text-[9px] text-red-400 font-mono tracking-[0.2em] uppercase leading-none mb-1 group-hover:text-red-300">{t('HEROIC_BTN')}</span>
+                            <span className="text-white font-display font-bold text-lg leading-none tracking-wider group-hover:text-red-100 drop-shadow-md">ZEAL</span>
                         </div>
                     </button>
                 </div>
             )}
 
             {/* --- TOP CENTER: TACTICAL CHRONOMETER --- */}
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
-                
-                {/* Main Dashboard Panel */}
-                <div className={`
-                    relative min-w-[280px] px-8 py-3 
-                    bg-slate-900/95 backdrop-blur-md 
-                    border-x-2 border-b-2 ${primaryColor} 
-                    rounded-b-xl 
-                    ${glowShadow}
-                    transition-all duration-300
-                    flex flex-col items-center justify-center
-                    group
-                `}>
-                    {/* Decorative Top Hooks */}
-                    <div className="absolute top-0 left-0 w-4 h-2 bg-slate-500"></div>
-                    <div className="absolute top-0 right-0 w-4 h-2 bg-slate-500"></div>
+            {/* COMPLETELY HIDDEN IN CAMPAIGN MODE */}
+            {!isCampaign && (
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
                     
-                    {/* Internal Scanline Texture */}
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.2)_50%)] bg-[size:100%_4px] pointer-events-none rounded-b-lg"></div>
+                    {/* Main Dashboard Panel */}
+                    <div className={`
+                        relative min-w-[280px] px-8 py-3 
+                        bg-slate-900/95 backdrop-blur-md 
+                        border-x-2 border-b-2 ${primaryColor} 
+                        rounded-b-xl 
+                        ${glowShadow}
+                        transition-all duration-300
+                        flex flex-col items-center justify-center
+                        group
+                    `}>
+                        {/* Decorative Top Hooks */}
+                        <div className="absolute top-0 left-0 w-4 h-2 bg-slate-500"></div>
+                        <div className="absolute top-0 right-0 w-4 h-2 bg-slate-500"></div>
+                        
+                        {/* Internal Scanline Texture */}
+                        <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0)_50%,rgba(0,0,0,0.2)_50%)] bg-[size:100%_4px] pointer-events-none rounded-b-lg"></div>
 
-                    {isOffenseMode ? (
-                        /* OFFENSE MODE UI */
-                        <div className="flex flex-col items-center w-full z-10">
-                            <div className="flex justify-between w-full items-end border-b border-red-900/50 pb-1 mb-1">
-                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-red-700 animate-pulse">ASSAULT OPS</span>
-                                <span className="text-[10px] font-mono text-red-400">TARGET LOCKED</span>
-                            </div>
-                            
-                            {hiveMother ? (
-                                <div className="w-full mt-1">
-                                    <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
-                                        <span>BOSS INTEGRITY</span>
-                                        <span ref={bossHpTextRef} className="font-display text-lg"></span>
-                                    </div>
-                                    <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
-                                        <div 
-                                            ref={bossHpRef}
-                                            className="h-full bg-gradient-to-r from-red-900 via-red-600 to-red-500 transition-all duration-300"
-                                            style={{ width: '100%' }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between text-[10px] font-mono text-red-500 mt-1">
-                                        <span>ARMOR PLATING: {Math.floor(hiveMother.armorValue || 0)}%</span>
-                                    </div>
+                        {isOffenseMode ? (
+                            /* OFFENSE MODE UI */
+                            <div className="flex flex-col items-center w-full z-10">
+                                <div className="flex justify-between w-full items-end border-b border-red-900/50 pb-1 mb-1">
+                                    <span className="text-[14px] font-display font-bold tracking-[0.1em] text-red-700 animate-pulse">ASSAULT OPS</span>
+                                    <span className="text-[10px] font-mono text-red-400">TARGET LOCKED</span>
                                 </div>
-                            ) : (
-                                <div className="text-red-500 font-mono text-sm animate-pulse">SEARCHING FOR TARGET...</div>
-                            )}
-                        </div>
-                    ) : isCampaign ? (
-                        /* CAMPAIGN MODE UI */
-                        <div className="flex flex-col items-center w-full z-10">
-                            <div className="flex justify-between w-full items-baseline border-b border-yellow-900/50 pb-1 mb-1">
-                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-yellow-500">CAMPAIGN OPS</span>
-                                <div className="text-[10px] font-mono text-yellow-600">FRONTIER DEFENSE</div>
-                            </div>
-                            <div className="text-lg font-mono text-yellow-100 mt-1">
-                                ACTIVE ZONES: 2
-                            </div>
-                        </div>
-                    ) : (
-                        /* DEFENSE MODE UI */
-                        <div className="flex flex-col items-center w-full z-10">
-                            <div className="flex justify-between w-full items-baseline border-b border-cyan-900/50 pb-1 mb-1">
-                                <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
-                                    <span ref={waveNumberRef} className="text-2xl font-display font-black text-white leading-none"></span>
-                                </div>
-                            </div>
-
-                            <div className="relative w-full flex justify-center items-center py-1">
-                                {isCleanupPhase ? (
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
-                                        <span ref={enemiesRemainingRef} className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
+                                
+                                {hiveMother ? (
+                                    <div className="w-full mt-1">
+                                        <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
+                                            <span>BOSS INTEGRITY</span>
+                                            <span ref={bossHpTextRef} className="font-display text-lg"></span>
+                                        </div>
+                                        <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
+                                            <div 
+                                                ref={bossHpRef}
+                                                className="h-full bg-gradient-to-r from-red-900 via-red-600 to-red-500 transition-all duration-300"
+                                                style={{ width: '100%' }}
+                                            />
+                                        </div>
+                                        <div className="flex justify-between text-[10px] font-mono text-red-500 mt-1">
+                                            <span>ARMOR PLATING: {Math.floor(hiveMother.armorValue || 0)}%</span>
+                                        </div>
                                     </div>
                                 ) : (
-                                    <span ref={waveTimerRef} className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"></span>
+                                    <div className="text-red-500 font-mono text-sm animate-pulse">SEARCHING FOR TARGET...</div>
                                 )}
                             </div>
-
-                            {!isCleanupPhase && (
-                                <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
-                                    <div 
-                                        ref={waveProgressRef}
-                                        className="h-full bg-cyan-500 transition-all duration-100 linear"
-                                        style={{ width: '100%' }}
-                                    ></div>
+                        ) : (
+                            /* DEFENSE MODE UI */
+                            <div className="flex flex-col items-center w-full z-10">
+                                <div className="flex justify-between w-full items-baseline border-b border-cyan-900/50 pb-1 mb-1">
+                                    <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
+                                        <span ref={waveNumberRef} className="text-2xl font-display font-black text-white leading-none"></span>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    )}
-                </div>
 
-                {!isCampaign && (
+                                <div className="relative w-full flex justify-center items-center py-1">
+                                    {isCleanupPhase ? (
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
+                                            <span ref={enemiesRemainingRef} className="text-4xl font-display font-bold text-red-500 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.5)]"></span>
+                                        </div>
+                                    ) : (
+                                        <span ref={waveTimerRef} className="text-5xl font-display font-bold text-white tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.5)]"></span>
+                                    )}
+                                </div>
+
+                                {!isCleanupPhase && (
+                                    <div className="w-full h-1 bg-slate-800 mt-1 rounded-full overflow-hidden">
+                                        <div 
+                                            ref={waveProgressRef}
+                                            className="h-full bg-cyan-500 transition-all duration-100 linear"
+                                            style={{ width: '100%' }}
+                                        ></div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
                     <div 
                         ref={lureContainerRef}
                         className="relative transition-all duration-500 ease-out overflow-hidden flex flex-col items-center h-0 opacity-0 -translate-y-4"
@@ -320,8 +316,8 @@ export const HUD: React.FC = () => {
                             <div ref={lureRewardRef} className="text-[9px] font-mono text-center opacity-80 group-hover:font-bold"></div>
                         </button>
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             <div className="absolute top-6 right-6 group">
                 <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1">

@@ -5,6 +5,8 @@ import { GAS_INFO } from '../../data/world';
 
 export class RedSummonerBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
+        if (this.handleWandering(enemy, context)) return;
+
         const target = this.acquireTarget(enemy, context);
         this.moveTowards(enemy, target, enemy.speed, context.timeScale);
         
@@ -30,6 +32,8 @@ export class RedSummonerBehavior extends BaseEnemyBehavior {
 
 export class BlueBurstBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
+        if (this.handleWandering(enemy, context)) return;
+
         const target = this.acquireTarget(enemy, context);
         
         const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
@@ -70,6 +74,8 @@ export class BlueBurstBehavior extends BaseEnemyBehavior {
 
 export class PurpleAcidBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
+        if (this.handleWandering(enemy, context)) return;
+
         const target = this.acquireTarget(enemy, context);
         
         const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;

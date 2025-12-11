@@ -6,7 +6,7 @@ import {
     renderStaticTerrainToCache, drawDynamicTerrainFeatures, drawCachedTerrain,
     drawBloodStains, drawToxicZones, drawTurret, 
     drawAllySprite, drawPlayerSprite, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
-    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule, drawTubeWorm,
+    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule, drawTubeWorm, drawDevourer,
     drawBase, drawTurretSpot, drawProjectilesBatch,
     drawStartScreen, drawExplorationMap, drawOrbitalBeam, drawFloatingText,
     isVisible, drawParticlesBatch, drawEnemyBars
@@ -41,12 +41,13 @@ export class RenderService {
         // Reset transform to identity then apply scale
         ctx.setTransform(scale, 0, 0, scale, 0, 0); 
 
-        // Clear Screen (Screen coordinates)
-        ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        // Clear Screen (Viewport coordinates)
+        // Use state.viewportWidth instead of constant CANVAS_WIDTH to support full screen
+        ctx.clearRect(0, 0, state.viewportWidth, state.viewportHeight);
 
         // MODE SWITCHING RENDER
         if (state.appMode === AppMode.START_MENU) {
-            drawStartScreen(ctx, time);
+            drawStartScreen(ctx, time, state.viewportWidth, state.viewportHeight);
             return;
         }
 
@@ -145,7 +146,8 @@ export class RenderService {
         // Draw Orbital Beams
         if (state.orbitalBeams && state.orbitalBeams.length > 0) {
             state.orbitalBeams.forEach(beam => {
-                if (beam.x + 50 > camera.x && beam.x - 50 < camera.x + CANVAS_WIDTH) {
+                // Adjust visibility check to use viewport width
+                if (beam.x + 50 > camera.x && beam.x - 50 < camera.x + state.viewportWidth) {
                     drawOrbitalBeam(ctx, beam);
                 }
             });
@@ -217,7 +219,10 @@ export class RenderService {
                         case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
                         case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
                         case 'PUSTULE': drawPustule(ctx, e, time, lodLevel); break;
-                        case 'TUBE_WORM': drawTubeWorm(ctx, e, time); break;
+                        case 'TUBE_WORM': 
+                            if (e.isBoss) drawDevourer(ctx, e, time);
+                            else drawTubeWorm(ctx, e, time);
+                            break;
                     }
                 }
             }

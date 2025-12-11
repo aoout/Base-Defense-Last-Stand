@@ -117,7 +117,7 @@ export interface DamageAreaEvent {
 }
 
 export interface PlaySoundEvent {
-    type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'GRENADE_THROW' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE' | 'RELOAD' | 'BULLET_HIT' | 'ORBITAL_STRIKE';
+    type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'GRENADE_THROW' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE' | 'RELOAD' | 'BULLET_HIT' | 'ORBITAL_STRIKE' | 'BOSS_DEATH';
     variant?: WeaponType | number | boolean | string; // WeaponType, TurretLevel, isBoss
     x?: number; // Spatial Audio X
     y?: number; // Spatial Audio Y

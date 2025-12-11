@@ -3,20 +3,23 @@ import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, Wea
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
+import { DataManager } from '../DataManager';
 import { UserAction } from '../../types';
-import { WEAPONS, PLAYER_STATS } from '../../data/registry';
+import { PLAYER_STATS } from '../../data/registry';
 
 export class PlayerManager {
     private getState: () => GameState;
     private events: EventBus;
     private input: InputManager;
     private stats: StatManager;
+    private data: DataManager;
 
-    constructor(getState: () => GameState, eventBus: EventBus, input: InputManager, statManager: StatManager) {
+    constructor(getState: () => GameState, eventBus: EventBus, input: InputManager, statManager: StatManager, dataManager: DataManager) {
         this.getState = getState;
         this.events = eventBus;
         this.input = input;
         this.stats = statManager;
+        this.data = dataManager;
 
         this.events.on(GameEventType.PLAYER_SWITCH_WEAPON, (e: any) => this.switchWeapon(e.index));
         this.events.on(GameEventType.PLAYER_RELOAD, (e: any) => this.reload(e.time));
@@ -40,16 +43,11 @@ export class PlayerManager {
         if (dx !== 0 || dy !== 0) {
             const length = Math.sqrt(dx * dx + dy * dy);
             
-            // Apply speed stat (Base speed -> Modifiers)
-            // p.speed is the base defined in state init from PLAYER_STATS
-            // We fetch the dynamic value from StatManager
-            // Note: Currently p.speed in state IS the base stat.
             const effectiveSpeed = this.stats.get(StatId.PLAYER_MOVE_SPEED, p.speed);
             
             p.x += (dx / length) * effectiveSpeed * timeScale;
             p.y += (dy / length) * effectiveSpeed * timeScale;
 
-            // Clamp
             p.x = Math.max(0, Math.min(state.worldWidth, p.x));
             p.y = Math.max(0, Math.min(state.worldHeight, p.y));
         }
@@ -58,7 +56,6 @@ export class PlayerManager {
         const angle = Math.atan2(this.input.mouse.y - p.y + state.camera.y, this.input.mouse.x - p.x + state.camera.x);
         p.angle = angle;
         
-        // Scope
         p.isAiming = this.input.isActive(UserAction.ALT_FIRE);
 
         // Firing
@@ -69,10 +66,10 @@ export class PlayerManager {
         // Reload Logic
         const currentWeaponType = p.loadout[p.currentWeaponIndex];
         const weaponState = p.weapons[currentWeaponType];
-        const weaponStats = WEAPONS[currentWeaponType];
+        // USE DATA MANAGER
+        const weaponStats = this.data.getWeaponStats(currentWeaponType);
 
         if (weaponState.reloading) {
-            // Calculate Reload Time with Modules & Stats
             let reloadTime = weaponStats.reloadTime;
             
             // Modules
@@ -80,8 +77,6 @@ export class PlayerManager {
                 reloadTime *= 0.8;
             }
             
-            // Global Stat (Heroic Zeal)
-            // e.g. -0.1 reduction means reloadTime * 0.9
             const reloadMod = this.stats.get(StatId.PLAYER_RELOAD_SPEED, 0); 
             reloadTime = reloadTime * (1 + reloadMod);
 
@@ -99,12 +94,10 @@ export class PlayerManager {
         const p = state.player;
         const timeSinceHit = time - p.lastHitTime;
 
-        // Armor Regen
         if (timeSinceHit > PLAYER_STATS.armorRegenDelay && p.armor < p.maxArmor) {
             p.armor = Math.min(p.maxArmor, p.armor + PLAYER_STATS.armorRegenRate * dt);
         }
 
-        // HP Regen (slower)
         if (timeSinceHit > PLAYER_STATS.hpRegenDelay && p.hp < p.maxHp) {
             p.hp = Math.min(p.maxHp, p.hp + PLAYER_STATS.hpRegenRate * dt);
         }
@@ -115,7 +108,8 @@ export class PlayerManager {
         const p = state.player;
         const weaponType = p.loadout[p.currentWeaponIndex];
         const wState = p.weapons[weaponType];
-        const wStats = WEAPONS[weaponType];
+        // USE DATA MANAGER
+        const wStats = this.data.getWeaponStats(weaponType);
 
         if (wState.reloading || time - wState.lastFireTime < wStats.fireRate) return;
 
@@ -124,13 +118,10 @@ export class PlayerManager {
             return;
         }
 
-        // Fire
         wState.ammoInMag--;
         wState.lastFireTime = time;
         this.events.emit(GameEventType.PLAY_SOUND, { type: 'WEAPON', variant: weaponType, x: p.x, y: p.y });
 
-        // Calculate Projectile Properties
-        // Spread
         const spread = p.isAiming ? wStats.spread * 0.5 : wStats.spread;
         
         const spawnProjectile = (angleOffset: number = 0) => {
@@ -138,14 +129,11 @@ export class PlayerManager {
             const targetX = p.x + Math.cos(finalAngle) * 1000;
             const targetY = p.y + Math.sin(finalAngle) * 1000;
             
-            // Damage calculation
-            let damage = this.stats.get(StatId.PLAYER_DAMAGE, wStats.damage); // Apply global damage mods
+            let damage = this.stats.get(StatId.PLAYER_DAMAGE, wStats.damage); 
             
-            // Module Bonuses
             wState.modules.forEach(m => {
                 if (m.type === ModuleType.GEL_BARREL) damage *= 1.4;
                 if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
-                // Tension spring handled in reload/damage
                 if (m.type === ModuleType.TENSION_SPRING) damage *= 1.2;
             });
 
@@ -157,13 +145,13 @@ export class PlayerManager {
                 speed: wStats.projectileSpeed,
                 damage,
                 fromPlayer: true,
-                color: weaponType === WeaponType.PULSE_RIFLE ? '#22d3ee' : '#fbbf24', // Cyan or Yellow
+                color: weaponType === WeaponType.PULSE_RIFLE ? '#22d3ee' : '#fbbf24', 
                 maxRange: wStats.range,
                 source: DamageSource.PLAYER,
                 activeModules: wState.modules,
                 isPiercing: wStats.isPiercing,
                 isExplosive: wStats.isExplosive,
-                weaponType: weaponType // EXPLICITLY PASS WEAPON TYPE
+                weaponType: weaponType
             });
         };
 
@@ -181,7 +169,8 @@ export class PlayerManager {
         const p = state.player;
         const weaponType = p.loadout[p.currentWeaponIndex];
         const wState = p.weapons[weaponType];
-        const wStats = WEAPONS[weaponType];
+        // USE DATA MANAGER
+        const wStats = this.data.getWeaponStats(weaponType);
 
         if (wState.reloading || wState.ammoInMag >= wStats.magSize) return;
         if (wState.ammoReserve <= 0 && wState.ammoReserve !== Infinity) {
@@ -210,7 +199,6 @@ export class PlayerManager {
         if (p.currentWeaponIndex !== index) {
             p.weapons[p.loadout[p.currentWeaponIndex]].reloading = false; // Cancel reload
             p.currentWeaponIndex = index;
-            // Play equip sound?
         }
     }
 
@@ -221,7 +209,6 @@ export class PlayerManager {
             p.grenades--;
             this.events.emit(GameEventType.PLAY_SOUND, { type: 'GRENADE_THROW', x: p.x, y: p.y });
             
-            // Grenade Logic (Spawn projectile that explodes)
             const targetX = p.x + Math.cos(p.angle) * 400;
             const targetY = p.y + Math.sin(p.angle) * 400;
             
@@ -238,7 +225,7 @@ export class PlayerManager {
                 source: DamageSource.PLAYER,
                 isExplosive: true,
                 activeModules: p.grenadeModules,
-                weaponType: WeaponType.GRENADE_LAUNCHER // Identify as GL/Grenade for consistency
+                weaponType: WeaponType.GRENADE_LAUNCHER 
             });
         }
     }
@@ -247,7 +234,6 @@ export class PlayerManager {
         const state = this.getState();
         const p = state.player;
         
-        // Apply Global Damage Taken Multiplier (Impact Plate)
         const mult = this.stats.get(StatId.PLAYER_DMG_TAKEN_MULT, 1.0);
         amount *= mult;
         
@@ -270,7 +256,6 @@ export class PlayerManager {
         }
 
         p.hp -= actualDmg;
-        // FIX: Use simulation time instead of Date.now() to match the update loop's time source
         p.lastHitTime = state.time; 
         
         if (p.hp <= 0) {

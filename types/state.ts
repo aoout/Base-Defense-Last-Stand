@@ -29,6 +29,26 @@ export interface BaseDropState {
     deployTimer: number; // Timer for door opening/player spawn
 }
 
+// Sub-State: Wave System
+export interface WaveState {
+    index: number;              // Current wave number (formerly 'wave')
+    timer: number;              // Time remaining in ms (formerly 'waveTimeRemaining')
+    duration: number;           // Total duration of current wave (formerly 'waveDuration')
+    spawnTimer: number;         // Time since last spawn check
+    pendingCount: number;       // Enemies left to spawn (formerly 'enemiesPendingSpawn')
+    spawnedCount: number;       // Enemies already spawned (formerly 'enemiesSpawnedInWave')
+    totalCount: number;         // Total enemies for this wave (formerly 'totalEnemiesInWave')
+    activeEvent: SpecialEventType; // (formerly 'activeSpecialEvent')
+}
+
+// Sub-State: Campaign System
+export interface CampaignState {
+    pustuleTimer: number;
+    nextPustuleSpawnTime: number;
+    bossTimer: number;          // formerly 'campaignBossTimer'
+    bossHp: number;             // formerly 'campaignBossHp'
+}
+
 export interface GameState {
   appMode: AppMode;
   gameMode: GameMode;
@@ -42,19 +62,19 @@ export interface GameState {
   viewportHeight: number;
 
   // Exploration Data
-  sectorName: string; // New: Procedurally generated sector name
+  sectorName: string; 
   planets: Planet[];
   currentPlanet: Planet | null;
   selectedPlanetId: string | null;
   savedPlayerState: PersistentPlayerState | null;
   activeGalacticEvent: GalacticEvent | null;
-  pendingYieldReport: PlanetYieldReport | null; // New Field
+  pendingYieldReport: PlanetYieldReport | null; 
 
   // Spaceship
   spaceship: SpaceshipState;
-  orbitalSupportTimer: number; // Tracks time for ORBITAL_CANNON module
+  orbitalSupportTimer: number; 
 
-  // Base Drop Animation State (Replaces dropPod)
+  // Base Drop Animation State
   baseDrop: BaseDropState | null;
 
   // Save System
@@ -92,19 +112,11 @@ export interface GameState {
   orbitalBeams: OrbitalBeam[];
   turretSpots: TurretSpot[];
   toxicZones: ToxicZone[];
-  activeSpecialEvent: SpecialEventType;
   
-  wave: number;
-  waveTimeRemaining: number;
-  waveDuration: number;
-  spawnTimer: number;
-  // Campaign specific timers
-  pustuleTimer: number; 
-  nextPustuleSpawnTime: number;
-
-  enemiesPendingSpawn: number;
-  enemiesSpawnedInWave: number;
-  totalEnemiesInWave: number;
+  // --- REFACTORED SUB-STATES ---
+  wave: WaveState;
+  campaign: CampaignState;
+  
   lastAllySpawnTime: number;
 
   isGameOver: boolean;

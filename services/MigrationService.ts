@@ -1,6 +1,6 @@
 
 import { CURRENT_VERSION } from "../data/changelog";
-import { GameState } from "../types";
+import { GameState, SpecialEventType } from "../types";
 
 /**
  * Handles the evolution of save data across different game versions.
@@ -42,7 +42,7 @@ export class MigrationService {
 
         // 2. Version-Specific Migrations
         // We use a simple semver-like comparison or direct string checks if versions are strictly linear.
-        // For now, we assume linear history: 0.9.0 -> 0.9.5 -> 0.9.6
+        // For now, we assume linear history: 0.9.0 -> 0.9.5 -> 0.9.6 -> 1.0.7
         
         // Migration: Pre-0.9.5 (Before Galaxy Index)
         if (this.isOlder(fromVersion, "0.9.5")) {
@@ -54,8 +54,12 @@ export class MigrationService {
             this.migrateTo_0_9_6(data);
         }
 
-        // Future migrations go here...
-        
+        // Migration: Pre-1.0.7 (State Split: Wave/Campaign)
+        // Assuming 1.0.7 is the current version introducing this change
+        if (this.isOlder(fromVersion, "1.0.7")) {
+            this.migrateTo_1_0_7(data);
+        }
+
         return data;
     }
 
@@ -86,9 +90,6 @@ export class MigrationService {
     private static migrateTo_0_9_6(data: any) {
         console.log("[Migration] Applying v0.9.6 patches (StatManager Refactor)...");
         // 0.9.6 Introduced StatManager and decoupled systems.
-        // We need to ensure that any legacy 'passive' bonuses that might have been hardcoded
-        // are ready to be recalculated by the SpaceshipManager.registerModifiers().
-        
         // Ensure spaceship object has new fields if they were added recently
         if (!data.spaceship) {
             data.spaceship = { installedModules: [] };
@@ -96,7 +97,51 @@ export class MigrationService {
         if (!data.spaceship.bioResources) {
             data.spaceship.bioResources = { ALPHA: 0, BETA: 0, GAMMA: 0 };
         }
+    }
+
+    private static migrateTo_1_0_7(data: any) {
+        console.log("[Migration] Applying v1.0.7 patches (State Structure Refactor)...");
         
-        // Clean up any deprecated fields if necessary (optional)
+        // 1. Create 'wave' object from loose properties
+        if (!data.wave || typeof data.wave === 'number') {
+            const oldWave = typeof data.wave === 'number' ? data.wave : 1;
+            
+            data.wave = {
+                index: oldWave,
+                timer: data.waveTimeRemaining || 30000,
+                duration: data.waveDuration || 30000,
+                spawnTimer: data.spawnTimer || 0,
+                pendingCount: data.enemiesPendingSpawn || 0,
+                spawnedCount: data.enemiesSpawnedInWave || 0,
+                totalCount: data.totalEnemiesInWave || 0,
+                activeEvent: data.activeSpecialEvent || SpecialEventType.NONE
+            };
+
+            // Cleanup old properties to reduce confusion (optional, but cleaner)
+            delete data.waveTimeRemaining;
+            delete data.waveDuration;
+            // delete data.spawnTimer; // Careful, spawnTimer was used by both modes differently? 
+            // In old logic, spawnTimer was shared. In new, campaign has own.
+            // We set wave.spawnTimer. We will init campaign separately below.
+            delete data.enemiesPendingSpawn;
+            delete data.enemiesSpawnedInWave;
+            delete data.totalEnemiesInWave;
+            delete data.activeSpecialEvent;
+        }
+
+        // 2. Create 'campaign' object
+        if (!data.campaign) {
+            data.campaign = {
+                pustuleTimer: data.pustuleTimer || 0,
+                nextPustuleSpawnTime: data.nextPustuleSpawnTime || 60000,
+                bossTimer: data.campaignBossTimer || 0,
+                bossHp: data.campaignBossHp || 4000000
+            };
+
+            delete data.pustuleTimer;
+            delete data.nextPustuleSpawnTime;
+            delete data.campaignBossTimer;
+            delete data.campaignBossHp;
+        }
     }
 }
