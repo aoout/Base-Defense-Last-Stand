@@ -588,6 +588,16 @@ export class GameEngine {
       const yieldItems = this.galaxyManager.calculateYields();
       const totalYield = yieldItems.reduce((sum, item) => sum + item.total, 0);
       if (totalYield > 0) { this.state.pendingYieldReport = { items: yieldItems, totalYield }; } else { this.state.pendingYieldReport = null; }
+      
+      // RECORD HISTORY
+      this.saveManager.addHistoryEntry({
+          mode: this.state.gameMode,
+          result: 'VICTORY',
+          details: this.state.gameMode === GameMode.EXPLORATION ? this.state.currentPlanet?.name || "Unknown World" : `Wave ${this.state.wave.index}`,
+          subDetails: this.state.gameMode === GameMode.EXPLORATION ? "PLANET CLEARED" : "SURVIVAL EXTRACT",
+          score: Math.floor(this.state.player.score)
+      });
+
       this.notifyUI('MISSION_COMPLETE');
   }
   public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
@@ -602,6 +612,16 @@ export class GameEngine {
       if (this.state.base.hp <= 0) { 
           this.state.isGameOver = true; 
           this.state.isPaused = true; 
+          
+          // RECORD HISTORY
+          this.saveManager.addHistoryEntry({
+              mode: this.state.gameMode,
+              result: 'DEFEAT',
+              details: this.state.gameMode === GameMode.EXPLORATION ? this.state.currentPlanet?.name || "Unknown World" : `Wave ${this.state.wave.index}`,
+              subDetails: "BASE DESTROYED",
+              score: Math.floor(this.state.player.score)
+          });
+
           this.notifyUI('GAME_OVER'); 
       } 
   }
@@ -627,16 +647,16 @@ export class GameEngine {
       else { (this.state.settings as any)[key] = !(this.state.settings as any)[key]; }
       this.persistSettings(); this.notifyUI('SETTING_CHANGE');
   }
-  public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
-      if (!this.state.settings.showDamageNumbers && (type === FloatingTextType.DAMAGE || type === FloatingTextType.CRIT)) return;
+  public addMessage(text: string, x: number, y: number, color: string, FloatingTextType: FloatingTextType, time: number = 1000) {
+      if (!this.state.settings.showDamageNumbers && (FloatingTextType === 'DAMAGE' || FloatingTextType === 'CRIT')) return;
       let vx = 0; let vy = -0.5; let size = 12;
-      if (type === FloatingTextType.DAMAGE) { vx = (Math.random() - 0.5) * 4; vy = (Math.random() * -2) - 1; time = 600; size = 14; } 
-      else if (type === FloatingTextType.CRIT) { vx = (Math.random() - 0.5) * 6; vy = -3; time = 1000; size = 20; } 
-      else if (type === FloatingTextType.LOOT) { vx = 0; vy = -1.5; time = 1500; size = 12; } 
+      if (FloatingTextType === 'DAMAGE') { vx = (Math.random() - 0.5) * 4; vy = (Math.random() * -2) - 1; time = 600; size = 14; } 
+      else if (FloatingTextType === 'CRIT') { vx = (Math.random() - 0.5) * 6; vy = -3; time = 1000; size = 20; } 
+      else if (FloatingTextType === 'LOOT') { vx = 0; vy = -1.5; time = 1500; size = 12; } 
       else { vx = 0; vy = -0.2; size = 16; }
       let ft: FloatingText;
-      if (this.floatingTextPool.length > 0) { ft = this.floatingTextPool.pop()!; ft.id = `ft-${Date.now()}-${Math.random()}`; ft.text = text; ft.x = x; ft.y = y; ft.vx = vx; ft.vy = vy; ft.color = color; ft.maxLife = time; ft.life = time; ft.type = type; ft.size = size; } 
-      else { ft = { id: `ft-${Date.now()}-${Math.random()}`, text, x, y, vx, vy, color, maxLife: time, type, size, life: time }; }
+      if (this.floatingTextPool.length > 0) { ft = this.floatingTextPool.pop()!; ft.id = `ft-${Date.now()}-${Math.random()}`; ft.text = text; ft.x = x; ft.y = y; ft.vx = vx; ft.vy = vy; ft.color = color; ft.maxLife = time; ft.life = time; ft.type = FloatingTextType; ft.size = size; } 
+      else { ft = { id: `ft-${Date.now()}-${Math.random()}`, text, x, y, vx, vy, color, maxLife: time, type: FloatingTextType, size, life: time }; }
       this.state.floatingTexts.push(ft);
   }
   public saveGame() { this.saveManager.saveGame(); this.notifyUI('SAVE'); }
@@ -670,8 +690,55 @@ export class GameEngine {
   public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); this.notifyUI('BIO_UNLOCK'); }
   public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); this.notifyUI('BIO_TASK'); }
   public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
-  public ascendToOrbit() { const wasSuccess = this.state.missionComplete; this.state.missionComplete = false; this.state.isPaused = false; this.state.isGameOver = false; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.state.turretSpots.forEach(s => s.builtTurret = undefined); if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } else { this.finalizeMissionReturn(); } } else { this.state.appMode = AppMode.EXPLORATION_MAP; this.audio.stopAmbience(); } this.notifyUI('ASCEND'); }
-  public emergencyEvac() { this.state.isGameOver = false; this.state.isPaused = false; this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; this.audio.stopAmbience(); this.notifyUI('EVAC'); }
+  public ascendToOrbit() { 
+      const wasSuccess = this.state.missionComplete; 
+      this.state.missionComplete = false; 
+      this.state.isPaused = false; 
+      this.state.isGameOver = false; 
+      this.state.currentPlanet = null; 
+      this.state.selectedPlanetId = null; 
+      this.state.enemies = []; 
+      this.state.projectiles = []; 
+      this.state.allies = []; 
+      this.state.toxicZones = []; 
+      this.state.bloodStains = []; 
+      this.state.turretSpots.forEach(s => s.builtTurret = undefined); 
+      if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { 
+          if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { 
+              this.state.appMode = AppMode.YIELD_REPORT; 
+          } else { 
+              this.finalizeMissionReturn(); 
+          } 
+      } else { 
+          this.state.appMode = AppMode.EXPLORATION_MAP; 
+          this.audio.stopAmbience(); 
+      } 
+      this.notifyUI('ASCEND'); 
+  }
+  public emergencyEvac() { 
+      this.state.isGameOver = false; 
+      this.state.isPaused = false; 
+      
+      // RECORD HISTORY FOR EVAC
+      this.saveManager.addHistoryEntry({
+          mode: this.state.gameMode,
+          result: 'EXTRACTION',
+          details: this.state.gameMode === GameMode.EXPLORATION ? this.state.currentPlanet?.name || "Unknown World" : `Wave ${this.state.wave.index}`,
+          subDetails: "EMERGENCY EVACUATION",
+          score: Math.floor(this.state.player.score)
+      });
+
+      this.state.appMode = AppMode.EXPLORATION_MAP; 
+      this.state.currentPlanet = null; 
+      this.state.selectedPlanetId = null; 
+      this.state.enemies = []; 
+      this.state.projectiles = []; 
+      this.state.allies = []; 
+      this.state.toxicZones = []; 
+      this.state.bloodStains = []; 
+      this.audio.stopAmbience(); 
+      this.notifyUI('EVAC'); 
+  }
   public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED: FUNDS ADDED", this.state.player.x, this.state.player.y, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }

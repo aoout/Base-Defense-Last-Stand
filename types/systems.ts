@@ -78,6 +78,16 @@ export interface SaveFile {
     version?: string; // Schema version of the save data
 }
 
+export interface CombatRecord {
+    id: string;
+    timestamp: number;
+    mode: GameMode;
+    result: 'VICTORY' | 'DEFEAT' | 'EXTRACTION';
+    details: string; // Pre-formatted string key or raw text
+    subDetails?: string; // e.g. "Wave 17" or "14:20"
+    score: number;
+}
+
 export interface OrbitalUpgradeNode {
     id: string;
     layer: number; // 1-7

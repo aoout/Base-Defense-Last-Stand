@@ -1,5 +1,5 @@
 
-import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType, WeaponType } from '../../types';
+import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType, WeaponType, CombatRecord } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
 import { CURRENT_VERSION } from '../../data/changelog';
@@ -8,10 +8,13 @@ import { MigrationService } from '../MigrationService';
 export class SaveManager {
     private engine: GameEngine;
     private storageKey = 'BASE_DEFENSE_SAVES_V1';
+    private historyKey = 'VANGUARD_HISTORY_V1';
 
     constructor(engine: GameEngine) {
         this.engine = engine;
     }
+
+    // --- SAVE SLOT MANAGEMENT ---
 
     public loadSavesFromStorage(): SaveFile[] {
         const raw = localStorage.getItem(this.storageKey);
@@ -84,7 +87,7 @@ export class SaveManager {
             timestamp: Date.now(), // Real World Time
             label: this.engine.state.gameMode === GameMode.EXPLORATION 
                 ? `EXPLORATION - ${this.engine.state.currentPlanet?.name || 'SECTOR MAP'}` 
-                : `SURVIVAL - WAVE ${this.engine.state.wave}`,
+                : `SURVIVAL - WAVE ${this.engine.state.wave.index}`,
             isPinned: false,
             data: JSON.stringify(stateToSave),
             mode: this.engine.state.gameMode,
@@ -240,5 +243,37 @@ export class SaveManager {
             slot.isPinned = !slot.isPinned;
             this.persistSaves();
         }
+    }
+
+    // --- COMBAT HISTORY MANAGEMENT ---
+
+    public getHistory(): CombatRecord[] {
+        try {
+            const raw = localStorage.getItem(this.historyKey);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.error("Failed to load history", e);
+            return [];
+        }
+    }
+
+    public addHistoryEntry(record: Omit<CombatRecord, 'id' | 'timestamp'>) {
+        const history = this.getHistory();
+        
+        const newRecord: CombatRecord = {
+            id: `hist-${Date.now()}`,
+            timestamp: Date.now(),
+            ...record
+        };
+
+        // Add to top
+        history.unshift(newRecord);
+
+        // Limit to 50 entries to prevent bloat
+        if (history.length > 50) {
+            history.length = 50;
+        }
+
+        localStorage.setItem(this.historyKey, JSON.stringify(history));
     }
 }
