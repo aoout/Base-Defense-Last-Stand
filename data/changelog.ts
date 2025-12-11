@@ -8,9 +8,25 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.7";
+export const CURRENT_VERSION = "1.0.8";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.8",
+        date: "2248.07.30",
+        title: "STELLAR CARTOGRAPHY",
+        titleCN: "星际测绘",
+        changes: [
+            "NEW: 'Famous Sectors' database online. Commanders can now deploy to specific legendary coordinates (e.g., Sol System, Ishimura's Wake).",
+            "UI: Galaxy Index overhauled with 'Protocols' (Random Generation) and 'Archives' (Fixed Scenarios) tabs.",
+            "CONTENT: Added 6 unique sectors with fixed planetary compositions and lore descriptions."
+        ],
+        changesCN: [
+            "新增：‘著名星系’数据库上线。指挥官现在可以部署至特定的传奇坐标（如太阳系、石村号尾迹）。",
+            "界面：星系索引重制，分为‘协议’（随机生成）和‘档案’（固定剧本）标签页。",
+            "内容：添加了6个拥有固定星球配置和背景故事的独特扇区。"
+        ]
+    },
     {
         version: "1.0.7",
         date: "2248.07.25",
@@ -87,7 +103,7 @@ export const CHANGELOG: ChangelogEntry[] = [
         title: "TURRET MECHANICS & BALANCE",
         titleCN: "炮塔机制与平衡调整",
         changes: [
-            "REWORK: 'Gauss Repeater' now features a spool-up mechanic. Fire rate increases by 1% per shot (Max +200%). Base rate lowered to 240ms.",
+            "REWORK: 'Gauss Repeater' now features a spool-up mechanic. Fire rate increases by 1% per shot (Max +200%). Base Rate 240ms.",
             "REWORK: 'Railgun Turret' now fires a piercing beam (8% damage decay per target). Damage set to 190, Rate to 780ms.",
             "BALANCE: 'Hydra Missile' damage increased to 220, rate adjusted to 1230ms. Added Area of Effect description.",
             "DOCS: Updated in-game descriptions to reflect these mechanical changes."
