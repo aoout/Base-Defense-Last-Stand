@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.0.6";
+export const CURRENT_VERSION = "1.0.7";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.0.7",
+        date: "2248.07.25",
+        title: "FRONTIER THREATS & HEROISM",
+        titleCN: "边境威胁与英雄主义",
+        changes: [
+            "NEW SYSTEM: 'Heroic Zeal' (Campaign Mode). A massive helix-shaped skill tree allowing infinite progression for veteran operatives.",
+            "AI: Tube Worms are now fully hostile. They prioritize eating Grunts to heal/grow but will ambush players if no prey is nearby.",
+            "CAMPAIGN: Optimized 'The Devourer' (Boss) state machine to prevent logic locks during burrowing phases.",
+            "VISUAL: Unified burrowing animations and particle effects for both standard and Apex Tube Worms."
+        ],
+        changesCN: [
+            "新系统：‘英雄主义热忱’（战役模式）。一个巨大的双螺旋技能树，为资深特工提供无限成长的可能。",
+            "AI：管虫现在具有完全的敌对性。它们会优先吞噬蠕铗以回血/成长，但若无猎物则会伏击玩家。",
+            "战役：优化了‘吞噬者’（Boss）的状态机，防止其在钻地阶段出现逻辑卡死。",
+            "视觉：统一了普通管虫和顶级变种（Boss）的钻地动画与粒子特效。"
+        ]
+    },
     {
         version: "1.0.6",
         date: "2248.07.20",
