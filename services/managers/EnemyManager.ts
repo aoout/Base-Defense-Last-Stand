@@ -363,22 +363,6 @@ export class EnemyManager {
     public damageEnemy(enemy: Enemy, amount: number, source: DamageSource, weaponType?: WeaponType) {
         if (enemy.hp <= 0) return;
 
-        // --- CAMPAIGN BOSS ENRAGE ---
-        if (enemy.type === EnemyType.TUBE_WORM && enemy.isBoss && enemy.isWandering) {
-            enemy.isWandering = false;
-            enemy.wanderTimer = 0;
-            enemy.wanderPoint = undefined;
-            
-            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: "THREAT DETECTED - ENGAGING", 
-                x: enemy.x,
-                y: enemy.y - 50,
-                color: '#ef4444', 
-                type: FloatingTextType.SYSTEM
-            });
-            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BOSS_DEATH', x: enemy.x, y: enemy.y }); 
-        }
-
         this.engine.state.stats.damageDealt += amount;
         if (this.engine.state.stats.damageBySource) {
             this.engine.state.stats.damageBySource[source] += amount;
@@ -386,21 +370,27 @@ export class EnemyManager {
 
         let dmg = amount;
         
-        if (enemy.bossType === BossType.HIVE_MOTHER && enemy.armorValue) {
-            const mitigation = enemy.armorValue / 100;
-            dmg = dmg * (1 - mitigation);
-            dmg = Math.max(1, dmg);
+        // Polymorphic Hook: onTakeDamage
+        const behavior = this.getBehavior(enemy);
+        if (behavior.onTakeDamage) {
+            const context = {
+                state: this.engine.state,
+                events: this.events,
+                dt: 0,
+                time: this.engine.time.now,
+                timeScale: 1
+            };
+            dmg = behavior.onTakeDamage(enemy, dmg, context);
         }
 
+        // TANK SHELL LOGIC (Weapon Specific, hard to move to Behavior without extensive Context)
+        // Keep Weapon Interaction logic here as it's game rule based, not enemy-AI based
         if (enemy.type === EnemyType.TANK && !enemy.isBoss) {
             if (weaponType !== WeaponType.FLAMETHROWER) {
                 if (enemy.shellValue && enemy.shellValue > 0) {
                     const reduction = weaponType === WeaponType.PULSE_RIFLE ? 1 : 8;
                     enemy.shellValue = Math.max(0, enemy.shellValue - reduction);
                 }
-            }
-            if (enemy.shellValue && enemy.shellValue > 0) {
-                dmg *= 0.7;
             }
         }
   
@@ -410,20 +400,23 @@ export class EnemyManager {
             if (enemy.type === EnemyType.TANK && enemy.shellValue && enemy.shellValue > 0) {
                 color = '#9ca3af';
             }
-            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: `${Math.ceil(dmg)}`, x: enemy.x, y: enemy.y, color: color, type: FloatingTextType.DAMAGE
-            });
+            this.engine.fxManager.addFloatingText(`${Math.ceil(dmg)}`, enemy.x, enemy.y, color, FloatingTextType.DAMAGE);
         }
     }
 
     public killEnemy(e: Enemy) {
-        if (e.type === EnemyType.TUBE_WORM && e.isBoss && this.engine.state.gameMode === GameMode.CAMPAIGN) {
-            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
-                text: "DEVOURER ELIMINATED", x: e.x, y: e.y, color: '#FACC15', type: FloatingTextType.SYSTEM 
-            });
-            this.engine.state.campaign.bossHp = 0; 
-            this.events.emit(GameEventType.MISSION_COMPLETE, {}); 
-            return;
+        const context = {
+            state: this.engine.state,
+            events: this.events,
+            dt: 0,
+            time: this.engine.time.now,
+            timeScale: 1
+        };
+
+        // Polymorphic Hook: onDeath
+        const behavior = this.getBehavior(e);
+        if (behavior.onDeath) {
+            behavior.onDeath(e, context);
         }
 
         let geneMultiplier = 1;
@@ -436,22 +429,8 @@ export class EnemyManager {
         if (e.storedScore && e.storedScore > 0) {
             score += Math.floor(e.storedScore * geneMultiplier);
             if (e.storedScore > 50) {
-                this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
-                    text: `HOARD RECOVERED: +${Math.floor(e.storedScore * geneMultiplier)}`, 
-                    x: e.x, y: e.y - 20, color: '#fbbf24', type: FloatingTextType.LOOT 
-                });
+                this.engine.fxManager.addFloatingText(`HOARD RECOVERED: +${Math.floor(e.storedScore * geneMultiplier)}`, e.x, e.y - 20, '#fbbf24', FloatingTextType.LOOT);
             }
-        }
-        
-        if (e.bossType === BossType.HIVE_MOTHER) {
-            const gene = this.engine.state.currentPlanet?.geneStrength || 1;
-            const armor = e.armorValue || 0;
-            const bonus = Math.floor(20 * Math.pow(gene, 2) * Math.pow(armor, 1.6));
-            score += bonus;
-            
-            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { text: `HIVE MOTHER ELIMINATED`, x: e.x, y: e.y, color: '#ffff00', type: FloatingTextType.SYSTEM });
-            this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { text: `DOMINANCE BONUS: +${bonus}`, x: e.x, y: e.y + 20, color: '#ffff00', type: FloatingTextType.LOOT });
-            this.events.emit(GameEventType.MISSION_COMPLETE, {});
         }
   
         this.engine.state.player.score += score;

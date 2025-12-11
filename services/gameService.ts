@@ -113,7 +113,6 @@ export class GameEngine {
   galaxyManager: GalaxyManager;
 
   // Shared Systems
-  private floatingTextPool: FloatingText[] = [];
   private aoeCache: Enemy[] = []; 
   
   // Performance: Loop Listeners for Transient UI
@@ -136,13 +135,9 @@ export class GameEngine {
     // Initialize Physics System
     this.physics = new PhysicsSystem(() => this.state, this.eventBus, this.statManager, this.dataManager);
 
-    // Initialize state
-    const vpW = typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH;
-    const vpH = typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT;
-    
-    this.reset(true, GameMode.SURVIVAL, vpW, vpH); 
-    
-    // --- INSTANTIATE MANAGERS ---
+    // --- INSTANTIATE MANAGERS (Created early to allow cross-reference if needed) ---
+    // Note: Some managers might need `this.state` which is initialized in reset(), 
+    // so we pass a lambda `() => this.state`.
     this.saveManager = new SaveManager(this);
     this.shopManager = new ShopManager(this);
     this.spaceshipManager = new SpaceshipManager(() => this.state, this.eventBus, this.statManager);
@@ -150,9 +145,15 @@ export class GameEngine {
     this.projectileManager = new ProjectileManager(() => this.state, this.eventBus, this.dataManager);
     this.enemyManager = new EnemyManager(this, this.eventBus, this.statManager, this.dataManager);
     this.playerManager = new PlayerManager(() => this.state, this.eventBus, this.inputManager, this.statManager, this.dataManager);
-    this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.physics.spatialGrid, this.statManager);
+    this.defenseManager = new DefenseManager(() => this.state, this.eventBus, this.spatialGrid, this.statManager);
     this.missionManager = new MissionManager(this);
     this.galaxyManager = new GalaxyManager(this);
+
+    // Initialize state
+    const vpW = typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH;
+    const vpH = typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT;
+    
+    this.reset(true, GameMode.SURVIVAL, vpW, vpH); 
     
     this.setupEventListeners();
 
@@ -166,6 +167,11 @@ export class GameEngine {
 
     this.state.appMode = AppMode.START_MENU;
     this.state.saveSlots = this.saveManager.loadSavesFromStorage();
+  }
+
+  // Getter helper for DefenseManager since we pass spatialGrid from physics
+  private get spatialGrid() {
+      return this.physics.spatialGrid;
   }
 
   public resize(width: number, height: number) {
@@ -394,12 +400,21 @@ export class GameEngine {
     let currentSettings: GameSettings;
     if (!fullReset && this.state?.settings) currentSettings = this.state.settings; else currentSettings = this.loadSettings();
 
-    const initialWeapons: Record<string, WeaponState> = {};
-    Object.values(WeaponType).forEach(type => { 
-        const stats = this.dataManager.getWeaponStats(type);
-        initialWeapons[type] = { type, ammoInMag: stats.magSize, ammoReserve: INITIAL_AMMO[type], lastFireTime: 0, reloading: false, reloadStartTime: 0, modules: [], consecutiveShots: 0 }; 
-    });
+    // Use PlayerManager to create fresh player state
+    const initialPlayer = this.playerManager.createInitialPlayer(playerPos.x, playerPos.y, this.dataManager);
     
+    // Preserve Persistent Player State if partial reset
+    if (!fullReset && this.state?.player) {
+        initialPlayer.score = this.state.player.score;
+        initialPlayer.weapons = this.state.player.weapons;
+        initialPlayer.loadout = this.state.player.loadout;
+        initialPlayer.inventory = this.state.player.inventory;
+        initialPlayer.upgrades = this.state.player.upgrades;
+        initialPlayer.freeModules = this.state.player.freeModules;
+        initialPlayer.grenadeModules = this.state.player.grenadeModules;
+        initialPlayer.grenades = this.state.player.grenades;
+    }
+
     let initialTurretSpots = [];
     if (isCampaign) {
         const offsets = [
@@ -424,7 +439,7 @@ export class GameEngine {
       viewportWidth: vpW, viewportHeight: vpH,
       baseDrop: null,
       camera: { x: 0, y: 0 },
-      player: { id: 'player', x: playerPos.x, y: playerPos.y, radius: 15, angle: -Math.PI / 2, color: '#3B82F6', hp: PLAYER_STATS.maxHp, maxHp: PLAYER_STATS.maxHp, armor: PLAYER_STATS.maxArmor, maxArmor: PLAYER_STATS.maxArmor, speed: PLAYER_STATS.speed, lastHitTime: 0, weapons: initialWeapons as Record<WeaponType, WeaponState>, loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], inventory: new Array(INVENTORY_SIZE).fill(null), upgrades: [], freeModules: [], grenadeModules: [], currentWeaponIndex: 0, grenades: PLAYER_STATS.maxGrenades, score: PLAYER_STATS.initialScore, isAiming: false },
+      player: initialPlayer,
       base: { x: basePos.x, y: basePos.y, width: BASE_STATS.width, height: BASE_STATS.height, hp: BASE_STATS.maxHp, maxHp: BASE_STATS.maxHp, },
       secondaryBase: undefined,
       terrain, bloodStains: [], enemies: [], allies: [], projectiles: [], particles: [], orbitalBeams: [], turretSpots: initialTurretSpots, toxicZones: [],
@@ -558,18 +573,7 @@ export class GameEngine {
 
     this.physics.update(dt);
     this.missionManager.update(dt);
-
-    const floatingTexts = this.state.floatingTexts;
-    for (let i = floatingTexts.length - 1; i >= 0; i--) {
-        const m = floatingTexts[i];
-        m.life -= dt;
-        m.x += m.vx * timeScale;
-        m.y += m.vy * timeScale;
-        if (m.type === FloatingTextType.DAMAGE || m.type === FloatingTextType.CRIT) { m.vx *= 0.92; m.vy *= 0.92; } 
-        else if (m.type === FloatingTextType.LOOT) { m.vy -= 0.05 * timeScale; } 
-        else { m.vy = -0.5 * timeScale; }
-        if (m.life <= 0) { this.floatingTextPool.push(m); floatingTexts[i] = floatingTexts[floatingTexts.length - 1]; floatingTexts.pop(); }
-    }
+    this.fxManager.update(dt, timeScale); // Centralized FX update including floating text
 
     this.spaceshipManager.update(dt);
     
@@ -580,7 +584,6 @@ export class GameEngine {
     this.projectileManager.update(dt, timeScale);
     this.enemyManager.update(dt, timeScale);
     this.defenseManager.update(dt, this.time.now, timeScale);
-    this.fxManager.update(dt, timeScale);
 
     // Camera Logic
     const vw = this.state.viewportWidth;
@@ -682,18 +685,12 @@ export class GameEngine {
       else { (this.state.settings as any)[key] = !(this.state.settings as any)[key]; }
       this.persistSettings(); this.notifyUI('SETTING_CHANGE');
   }
-  public addMessage(text: string, x: number, y: number, color: string, FloatingTextType: FloatingTextType, time: number = 1000) {
-      if (!this.state.settings.showDamageNumbers && (FloatingTextType === 'DAMAGE' || FloatingTextType === 'CRIT')) return;
-      let vx = 0; let vy = -0.5; let size = 12;
-      if (FloatingTextType === 'DAMAGE') { vx = (Math.random() - 0.5) * 4; vy = (Math.random() * -2) - 1; time = 600; size = 14; } 
-      else if (FloatingTextType === 'CRIT') { vx = (Math.random() - 0.5) * 6; vy = -3; time = 1000; size = 20; } 
-      else if (FloatingTextType === 'LOOT') { vx = 0; vy = -1.5; time = 1500; size = 12; } 
-      else { vx = 0; vy = -0.2; size = 16; }
-      let ft: FloatingText;
-      if (this.floatingTextPool.length > 0) { ft = this.floatingTextPool.pop()!; ft.id = `ft-${Date.now()}-${Math.random()}`; ft.text = text; ft.x = x; ft.y = y; ft.vx = vx; ft.vy = vy; ft.color = color; ft.maxLife = time; ft.life = time; ft.type = FloatingTextType; ft.size = size; } 
-      else { ft = { id: `ft-${Date.now()}-${Math.random()}`, text, x, y, vx, vy, color, maxLife: time, type: FloatingTextType, size, life: time }; }
-      this.state.floatingTexts.push(ft);
+  
+  // Delegated to FXManager
+  public addMessage(text: string, x: number, y: number, color: string, type: FloatingTextType, time: number = 1000) {
+      this.fxManager.addFloatingText(text, x, y, color, type, time);
   }
+
   public saveGame() { this.saveManager.saveGame(); this.notifyUI('SAVE'); }
   public loadGame(id: string) { this.saveManager.loadGame(id); this.notifyUI('LOAD'); }
   public deleteSave(id: string) { this.saveManager.deleteSave(id); this.notifyUI('SAVE_DELETE'); }
@@ -726,6 +723,7 @@ export class GameEngine {
   public unlockBioNode(nodeId: number) { this.spaceshipManager.unlockBioNode(nodeId); this.notifyUI('BIO_UNLOCK'); }
   public acceptBioTask(taskId: string) { this.spaceshipManager.acceptBioTask(taskId); this.notifyUI('BIO_TASK'); }
   public abortBioTask() { this.spaceshipManager.abortBioTask(); this.notifyUI('BIO_TASK'); }
+  public checkBioTaskProgress(type: EnemyType) { this.spaceshipManager.checkBioTaskProgress(type); }
   public ascendToOrbit() { 
       const wasSuccess = this.state.missionComplete; 
       this.state.missionComplete = false; 

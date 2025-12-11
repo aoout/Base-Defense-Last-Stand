@@ -29,7 +29,7 @@ export const CyberButton: React.FC<CyberButtonProps> = ({
     // Let's stick to the design system helper
     
     const themeClasses = active 
-        ? getThemeClasses(variant, true) 
+        ? getThemeClasses(variant as Variant, true) 
         : `border-slate-800 text-slate-500 hover:border-${variant}-500/50 hover:text-${variant}-400 hover:bg-slate-900`;
 
     const disabledClasses = "opacity-50 cursor-not-allowed grayscale";

@@ -1,11 +1,12 @@
 
-import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent } from '../../types';
+import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent, Player, WeaponState } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
 import { DataManager } from '../DataManager';
 import { UserAction } from '../../types';
-import { PLAYER_STATS } from '../../data/registry';
+import { PLAYER_STATS, INITIAL_AMMO } from '../../data/registry';
+import { INVENTORY_SIZE } from '../../constants';
 
 export class PlayerManager {
     private getState: () => GameState;
@@ -24,6 +25,50 @@ export class PlayerManager {
         this.events.on(GameEventType.PLAYER_SWITCH_WEAPON, (e: any) => this.switchWeapon(e.index));
         this.events.on(GameEventType.PLAYER_RELOAD, (e: any) => this.reload(e.time));
         this.events.on(GameEventType.PLAYER_THROW_GRENADE, () => this.throwGrenade());
+    }
+
+    // --- FACTORY METHOD ---
+    public createInitialPlayer(x: number, y: number, dataManager: DataManager): Player {
+        const initialWeapons: Record<string, WeaponState> = {};
+        
+        Object.values(WeaponType).forEach(type => { 
+            const stats = dataManager.getWeaponStats(type);
+            initialWeapons[type] = { 
+                type, 
+                ammoInMag: stats.magSize, 
+                ammoReserve: INITIAL_AMMO[type], 
+                lastFireTime: 0, 
+                reloading: false, 
+                reloadStartTime: 0, 
+                modules: [], 
+                consecutiveShots: 0 
+            }; 
+        });
+
+        return { 
+            id: 'player', 
+            x, 
+            y, 
+            radius: 15, 
+            angle: -Math.PI / 2, 
+            color: '#3B82F6', 
+            hp: PLAYER_STATS.maxHp, 
+            maxHp: PLAYER_STATS.maxHp, 
+            armor: PLAYER_STATS.maxArmor, 
+            maxArmor: PLAYER_STATS.maxArmor, 
+            speed: PLAYER_STATS.speed, 
+            lastHitTime: 0, 
+            weapons: initialWeapons as Record<WeaponType, WeaponState>, 
+            loadout: [WeaponType.AR, WeaponType.SG, WeaponType.SR, WeaponType.PISTOL], 
+            inventory: new Array(INVENTORY_SIZE).fill(null), 
+            upgrades: [], 
+            freeModules: [], 
+            grenadeModules: [], 
+            currentWeaponIndex: 0, 
+            grenades: PLAYER_STATS.maxGrenades, 
+            score: PLAYER_STATS.initialScore, 
+            isAiming: false 
+        };
     }
 
     public update(dt: number, time: number, timeScale: number) {

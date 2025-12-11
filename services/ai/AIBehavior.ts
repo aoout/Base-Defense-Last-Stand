@@ -12,11 +12,31 @@ export interface AIContext {
 
 export interface AIBehavior {
     update(enemy: Enemy, context: AIContext): void;
+    /**
+     * Called when enemy takes damage. 
+     * @returns The actual damage to apply (allows for armor/mitigation logic).
+     */
+    onTakeDamage?(enemy: Enemy, amount: number, context: AIContext): number;
+    
+    /**
+     * Called when enemy HP <= 0.
+     */
+    onDeath?(enemy: Enemy, context: AIContext): void;
 }
 
 export abstract class BaseEnemyBehavior implements AIBehavior {
     
     public abstract update(enemy: Enemy, context: AIContext): void;
+
+    // Default: No mitigation
+    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+        return amount;
+    }
+
+    // Default: No special death logic
+    public onDeath(enemy: Enemy, context: AIContext): void {
+        // No-op
+    }
 
     protected acquireTarget(enemy: Enemy, context: AIContext): Entity {
         const { state } = context;
@@ -38,8 +58,6 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         // Detection range override
         if (enemy.detectionRange) {
             const detectionSq = enemy.detectionRange ** 2;
-            // If closest base is far, check player/allies
-            // But usually enemies move to base unless player is close.
             
             // Check Player
             const distPlayerSq = (enemy.x - state.player.x)**2 + (enemy.y - state.player.y)**2;
@@ -78,11 +96,6 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         
         enemy.x += Math.cos(angle) * speed * timeScale;
         enemy.y += Math.sin(angle) * speed * timeScale;
-        
-        // No clamp here to allow spawning outside bounds, let the Manager handle clamping if needed
-        // But preventing leaving world is good
-        // Use a very large bound or pass world dims via context.
-        // For simplicity, we just move.
     }
 
     protected handleWandering(enemy: Enemy, context: AIContext): boolean {
@@ -111,7 +124,6 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         }
 
         // Move to wander point (slower speed)
-        // Entity is just structure {x, y}
         const targetEntity = { x: enemy.wanderPoint.x, y: enemy.wanderPoint.y, radius: 0, id: 'wander', angle: 0, color: '' };
         this.moveTowards(enemy, targetEntity, enemy.speed * 0.7, context.timeScale);
 
@@ -130,16 +142,8 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
             if (target.id === 'player') {
                 events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: enemy.damage });
             } else if ((target as any).maxHp) { 
-                // Base or Entity with HP
                 if ((target as any).width) {
-                     // Determine WHICH base was hit logic should be in event handler or physics
-                     // But Base is unique in that it has width/height instead of radius for draw
-                     // However, PhysicsSystem handles collisions.
-                     // This method handles "Attack Animation" logic damage.
-                     // We just emit DAMAGE_BASE which decrements hp from main logic.
-                     // A bit hacky for dual base, but works if we assume shared hp pool or generic damage event.
-                     // Better: modify target.hp directly here? 
-                     // Let's modify directly if it's a base object reference.
+                     // Determine DamageBaseEvent
                      (target as any).hp -= enemy.damage;
                      events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: enemy.damage });
                 } else {

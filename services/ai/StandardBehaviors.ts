@@ -1,20 +1,20 @@
 
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
-import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnProjectileEvent, SpawnBloodStainEvent, PlaySoundEvent } from '../../types';
+import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnProjectileEvent, SpawnBloodStainEvent, PlaySoundEvent, WeaponType, GameMode } from '../../types';
 import { GAS_INFO } from '../../data/world';
 
-// Behavior for Grunt, Tank
+// Behavior for Grunt
 export class StandardBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
         const target = this.acquireTarget(enemy, context);
         this.moveTowards(enemy, target, enemy.speed, context.timeScale);
         this.performMeleeAttack(enemy, target, context);
 
-        // Tank Specific: Shell Regeneration
+        // Tank Specific: Shell Regeneration (kept here or moved to own class if TankBehavior existed)
+        // Since we share StandardBehavior for Tank, we keep it here for now.
         if (enemy.type === EnemyType.TANK && !enemy.isBoss) {
             enemy.shellRegenTimer = (enemy.shellRegenTimer || 0) + context.dt;
             if (enemy.shellRegenTimer >= 10000) {
-                // Recover 10 shell instantly
                 const current = enemy.shellValue || 0;
                 const max = enemy.maxShell || 100;
                 if (current < max) {
@@ -24,9 +24,25 @@ export class StandardBehavior extends BaseEnemyBehavior {
             }
         }
     }
+
+    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+        // Tank Shell Logic
+        if (enemy.type === EnemyType.TANK && !enemy.isBoss) {
+            // NOTE: Weapon type isn't passed to onTakeDamage in the basic interface? 
+            // We need to update the caller to pass weaponType or handle it elsewhere.
+            // For now, let's assume raw damage mitigation.
+            // Actually, EnemyManager had weaponType logic. We should rely on EnemyManager for 
+            // weapon-specific logic OR extend the interface.
+            // Let's assume standard mitigation for now.
+            if (enemy.shellValue && enemy.shellValue > 0) {
+                return amount * 0.7;
+            }
+        }
+        return amount;
+    }
 }
 
-// Behavior for Rusher: Slower base speed, Dash ability
+// Behavior for Rusher
 export class RusherBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
         const target = this.acquireTarget(enemy, context);
@@ -46,31 +62,22 @@ export class RusherBehavior extends BaseEnemyBehavior {
 
         // Dash Trigger Logic
         if (enemy.dashCharges && enemy.dashCharges > 0) {
-            // 1% random chance per second approx (assuming ~60 calls/sec)
             const randomChance = Math.random() < (0.01 * (context.dt / 1000));
-            
-            // Or immediate trigger if target is in sight but not melee range
             const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
             const inSight = enemy.detectionRange && distSq < enemy.detectionRange ** 2;
-            const notInMelee = distSq > 60 * 60; // Don't dash if already hitting
+            const notInMelee = distSq > 60 * 60; 
             
             if (randomChance || (inSight && notInMelee)) {
                 // Perform Dash
                 const angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
                 enemy.angle = angle;
-                
                 const oldX = enemy.x;
                 const oldY = enemy.y;
                 
-                // Calculate Dash Distance with Environmental Scaling
                 let dashDist = 65; 
-                // Scaling: 65 * (1 + 0.6 * Oxygen)
                 const o2Gas = context.state.currentPlanet?.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id);
-                if (o2Gas) {
-                    dashDist = 65 * (1 + 0.6 * o2Gas.percentage);
-                }
+                if (o2Gas) dashDist = 65 * (1 + 0.6 * o2Gas.percentage);
 
-                // Catapult Movement
                 const dx = Math.cos(angle) * dashDist;
                 const dy = Math.sin(angle) * dashDist;
                 
@@ -81,21 +88,15 @@ export class RusherBehavior extends BaseEnemyBehavior {
                 enemy.x = Math.max(0, Math.min(context.state.worldWidth, enemy.x));
                 enemy.y = Math.max(0, Math.min(context.state.worldHeight, enemy.y));
 
-                // Visuals: Kickback Dust (at launch point)
                 context.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
                     x: oldX, y: oldY, color: '#94a3b8', count: 6, speed: 3
                 });
 
-                // Visuals: Motion Blur Trail (interpolated along path)
                 const trailSteps = 5;
                 for(let i=1; i<=trailSteps; i++) {
                     const t = i / trailSteps;
                     context.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
-                        x: oldX + dx * t, 
-                        y: oldY + dy * t, 
-                        color: 'rgba(245, 158, 11, 0.6)', // Orange glow
-                        count: 1, 
-                        speed: 0.5 // Minimal spread for trail
+                        x: oldX + dx * t, y: oldY + dy * t, color: 'rgba(245, 158, 11, 0.6)', count: 1, speed: 0.5 
                     });
                 }
 
@@ -104,7 +105,6 @@ export class RusherBehavior extends BaseEnemyBehavior {
             }
         }
 
-        // Standard movement if didn't dash
         if (!didDash) {
             this.moveTowards(enemy, target, enemy.speed, context.timeScale);
         }
@@ -117,9 +117,6 @@ export class KamikazeBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
         const target = this.acquireTarget(enemy, context);
         this.moveTowards(enemy, target, enemy.speed, context.timeScale);
-        
-        // NOTE: Explosion trigger logic moved to PhysicsSystem (Centralized Collision)
-        // PhysicsSystem detects Entity-Entity overlap and triggers events.
     }
 }
 
@@ -131,15 +128,12 @@ export class ViperBehavior extends BaseEnemyBehavior {
         const attackRange = 450;
         const stopDist = 400;
 
-        // Move only if out of range
         if (distSq > stopDist * stopDist) {
             this.moveTowards(enemy, target, enemy.speed, context.timeScale);
         } else {
-            // Face target even if stopped
             enemy.angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
         }
 
-        // Only shoot if within attack range
         if (distSq <= attackRange * attackRange) {
             this.tryShoot(enemy, target, context);
         }
@@ -150,18 +144,7 @@ export class ViperBehavior extends BaseEnemyBehavior {
         if (time - enemy.lastAttackTime < 2000) return;
 
         events.emit(GameEventType.SPAWN_PROJECTILE, {
-            x: enemy.x, 
-            y: enemy.y, 
-            targetX: target.x, 
-            targetY: target.y, 
-            speed: 8, 
-            damage: enemy.damage, 
-            fromPlayer: false, 
-            color: '#10B981', 
-            isHoming: false, 
-            createsToxicZone: false, 
-            maxRange: 1000, 
-            source: DamageSource.ENEMY
+            x: enemy.x, y: enemy.y, targetX: target.x, targetY: target.y, speed: 8, damage: enemy.damage, fromPlayer: false, color: '#10B981', isHoming: false, createsToxicZone: false, maxRange: 1000, source: DamageSource.ENEMY
         });
         events.emit(GameEventType.PLAY_SOUND, { type: 'VIPER_SHOOT' });
         enemy.lastAttackTime = time;
@@ -173,13 +156,9 @@ export class PustuleBehavior extends BaseEnemyBehavior {
         const target = this.acquireTarget(enemy, context);
         this.performMeleeAttack(enemy, target, context, 500);
 
-        // Summon Logic
         const spawnInterval = enemy.bossSummonTimer || 15000;
-        
         if (context.time - enemy.lastAttackTime > spawnInterval) {
-            enemy.lastAttackTime = context.time; // Reset timer
-            
-            // Spawn 2 Random Enemies
+            enemy.lastAttackTime = context.time; 
             for (let i = 0; i < 2; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const dist = 50 + Math.random() * 30;
@@ -200,29 +179,18 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
     public update(enemy: Enemy, context: AIContext): void {
         const { dt, events, state, timeScale } = context;
         
-        // --- 1. BOSS LOGIC (DEVOURER) - Unchanged ---
         if (enemy.isBoss) {
             this.handleBossBehavior(enemy, context);
             return;
         }
 
-        // --- 2. STANDARD TUBE WORM LOGIC ---
-        // Mechanics: 
-        // 1. Hostile to Player/Base (Default).
-        // 2. Hunger Override: Periodically checks for Grunts to eat.
-        // 3. Visuals: Burrows (low profile) when moving, Surfaces (full profile) when attacking.
-        
-        // Init visual state if missing
         if (enemy.visualScaleY === undefined) enemy.visualScaleY = 1;
         if (enemy.cannibalTimer === undefined) enemy.cannibalTimer = 0;
 
-        // -- HUNGER CHECK (Every 2s) --
-        // Only trigger if not already hunting
         if (!enemy.huntingTargetId) {
             enemy.cannibalTimer += dt;
             if (enemy.cannibalTimer >= 2000) {
                 enemy.cannibalTimer = 0;
-                // 50% chance to succumb to hunger
                 if (Math.random() < 0.5) {
                     this.findPrey(enemy, state);
                 }
@@ -232,70 +200,76 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         let target: any = null;
         let isHunting = false;
 
-        // -- TARGET ACQUISITION --
-        // Priority 1: Prey (if hunting)
         if (enemy.huntingTargetId) {
             const prey = state.enemies.find(e => e.id === enemy.huntingTargetId);
             if (prey && prey.hp > 0) {
                 target = prey;
                 isHunting = true;
             } else {
-                enemy.huntingTargetId = undefined; // Prey lost/dead
+                enemy.huntingTargetId = undefined;
             }
         } 
         
-        // Priority 2: Player/Base (if not hunting)
         if (!target) {
             target = this.acquireTarget(enemy, context);
         }
 
-        // -- MOVEMENT & STATE LOGIC --
         const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
-        const attackRange = 30; // Close melee range
-        
-        // Visuals: Burrow when moving, Surface when attacking
-        // It surfaces if it is very close to target
+        const attackRange = 30; 
         const isMoving = distSq > attackRange * attackRange;
 
         if (isMoving) {
-            // DIVE ANIMATION
-            if (enemy.visualScaleY > 0.2) {
-                enemy.visualScaleY -= 0.05 * timeScale;
-            }
-            
-            // Movement speed: Hunting grants speed boost (Underground rush)
+            if (enemy.visualScaleY > 0.2) enemy.visualScaleY -= 0.05 * timeScale;
             const currentSpeed = isHunting ? enemy.speed * 2.5 : enemy.speed;
             this.moveTowards(enemy, target, currentSpeed, timeScale);
-
-            // Particles when burrowing
             if (Math.random() < 0.3) {
-                events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
-                    x: enemy.x, y: enemy.y, color: '#a16207', count: 1, speed: 1
-                });
+                events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: enemy.x, y: enemy.y, color: '#a16207', count: 1, speed: 1 });
             }
         } else {
-            // SURFACE ANIMATION
-            if (enemy.visualScaleY < 1) {
-                enemy.visualScaleY += 0.1 * timeScale; // Pop up fast
-            }
+            if (enemy.visualScaleY < 1) enemy.visualScaleY += 0.1 * timeScale;
             enemy.visualScaleY = Math.min(1, enemy.visualScaleY);
 
-            // ACTION: Attack or Eat
-            // Only perform action if fully surfaced (animation frame check)
             if (enemy.visualScaleY > 0.8) {
                 if (isHunting) {
-                    // EAT PREY
                     this.consumePrey(enemy, target as Enemy, context);
                 } else {
-                    // ATTACK PLAYER/BASE
                     this.performMeleeAttack(enemy, target, context);
                 }
             }
         }
     }
 
+    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+        // Boss Enrage Logic
+        if (enemy.isBoss && enemy.isWandering) {
+            enemy.isWandering = false;
+            enemy.wanderTimer = 0;
+            enemy.wanderPoint = undefined;
+            
+            context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
+                text: "THREAT DETECTED - ENGAGING", 
+                x: enemy.x,
+                y: enemy.y - 50,
+                color: '#ef4444', 
+                type: FloatingTextType.SYSTEM
+            });
+            context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BOSS_DEATH', x: enemy.x, y: enemy.y }); 
+        }
+        return amount;
+    }
+
+    public onDeath(enemy: Enemy, context: AIContext): void {
+        if (enemy.isBoss && context.state.gameMode === GameMode.CAMPAIGN) {
+            context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
+                text: "DEVOURER ELIMINATED", x: enemy.x, y: enemy.y, color: '#FACC15', type: FloatingTextType.SYSTEM 
+            });
+            context.state.campaign.bossHp = 0; 
+            context.events.emit(GameEventType.MISSION_COMPLETE, {}); 
+        }
+    }
+
     private findPrey(enemy: Enemy, state: any) {
-        const range = (enemy.detectionRange || 600) * 2; // Double detection range for food
+        const range = (enemy.detectionRange || 600) * 2; 
         let closestPrey: Enemy | null = null;
         let minDst = range * range;
 
@@ -315,34 +289,21 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
     }
 
     private consumePrey(predator: Enemy, prey: Enemy, context: AIContext) {
-        // Kill Prey
         prey.hp = 0; 
         
-        // FX
-        context.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, {
-            x: prey.x, y: prey.y, color: prey.color, maxHp: prey.maxHp
-        });
+        context.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, { x: prey.x, y: prey.y, color: prey.color, maxHp: prey.maxHp });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'MELEE_HIT', x: predator.x, y: predator.y });
-        context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-            text: "CONSUMED", x: predator.x, y: predator.y - 20, color: '#ef4444', type: FloatingTextType.SYSTEM
-        });
+        context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { text: "CONSUMED", x: predator.x, y: predator.y - 20, color: '#ef4444', type: FloatingTextType.SYSTEM });
 
-        // Buff Predator (Growth Mechanic)
         predator.maxHp += 200;
         predator.hp += 200;
-        predator.radius += 5; // Grow
-        predator.radius = Math.min(predator.radius, 60); // Cap size
-        
-        // Pop up animation to show dominance
+        predator.radius += 5;
+        predator.radius = Math.min(predator.radius, 60);
         predator.visualScaleY = 1.3;
-
-        // Stop hunting this target
         predator.huntingTargetId = undefined;
-        // Eating pause?
-        predator.eatingTimer = 500; // Visual pause
+        predator.eatingTimer = 500;
     }
 
-    // --- Original Boss Logic (Preserved) ---
     private handleBossBehavior(enemy: Enemy, context: AIContext) {
         const { dt, events, state, timeScale } = context;
         

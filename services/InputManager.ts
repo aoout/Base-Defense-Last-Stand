@@ -53,10 +53,30 @@ export class InputManager {
         this.activeActions.clear();
     }
 
+    // --- Helpers ---
+
+    private isTyping(): boolean {
+        const active = document.activeElement;
+        if (!active) return false;
+        const tag = active.tagName.toLowerCase();
+        // Ignore input if user is focused on an input, textarea, or contenteditable
+        return (tag === 'input' || tag === 'textarea' || active.getAttribute('contenteditable') === 'true');
+    }
+
     // --- Event Handlers ---
 
     private handleKeyDown(e: KeyboardEvent) {
-        // Prevent default browser actions for game keys
+        // If typing in a UI element, ignore game inputs (except maybe Escape)
+        if (this.isTyping()) {
+            if (e.code === 'Escape') {
+                // Allow Escape to blur focus
+                (document.activeElement as HTMLElement).blur();
+            } else {
+                return; 
+            }
+        }
+
+        // Prevent default browser actions for game keys ONLY if we are capturing them
         if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) {
             e.preventDefault();
         }
@@ -79,8 +99,7 @@ export class InputManager {
     }
 
     private handleMouseDown(e: MouseEvent) {
-        // Ignore clicks on interactive UI elements to prevent firing game actions (like Map Deselect)
-        // when clicking buttons overlaying the canvas.
+        // Ignore clicks on interactive UI elements
         const target = e.target as HTMLElement;
         const isInteractive = target.closest('button') || target.closest('a') || target.closest('input') || target.closest('[role="button"]');
         
@@ -104,15 +123,12 @@ export class InputManager {
     }
 
     private handleMouseMove(e: MouseEvent) {
-        // Fix for offset calculation when Canvas is not full screen or has siblings
         const targetEl = e.target as HTMLElement;
         if (targetEl.tagName === 'CANVAS') {
             const rect = targetEl.getBoundingClientRect();
             this.mouse.x = e.clientX - rect.left;
             this.mouse.y = e.clientY - rect.top;
         } else {
-            // Fallback: If hovering UI, we might not get correct canvas coords easily
-            // We assume full screen canvas for now or rely on GameCanvas logic
             this.mouse.x = e.clientX;
             this.mouse.y = e.clientY;
         }

@@ -137,7 +137,7 @@ export class HiveMotherBehavior extends BaseEnemyBehavior {
 
                 // Spawn Minions via Event (EnemyManager will listen)
                 context.events.emit<EnemySummonEvent>(GameEventType.ENEMY_SUMMON, {
-                    type: EnemyType.GRUNT, // Placeholder type, logic handled by Manager receiver usually or passed here
+                    type: EnemyType.GRUNT, 
                     x: enemy.x,
                     y: enemy.y,
                     count: 12 // Signal large spawn
@@ -147,5 +147,37 @@ export class HiveMotherBehavior extends BaseEnemyBehavior {
         
         // Defensive melee if player gets too close
         this.performMeleeAttack(enemy, target, context, 500);
+    }
+
+    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+        // Armor mitigation logic
+        if (enemy.armorValue) {
+            const mitigation = enemy.armorValue / 100;
+            let final = amount * (1 - mitigation);
+            return Math.max(1, final); // Always take at least 1 damage
+        }
+        return amount;
+    }
+
+    public onDeath(enemy: Enemy, context: AIContext): void {
+        const gene = context.state.currentPlanet?.geneStrength || 1;
+        const armor = enemy.armorValue || 0;
+        const bonus = Math.floor(20 * Math.pow(gene, 2) * Math.pow(armor, 1.6));
+        
+        // Reward is handled by EnemyManager calling regular score add, 
+        // but we add the specific bonus here to the player score directly?
+        // Or EnemyManager adds a `bonusScore` field? 
+        // EnemyManager calculates base score. We'll emit the extra bonus event/score here.
+        context.state.player.score += bonus;
+
+        context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
+            text: `HIVE MOTHER ELIMINATED`, x: enemy.x, y: enemy.y, color: '#ffff00', type: FloatingTextType.SYSTEM 
+        });
+        context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
+            text: `DOMINANCE BONUS: +${bonus}`, x: enemy.x, y: enemy.y + 20, color: '#ffff00', type: FloatingTextType.LOOT 
+        });
+        
+        // Trigger mission complete
+        context.events.emit(GameEventType.MISSION_COMPLETE, {});
     }
 }
