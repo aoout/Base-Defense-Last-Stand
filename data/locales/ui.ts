@@ -1,5 +1,18 @@
 
 export const UI_EN = {
+    // --- COMMON / SHARED ---
+    SAVE_STATE: "SAVE STATE",
+    LOAD: "LOAD",
+    PIN: "PIN",
+    UNPIN: "UNPIN",
+    ACKNOWLEDGE: "ACKNOWLEDGE",
+    CONFIRM: "CONFIRM",
+    CANCEL: "CANCEL",
+    CLOSE: "CLOSE",
+    BACK: "BACK",
+    AVAILABLE_FUNDS: "AVAILABLE FUNDS",
+    INSUFFICIENT_FUNDS: "INSUFFICIENT FUNDS",
+    
     // --- GALAXY INDEX ---
     GALAXY_INDEX_TITLE: "GALAXY INDEX",
     GALAXY_INDEX_SUB: "SECTOR NAVIGATION SYSTEM",
@@ -10,7 +23,7 @@ export const UI_EN = {
     DIFF_CUSTOM: "MANUAL COORDINATES",
     INDEX_DEF: "INDEX DEFINITION",
     AVG_GENE_STR: "AVG GENE STRENGTH",
-    INITIATE_SCAN: "INITIATE FTL JUMP",
+    INITIATE_SCAN: "JUMP",
     GENE_RANGE: "GENE MUTATION RANGE",
     MAX_SULFUR: "MAX SULFUR INDEX",
     MAX_OXYGEN: "MAX OXYGEN LEVEL",
@@ -22,7 +35,6 @@ export const UI_EN = {
     SECTOR_DENSITY: "SECTOR DENSITY",
     LOCKED_PARAM: "PARAMETER LOCKED BY PROTOCOL",
     MANUAL_OVERRIDE: "MANUAL OVERRIDE",
-    // New Keys
     MISSION_PARAMS: "MISSION PARAMETERS",
     MIN_WAVES: "MIN WAVES",
     MAX_WAVES: "MAX WAVES",
@@ -33,6 +45,7 @@ export const UI_EN = {
     TAB_ARCHIVES: "STAR CHARTS",
     SECTOR_LORE: "SECTOR INTELLIGENCE",
     ARCHIVE_LOCKED: "DATA CORRUPT",
+    
     // Famous Sectors
     SECTOR_SOL_NAME: "SOL SYSTEM (REMNANT)",
     SECTOR_SOL_DESC: "The cradle of humanity. Now a silent graveyard. Highly terraformed planets (High O2) have accelerated the mutation of remaining biomass. Proceed with extreme caution.",
@@ -50,8 +63,6 @@ export const UI_EN = {
     // --- EXPLORATION MAP ---
     PLANET_ANALYSIS: "PLANETARY ANALYSIS",
     SECTOR_NAME: "UNKNOWN SECTOR",
-    SAVE_STATE: "SAVE STATE",
-    AVAILABLE_FUNDS: "AVAILABLE FUNDS",
     LANDING_DIFFICULTY: "LANDING DIFFICULTY",
     HIGH: "HIGH",
     MEDIUM: "MEDIUM",
@@ -59,7 +70,6 @@ export const UI_EN = {
     DROP_COST: "DROP COST",
     PC_BTN: "PLANETARY CONSTRUCTION",
     INITIATE_DROP: "INITIATE DROP",
-    INSUFFICIENT_FUNDS: "INSUFFICIENT FUNDS",
     FULL_ANALYSIS_BTN: "FULL ANALYSIS",
     
     // --- PLANET DETAIL ---
@@ -114,7 +124,6 @@ export const UI_EN = {
     EVENT_SALVAGE_TITLE: "SALVAGE OPPORTUNITY",
     EVENT_SALVAGE_DESC: "Found drifting wreckage with resources.",
     EVENT_SALVAGE_EFFECT: "GAINED {0} SCRAPS",
-    ACKNOWLEDGE: "ACKNOWLEDGE",
     
     // --- GASES ---
     GAS_OXYGEN_NAME: "OXYGEN",
@@ -208,9 +217,6 @@ export const UI_EN = {
     EXTRACTABLE_MEMORIES: "EXTRACTABLE MEMORIES",
     IMPORT_DATA: "IMPORT DATA",
     NO_ARCHIVES: "NO ARCHIVES FOUND",
-    LOAD: "LOAD",
-    PIN: "PIN",
-    UNPIN: "UNPIN",
     
     // --- PAUSE ---
     PAUSE_TITLE: "SYSTEM PAUSED",
@@ -226,7 +232,11 @@ export const UI_EN = {
     LOG_SUBTITLE: "ENCRYPTED TRANSMISSION",
     RESUME_HINT: "PRESS ESC TO RESUME",
     MEMORY_STORAGE: "MEMORY STORAGE",
-    SAVE_STATE: "SAVE STATE",
+    MANUAL_MEMORY_DESC: "Save your progress to local storage slots.",
+    MANUAL_MEMORY_IMPORT: "IMPORT",
+    MANUAL_MEMORY_IMPORT_DESC: "Load save data from file.",
+    MANUAL_MEMORY_LIMIT: "LIMIT",
+    MANUAL_MEMORY_LIMIT_DESC: "Max 7 slots. Pin to prevent overwrite.",
     
     // --- GAME OVER ---
     CRITICAL_FAILURE: "CRITICAL FAILURE",
@@ -297,23 +307,6 @@ export const UI_EN = {
     MANUAL_TAB_LOGISTICS: "LOGISTICS",
     MANUAL_TAB_SCIENCE: "SCIENCE",
     MANUAL_TAB_SYSTEMS: "SYSTEMS",
-    MANUAL_TAB_ARCHIVES: "ARCHIVES",
-    MANUAL_TAB_ARMORY: "ARMORY",
-    MANUAL_TAB_XENO: "XENOBIOLOGY",
-    MANUAL_DEFENSE_TITLE: "DEFENSE",
-    MANUAL_OFFENSE_TITLE: "OFFENSE",
-    MANUAL_DEFENSE_OBJ: "DEFEND THE BASE",
-    MANUAL_OFFENSE_OBJ: "ELIMINATE TARGET",
-    MANUAL_DEFENSE_TIP_1: "ECONOMY",
-    MANUAL_DEFENSE_TIP_2: "DEFENSE",
-    MANUAL_OFFENSE_TIP_1: "WEAKNESS",
-    MANUAL_OFFENSE_TIP_2: "LOADOUT",
-    MANUAL_SYSTEMS_TITLE: "SYSTEMS",
-    MANUAL_MEMORY_DESC: "Save your progress to local storage slots.",
-    MANUAL_MEMORY_IMPORT: "IMPORT",
-    MANUAL_MEMORY_IMPORT_DESC: "Load save data from file.",
-    MANUAL_MEMORY_LIMIT: "LIMIT",
-    MANUAL_MEMORY_LIMIT_DESC: "Max 7 slots. Pin to prevent overwrite.",
     MANUAL_PILOT_TITLE: "PILOT CONTROLS",
     MANUAL_KEY_TAB_DESC: "TACTICAL MENU",
     MANUAL_KEY_WASD_DESC: "MOVEMENT",
@@ -400,7 +393,7 @@ export const UI_EN = {
     HOVER_DATA: "HOVER OVER A CELL TO VIEW TARGET DATA",
     IDLE_ANALYSIS: "ANALYSIS IDLE",
     
-    INFRA_TITLE: "INFRASTRUCTURE",
+    INFRA_TITLE: "基础设施",
     INFRA_SUB: "RESEARCH & DEVELOPMENT",
     INFRA_COST: "COST",
     INFRA_ACQUIRED: "ACQUIRED UPGRADES",
@@ -465,6 +458,19 @@ export const UI_EN = {
 };
 
 export const UI_CN = {
+    // --- COMMON / SHARED ---
+    SAVE_STATE: "保存状态",
+    LOAD: "加载",
+    PIN: "锁定",
+    UNPIN: "解锁",
+    ACKNOWLEDGE: "确认",
+    CONFIRM: "确定",
+    CANCEL: "取消",
+    CLOSE: "关闭",
+    BACK: "返回",
+    AVAILABLE_FUNDS: "可用资金",
+    INSUFFICIENT_FUNDS: "资金不足",
+
     // --- GALAXY INDEX ---
     GALAXY_INDEX_TITLE: "星系索引",
     GALAXY_INDEX_SUB: "星区导航系统",
@@ -475,7 +481,7 @@ export const UI_CN = {
     DIFF_CUSTOM: "手动坐标",
     INDEX_DEF: "索引参数",
     AVG_GENE_STR: "平均基因强度",
-    INITIATE_SCAN: "启动超光速跳跃",
+    INITIATE_SCAN: "跃迁",
     GENE_RANGE: "基因变异范围",
     MAX_SULFUR: "最高硫化指数",
     MAX_OXYGEN: "最高含氧量",
@@ -487,7 +493,6 @@ export const UI_CN = {
     SECTOR_DENSITY: "星区密度",
     LOCKED_PARAM: "协议锁定参数",
     MANUAL_OVERRIDE: "手动覆盖",
-    // New Keys
     MISSION_PARAMS: "任务参数",
     MIN_WAVES: "最小波数",
     MAX_WAVES: "最大波数",
@@ -498,6 +503,7 @@ export const UI_CN = {
     TAB_ARCHIVES: "星图档案",
     SECTOR_LORE: "扇区情报",
     ARCHIVE_LOCKED: "数据损坏",
+    
     // Famous Sectors
     SECTOR_SOL_NAME: "太阳系 (遗迹)",
     SECTOR_SOL_DESC: "人类的摇篮，如今是寂静的墓地。高度地球化的行星（高氧）加速了残留生物质的变异。请极度小心。",
@@ -515,8 +521,6 @@ export const UI_CN = {
     // --- EXPLORATION MAP ---
     PLANET_ANALYSIS: "行星分析",
     SECTOR_NAME: "未知扇区",
-    SAVE_STATE: "保存状态",
-    AVAILABLE_FUNDS: "可用资金",
     LANDING_DIFFICULTY: "着陆难度",
     HIGH: "高",
     MEDIUM: "中",
@@ -524,7 +528,6 @@ export const UI_CN = {
     DROP_COST: "空投成本",
     PC_BTN: "行星建设",
     INITIATE_DROP: "启动空投",
-    INSUFFICIENT_FUNDS: "资金不足",
     FULL_ANALYSIS_BTN: "全面分析",
     
     // --- PLANET DETAIL ---
@@ -579,7 +582,6 @@ export const UI_CN = {
     EVENT_SALVAGE_TITLE: "打捞机会",
     EVENT_SALVAGE_DESC: "发现漂浮的残骸与资源。",
     EVENT_SALVAGE_EFFECT: "获得 {0} 生物质",
-    ACKNOWLEDGE: "确认",
     
     // --- GASES ---
     GAS_OXYGEN_NAME: "氧气",
@@ -673,9 +675,6 @@ export const UI_CN = {
     EXTRACTABLE_MEMORIES: "可提取记忆",
     IMPORT_DATA: "导入数据",
     NO_ARCHIVES: "未找到档案",
-    LOAD: "加载",
-    PIN: "锁定",
-    UNPIN: "解锁",
     
     // --- PAUSE ---
     PAUSE_TITLE: "系统暂停",
@@ -691,7 +690,11 @@ export const UI_CN = {
     LOG_SUBTITLE: "加密传输",
     RESUME_HINT: "按 ESC 继续",
     MEMORY_STORAGE: "记忆存储",
-    SAVE_STATE: "保存状态",
+    MANUAL_MEMORY_DESC: "将进度保存到本地存储槽位。",
+    MANUAL_MEMORY_IMPORT: "导入",
+    MANUAL_MEMORY_IMPORT_DESC: "从文件加载存档数据。",
+    MANUAL_MEMORY_LIMIT: "限制",
+    MANUAL_MEMORY_LIMIT_DESC: "最多7个槽位。锁定以防止覆盖。",
     
     // --- GAME OVER ---
     CRITICAL_FAILURE: "严重故障",
@@ -774,11 +777,6 @@ export const UI_CN = {
     MANUAL_OFFENSE_TIP_1: "弱点",
     MANUAL_OFFENSE_TIP_2: "配置",
     MANUAL_SYSTEMS_TITLE: "系统",
-    MANUAL_MEMORY_DESC: "将进度保存到本地存储槽位。",
-    MANUAL_MEMORY_IMPORT: "导入",
-    MANUAL_MEMORY_IMPORT_DESC: "从文件加载存档数据。",
-    MANUAL_MEMORY_LIMIT: "限制",
-    MANUAL_MEMORY_LIMIT_DESC: "最多7个槽位。锁定以防止覆盖。",
     MANUAL_PILOT_TITLE: "驾驶控制",
     MANUAL_KEY_TAB_DESC: "战术菜单",
     MANUAL_KEY_WASD_DESC: "移动",

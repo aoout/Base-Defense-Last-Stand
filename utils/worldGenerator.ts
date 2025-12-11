@@ -5,6 +5,27 @@ import { BIOME_STYLES, GAS_INFO } from '../data/world';
 import { FAMOUS_SECTORS } from '../data/sectors';
 import { generatePlanetName } from './nameGenerator';
 
+// Simple Linear Congruential Generator for deterministic results based on a string seed
+class SeededRNG {
+    private seed: number;
+
+    constructor(seedStr: string) {
+        // FNV-1a Hash to turn string into initial integer seed
+        let h = 0x811c9dc5;
+        for (let i = 0; i < seedStr.length; i++) {
+            h ^= seedStr.charCodeAt(i);
+            h = Math.imul(h, 0x01000193);
+        }
+        this.seed = h >>> 0;
+    }
+
+    // Returns a float between 0 and 1
+    public next(): number {
+        this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
+        return this.seed / 4294967296;
+    }
+}
+
 export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): TerrainFeature[] => {
     const terrain: TerrainFeature[] = [];
     const count = 20 + Math.random() * 20;
@@ -46,9 +67,14 @@ export const generatePlanets = (config?: GalaxyConfig, width?: number, height?: 
     if (config && config.presetId) {
         const preset = FAMOUS_SECTORS.find(s => s.id === config.presetId);
         if (preset) {
+            // Initialize Deterministic RNG with the Sector ID
+            // This ensures layout is identical every time we visit this sector
+            const rng = new SeededRNG(config.presetId);
+
             preset.planets.forEach((def, i) => {
-                const x = (Math.random() * (mapW - 200)) + 100;
-                const y = (Math.random() * (mapH - 200)) + 100;
+                // Use RNG for position instead of Math.random()
+                const x = (rng.next() * (mapW - 200)) + 100;
+                const y = (rng.next() * (mapH - 200)) + 100;
                 
                 // Defaults
                 const biome = def.biome || BiomeType.BARREN;

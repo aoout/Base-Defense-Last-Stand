@@ -1,13 +1,26 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ModuleWindow, ThemeColor } from './ModuleWindow';
-import { GalaxyConfig } from '../../types';
+import { GalaxyConfig, BiomeType, PlanetVisualType } from '../../types';
 import { useLocale } from '../contexts/LocaleContext';
 import { FAMOUS_SECTORS } from '../../data/sectors';
+import { BIOME_STYLES } from '../../data/world';
 
 interface GalaxyIndexModalProps {
     onClose: () => void;
     onScan: (config: GalaxyConfig) => void;
+}
+
+interface TacticalSliderProps {
+    label: string;
+    value: number;
+    min: number;
+    max: number;
+    step: number;
+    unit?: string;
+    disabled?: boolean;
+    onChange: (val: number) => void;
+    color: string;
 }
 
 type DifficultyPreset = 'LOW' | 'MED' | 'HIGH' | 'CUSTOM';
@@ -20,76 +33,185 @@ const PRESETS = {
     CUSTOM: { min: 1.0, max: 3.0, sulfur: 10, oxygen: 100, count: 12, minWaves: 8, maxWaves: 30, offense: true, label: 'DIFF_CUSTOM', color: 'yellow', desc: 'MANUAL' }
 };
 
-const RadarVisual: React.FC<{ color: string }> = ({ color }) => {
-    let hex = '#06b6d4'; // cyan
-    if (color === 'emerald') hex = '#10b981';
-    if (color === 'red') hex = '#ef4444';
-    if (color === 'yellow') hex = '#eab308';
-    if (color === 'purple') hex = '#a855f7';
+// Helper to get hex colors
+const getColorHex = (colorName: string) => {
+    switch(colorName) {
+        case 'emerald': return '#10b981';
+        case 'cyan': return '#06b6d4';
+        case 'red': return '#ef4444';
+        case 'yellow': return '#eab308';
+        case 'purple': return '#a855f7';
+        default: return '#94a3b8';
+    }
+};
+
+// --- VISUALIZATION COMPONENTS ---
+
+const ScanlineOverlay = () => (
+    <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)] bg-[size:100%_4px] z-0"></div>
+);
+
+const SectorVisualizer: React.FC<{ 
+    mode: TabType, 
+    color: string, 
+    sectorId?: string,
+    isScanning?: boolean
+}> = ({ mode, color, sectorId, isScanning }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const hexColor = getColorHex(color);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let animationFrameId: number;
+        let time = 0;
+
+        const render = () => {
+            time++;
+            const w = canvas.width;
+            const h = canvas.height;
+            const cx = w / 2;
+            const cy = h / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Background Grid
+            ctx.strokeStyle = `${hexColor}22`; // Very transparent
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Polar Grid
+            for(let r=50; r<w/2; r+=50) {
+                ctx.arc(cx, cy, r, 0, Math.PI*2);
+            }
+            // Spokes
+            for(let i=0; i<8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(angle)*w, cy + Math.sin(angle)*w);
+            }
+            ctx.stroke();
+
+            if (mode === 'PROTOCOLS') {
+                // Scanning Animation
+                const scanRadius = (time * 2) % (w/2);
+                ctx.strokeStyle = hexColor;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(cx, cy, scanRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Rotating Radar Sweep
+                const angle = (time * 0.02) % (Math.PI * 2);
+                ctx.fillStyle = `conic-gradient(from ${angle}rad, transparent 0deg, transparent 270deg, ${hexColor}66 360deg)`;
+                
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + Math.cos(angle) * (w/2), cy + Math.sin(angle) * (w/2));
+                ctx.strokeStyle = hexColor;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Random blips
+                if (time % 20 === 0 || Math.random() > 0.9) {
+                    const bx = cx + (Math.random()-0.5) * w * 0.6;
+                    const by = cy + (Math.random()-0.5) * h * 0.6;
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(bx, by, 2, 2);
+                }
+            } 
+            else if (mode === 'ARCHIVES' && sectorId) {
+                // Fixed System Visualization
+                const sector = FAMOUS_SECTORS.find(s => s.id === sectorId);
+                if (sector) {
+                    // Central Star
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = hexColor;
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = hexColor;
+                    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    // Planets
+                    sector.planets.forEach((p, idx) => {
+                        const orbitRadius = 40 + (idx * 18); // Tighter spacing for more planets
+                        const speed = 0.005 / (idx * 0.5 + 1);
+                        const angle = time * speed + (idx * 2);
+                        
+                        const px = cx + Math.cos(angle) * orbitRadius;
+                        const py = cy + Math.sin(angle) * orbitRadius;
+
+                        // Orbit Path
+                        ctx.strokeStyle = `${hexColor}22`;
+                        ctx.beginPath(); ctx.arc(cx, cy, orbitRadius, 0, Math.PI*2); ctx.stroke();
+
+                        // Planet Body
+                        const biomeStyle = BIOME_STYLES[p.biome || BiomeType.BARREN];
+                        ctx.fillStyle = biomeStyle.planetColor;
+                        let r = p.visualType === PlanetVisualType.GAS_GIANT ? 5 : 2.5;
+                        
+                        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
+                        
+                        // Ring?
+                        if (p.visualType === PlanetVisualType.RINGED) {
+                            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+                            ctx.lineWidth = 1;
+                            ctx.beginPath(); ctx.ellipse(px, py, r+3, r-1, angle, 0, Math.PI*2); ctx.stroke();
+                        }
+                    });
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(render);
+        };
+
+        render();
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [mode, color, sectorId]);
 
     return (
-        <div className="relative w-64 h-64 flex items-center justify-center">
-            <div className="absolute inset-0 rounded-full border-2 border-slate-700 opacity-50"></div>
-            <div className="absolute inset-4 rounded-full border border-slate-700 border-dashed opacity-30"></div>
-            <div className="absolute inset-0 rounded-full animate-spin-slow" style={{ background: `conic-gradient(from 0deg, transparent 0deg, transparent 270deg, ${hex}33 360deg)` }}></div>
-            <div className="absolute top-1/4 left-1/3 w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_5px_white]"></div>
-            <div className="absolute bottom-1/3 right-1/4 w-1.5 h-1.5 bg-white rounded-full animate-pulse shadow-[0_0_5px_white]" style={{animationDelay: '0.5s'}}></div>
-            <div className="absolute top-2/3 left-1/4 w-1 h-1 bg-white rounded-full animate-pulse shadow-[0_0_5px_white]" style={{animationDelay: '1s'}}></div>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="w-full h-px bg-slate-800"></div>
-                <div className="h-full w-px bg-slate-800 absolute"></div>
-                <div className="w-20 h-20 border border-slate-600 rounded-full"></div>
-            </div>
-            <div className="absolute bottom-[-40px] text-xs font-mono font-bold tracking-widest" style={{color: hex}}>
-                SCANNING...
-            </div>
-        </div>
+        <canvas ref={canvasRef} width={400} height={400} className="w-full h-full object-contain" />
     );
 };
 
-interface TacticalSliderProps {
-    label: string;
-    value: number;
-    min: number;
-    max: number;
-    step: number;
-    unit?: string;
-    disabled: boolean;
-    onChange: (val: number) => void;
-    color: string; 
-}
+// --- UI COMPONENTS ---
 
 const TacticalSlider: React.FC<TacticalSliderProps> = ({ label, value, min, max, step, unit = "", disabled, onChange, color }) => {
     let textClass = "text-cyan-400";
-    let borderClass = "border-cyan-500/30";
-    if (color === 'emerald') { textClass = "text-emerald-400"; borderClass = "border-emerald-500/30"; }
-    if (color === 'red') { textClass = "text-red-400"; borderClass = "border-red-500/30"; }
-    if (color === 'yellow') { textClass = "text-yellow-400"; borderClass = "border-yellow-500/30"; }
-    if (color === 'purple') { textClass = "text-purple-400"; borderClass = "border-purple-500/30"; }
+    let bgClass = "bg-cyan-500";
+    if (color === 'emerald') { textClass = "text-emerald-400"; bgClass = "bg-emerald-500"; }
+    if (color === 'red') { textClass = "text-red-400"; bgClass = "bg-red-500"; }
+    if (color === 'yellow') { textClass = "text-yellow-400"; bgClass = "bg-yellow-500"; }
+    if (color === 'purple') { textClass = "text-purple-400"; bgClass = "bg-purple-500"; }
 
-    const percentage = ((value - min) / (max - min)) * 100;
+    const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
     return (
-        <div className={`flex flex-col gap-1 mb-3 relative ${disabled ? 'opacity-60 grayscale' : ''}`}>
+        <div className={`mb-4 group ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex justify-between items-end mb-1">
-                <label className="text-[9px] font-bold text-slate-500 tracking-widest uppercase">{label}</label>
-                <div className={`bg-black border ${borderClass} px-2 py-0.5 rounded min-w-[50px] text-right`}>
-                    <span className={`font-mono text-xs font-bold ${textClass} tabular-nums`}>
-                        {value.toFixed(Number.isInteger(step) ? 0 : 1)}{unit}
-                    </span>
+                <label className="text-[10px] font-bold text-slate-500 tracking-[0.1em] uppercase group-hover:text-slate-300 transition-colors">{label}</label>
+                <div className={`font-mono text-xs font-bold ${textClass} bg-slate-900 px-2 py-0.5 border border-slate-700 rounded`}>
+                    {value.toFixed(Number.isInteger(step) ? 0 : 1)}{unit}
                 </div>
             </div>
-            <div className="relative h-6 flex items-center">
-                <div className="absolute inset-x-0 h-1 bg-slate-800 rounded-full overflow-hidden">
-                    <div className={`h-full opacity-30 ${textClass.replace('text-', 'bg-')}`} style={{ width: `${percentage}%` }}></div>
+            <div className="relative h-2 bg-slate-900 rounded-sm overflow-hidden border border-slate-700">
+                <div 
+                    className={`absolute top-0 left-0 h-full ${bgClass} transition-all duration-300`} 
+                    style={{ width: `${percentage}%` }}
+                >
+                    <div className="absolute right-0 top-0 bottom-0 w-px bg-white opacity-50 shadow-[0_0_5px_white]"></div>
                 </div>
-                <div className="absolute inset-x-0 top-3 flex justify-between px-1">
-                    {Array.from({length: 11}).map((_, i) => (<div key={i} className="w-px h-1 bg-slate-700"></div>))}
+                {/* Ticks */}
+                <div className="absolute inset-0 flex justify-between px-1 pointer-events-none">
+                    {Array.from({length: 5}).map((_, i) => <div key={i} className="w-px h-full bg-slate-800"></div>)}
                 </div>
                 <input 
                     type="range" min={min} max={max} step={step} value={value} disabled={disabled}
                     onChange={(e) => onChange(parseFloat(e.target.value))}
-                    className={`w-full h-full appearance-none bg-transparent cursor-pointer z-10 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-slate-200 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black [&::-webkit-slider-thumb]:rounded-sm [&::-webkit-slider-thumb]:mt-[-6px] ${disabled ? 'cursor-not-allowed' : ''}`}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
             </div>
         </div>
@@ -127,7 +249,6 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
             // Recalculate display stats based on the selected sector
             const sector = FAMOUS_SECTORS.find(s => s.id === selectedSectorId);
             if (sector) {
-                // Calculate averages for visual feedback
                 let totalGene = 0, maxS = 0;
                 sector.planets.forEach(p => {
                     totalGene += (p.geneStrength || 1);
@@ -135,7 +256,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                 });
                 const avg = totalGene / sector.planets.length;
                 
-                // Update UI state for visuals (not actual scan config, scan config uses presetId)
+                // Update UI state for visuals
                 setMinGene(avg);
                 setMaxGene(avg);
                 setMaxSulfur(maxS);
@@ -147,7 +268,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
     const handleScan = () => {
         if (activeTab === 'ARCHIVES' && selectedSectorId) {
             onScan({
-                minGeneStrength: 0, maxGeneStrength: 0, // Ignored by generator when presetId is present
+                minGeneStrength: 0, maxGeneStrength: 0, 
                 presetId: selectedSectorId
             });
         } else {
@@ -187,46 +308,59 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
             subtitle={t('GALAXY_INDEX_SUB')}
             theme={themeColor}
             onClose={onClose}
-            maxWidth="max-w-6xl"
+            maxWidth="max-w-[1400px]"
         >
-            <div className="flex w-full h-full gap-8 p-4">
-                
+            <div className="flex w-full h-full gap-0 relative">
+                <ScanlineOverlay />
+
                 {/* LEFT: Selection List */}
-                <div className="w-1/4 flex flex-col border-r border-slate-700/50 pr-4">
-                    <div className="flex mb-4 border-b border-slate-700">
+                <div className="w-[300px] flex flex-col border-r border-slate-800 bg-slate-950/50 z-10">
+                    <div className="flex border-b border-slate-800">
                         <button 
-                            className={`flex-1 pb-2 text-[10px] font-bold tracking-widest transition-colors ${activeTab === 'PROTOCOLS' ? 'text-cyan-400 border-b-2 border-cyan-500' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-4 text-[10px] font-bold tracking-[0.2em] transition-all relative overflow-hidden group
+                                ${activeTab === 'PROTOCOLS' ? 'text-cyan-400 bg-slate-900' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/50'}`}
                             onClick={() => setActiveTab('PROTOCOLS')}
                         >
+                            {activeTab === 'PROTOCOLS' && <div className="absolute top-0 left-0 w-full h-0.5 bg-cyan-500 shadow-[0_0_10px_cyan]"></div>}
                             {t('TAB_PROTOCOLS')}
                         </button>
                         <button 
-                            className={`flex-1 pb-2 text-[10px] font-bold tracking-widest transition-colors ${activeTab === 'ARCHIVES' ? 'text-purple-400 border-b-2 border-purple-500' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`flex-1 py-4 text-[10px] font-bold tracking-[0.2em] transition-all relative overflow-hidden group
+                                ${activeTab === 'ARCHIVES' ? 'text-purple-400 bg-slate-900' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/50'}`}
                             onClick={() => { setActiveTab('ARCHIVES'); if(!selectedSectorId) setSelectedSectorId(FAMOUS_SECTORS[0].id); }}
                         >
+                            {activeTab === 'ARCHIVES' && <div className="absolute top-0 left-0 w-full h-0.5 bg-purple-500 shadow-[0_0_10px_purple]"></div>}
                             {t('TAB_ARCHIVES')}
                         </button>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto space-y-4 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
                         {activeTab === 'PROTOCOLS' ? (
                             (['LOW', 'MED', 'HIGH', 'CUSTOM'] as const).map(preset => {
                                 const config = PRESETS[preset];
                                 const isActive = mode === preset;
-                                let activeClass = "border-slate-700 bg-slate-900/50 text-slate-500 hover:text-slate-300";
+                                
+                                let colorClass = "text-slate-400 border-slate-800 hover:border-slate-600";
                                 if (isActive) {
-                                    if (preset === 'LOW') activeClass = "border-green-500 bg-green-900/20 text-green-400 shadow-[inset_0_0_10px_rgba(34,197,94,0.2)]";
-                                    if (preset === 'MED') activeClass = "border-cyan-500 bg-cyan-900/20 text-cyan-400 shadow-[inset_0_0_10px_rgba(6,182,212,0.2)]";
-                                    if (preset === 'HIGH') activeClass = "border-red-500 bg-red-900/20 text-red-400 shadow-[inset_0_0_10px_rgba(239,68,68,0.2)]";
-                                    if (preset === 'CUSTOM') activeClass = "border-yellow-500 bg-yellow-900/20 text-yellow-400 shadow-[inset_0_0_10px_rgba(234,179,8,0.2)]";
+                                    if (preset === 'LOW') colorClass = "text-emerald-400 border-emerald-500 bg-emerald-900/10";
+                                    if (preset === 'MED') colorClass = "text-cyan-400 border-cyan-500 bg-cyan-900/10";
+                                    if (preset === 'HIGH') colorClass = "text-red-400 border-red-500 bg-red-900/10";
+                                    if (preset === 'CUSTOM') colorClass = "text-yellow-400 border-yellow-500 bg-yellow-900/10";
                                 }
+
                                 return (
-                                    <button key={preset} onClick={() => setMode(preset)} className={`flex items-center justify-between p-4 border-l-4 transition-all text-left group ${activeClass}`}>
-                                        <div>
-                                            <div className="font-bold font-display tracking-widest text-sm">{t(config.label)}</div>
-                                            <div className="text-[10px] font-mono opacity-70 mt-1">{preset === 'CUSTOM' ? t('MANUAL_OVERRIDE') : config.desc}</div>
+                                    <button 
+                                        key={preset} 
+                                        onClick={() => setMode(preset)} 
+                                        className={`w-full p-4 border transition-all text-left group relative overflow-hidden ${colorClass}`}
+                                    >
+                                        <div className="relative z-10 flex justify-between items-center">
+                                            <div>
+                                                <div className="font-bold font-display tracking-widest text-sm">{t(config.label)}</div>
+                                                <div className="text-[10px] font-mono opacity-70 mt-1">{preset === 'CUSTOM' ? t('MANUAL_OVERRIDE') : config.desc}</div>
+                                            </div>
+                                            {isActive && <div className="text-xl animate-pulse">⯈</div>}
                                         </div>
-                                        {isActive && <div className="text-xl animate-pulse">►</div>}
                                     </button>
                                 );
                             })
@@ -234,22 +368,33 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                             FAMOUS_SECTORS.map(sector => {
                                 const isActive = selectedSectorId === sector.id;
                                 const color = sector.difficultyColor;
-                                let border = 'border-slate-700';
-                                let text = 'text-slate-500';
-                                let bg = 'bg-slate-900/50';
                                 
+                                let colorClass = "text-slate-400 border-slate-800 hover:border-slate-600";
                                 if (isActive) {
-                                    if(color === 'red') { border='border-red-500'; text='text-red-400'; bg='bg-red-900/20'; }
-                                    if(color === 'purple') { border='border-purple-500'; text='text-purple-400'; bg='bg-purple-900/20'; }
-                                    if(color === 'cyan') { border='border-cyan-500'; text='text-cyan-400'; bg='bg-cyan-900/20'; }
-                                    if(color === 'emerald') { border='border-emerald-500'; text='text-emerald-400'; bg='bg-emerald-900/20'; }
-                                    if(color === 'yellow') { border='border-yellow-500'; text='text-yellow-400'; bg='bg-yellow-900/20'; }
+                                    if(color === 'red') colorClass = "text-red-400 border-red-500 bg-red-900/10";
+                                    if(color === 'purple') colorClass = "text-purple-400 border-purple-500 bg-purple-900/10";
+                                    if(color === 'cyan') colorClass = "text-cyan-400 border-cyan-500 bg-cyan-900/10";
+                                    if(color === 'emerald') colorClass = "text-emerald-400 border-emerald-500 bg-emerald-900/10";
+                                    if(color === 'yellow') colorClass = "text-yellow-400 border-yellow-500 bg-yellow-900/10";
                                 }
 
                                 return (
-                                    <button key={sector.id} onClick={() => setSelectedSectorId(sector.id)} className={`flex flex-col p-4 border-l-4 transition-all text-left group ${border} ${bg}`}>
-                                        <div className={`font-bold font-display tracking-widest text-sm ${text}`}>{t(sector.nameKey)}</div>
-                                        <div className="text-[10px] font-mono opacity-50 mt-1 text-slate-400">ID: {sector.id}</div>
+                                    <button 
+                                        key={sector.id} 
+                                        onClick={() => setSelectedSectorId(sector.id)} 
+                                        className={`w-full p-4 border transition-all text-left group relative overflow-hidden ${colorClass}`}
+                                    >
+                                        <div className="relative z-10">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <div className="font-bold font-display tracking-widest text-sm">{t(sector.nameKey)}</div>
+                                                {isActive && <div className="w-2 h-2 rounded-full bg-current animate-pulse shadow-[0_0_5px_currentColor]"></div>}
+                                            </div>
+                                            <div className="text-[9px] font-mono opacity-50 flex items-center gap-2">
+                                                <span>ID: {sector.id}</span>
+                                                <span className="opacity-50">|</span>
+                                                <span>{sector.planets.length} BODIES</span>
+                                            </div>
+                                        </div>
                                     </button>
                                 );
                             })
@@ -258,110 +403,174 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                 </div>
 
                 {/* CENTER: Radar & Viz */}
-                <div className="flex-1 flex flex-col items-center justify-center relative bg-black/20 rounded-xl border border-slate-800">
-                    <div className="absolute top-4 left-4 text-[10px] font-mono text-slate-500">{t('THREAT_ANALYSIS')}</div>
-                    
-                    <RadarVisual color={themeColor} />
+                <div className="flex-1 flex flex-col relative z-10 overflow-hidden bg-black/40">
+                    <div className="absolute top-6 left-6 text-[10px] font-mono text-slate-500 z-20 flex gap-4">
+                        <div>
+                            <span className="text-slate-600 mr-2">SYS.MODE</span>
+                            <span className={`font-bold ${themeColor === 'red' ? 'text-red-500' : 'text-cyan-500'}`}>{activeTab}</span>
+                        </div>
+                        <div>
+                            <span className="text-slate-600 mr-2">COORD</span>
+                            <span className="text-white">{Math.floor(Math.random()*999)}.{Math.floor(Math.random()*99)} - {Math.floor(Math.random()*999)}.{Math.floor(Math.random()*99)}</span>
+                        </div>
+                    </div>
 
-                    <div className="mt-8 grid grid-cols-2 gap-8 w-full px-12">
-                        <div className="text-center">
-                            <div className="text-[10px] text-slate-500 font-bold mb-1 tracking-widest uppercase">{t('ESTIMATED_DANGER')}</div>
-                            <div className={`text-3xl font-display font-black tracking-wide`} style={{
-                                color: themeColor === 'red' ? '#ef4444' : themeColor === 'purple' ? '#a855f7' : themeColor === 'emerald' ? '#10b981' : themeColor === 'yellow' ? '#eab308' : '#06b6d4'
-                            }}>
-                                {avgGene > 3 ? 'EXTREME' : avgGene > 2 ? 'MODERATE' : 'MINIMAL'}
+                    <div className="flex-1 relative flex items-center justify-center min-h-0 p-4">
+                        {/* THE VISUALIZER - Responsive container */}
+                        <div className="w-full max-w-[500px] aspect-square relative">
+                            <SectorVisualizer mode={activeTab} color={themeColor} sectorId={selectedSectorId || undefined} />
+                            
+                            {/* Danger Overlay Text */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-center">
+                                <div className="text-[10px] text-slate-500 font-bold mb-1 tracking-[0.2em] uppercase bg-black/80 px-2">{t('ESTIMATED_DANGER')}</div>
+                                <div className={`text-4xl font-display font-black tracking-wide drop-shadow-[0_0_10px_rgba(0,0,0,0.8)]`} style={{
+                                    color: getColorHex(themeColor)
+                                }}>
+                                    {avgGene > 3 ? 'EXTREME' : avgGene > 2 ? 'MODERATE' : 'MINIMAL'}
+                                </div>
+                                <div className="text-sm font-mono font-bold text-white mt-1 bg-black/50 inline-block px-2">GENE x{avgGene.toFixed(2)}</div>
                             </div>
                         </div>
-                        <div className="text-center">
-                            <div className="text-[10px] text-slate-500 font-bold mb-1 tracking-widest uppercase">{t('AVG_GENE_STR')}</div>
-                            <div className="text-3xl font-mono font-bold text-white">x{avgGene.toFixed(2)}</div>
+                    </div>
+
+                    {/* Bottom Action Bar */}
+                    <div className="h-20 border-t border-slate-800 bg-slate-950 flex items-center px-8 justify-between relative z-50 shrink-0">
+                        <div className="text-[10px] text-slate-600 font-mono max-w-xs">
+                            WARNING: FTL JUMP REQUIRES SIGNIFICANT ENERGY. ENSURE PREPARATIONS ARE COMPLETE.
                         </div>
+                        <button 
+                            onClick={handleScan}
+                            className={`
+                                h-12 px-12 font-black text-xl tracking-[0.2em] uppercase border-2 transition-all shadow-lg active:scale-[0.99] group overflow-hidden relative flex items-center
+                                ${activeTab === 'ARCHIVES' 
+                                    ? 'bg-purple-900/20 hover:bg-purple-900 border-purple-500 text-purple-100 hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]'
+                                    : mode === 'HIGH' ? 'bg-red-900/20 hover:bg-red-900 border-red-500 text-red-100 hover:shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 
+                                      mode === 'LOW' ? 'bg-emerald-900/20 hover:bg-emerald-900 border-emerald-500 text-emerald-100 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]' :
+                                      mode === 'CUSTOM' ? 'bg-yellow-900/20 hover:bg-yellow-900 border-yellow-500 text-yellow-100 hover:shadow-[0_0_30px_rgba(234,179,8,0.4)]' :
+                                      'bg-cyan-900/20 hover:bg-cyan-900 border-cyan-500 text-cyan-100 hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]'}
+                            `}
+                        >
+                            <span className="relative z-10">{t('INITIATE_SCAN')}</span>
+                            <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                            {/* Decorative Corner */}
+                            <div className="absolute top-0 right-0 w-2 h-2 bg-current"></div>
+                            <div className="absolute bottom-0 left-0 w-2 h-2 bg-current"></div>
+                        </button>
                     </div>
                 </div>
 
                 {/* RIGHT: Instrument Panel */}
-                <div className="w-1/3 flex flex-col pl-4 border-l border-slate-700/50 relative">
+                <div className="w-[350px] flex flex-col border-l border-slate-800 bg-slate-950/80 z-10 relative">
                     
-                    {/* Panel Header */}
-                    <div className="flex justify-between items-center mb-6 bg-slate-900 p-2 border-b border-slate-700">
-                        <h3 className="text-xs font-bold text-slate-400 tracking-[0.2em] uppercase">{t('INDEX_DEF')}</h3>
+                    {/* Header */}
+                    <div className="flex justify-between items-center h-14 px-6 border-b border-slate-800 bg-slate-900">
+                        <h3 className="text-xs font-bold text-slate-300 tracking-[0.2em] uppercase">{t('INDEX_DEF')}</h3>
                         <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${isLocked || activeTab === 'ARCHIVES' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`}></div>
+                            <div className={`w-1.5 h-1.5 rounded-full ${isLocked || activeTab === 'ARCHIVES' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`}></div>
                             <span className={`text-[9px] font-bold ${isLocked || activeTab === 'ARCHIVES' ? 'text-slate-500' : 'text-yellow-500'}`}>
                                 {isLocked || activeTab === 'ARCHIVES' ? 'LOCKED' : 'MANUAL'}
                             </span>
                         </div>
                     </div>
 
-                    {/* Content */}
-                    <div className="flex-1 flex flex-col gap-3 relative overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    {/* Content - DYNAMIC SCROLLING HANDLING */}
+                    <div className={`flex-1 flex flex-col relative min-h-0 ${activeTab === 'PROTOCOLS' ? 'overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-800' : 'overflow-hidden'}`}>
                         
                         {activeTab === 'PROTOCOLS' ? (
-                            <>
+                            <div className="space-y-8 animate-fadeIn">
                                 {/* Random Generation Sliders */}
-                                <div className="bg-slate-900/40 p-4 border border-slate-700 rounded mb-2">
-                                    <div className="text-[9px] text-slate-600 font-bold uppercase mb-3 border-b border-slate-700/50 pb-1">{t('MISSION_PARAMS')}</div>
+                                <div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                        <span>{t('MISSION_PARAMS')}</span>
+                                        <span className="text-slate-700">/// 01</span>
+                                    </div>
                                     <TacticalSlider label={t('MIN_WAVES')} value={minWaves} min={1} max={50} step={1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMinWaves(Math.min(v, maxWaves))} />
                                     <TacticalSlider label={t('MAX_WAVES')} value={maxWaves} min={1} max={60} step={1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMaxWaves(Math.max(v, minWaves))} />
-                                    <div className={`mt-3 flex justify-between items-center p-2 border rounded transition-colors ${offenseEnabled ? 'bg-red-900/20 border-red-500/30' : 'bg-slate-900 border-slate-700'} ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'}`} onClick={() => !isLocked && setOffenseEnabled(!offenseEnabled)}>
-                                        <span className={`text-[9px] font-bold tracking-wider ${offenseEnabled ? 'text-red-400' : 'text-slate-500'}`}>{t('ENABLE_OFFENSE')}</span>
-                                        <div className={`px-2 py-0.5 text-[9px] font-bold rounded ${offenseEnabled ? 'bg-red-600 text-white' : 'bg-slate-700 text-slate-400'}`}>{t(offenseEnabled ? 'OFFENSE_ENABLED' : 'OFFENSE_DISABLED')}</div>
+                                    
+                                    <div className={`mt-4 flex justify-between items-center p-3 border rounded transition-colors ${offenseEnabled ? 'bg-red-900/20 border-red-500/50' : 'bg-slate-900 border-slate-700'} ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'}`} onClick={() => !isLocked && setOffenseEnabled(!offenseEnabled)}>
+                                        <div className="flex flex-col">
+                                            <span className={`text-[10px] font-bold tracking-wider ${offenseEnabled ? 'text-red-400' : 'text-slate-500'}`}>{t('ENABLE_OFFENSE')}</span>
+                                            <span className="text-[9px] text-slate-600 font-mono">BOSS ENCOUNTER PROBABILITY</span>
+                                        </div>
+                                        <div className={`w-10 h-5 rounded-full border relative transition-all ${offenseEnabled ? 'bg-red-900 border-red-500' : 'bg-slate-800 border-slate-600'}`}>
+                                            <div className={`absolute top-0.5 w-3.5 h-3.5 bg-white rounded-full transition-all ${offenseEnabled ? 'left-[22px]' : 'left-0.5'}`}></div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="bg-slate-900/40 p-4 border border-slate-700 rounded mb-2">
-                                    <div className="text-[9px] text-slate-600 font-bold uppercase mb-3 border-b border-slate-700/50 pb-1">Genetic Sequencer</div>
+
+                                <div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                        <span>GENETIC SEQUENCER</span>
+                                        <span className="text-slate-700">/// 02</span>
+                                    </div>
                                     <TacticalSlider label="Gene Min" value={minGene} min={0.5} max={8.0} step={0.1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMinGene(Math.min(v, maxGene))} />
                                     <TacticalSlider label="Gene Max" value={maxGene} min={0.5} max={8.0} step={0.1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMaxGene(Math.max(v, minGene))} />
                                 </div>
-                                <div className="bg-slate-900/40 p-4 border border-slate-700 rounded">
-                                    <div className="text-[9px] text-slate-600 font-bold uppercase mb-3 border-b border-slate-700/50 pb-1">Sector Topography</div>
+                                
+                                <div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                        <span>TOPOGRAPHY</span>
+                                        <span className="text-slate-700">/// 03</span>
+                                    </div>
                                     <TacticalSlider label={t('PLANET_COUNT')} value={planetCount} min={5} max={20} step={1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setPlanetCount(v)} />
                                 </div>
+
                                 {isLocked && (
-                                    <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(0,0,0,0.1)_25%,transparent_25%,transparent_50%,rgba(0,0,0,0.1)_50%,rgba(0,0,0,0.1)_75%,transparent_75%,transparent)] bg-[length:10px_10px] z-20 flex items-center justify-center pointer-events-none backdrop-blur-[1px]">
-                                        <div className="bg-black/80 border border-red-900/50 text-red-500 px-4 py-2 text-xs font-mono font-bold tracking-widest shadow-2xl">PARAMETER LOCK ENGAGED</div>
+                                    <div className="mt-8 p-4 border border-slate-800 bg-slate-900/50 text-center">
+                                        <div className="text-red-500 text-[10px] font-mono tracking-widest animate-pulse">PARAMETER LOCK ENGAGED</div>
+                                        <div className="text-slate-600 text-[9px] mt-1">SWITCH TO MANUAL MODE TO OVERRIDE</div>
                                     </div>
                                 )}
-                            </>
+                            </div>
                         ) : (
                             // ARCHIVE DETAILS VIEW
                             selectedSector ? (
                                 <div className="flex flex-col h-full animate-fadeIn">
-                                    <div className="bg-slate-900/40 border border-slate-700 p-4 mb-4">
-                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 border-b border-slate-800 pb-1">{t('SECTOR_LORE')}</div>
-                                        <p className="text-xs text-slate-300 font-mono leading-relaxed">{t(selectedSector.descKey)}</p>
-                                    </div>
-                                    <div className="bg-slate-900/40 border border-slate-700 p-4 flex-1 overflow-y-auto">
-                                        <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 border-b border-slate-800 pb-1">STELLAR BODIES</div>
-                                        {selectedSector.planets.map((p, i) => (
-                                            <div key={i} className="flex justify-between items-center text-xs py-1 border-b border-slate-800/50 last:border-0">
-                                                <span className="text-slate-400">{p.name}</span>
-                                                <span className={`font-mono ${p.geneStrength && p.geneStrength > 2 ? 'text-red-400' : 'text-cyan-400'}`}>x{(p.geneStrength || 1).toFixed(1)}</span>
+                                    {/* LORE SECTION (Top 40%) - Independently Scrollable */}
+                                    <div className="p-6 pb-0 shrink-0 max-h-[40%] flex flex-col">
+                                        <div className="bg-purple-900/10 border border-purple-500/30 p-4 relative overflow-y-auto scrollbar-thin scrollbar-thumb-purple-900 max-h-full">
+                                            <div className="sticky top-0 right-0 float-right -mt-2 -mr-2 p-1 z-10">
+                                                <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
                                             </div>
-                                        ))}
+                                            <div className="text-[10px] text-purple-400 font-bold uppercase mb-2 tracking-widest sticky top-0 backdrop-blur-sm z-0">{t('SECTOR_LORE')}</div>
+                                            <p className="text-xs text-slate-300 font-mono leading-relaxed text-justify">{t(selectedSector.descKey)}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* DIVIDER */}
+                                    <div className="px-6 pt-4 pb-2 shrink-0">
+                                        <div className="text-[10px] text-slate-500 font-bold uppercase border-b border-slate-800 pb-1 flex justify-between">
+                                            <span>STELLAR BODIES</span>
+                                            <span className="text-slate-700">/// {selectedSector.planets.length} DETECTED</span>
+                                        </div>
+                                    </div>
+
+                                    {/* PLANET LIST (Remaining Space) - Independently Scrollable */}
+                                    <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-slate-800">
+                                        <div className="space-y-1">
+                                            {selectedSector.planets.map((p, i) => (
+                                                <div key={i} className="flex justify-between items-center text-xs py-2 px-3 bg-slate-900/50 border border-slate-800 hover:border-slate-600 transition-colors">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: BIOME_STYLES[p.biome || BiomeType.BARREN].planetColor}}></div>
+                                                        <span className="text-slate-300 font-bold">{p.name}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {p.sulfurIndex && p.sulfurIndex > 5 && <span className="text-[9px] text-yellow-500 font-bold">⚠ S</span>}
+                                                        <span className={`font-mono font-bold ${p.geneStrength && p.geneStrength > 2 ? 'text-red-400' : 'text-cyan-400'}`}>x{(p.geneStrength || 1).toFixed(1)}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="flex items-center justify-center h-full text-slate-600 text-xs italic">{t('ARCHIVE_LOCKED')}</div>
+                                <div className="flex flex-col items-center justify-center h-full text-slate-700 gap-4 opacity-50 p-6">
+                                    <div className="text-4xl">⚠</div>
+                                    <div className="text-xs font-mono tracking-widest">{t('ARCHIVE_LOCKED')}</div>
+                                </div>
                             )
                         )}
                     </div>
-
-                    {/* Action Button */}
-                    <button 
-                        onClick={handleScan}
-                        className={`mt-4 w-full py-5 font-black text-xl tracking-[0.2em] uppercase border-t-4 transition-all shadow-lg active:scale-[0.99] group overflow-hidden relative
-                            ${activeTab === 'ARCHIVES' 
-                                ? 'bg-purple-900 hover:bg-purple-800 border-purple-500 text-purple-100'
-                                : mode === 'HIGH' ? 'bg-red-900 hover:bg-red-800 border-red-500 text-red-100' : 
-                                  mode === 'LOW' ? 'bg-emerald-900 hover:bg-emerald-800 border-emerald-500 text-emerald-100' :
-                                  mode === 'CUSTOM' ? 'bg-yellow-900 hover:bg-yellow-800 border-yellow-500 text-yellow-100' :
-                                  'bg-cyan-900 hover:bg-cyan-800 border-cyan-500 text-cyan-100'}
-                        `}
-                    >
-                        <span className="relative z-10">{t('INITIATE_SCAN')}</span>
-                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                    </button>
                 </div>
 
             </div>
