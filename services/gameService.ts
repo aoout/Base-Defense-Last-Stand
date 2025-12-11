@@ -286,10 +286,20 @@ export class GameEngine {
       }
   }
 
-  // ... (loadSettings, persistSettings methods)
-
   private loadSettings(): GameSettings {
-      const defaultSettings: GameSettings = { showHUD: true, showBlood: true, showDamageNumbers: true, language: 'CN', lightingQuality: 'HIGH', particleIntensity: 'HIGH', animatedBackground: true, performanceMode: 'BALANCED', resolutionScale: 1.0, showShadows: true };
+      const defaultSettings: GameSettings = { 
+          showHUD: true, 
+          showBlood: true, 
+          showDamageNumbers: true, 
+          language: 'CN', 
+          lightingQuality: 'HIGH', 
+          particleIntensity: 'HIGH', 
+          animatedBackground: true, 
+          performanceMode: 'BALANCED', 
+          resolutionScale: 1.0, 
+          showShadows: true,
+          autoReturnToMenu: false
+      };
       try { const raw = localStorage.getItem('VANGUARD_SETTINGS_V1'); if (raw) { const parsed = JSON.parse(raw); return { ...defaultSettings, ...parsed }; } } catch (e) { console.error("Failed to load settings:", e); }
       return defaultSettings;
   }
@@ -665,6 +675,7 @@ export class GameEngine {
   public togglePin(id: string) { this.saveManager.togglePin(id); this.notifyUI('SAVE_PIN'); }
   public exportSave(id: string) { return this.saveManager.exportSaveString(id); }
   public importSave(json: string) { const res = this.saveManager.importSave(json); if(res) this.notifyUI('SAVE_IMPORT'); return res; }
+  public returnToMainMenu() { this.state.appMode = AppMode.START_MENU; this.notifyUI('RETURN_MAIN_MENU'); }
   public enterSurvivalMode() { this.reset(true, GameMode.SURVIVAL); this.notifyUI('MODE_SWITCH'); }
   public enterExplorationMode() { this.reset(true, GameMode.EXPLORATION); this.notifyUI('MODE_SWITCH'); }
   public enterCampaignMode() { this.reset(true, GameMode.CAMPAIGN); this.notifyUI('MODE_SWITCH'); }

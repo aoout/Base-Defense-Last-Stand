@@ -209,6 +209,9 @@ export const TacticalTerminal: React.FC = () => {
 
     const handleSave = () => {
         engine.saveGame();
+        if (state.settings.autoReturnToMenu) {
+            engine.returnToMainMenu();
+        }
     }
 
     return (
@@ -238,19 +241,19 @@ export const TacticalTerminal: React.FC = () => {
                                     <div className="text-2xl text-green-300">{state.stats.shotsFired.toLocaleString()}</div> 
                                 </div>
                                 <div className="border border-green-900 p-4 bg-black/40"> 
-                                    <div className="text-green-700 text-xs uppercase mb-1">PLAYER DMG CONTRIBUTION</div> 
+                                    <div className="text-green-700 text-xs uppercase mb-1">{t('PLAYER_DMG_SHARE')}</div> 
                                     <div className="text-2xl text-green-300">{calculatePlayerShare()}%</div> 
                                 </div>
                             </div>
                             
                             {/* Damage Breakdown Mini-Table */}
                             <div className="border border-green-900 p-4 bg-black/40 mb-6">
-                                <div className="text-green-700 text-xs uppercase mb-4">DAMAGE SOURCE BREAKDOWN</div>
+                                <div className="text-green-700 text-xs uppercase mb-4">{t('DMG_BREAKDOWN')}</div>
                                 <div className="grid grid-cols-4 gap-4 text-center">
-                                    <div><span className="block text-xs text-green-600">PLAYER</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.PLAYER] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">TURRETS</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.TURRET] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">ALLIES</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ALLY] || 0).toLocaleString()}</span></div>
-                                    <div><span className="block text-xs text-green-600">ORBITAL</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ORBITAL] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">{t('SRC_PLAYER')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.PLAYER] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">{t('SRC_TURRET')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.TURRET] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">{t('SRC_ALLY')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ALLY] || 0).toLocaleString()}</span></div>
+                                    <div><span className="block text-xs text-green-600">{t('SRC_ORBITAL')}</span><span className="text-lg text-white">{(state.stats.damageBySource?.[DamageSource.ORBITAL] || 0).toLocaleString()}</span></div>
                                 </div>
                             </div>
 
@@ -295,9 +298,30 @@ export const TacticalTerminal: React.FC = () => {
                     {activeTab === 'MEMORY' && (
                         <div className="flex flex-col items-center justify-center h-full space-y-8">
                             <div className="border border-green-700 bg-green-900/10 p-8 max-w-lg text-center">
-                                <h2 className="text-2xl font-bold mb-4">{t('MEMORY_STORAGE')}</h2>
-                                <p className="text-sm text-green-600 mb-8">Current game state can be preserved in cryo-storage for future deployment. Overwrites oldest non-pinned memory if storage is full.</p>
-                                <button onClick={handleSave} className="px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all">{t('SAVE_STATE')}</button>
+                                <h2 className="text-2xl font-bold mb-4 text-green-300">{t('MEMORY_STORAGE')}</h2>
+                                <p className="text-sm text-green-600 mb-8">{t('MANUAL_MEMORY_DESC')}</p>
+                                
+                                <div className="space-y-4">
+                                    <button onClick={handleSave} className="w-full px-8 py-4 bg-green-900 hover:bg-green-700 text-green-100 border border-green-500 font-bold tracking-widest text-xl transition-all">
+                                        {t('SAVE_STATE')}
+                                    </button>
+                                    
+                                    <button onClick={() => engine.returnToMainMenu()} className="w-full px-8 py-3 bg-black hover:bg-green-900/30 text-green-500 hover:text-green-300 border border-green-800 font-bold tracking-widest uppercase transition-all">
+                                        {t('RETURN_MAIN_MENU')}
+                                    </button>
+
+                                    <div className="flex items-center justify-center gap-2 pt-4 border-t border-green-900/30">
+                                        <div 
+                                            className={`w-4 h-4 border border-green-600 cursor-pointer flex items-center justify-center ${state.settings.autoReturnToMenu ? 'bg-green-600' : 'bg-black'}`}
+                                            onClick={() => engine.toggleSetting('autoReturnToMenu')}
+                                        >
+                                            {state.settings.autoReturnToMenu && <span className="text-black text-xs font-bold">✓</span>}
+                                        </div>
+                                        <span className="text-xs text-green-700 font-mono cursor-pointer select-none" onClick={() => engine.toggleSetting('autoReturnToMenu')}>
+                                            {t('AUTO_RETURN')}
+                                        </span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     )}

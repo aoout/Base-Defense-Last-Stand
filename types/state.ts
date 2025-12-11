@@ -18,6 +18,9 @@ export interface GameSettings {
   // New Low-Spec Options
   resolutionScale: number; // 1.0, 0.75, 0.5
   showShadows: boolean; // Toggle drop shadows
+
+  // Gameplay Flow
+  autoReturnToMenu: boolean; // Whether to return to main menu after saving
 }
 
 export interface BaseDropState {

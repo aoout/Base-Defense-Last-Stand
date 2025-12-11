@@ -109,15 +109,21 @@ export const SectorMapUI: React.FC = () => {
                 </div>
 
                 {/* Right: System Tools */}
-                <div className="flex items-center gap-4 pointer-events-auto">
+                <div className="flex flex-col gap-2 pointer-events-auto items-end">
                     <button 
                         onClick={() => engine.saveGame()}
-                        className="group flex items-center gap-2 px-4 py-2 border border-blue-900/50 bg-blue-950/30 hover:bg-blue-900/50 hover:border-blue-500 transition-all rounded"
+                        className="group flex items-center gap-2 px-4 py-2 border border-blue-900/50 bg-blue-950/30 hover:bg-blue-900/50 hover:border-blue-500 transition-all rounded w-full justify-center"
                     >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4 text-blue-400 group-hover:text-white">
                             <NavIcons.Save />
                         </svg>
-                        <span className="text-[10px] font-bold text-blue-400 group-hover:text-white tracking-widest">{t('SAVE_STATE')}</span>
+                        <span className="text-[10px] font-bold text-blue-400 group-hover:text-white tracking-widest uppercase">{t('SAVE_STATE')}</span>
+                    </button>
+                    <button 
+                        onClick={() => engine.returnToMainMenu()}
+                        className="group flex items-center gap-2 px-4 py-1 border border-slate-800 bg-black/40 hover:bg-slate-800 hover:border-slate-500 transition-all rounded w-full justify-center"
+                    >
+                        <span className="text-[9px] font-bold text-slate-500 group-hover:text-slate-300 tracking-widest uppercase">{t('RETURN_MAIN_MENU')}</span>
                     </button>
                 </div>
             </div>

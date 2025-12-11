@@ -1,113 +1,174 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
+import { CloseButton } from './Shared';
 
-const StatRow: React.FC<{ label: string, value: string | number }> = ({ label, value }) => (
-    <div className="flex justify-between items-baseline border-b border-red-900/30 pb-1">
-        <span className="text-red-800 text-sm font-bold tracking-wider">{label}</span>
-        <span className="text-xl text-white font-display font-bold">{value}</span>
+const StatRow: React.FC<{ label: string, value: string | number, highlight?: boolean, sub?: string }> = ({ label, value, highlight, sub }) => (
+    <div className={`flex justify-between items-baseline border-b border-dashed pb-2 pt-2 ${highlight ? 'border-red-500/50' : 'border-red-900/30'}`}>
+        <span className={`text-[10px] font-bold tracking-[0.2em] uppercase ${highlight ? 'text-red-400' : 'text-red-800/80'}`}>{label}</span>
+        <div className="text-right">
+             <span className={`text-xl font-mono font-bold ${highlight ? 'text-red-100' : 'text-red-700'}`}>{value}</span>
+             {sub && <div className="text-[9px] text-red-900 font-bold">{sub}</div>}
+        </div>
     </div>
 );
 
 export const MissionFailedScreen: React.FC = () => {
     const { state, engine } = useGame();
     const { t } = useLocale();
-    const handleDownloadReport = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 800;
-        canvas.height = 600;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        ctx.fillStyle = '#0a0a0a';
-        ctx.fillRect(0, 0, 800, 600);
-        ctx.strokeStyle = '#331111';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < 800; i += 40) { ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 600); ctx.stroke(); }
-        for (let i = 0; i < 600; i += 40) { ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(800, i); ctx.stroke(); }
-        ctx.fillStyle = '#b91c1c'; ctx.font = 'bold 60px Courier New, monospace'; ctx.fillText('MISSION FAILED', 50, 80);
-        ctx.fillStyle = '#7f1d1d'; ctx.font = '20px Courier New, monospace'; ctx.fillText('// AFTER ACTION REPORT // CLASSIFIED', 50, 110);
-        ctx.fillText(`// DATE: ${new Date().toLocaleDateString()}`, 50, 135);
-        ctx.lineWidth = 4; ctx.strokeStyle = '#b91c1c'; ctx.strokeRect(20, 20, 760, 560);
-        ctx.fillStyle = '#ffffff'; ctx.font = '24px Courier New, monospace';
-        const drawStat = (label: string, value: string | number, x: number, y: number) => {
-            ctx.fillStyle = '#9ca3af'; ctx.fillText(label, x, y);
-            ctx.fillStyle = '#ffffff'; ctx.fillText(String(value), x + 250, y);
-        };
-        let y = 200;
-        // UPDATE: Use state.wave.index
-        drawStat('WAVES SURVIVED', state.wave.index, 50, y); y += 40;
-        drawStat('TOTAL SCORE', Math.floor(state.player.score), 50, y); y += 40;
-        drawStat('DAMAGE DEALT', state.stats.damageDealt.toLocaleString(), 50, y); y += 40;
-        drawStat('SHOTS FIRED', state.stats.shotsFired.toLocaleString(), 50, y); y += 40;
-        const accuracy = state.stats.shotsFired > 0 ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) + '%' : '0%';
-        drawStat('ACCURACY', accuracy, 50, y); y += 40;
-        y = 200; const x2 = 450;
-        ctx.fillStyle = '#ef4444'; ctx.fillText('CONFIRMED KILLS', x2, y - 10);
-        ctx.font = '18px Courier New, monospace';
-        Object.entries(state.stats.killsByType).forEach(([type, count], idx) => {
-            ctx.fillStyle = '#9ca3af'; ctx.fillText(type, x2, y + 30 + (idx * 30));
-            ctx.fillStyle = '#ef4444'; ctx.fillText(String(count), x2 + 200, y + 30 + (idx * 30));
-        });
-        ctx.fillStyle = '#331111'; ctx.font = 'bold 100px Arial'; ctx.save();
-        ctx.translate(400, 300); ctx.rotate(-Math.PI / 6); ctx.textAlign = 'center'; ctx.fillText('TERMINATED', 0, 0); ctx.restore();
-        const image = canvas.toDataURL("image/jpeg");
-        const link = document.createElement('a');
-        link.href = image; link.download = `MissionReport_${Date.now()}.jpg`;
-        document.body.appendChild(link); 
-        link.click(); 
-        // Safety check before removal
-        if (document.body.contains(link)) {
-            document.body.removeChild(link);
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll effect for the log background
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
-    };
+    }, []);
+
+    // Explicitly cast the value to number to avoid type errors
+    const totalKills = (Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0);
+    
+    const missionDuration = Math.floor(state.time / 1000); // seconds
+    const minutes = Math.floor(missionDuration / 60);
+    const seconds = missionDuration % 60;
+    const timeFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    const causeOfFailure = state.player.hp <= 0 ? t('OPERATIVE_KIA') : t('BASE_COMPROMISED');
 
     return (
-        <div className="absolute inset-0 z-50 bg-black flex flex-col items-center justify-center pointer-events-auto font-mono text-red-600">
-             <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(rgba(50,0,0,0.2)_1px,transparent_1px),linear-gradient(90deg,rgba(50,0,0,0.2)_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-             <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle,transparent_0%,rgba(0,0,0,0.8)_100%)]"></div>
-             <div className="relative z-10 border-4 border-red-900 bg-black/90 p-12 max-w-4xl w-full shadow-[0_0_50px_rgba(220,38,38,0.3)]">
-                 <div className="flex justify-between items-start mb-8 border-b-2 border-red-900 pb-4">
-                     <div>
-                         <h1 className="text-8xl font-display font-black tracking-wide text-red-600 mb-2 glitch-text">{t('MISSION_FAILED')}</h1>
-                         <p className="text-red-800 tracking-[0.5em] text-sm font-bold">SIGNAL LOST // BASE DESTROYED</p>
-                     </div>
-                     <div className="text-right">
-                         <div className="text-red-900 text-xs">{t('REPORT_ID')}</div>
-                         <div className="text-red-500 font-bold">#A7-XX-{Math.floor(Math.random()*9999)}</div>
-                     </div>
-                 </div>
-                 <div className="grid grid-cols-2 gap-12 mb-12">
-                     <div className="space-y-4">
-                         {/* UPDATE: Use state.wave.index */}
-                         <StatRow label="WAVES SURVIVED" value={state.wave.index} />
-                         <StatRow label={t('FINAL_SCORE')} value={Math.floor(state.player.score)} />
-                         <StatRow label={t('TOTAL_DAMAGE')} value={state.stats.damageDealt.toLocaleString()} />
-                         <StatRow label={t('SHOTS_FIRED')} value={state.stats.shotsFired.toLocaleString()} />
-                         <StatRow label={t('ACCURACY')} value={state.stats.shotsFired > 0 ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) + '%' : '0%'} />
-                     </div>
-                     <div>
-                         <h3 className="text-red-500 border-b border-red-900/50 pb-2 mb-4 font-bold tracking-widest">{t('HOSTILES_NEUTRALIZED')}</h3>
-                         <div className="space-y-2">
-                             {Object.entries(state.stats.killsByType).map(([type, count]) => (
-                                 <div key={type} className="flex justify-between text-sm">
-                                     <span className="text-red-800">{type}</span>
-                                     <span className="text-red-500 font-bold">{count}</span>
-                                 </div>
-                             ))}
+        <div className="absolute inset-0 z-[200] bg-black flex items-center justify-center pointer-events-auto font-mono select-none overflow-hidden text-red-600">
+             
+             {/* --- BACKGROUND FX --- */}
+             <div className="absolute inset-0 bg-red-950/20 z-0 animate-pulse"></div>
+             {/* Scrolling Log Background */}
+             <div ref={scrollRef} className="absolute inset-0 opacity-10 pointer-events-none font-mono text-[10px] text-red-500 overflow-hidden leading-tight p-4 whitespace-nowrap z-0">
+                 {Array.from({length: 60}).map((_, i) => (
+                     <div key={i}>{`[${Date.now() - i*150}] FATAL_EXCEPTION_0x${(i*999).toString(16).toUpperCase()} // CONNECTION_LOST // NEURAL_LINK_SEVERED`}</div>
+                 ))}
+             </div>
+             {/* Vignette */}
+             <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_0%,#000_90%)] z-10 pointer-events-none"></div>
+
+             {/* --- MAIN INTERFACE CARD --- */}
+             <div className="relative z-20 w-[960px] h-[640px] bg-black border-2 border-red-900 shadow-[0_0_100px_rgba(220,38,38,0.2)] flex flex-col overflow-hidden">
+                 
+                 {/* Top Header */}
+                 <div className="h-20 border-b border-red-900 bg-red-950/30 flex justify-between items-center px-8 relative overflow-hidden">
+                     <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(220,38,38,0.05)_10px,rgba(220,38,38,0.05)_20px)] pointer-events-none"></div>
+                     
+                     <div className="flex flex-col z-10">
+                         <div className="flex items-center gap-3">
+                             <div className="w-3 h-3 bg-red-600 animate-ping rounded-full"></div>
+                             <h1 className="text-4xl font-display font-black tracking-widest text-red-500">{t('MISSION_FAILED')}</h1>
                          </div>
-                         <div className="mt-6 pt-4 border-t border-red-900/50 flex justify-between">
-                             <span className="text-red-400 font-bold">{t('TOTAL_UNITS')}</span>
-                             <span className="text-2xl text-white font-display font-bold">
-                                 {(Object.values(state.stats.killsByType) as number[]).reduce((a, b) => a + b, 0)}
-                             </span>
+                         <div className="text-[10px] font-bold text-red-800 tracking-[0.5em] pl-6 uppercase">
+                             RECORDING TERMINATED
+                         </div>
+                     </div>
+                     
+                     <div className="text-right z-10">
+                         <div className="text-[9px] text-red-900 font-bold uppercase mb-1">BLACK BOX ID</div>
+                         <div className="bg-red-900/20 border border-red-900 px-2 py-1 text-red-500 font-mono text-xs">
+                             BB-{Date.now().toString(36).toUpperCase()}
                          </div>
                      </div>
                  </div>
-                 <div className="flex-1 flex justify-center gap-6">
-                     <button onClick={() => engine.reset()} className="px-8 py-4 bg-red-900 hover:bg-red-800 text-white font-bold tracking-widest uppercase border border-red-600 transition-all hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]">{t('RE_DEPLOY')}</button>
-                     <button onClick={handleDownloadReport} className="px-8 py-4 bg-black hover:bg-gray-900 text-red-500 font-bold tracking-widest uppercase border border-red-900 transition-all hover:text-red-400 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>{t('SAVE_INTEL')}</button>
+
+                 {/* Main Body - 3 Column Grid */}
+                 <div className="flex-1 grid grid-cols-12 gap-0 min-h-0 bg-[#0a0505]">
+                     
+                     {/* LEFT: Context (4 cols) */}
+                     <div className="col-span-4 border-r border-red-900/30 p-8 flex flex-col gap-8">
+                         <div>
+                             <h3 className="text-xs font-bold text-red-800 uppercase tracking-widest mb-4 border-b border-red-900/30 pb-2">{t('MISSION_METRICS')}</h3>
+                             <div className="space-y-2">
+                                 <StatRow label={t('TIME_ALIVE')} value={timeFormatted} />
+                                 <StatRow label={t('WAVES_SUFFIX')} value={state.wave.index} />
+                                 <StatRow label={t('TOTAL_DAMAGE')} value={`${(state.stats.damageDealt / 1000).toFixed(1)}k`} />
+                             </div>
+                         </div>
+                         
+                         <div className="mt-auto p-4 bg-red-900/10 border border-red-900/50 text-center">
+                             <div className="text-[9px] text-red-700 font-bold uppercase mb-2 tracking-widest">{t('CAUSE_OF_FAILURE')}</div>
+                             <div className="text-xl font-display font-bold text-white uppercase tracking-wide">{causeOfFailure}</div>
+                         </div>
+                     </div>
+
+                     {/* CENTER: Final Snapshot (4 cols) */}
+                     <div className="col-span-4 border-r border-red-900/30 p-8 flex flex-col items-center justify-center relative">
+                         <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(220,38,38,0.1)_0%,transparent_70%)] pointer-events-none"></div>
+                         
+                         {/* Animated Icon */}
+                         <div className="mb-6 relative">
+                             <div className="w-32 h-32 border-2 border-red-800 rounded-full flex items-center justify-center animate-[spin_10s_linear_infinite]">
+                                 <div className="w-24 h-24 border border-dashed border-red-900 rounded-full"></div>
+                             </div>
+                             <div className="absolute inset-0 flex items-center justify-center">
+                                 <span className="text-5xl">⚠</span>
+                             </div>
+                         </div>
+
+                         <div className="text-center z-10">
+                             <div className="text-xs text-red-500 font-bold tracking-[0.2em] mb-2 uppercase">{t('RECOVERED_RESOURCES')}</div>
+                             <div className="text-6xl font-mono font-bold text-white drop-shadow-[0_0_15px_rgba(220,38,38,0.8)]">
+                                 {Math.floor(state.player.score)}
+                             </div>
+                             <div className="text-[10px] text-red-800 font-bold mt-2 uppercase">{t('SCRAPS_TRANSFER')}</div>
+                         </div>
+                     </div>
+
+                     {/* RIGHT: Threat Analysis (4 cols) */}
+                     <div className="col-span-4 p-8 flex flex-col relative overflow-hidden">
+                         <div className="absolute top-4 right-4 text-[100px] text-red-950 opacity-20 font-black pointer-events-none select-none z-0">☠</div>
+                         
+                         <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 border-b border-red-900/50 pb-2 z-10">{t('HOSTILES_NEUTRALIZED')}</h3>
+                         
+                         <div className="flex-1 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-red-900 scrollbar-track-transparent z-10">
+                             {Object.entries(state.stats.killsByType).map(([type, count]) => {
+                                 // Safely cast count to number
+                                 if ((count as number) <= 0) return null;
+                                 return (
+                                     <div key={type} className="flex justify-between items-center text-xs py-1.5 border-b border-red-900/10">
+                                         <span className="text-red-800 font-bold">{t(`ENEMY_${type}_NAME`)}</span>
+                                         <span className="text-red-400 font-mono font-bold">{count as number}</span>
+                                     </div>
+                                 );
+                             })}
+                         </div>
+
+                         <div className="mt-4 pt-4 border-t-2 border-red-900 flex justify-between items-center z-10">
+                             <span className="text-[10px] text-red-700 font-bold uppercase tracking-wider">{t('TOTAL_UNITS')}</span>
+                             <span className="text-3xl font-mono font-bold text-white">{totalKills}</span>
+                         </div>
+                     </div>
                  </div>
+
+                 {/* Bottom Actions */}
+                 <div className="h-20 bg-black border-t border-red-900 flex items-center px-8 gap-4 shrink-0">
+                     <button 
+                        onClick={() => engine.returnToMainMenu()}
+                        className="flex-1 h-12 border border-red-900 text-red-700 hover:text-red-400 hover:border-red-500 hover:bg-red-950/30 transition-all font-bold tracking-widest uppercase text-xs flex items-center justify-center gap-2 group"
+                     >
+                         <span className="group-hover:-translate-x-1 transition-transform">«</span>
+                         {t('RETURN_MAIN_MENU')}
+                     </button>
+                     
+                     <button 
+                        onClick={() => engine.saveGame()}
+                        className="flex-1 h-12 border border-red-900 text-red-700 hover:text-white hover:border-white hover:bg-red-900/50 transition-all font-bold tracking-widest uppercase text-xs"
+                     >
+                         {t('SAVE_INTEL')}
+                     </button>
+
+                     <button 
+                        onClick={() => engine.reset(false, state.gameMode)}
+                        className="flex-[1.5] h-12 bg-red-700 text-white hover:bg-red-600 transition-all font-black tracking-[0.2em] uppercase text-sm shadow-[0_0_20px_rgba(220,38,38,0.4)] hover:shadow-[0_0_30px_rgba(220,38,38,0.6)]"
+                     >
+                         {t('RE_DEPLOY')}
+                     </button>
+                 </div>
+
              </div>
         </div>
     );
