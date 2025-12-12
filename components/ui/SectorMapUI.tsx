@@ -97,7 +97,7 @@ export const SectorMapUI: React.FC = () => {
                         fullWidth
                         className="py-1 px-4 text-[10px]"
                         label={t('SAVE_STATE')}
-                        icon={<div className="w-4 h-4"><Icons.Save /></div>}
+                        icon={<div className="w-4 h-4"><svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor"><Icons.Save /></svg></div>}
                     />
                     <CyberButton 
                         onClick={() => engine.returnToMainMenu()}
@@ -150,7 +150,7 @@ export const SectorMapUI: React.FC = () => {
                                         onClick={() => engine.enterPlanetConstruction()}
                                         className="col-span-2 bg-yellow-900/40 hover:bg-yellow-900/60 border border-yellow-600/50 text-yellow-100 py-3 rounded font-bold text-xs tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:scale-[1.02] shadow-[0_0_15px_rgba(234,179,8,0.2)]"
                                     >
-                                        <div className="w-4 h-4"><Icons.Crane /></div>
+                                        <div className="w-4 h-4"><svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Crane /></svg></div>
                                         {t('PC_BTN')}
                                     </button>
                                 ) : (
@@ -165,12 +165,12 @@ export const SectorMapUI: React.FC = () => {
                                     >
                                         {canAfford ? (
                                             <>
-                                                <div className="w-4 h-4 animate-bounce"><Icons.DropPod /></div>
+                                                <div className="w-4 h-4 animate-bounce"><svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.DropPod /></svg></div>
                                                 {t('INITIATE_DROP')}
                                             </>
                                         ) : (
                                             <>
-                                                <div className="w-4 h-4"><Icons.Lock /></div>
+                                                <div className="w-4 h-4"><svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor"><Icons.Lock /></svg></div>
                                                 {t('INSUFFICIENT_FUNDS')}
                                             </>
                                         )}
@@ -181,7 +181,7 @@ export const SectorMapUI: React.FC = () => {
                                     onClick={() => setViewingDetail(true)}
                                     className="col-span-2 bg-cyan-900/30 hover:bg-cyan-900/50 border border-cyan-500/30 text-cyan-200 py-2 rounded font-bold text-[10px] tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:border-cyan-400"
                                 >
-                                    <div className="w-3 h-3"><Icons.Analysis /></div>
+                                    <div className="w-3 h-3"><svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Analysis /></svg></div>
                                     {t('FULL_ANALYSIS_BTN')}
                                 </button>
                             </div>
@@ -202,7 +202,7 @@ export const SectorMapUI: React.FC = () => {
                     >
                         <div className="w-16 h-16 border-2 border-cyan-500/50 rounded flex items-center justify-center bg-cyan-950/30 group-hover:border-cyan-400 group-hover:shadow-[0_0_15px_cyan] transition-all relative overflow-hidden">
                             <div className="w-8 h-8 text-cyan-400 group-hover:scale-110 transition-transform">
-                                <Icons.Ship />
+                                <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor"><Icons.Ship /></svg>
                             </div>
                             <div className="absolute inset-0 bg-cyan-400/10 translate-y-full group-hover:translate-y-0 transition-transform duration-500"></div>
                         </div>

@@ -67,6 +67,9 @@ export const GAMEPLAY_EN = {
     TAB_MEMORY: "MEMORY",
     CRYO_STASIS: "CRYO STASIS",
     CREATE_SAVE: "CREATE NEW SAVE POINT",
+    EMERGENCY_EVAC: "EMERGENCY EVAC",
+    RETURN_SHIP: "RETURN TO ORBIT",
+    ABORT_SESSION: "ABORT",
     
     // Audio Deck
     TAB_AUDIO: "SONIC ARRAY",
@@ -224,6 +227,9 @@ export const GAMEPLAY_CN = {
     TAB_MEMORY: "记忆冷藏",
     CRYO_STASIS: "静滞存储",
     CREATE_SAVE: "建立新存储点",
+    EMERGENCY_EVAC: "紧急撤离",
+    RETURN_SHIP: "返回轨道",
+    ABORT_SESSION: "终止",
     
     // Audio Deck
     TAB_AUDIO: "声波阵列",

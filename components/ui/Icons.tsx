@@ -11,6 +11,7 @@ export const Icons = {
     Close: () => <path d="M18 6L6 18M6 6l12 12" />,
     Menu: () => <path d="M3 12h18M3 6h18M3 18h18" />,
     Back: () => <path d="M19 12H5M12 19l-7-7 7-7" />,
+    Power: () => <path d="M18.36 6.64a9 9 0 1 1-12.73 0 M12 2v10" />,
     Ship: () => <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />,
     Galaxy: () => <g><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/><path d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></g>,
     Radar: () => <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zM12 4c4.41 0 8 3.59 8 8h-2c0-3.31-2.69-6-6-6V4z"/>,
@@ -51,15 +52,24 @@ export const Icons = {
     DropPod: () => <path d="M12 2l-8 4v6l8 4 8-4V6l-8-4zm0 14v6m0-6l-8-4m8 4l8-4" />,
     Crane: () => <path d="M4 20h16M4 16h2v4H4v-4zm4-9l4-4 4 4v9H8V7zm4 0v4m-4 0h8" />,
     Analysis: () => <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
-    
+
     // Audio Disc Icon
     Disc: () => (
-        <g>
-            <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" fill="none" />
-            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.5" />
-            <path d="M12 2a10 10 0 0 1 10 10" strokeOpacity="0.5" strokeWidth="1" stroke="currentColor" fill="none" />
-            <path d="M12 22a10 10 0 0 1-10-10" strokeOpacity="0.5" strokeWidth="1" stroke="currentColor" fill="none" />
-            <circle cx="12" cy="12" r="6" strokeWidth="1" stroke="currentColor" strokeOpacity="0.3" fill="none" />
+        <g stroke="currentColor" fill="none">
+            <circle cx="12" cy="12" r="10" strokeWidth="2" />
+            <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.5" stroke="none" />
+            <path d="M12 2a10 10 0 0 1 10 10" strokeOpacity="0.5" strokeWidth="1" />
+            <path d="M12 22a10 10 0 0 1-10-10" strokeOpacity="0.5" strokeWidth="1" />
+            <circle cx="12" cy="12" r="6" strokeWidth="1" strokeOpacity="0.3" />
+        </g>
+    ),
+
+    // Emergency Evac Icon
+    Extraction: () => (
+        <g stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
         </g>
     ),
 };

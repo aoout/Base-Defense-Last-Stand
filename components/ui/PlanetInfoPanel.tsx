@@ -100,7 +100,9 @@ export const PlanetInfoPanel: React.FC<PlanetInfoPanelProps> = ({ planet, spaces
                         <div className={`font-mono font-black ${sulfurColor} flex items-center gap-2`}>
                             {SulfurIconComponent && (
                                 <div className="w-4 h-4 animate-pulse">
-                                    <SulfurIconComponent />
+                                    <svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor" stroke="none">
+                                        <SulfurIconComponent />
+                                    </svg>
                                 </div>
                             )}
                             <span>{sulfurLevel}/10</span>

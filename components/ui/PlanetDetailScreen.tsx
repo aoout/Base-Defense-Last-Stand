@@ -227,14 +227,14 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
                         {planet.completed ? (
                             <div className="p-6 flex flex-col items-center gap-4">
                                 <div className="text-emerald-400 font-black text-2xl tracking-widest uppercase flex items-center gap-3">
-                                    <span className="text-3xl"><Icons.Lock /></span> {t('SECTOR_PACIFIED')}
+                                    <span className="text-3xl"><svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor"><Icons.Lock /></svg></span> {t('SECTOR_PACIFIED')}
                                 </div>
                                 <CyberButton 
                                     onClick={onOpenConstruction}
                                     variant="yellow"
                                     className="w-64 py-3"
                                     label={t('PC_BTN')}
-                                    icon={<div className="w-6 h-6"><Icons.Crane /></div>}
+                                    icon={<div className="w-6 h-6"><svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Crane /></svg></div>}
                                 />
                             </div>
                         ) : (
@@ -259,8 +259,8 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
                                         label={canAfford ? t('INITIATE_DROP') : t('INSUFFICIENT_FUNDS')}
                                         icon={
                                             canAfford 
-                                                ? <div className="w-6 h-6 animate-bounce"><Icons.DropPod /></div> 
-                                                : <div className="w-5 h-5 opacity-50"><Icons.Lock /></div>
+                                                ? <div className="w-6 h-6 animate-bounce"><svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.DropPod /></svg></div> 
+                                                : <div className="w-5 h-5 opacity-50"><svg viewBox="0 0 24 24" className="w-full h-full" fill="currentColor"><Icons.Lock /></svg></div>
                                         }
                                     />
                                 </div>
