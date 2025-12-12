@@ -37,11 +37,19 @@ const App: React.FC = () => {
   }, [engine]);
 
   return (
-    <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
-      <GameCanvas engine={engine} />
-      <GameProvider engine={engine} state={gameState}>
-        <UIOverlay />
-      </GameProvider>
+    <div className="relative w-full h-screen bg-gray-900 overflow-hidden">
+      {/* LAYER 0: Game Canvas (Background) */}
+      <div className="absolute inset-0 z-0">
+        <GameCanvas engine={engine} />
+      </div>
+
+      {/* LAYER 1: UI Overlay (Foreground) */}
+      {/* pointer-events-none ensures clicks pass through empty areas to the canvas */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
+        <GameProvider engine={engine} state={gameState}>
+          <UIOverlay />
+        </GameProvider>
+      </div>
     </div>
   );
 };
