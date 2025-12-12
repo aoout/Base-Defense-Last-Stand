@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.1.1";
+export const CURRENT_VERSION = "1.1.2";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.1.2",
+        date: "2248.08.20",
+        title: "VISUAL OVERHAUL",
+        titleCN: "视觉重制",
+        changes: [
+            "UI: Brand new Main Menu with parallax effects and holographic dashboard.",
+            "UI: Redesigned Spaceship Management view with Bento-grid layout and module icons.",
+            "UX: Improved scrolling in Module Fabrication list.",
+            "SYS: Fixed input handling and default language settings."
+        ],
+        changesCN: [
+            "界面：全新的主菜单UI，包含视差特效与全息仪表盘。",
+            "界面：重制探索模式飞船页面UI设计，采用Bento网格布局与模块图标。",
+            "体验：优化了模块制造列表的滚动体验。",
+            "系统：修复了输入控制和默认语言设置。"
+        ]
+    },
     {
         version: "1.1.1",
         date: "2248.08.15",
