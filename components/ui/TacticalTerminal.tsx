@@ -21,61 +21,74 @@ const MenuCard: React.FC<{
     onClick: () => void; 
     variant?: 'default' | 'danger' | 'primary' | 'warning';
     disabled?: boolean;
-}> = ({ title, subtitle, icon, onClick, variant = 'default', disabled }) => {
+    index?: number;
+}> = ({ title, subtitle, icon, onClick, variant = 'default', disabled, index = 0 }) => {
     let borderColor = 'border-slate-700';
     let hoverBorder = 'hover:border-cyan-500';
     let bg = 'bg-slate-900/60';
     let iconColor = 'text-slate-400';
+    let shadow = 'hover:shadow-[0_0_20px_rgba(6,182,212,0.2)]';
     
     if (variant === 'primary') {
         borderColor = 'border-cyan-600';
         hoverBorder = 'hover:border-cyan-400';
         bg = 'bg-cyan-950/40';
         iconColor = 'text-cyan-400';
+        shadow = 'hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]';
     } else if (variant === 'danger') {
         borderColor = 'border-red-900';
         hoverBorder = 'hover:border-red-500';
         bg = 'bg-red-950/20';
         iconColor = 'text-red-500';
+        shadow = 'hover:shadow-[0_0_30px_rgba(239,68,68,0.4)]';
     } else if (variant === 'warning') {
         borderColor = 'border-yellow-600';
         hoverBorder = 'hover:border-yellow-400';
         bg = 'bg-yellow-950/40';
         iconColor = 'text-yellow-400';
+        shadow = 'hover:shadow-[0_0_30px_rgba(234,179,8,0.4)]';
     }
+
+    // Staggered entry animation delay
+    const delayStyle = { animationDelay: `${index * 50}ms` };
 
     return (
         <button 
             onClick={onClick}
             disabled={disabled}
+            style={delayStyle}
             className={`
-                group relative flex flex-col justify-between p-4 w-full h-32 border-2 rounded-xl backdrop-blur-md transition-all duration-300 z-10
-                ${bg} ${borderColor} ${disabled ? 'opacity-50 cursor-not-allowed' : `${hoverBorder} hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] hover:-translate-y-1`}
+                group relative flex flex-col justify-between p-4 w-full h-32 border-2 rounded-xl backdrop-blur-md transition-all duration-300 z-10 animate-fadeIn
+                ${bg} ${borderColor} ${disabled ? 'opacity-50 cursor-not-allowed' : `${hoverBorder} ${shadow} hover:-translate-y-1`}
             `}
         >
-            <div className="flex justify-between items-start w-full">
-                <div className={`p-2 rounded-lg bg-black/40 ${iconColor} group-hover:scale-110 transition-transform duration-300 group-hover:text-white`}>
-                    <div className="w-6 h-6 group-hover:animate-spin-slow">{icon}</div>
+            {/* Hover Glow Background */}
+            <div className={`absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-lg pointer-events-none`}></div>
+
+            <div className="flex justify-between items-start w-full relative z-10">
+                <div className={`p-2 rounded-lg bg-black/40 ${iconColor} group-hover:scale-110 transition-transform duration-300 group-hover:text-white border border-white/5 group-hover:border-white/20`}>
+                    <div className="w-6 h-6 group-hover:animate-pulse">{icon}</div>
                 </div>
                 {variant === 'primary' && <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_10px_cyan]"></div>}
                 {variant === 'warning' && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse shadow-[0_0_10px_yellow]"></div>}
+                {variant === 'danger' && <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_red]"></div>}
             </div>
             
-            <div className="text-left">
-                <div className={`${DS.text.header} text-lg text-white mb-0 group-hover:text-cyan-100`}>{title}</div>
-                <div className="text-[9px] text-slate-400 font-mono tracking-wider uppercase group-hover:text-slate-300">{subtitle}</div>
+            <div className="text-left relative z-10">
+                <div className={`${DS.text.header} text-lg text-white mb-0 group-hover:text-cyan-100 transition-colors`}>{title}</div>
+                <div className="text-[9px] text-slate-400 font-mono tracking-wider uppercase group-hover:text-slate-300 transition-colors">{subtitle}</div>
             </div>
 
             {/* Tech Decoration */}
-            <div className="absolute bottom-0 right-0 w-8 h-8 overflow-hidden">
-                <div className={`absolute bottom-0 right-0 w-[150%] h-1 bg-current opacity-20 -rotate-45 transform origin-bottom-right group-hover:w-[200%] transition-all ${iconColor}`}></div>
+            <div className="absolute bottom-0 right-0 w-12 h-12 overflow-hidden rounded-br-lg pointer-events-none">
+                <div className={`absolute bottom-0 right-0 w-[150%] h-1 bg-current opacity-20 -rotate-45 transform origin-bottom-right group-hover:w-[200%] group-hover:opacity-40 transition-all ${iconColor}`}></div>
             </div>
         </button>
     );
 };
 
 const TelemetryRow: React.FC<{ label: string, value: string | number, color?: string }> = ({ label, value, color = "text-white" }) => (
-    <div className="flex justify-between items-center py-2 border-b border-slate-800/50">
+    <div className="flex justify-between items-center py-2 border-b border-slate-800/50 hover:bg-white/5 px-2 transition-colors rounded">
         <span className="text-[10px] text-slate-500 font-bold tracking-[0.2em] uppercase">{label}</span>
         <span className={`font-mono font-bold text-base ${color}`}>{value}</span>
     </div>
@@ -383,28 +396,28 @@ export const TacticalTerminal: React.FC = () => {
 
                     <div className="col-span-8 grid grid-cols-4 grid-rows-3 gap-3">
                         <div className="col-span-2 row-span-1">
-                            <MenuCard title={t('RESUME_HINT').replace('PRESS ESC TO ','')} subtitle={t('RETURN_TO_COMBAT')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Play /></svg>} onClick={handleResume} variant="primary" />
+                            <MenuCard title={t('RESUME_HINT').replace('PRESS ESC TO ','')} subtitle={t('RETURN_TO_COMBAT')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Play /></svg>} onClick={handleResume} variant="primary" index={0} />
                         </div>
                         <div className="col-span-1 row-span-1">
-                            <MenuCard title={t('TAB_DATABASE')} subtitle={t('XENO_INTEL')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Database /></svg>} onClick={() => setView('DATABASE')} />
+                            <MenuCard title={t('TAB_DATABASE')} subtitle={t('XENO_INTEL')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Database /></svg>} onClick={() => setView('DATABASE')} index={1} />
                         </div>
                         {state.gameMode === GameMode.EXPLORATION ? (
                             <div className="col-span-1 row-span-1">
-                                <MenuCard title={t('TAB_PLANET')} subtitle={t('ENV_SCAN')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Planet /></svg>} onClick={() => setView('PLANET')} />
+                                <MenuCard title={t('TAB_PLANET')} subtitle={t('ENV_SCAN')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Planet /></svg>} onClick={() => setView('PLANET')} index={2} />
                             </div>
                         ) : (<div className="col-span-1 row-span-1 opacity-20 pointer-events-none"></div>)}
 
                         <div className="col-span-1 row-span-1">
-                            <MenuCard title={t('TAB_LOGS')} subtitle={t('MISSION_ARCHIVES')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Logs /></svg>} onClick={() => setView('LOGS')} />
+                            <MenuCard title={t('TAB_LOGS')} subtitle={t('MISSION_ARCHIVES')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Logs /></svg>} onClick={() => setView('LOGS')} index={3} />
                         </div>
                         <div className="col-span-1 row-span-1">
-                            <MenuCard title={t('TAB_MEMORY')} subtitle={t('CRYO_STASIS')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Save /></svg>} onClick={() => setView('MEMORY')} />
+                            <MenuCard title={t('TAB_MEMORY')} subtitle={t('CRYO_STASIS')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Save /></svg>} onClick={() => setView('MEMORY')} index={4} />
                         </div>
                         <div className="col-span-1 row-span-1">
-                            <MenuCard title={t('SETTINGS_BTN')} subtitle={t('CONFIG')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Settings /></svg>} onClick={() => setView('SETTINGS')} />
+                            <MenuCard title={t('SETTINGS_BTN')} subtitle={t('CONFIG')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Settings /></svg>} onClick={() => setView('SETTINGS')} index={5} />
                         </div>
                         <div className="col-span-1 row-span-1">
-                            <MenuCard title={t('CONTROLS_BTN')} subtitle={t('INPUT_MAP')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Gamepad /></svg>} onClick={() => setView('CONTROLS')} />
+                            <MenuCard title={t('CONTROLS_BTN')} subtitle={t('INPUT_MAP')} icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Gamepad /></svg>} onClick={() => setView('CONTROLS')} index={6} />
                         </div>
 
                         <div className="col-span-1 row-span-1 mt-auto">
@@ -413,6 +426,7 @@ export const TacticalTerminal: React.FC = () => {
                                 subtitle={t('AUDIO_TITLE')} 
                                 icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Disc /></svg>} 
                                 onClick={() => setView('AUDIO')} 
+                                index={7}
                             />
                         </div>
 
@@ -425,6 +439,7 @@ export const TacticalTerminal: React.FC = () => {
                                         icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Extraction /></svg>} 
                                         onClick={() => engine.emergencyEvac()} 
                                         variant="warning" 
+                                        index={8}
                                     />
                                 </div>
                                 <div className="col-span-1 row-span-1 mt-auto">
@@ -434,6 +449,7 @@ export const TacticalTerminal: React.FC = () => {
                                         icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><Icons.Power /></svg>} 
                                         onClick={handleQuit} 
                                         variant="danger" 
+                                        index={9}
                                     />
                                 </div>
                             </>

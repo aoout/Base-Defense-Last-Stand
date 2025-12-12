@@ -8,9 +8,25 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.1.0";
+export const CURRENT_VERSION = "1.1.1";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.1.1",
+        date: "2248.08.15",
+        title: "SYSTEM OPTIMIZATION",
+        titleCN: "系统优化与重构",
+        changes: [
+            "SYS: Refactored UI component architecture for enhanced readability.",
+            "UI: Optimized Tactical Terminal (Pause Menu) visuals and responsiveness.",
+            "UI: Improved grid layout animations for smoother transitions."
+        ],
+        changesCN: [
+            "系统：重构UI组件架构以增强代码可读性。",
+            "界面：优化战术终端（暂停菜单）的视觉效果与响应速度。",
+            "界面：改进网格布局动画，过渡更流畅。"
+        ]
+    },
     {
         version: "1.1.0",
         date: "2248.08.10",
