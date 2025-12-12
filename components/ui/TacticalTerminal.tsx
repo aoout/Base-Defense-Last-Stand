@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { GameState, EnemyType, BossType, GameMode, DamageSource } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { useLocale, Translator } from '../contexts/LocaleContext';
-import { useGame } from '../contexts/GameContext';
+import { useGame, useGameLoop } from '../contexts/GameContext';
 import { CanvasView } from './common/CanvasView';
 import { KeyBindingUI } from './KeyBindingUI';
 import { DS } from '../../theme/designSystem';
@@ -49,8 +49,8 @@ const MenuCard: React.FC<{
             `}
         >
             <div className="flex justify-between items-start w-full">
-                <div className={`p-3 rounded-lg bg-black/40 ${iconColor} group-hover:scale-110 transition-transform duration-300`}>
-                    <div className="w-8 h-8">{icon}</div>
+                <div className={`p-3 rounded-lg bg-black/40 ${iconColor} group-hover:scale-110 transition-transform duration-300 group-hover:text-white`}>
+                    <div className="w-8 h-8 group-hover:animate-spin-slow">{icon}</div>
                 </div>
                 {variant === 'primary' && <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_10px_cyan]"></div>}
             </div>
@@ -74,6 +74,131 @@ const TelemetryRow: React.FC<{ label: string, value: string | number, color?: st
         <span className={`font-mono font-bold text-lg ${color}`}>{value}</span>
     </div>
 );
+
+// --- AUDIO DECK SUB-VIEW ---
+
+const AudioDeck: React.FC<{ engine: any, t: Translator, onBack: () => void }> = ({ engine, t, onBack }) => {
+    // Local state for sliders (sync with audio engine on mount)
+    // Accessing protected members directly is a bit hacky but efficient for this view without exposing everything public
+    const audioCore = (engine.audio as any).core; 
+    
+    const [masterVol, setMasterVol] = useState(audioCore.masterGain.gain.value);
+    const [musicVol, setMusicVol] = useState(audioCore.musicGain.gain.value);
+    const [sfxVol, setSfxVol] = useState(audioCore.sfxCompressor.threshold.value === -100 ? 0 : 1.0); // Simplified sfx check
+    const [ambienceVol, setAmbienceVol] = useState(audioCore.ambienceGain.gain.value);
+
+    const updateVolume = (type: 'MASTER' | 'MUSIC' | 'AMBIENCE', val: number) => {
+        const v = parseFloat(val.toString());
+        if (type === 'MASTER') {
+            audioCore.masterGain.gain.setValueAtTime(v, audioCore.currentTime);
+            setMasterVol(v);
+        } else if (type === 'MUSIC') {
+            audioCore.musicGain.gain.setValueAtTime(v, audioCore.currentTime);
+            setMusicVol(v);
+        } else if (type === 'AMBIENCE') {
+            audioCore.ambienceGain.gain.setValueAtTime(v, audioCore.currentTime);
+            setAmbienceVol(v);
+        }
+    };
+
+    return (
+        <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn relative">
+            {/* Ambient Backlight */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 via-transparent to-cyan-900/10 pointer-events-none"></div>
+
+            {/* Left: Visualization Panel */}
+            <div className="w-[450px] border-r border-slate-800 bg-black/40 flex flex-col items-center justify-center relative overflow-hidden">
+                <button onClick={onBack} className="absolute top-6 left-6 text-slate-400 hover:text-white flex items-center gap-2 z-20 transition-colors">
+                    <span className="text-xl">«</span> <span className="font-bold text-xs tracking-widest">{t('BACK')}</span>
+                </button>
+
+                {/* Spinning Disc */}
+                <div className="relative w-64 h-64">
+                    {/* Disc Body */}
+                    <div className="absolute inset-0 rounded-full bg-black border-4 border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] flex items-center justify-center animate-[spin_4s_linear_infinite]">
+                        {/* Grooves */}
+                        <div className="absolute inset-2 rounded-full border border-slate-800/50"></div>
+                        <div className="absolute inset-6 rounded-full border border-slate-800/50"></div>
+                        <div className="absolute inset-10 rounded-full border border-slate-800/50"></div>
+                        
+                        {/* Label */}
+                        <div className="w-24 h-24 bg-gradient-to-tr from-cyan-600 to-purple-600 rounded-full flex items-center justify-center relative overflow-hidden">
+                            <div className="absolute inset-0 opacity-50 bg-[radial-gradient(circle,transparent_20%,#000_120%)]"></div>
+                            <div className="text-[8px] font-black text-white/80 tracking-widest z-10">VANGUARD</div>
+                        </div>
+                    </div>
+                    
+                    {/* Needle Arm (Static Visual) */}
+                    <div className="absolute -top-10 -right-10 w-40 h-40 border-l-4 border-b-4 border-slate-600 rounded-bl-full pointer-events-none opacity-50 origin-top-right rotate-12"></div>
+                </div>
+
+                {/* Spectrum Analyzer (CSS Fake) */}
+                <div className="mt-12 flex gap-1 h-16 items-end">
+                    {Array.from({length: 20}).map((_, i) => (
+                        <div 
+                            key={i} 
+                            className="w-2 bg-cyan-500/50 animate-pulse" 
+                            style={{
+                                height: `${20 + Math.random() * 80}%`,
+                                animationDuration: `${0.2 + Math.random() * 0.5}s`
+                            }}
+                        ></div>
+                    ))}
+                </div>
+                <div className="mt-2 text-[10px] font-mono text-cyan-500 tracking-[0.3em]">{t('FREQ_ANALYSIS')}</div>
+            </div>
+
+            {/* Right: Controls */}
+            <div className="flex-1 p-12 bg-slate-900/30 flex flex-col justify-center">
+                <div className="mb-10 border-b border-slate-800 pb-4">
+                    <h2 className="text-4xl font-display font-black text-white mb-2">{t('AUDIO_TITLE')}</h2>
+                    <p className="text-slate-500 font-mono text-xs tracking-widest">{t('AUDIO_SUB')}</p>
+                </div>
+
+                <div className="space-y-8 max-w-xl">
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold tracking-widest text-cyan-400">
+                            <span>{t('VOL_MASTER')}</span>
+                            <span>{Math.round(masterVol * 100)}%</span>
+                        </div>
+                        <input 
+                            type="range" min="0" max="1" step="0.05" 
+                            value={masterVol}
+                            onChange={(e) => updateVolume('MASTER', parseFloat(e.target.value))}
+                            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-500 hover:accent-cyan-400"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold tracking-widest text-purple-400">
+                            <span>{t('VOL_MUSIC')}</span>
+                            <span>{Math.round(musicVol * 100)}%</span>
+                        </div>
+                        <input 
+                            type="range" min="0" max="0.8" step="0.05" 
+                            value={musicVol}
+                            onChange={(e) => updateVolume('MUSIC', parseFloat(e.target.value))}
+                            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-purple-500 hover:accent-purple-400"
+                        />
+                    </div>
+
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-xs font-bold tracking-widest text-emerald-400">
+                            <span>{t('VOL_AMBIENCE')}</span>
+                            <span>{Math.round(ambienceVol * 100)}%</span>
+                        </div>
+                        <input 
+                            type="range" min="0" max="0.5" step="0.05" 
+                            value={ambienceVol}
+                            onChange={(e) => updateVolume('AMBIENCE', parseFloat(e.target.value))}
+                            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 // --- SUB-VIEWS ---
 
@@ -345,7 +470,7 @@ const MemoryView: React.FC<{ engine: any, state: GameState, t: Translator, onBac
 export const TacticalTerminal: React.FC = () => {
     const { state, engine } = useGame();
     const { t } = useLocale();
-    const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS' | 'LOGS' | 'MEMORY'>('HOME');
+    const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS' | 'LOGS' | 'MEMORY' | 'AUDIO'>('HOME');
 
     const handleResume = () => engine.togglePause();
     const handleQuit = () => engine.returnToMainMenu();
@@ -364,6 +489,7 @@ export const TacticalTerminal: React.FC = () => {
             case 'CONTROLS': return <KeyBindingUI onClose={() => setView('HOME')} />;
             case 'LOGS': return <LogsView t={t} onBack={() => setView('HOME')} />;
             case 'MEMORY': return <MemoryView engine={engine} state={state} t={t} onBack={() => setView('HOME')} />;
+            case 'AUDIO': return <AudioDeck engine={engine} t={t} onBack={() => setView('HOME')} />;
             case 'PLANET': 
                 return state.currentPlanet ? (
                     <div className="w-full h-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl p-8 relative animate-fadeIn">
@@ -496,11 +622,20 @@ export const TacticalTerminal: React.FC = () => {
                             />
                         </div>
 
-                        {/* ROW 3: ABORT */}
-                        <div className="col-span-4 row-span-1 mt-auto">
+                        {/* ROW 3: AUDIO & ABORT */}
+                        <div className="col-span-1 row-span-1 mt-auto">
+                            <MenuCard 
+                                title={t('TAB_AUDIO')} 
+                                subtitle={t('AUDIO_TITLE')} 
+                                icon={<div className="w-full h-full text-purple-400"><Icons.Disc /></div>}
+                                onClick={() => setView('AUDIO')}
+                            />
+                        </div>
+
+                        <div className="col-span-3 row-span-1 mt-auto">
                             <button 
                                 onClick={handleQuit}
-                                className="w-full py-4 border border-red-900/50 bg-red-950/20 text-red-600 hover:bg-red-900 hover:text-white hover:border-red-500 transition-all font-bold tracking-[0.3em] uppercase text-xs flex items-center justify-center gap-4 group"
+                                className="w-full h-full py-4 border border-red-900/50 bg-red-950/20 text-red-600 hover:bg-red-900 hover:text-white hover:border-red-500 transition-all font-bold tracking-[0.3em] uppercase text-xs flex items-center justify-center gap-4 group rounded-xl"
                             >
                                 <span className="group-hover:-translate-x-1 transition-transform">«</span>
                                 {t('RETURN_MAIN_MENU')}

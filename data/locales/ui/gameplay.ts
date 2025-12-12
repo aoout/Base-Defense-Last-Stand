@@ -67,6 +67,16 @@ export const GAMEPLAY_EN = {
     TAB_MEMORY: "MEMORY",
     CRYO_STASIS: "CRYO STASIS",
     CREATE_SAVE: "CREATE NEW SAVE POINT",
+    
+    // Audio Deck
+    TAB_AUDIO: "SONIC ARRAY",
+    AUDIO_TITLE: "AUDIO MIXER",
+    AUDIO_SUB: "FREQUENCY CALIBRATION",
+    VOL_MASTER: "MASTER OUTPUT",
+    VOL_MUSIC: "SYNTH WAVE",
+    VOL_SFX: "FX BUS",
+    VOL_AMBIENCE: "ENV ATMOSPHERE",
+    FREQ_ANALYSIS: "WAVEFORM VISUALIZATION",
 
     // --- NEW TACTICAL METRICS ---
     SECTOR_THREAT: "SECTOR THREAT",
@@ -215,6 +225,16 @@ export const GAMEPLAY_CN = {
     CRYO_STASIS: "静滞存储",
     CREATE_SAVE: "建立新存储点",
     
+    // Audio Deck
+    TAB_AUDIO: "声波阵列",
+    AUDIO_TITLE: "音频混响",
+    AUDIO_SUB: "频率校准",
+    VOL_MASTER: "主输出",
+    VOL_MUSIC: "合成波",
+    VOL_SFX: "效果总线",
+    VOL_AMBIENCE: "环境氛围",
+    FREQ_ANALYSIS: "波形可视化",
+
     // --- NEW TACTICAL METRICS ---
     SECTOR_THREAT: "扇区威胁度",
     ACTIVE_HOSTILES: "活跃敌对目标",

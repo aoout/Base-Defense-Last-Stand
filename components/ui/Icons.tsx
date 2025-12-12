@@ -26,7 +26,7 @@ export const Icons = {
     // Updated Database (Stack)
     Database: () => <path d="M12 3c-4.42 0-8 1.79-8 4v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 14c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V17c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V13c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2V4.9c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V9c0 .85-2.73 2-6 2z" />,
     
-    // Updated Planet (Ringed) - Explicitly set fill/stroke to handle SVG wrapper context
+    // Updated Planet (Ringed)
     Planet: () => (
         <g>
             <g fill="none" stroke="currentColor">
@@ -45,13 +45,23 @@ export const Icons = {
     Logs: () => <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
     Hazard: () => <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z" />,
     StarMap: () => <path d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" />,
-    
     Play: () => <path d="M8 5v14l11-7z" />,
     
     // New Icons for Actions
     DropPod: () => <path d="M12 2l-8 4v6l8 4 8-4V6l-8-4zm0 14v6m0-6l-8-4m8 4l8-4" />,
     Crane: () => <path d="M4 20h16M4 16h2v4H4v-4zm4-9l4-4 4 4v9H8V7zm4 0v4m-4 0h8" />,
     Analysis: () => <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
+    
+    // Audio Disc Icon
+    Disc: () => (
+        <g>
+            <circle cx="12" cy="12" r="10" strokeWidth="2" stroke="currentColor" fill="none" />
+            <circle cx="12" cy="12" r="3" fill="currentColor" opacity="0.5" />
+            <path d="M12 2a10 10 0 0 1 10 10" strokeOpacity="0.5" strokeWidth="1" stroke="currentColor" fill="none" />
+            <path d="M12 22a10 10 0 0 1-10-10" strokeOpacity="0.5" strokeWidth="1" stroke="currentColor" fill="none" />
+            <circle cx="12" cy="12" r="6" strokeWidth="1" stroke="currentColor" strokeOpacity="0.3" fill="none" />
+        </g>
+    ),
 };
 
 export const WeaponIcon: React.FC<{ type: WeaponType, className?: string }> = ({ type, className }) => {
