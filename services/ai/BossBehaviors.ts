@@ -1,6 +1,6 @@
 
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
-import { Enemy, GameEventType, SpawnProjectileEvent, DamageSource, EnemySummonEvent, ShowFloatingTextEvent, FloatingTextType, EnemyType } from '../../types';
+import { Enemy, GameEventType, SpawnProjectileEvent, DamageSource, EnemySummonEvent, ShowFloatingTextEvent, FloatingTextType, EnemyType, WeaponType } from '../../types';
 import { GAS_INFO } from '../../data/world';
 
 export class RedSummonerBehavior extends BaseEnemyBehavior {
@@ -149,7 +149,7 @@ export class HiveMotherBehavior extends BaseEnemyBehavior {
         this.performMeleeAttack(enemy, target, context, 500);
     }
 
-    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+    public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
         // Armor mitigation logic
         if (enemy.armorValue) {
             const mitigation = enemy.armorValue / 100;

@@ -1,49 +1,38 @@
 
-import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType, GalaxyConfig } from '../types';
+import { Planet, PlanetVisualType, BiomeType, AtmosphereGas, TerrainFeature, TerrainType, MissionType, GalaxyConfig, SectorPreset } from '../types';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, WORLD_WIDTH, WORLD_HEIGHT } from '../constants';
-import { BIOME_STYLES, GAS_INFO } from '../data/world';
+import { BIOME_STYLES, GAS_INFO, GEN_RULES } from '../data/world';
 import { FAMOUS_SECTORS } from '../data/sectors';
 import { generatePlanetName } from './nameGenerator';
+import { RNG } from './rng';
 
-// Simple Linear Congruential Generator for deterministic results based on a string seed
-class SeededRNG {
-    private seed: number;
-
-    constructor(seedStr: string) {
-        // FNV-1a Hash to turn string into initial integer seed
-        let h = 0x811c9dc5;
-        for (let i = 0; i < seedStr.length; i++) {
-            h ^= seedStr.charCodeAt(i);
-            h = Math.imul(h, 0x01000193);
-        }
-        this.seed = h >>> 0;
-    }
-
-    // Returns a float between 0 and 1
-    public next(): number {
-        this.seed = (this.seed * 1664525 + 1013904223) >>> 0;
-        return this.seed / 4294967296;
-    }
-}
+// --- TERRAIN GENERATION ---
 
 export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType, width: number = WORLD_WIDTH, height: number = WORLD_HEIGHT): TerrainFeature[] => {
     const terrain: TerrainFeature[] = [];
-    const count = 20 + Math.random() * 20;
+    const rng = RNG.global; // Terrain is usually transient, static seed not strictly required for background
+    
+    const count = rng.int(20, 40);
 
     for (let i = 0; i < count; i++) {
-        const x = Math.random() * width;
-        const y = Math.random() * height;
-        const radius = 10 + Math.random() * 30;
+        const x = rng.float(0, width);
+        const y = rng.float(0, height);
+        const radius = rng.float(10, 40);
         
         let type = TerrainType.ROCK;
-        if (Math.random() > 0.7) type = TerrainType.CRATER;
-        else if (Math.random() > 0.8) type = TerrainType.DUST;
-
-        // Biome specific overrides
-        if (biome === BiomeType.VOLCANIC && Math.random() > 0.7) type = TerrainType.MAGMA_POOL;
-        if (biome === BiomeType.ICE && Math.random() > 0.7) type = TerrainType.ICE_SPIKE;
-        if (biome === BiomeType.TOXIC && Math.random() > 0.7) type = TerrainType.ALIEN_TREE;
-        if (biome === BiomeType.DESERT && Math.random() > 0.8) type = TerrainType.CRYSTAL;
+        
+        // Biome-Specific Features logic
+        const roll = rng.next();
+        
+        if (biome === BiomeType.VOLCANIC && roll > 0.7) type = TerrainType.MAGMA_POOL;
+        else if (biome === BiomeType.ICE && roll > 0.7) type = TerrainType.ICE_SPIKE;
+        else if (biome === BiomeType.TOXIC && roll > 0.7) type = TerrainType.ALIEN_TREE;
+        else if (biome === BiomeType.DESERT && roll > 0.8) type = TerrainType.CRYSTAL;
+        else {
+            // Standard Features
+            if (roll > 0.7) type = TerrainType.CRATER;
+            else if (roll > 0.8) type = TerrainType.DUST;
+        }
 
         terrain.push({
             id: `terrain-${Date.now()}-${i}`,
@@ -51,180 +40,204 @@ export const generateTerrain = (visualType: PlanetVisualType, biome: BiomeType, 
             x,
             y,
             radius,
-            rotation: Math.random() * Math.PI * 2,
-            opacity: 0.1 + Math.random() * 0.4
+            rotation: rng.float(0, Math.PI * 2),
+            opacity: rng.float(0.1, 0.5),
+            variant: rng.int(0, 3)
         });
     }
     return terrain;
 };
 
-// --- HELPER FUNCTIONS FOR PLANET GEN ---
+// --- PLANET GENERATION PIPELINE ---
 
-const generateAtmosphere = (biome: BiomeType, maxOxygen: number = 1.0): AtmosphereGas[] => {
-    // Atmosphere Generation with Constraint
-    let oxygenPct = 0.1 + Math.random() * 0.2;
+/**
+ * Generates the atmosphere composition based on biome rules.
+ */
+const generateAtmosphere = (rng: RNG, biome: BiomeType, maxOxygen: number = 1.0): AtmosphereGas[] => {
+    const rules = GEN_RULES.ATMOSPHERE[biome];
+    
+    // 1. Oxygen (Clamped by Sector Config)
+    let oxygenPct = rng.float(rules.oxygen, rules.oxygen + 0.2);
     oxygenPct = Math.min(oxygenPct, maxOxygen);
 
-    const atmosphere: AtmosphereGas[] = [
-        { ...GAS_INFO.NITROGEN, percentage: 0.4 + Math.random() * 0.3 },
+    const gases: AtmosphereGas[] = [
+        { ...GAS_INFO.NITROGEN, percentage: rng.float(0.4, 0.7) },
         { ...GAS_INFO.OXYGEN, percentage: oxygenPct },
     ];
-    if (biome === BiomeType.TOXIC) atmosphere.push({ ...GAS_INFO.METHANE, percentage: 0.1 + Math.random() * 0.1 });
-    if (biome === BiomeType.VOLCANIC) atmosphere.push({ ...GAS_INFO.SULFUR, percentage: 0.1 + Math.random() * 0.15 });
-    if (biome === BiomeType.ICE) atmosphere.push({ ...GAS_INFO.HELIUM, percentage: 0.05 });
-    
-    let total = atmosphere.reduce((acc, g) => acc + g.percentage, 0);
-    if (total < 1) {
-        atmosphere.push({ ...GAS_INFO.CO2, percentage: 1 - total });
-    } else {
-        atmosphere.forEach(g => g.percentage /= total);
-    }
-    return atmosphere.sort((a,b) => b.percentage - a.percentage);
-};
 
-const determineVisualType = (biome: BiomeType): PlanetVisualType => {
+    // 2. Biome Specific Additions
     if (biome === BiomeType.TOXIC) {
-        return Math.random() > 0.6 ? PlanetVisualType.GAS_GIANT : PlanetVisualType.TERRAN;
-    } else if (biome === BiomeType.ICE) {
-        return Math.random() > 0.8 ? PlanetVisualType.RINGED : PlanetVisualType.ICE;
-    } else if (biome === BiomeType.VOLCANIC) {
-        return PlanetVisualType.LAVA;
-    } else if (biome === BiomeType.DESERT) {
-        return Math.random() > 0.7 ? PlanetVisualType.RINGED : PlanetVisualType.BARREN;
-    } else {
-        return Math.random() > 0.5 ? PlanetVisualType.BARREN : PlanetVisualType.TERRAN;
+        gases.push({ ...GAS_INFO.METHANE, percentage: rng.float(0.1, 0.2) });
     }
+    if (biome === BiomeType.VOLCANIC) {
+        gases.push({ ...GAS_INFO.SULFUR, percentage: rng.float(0.1, 0.25) });
+    }
+    if (biome === BiomeType.ICE) {
+        gases.push({ ...GAS_INFO.HELIUM, percentage: 0.05 });
+    }
+
+    // 3. Normalize to 100%
+    let total = gases.reduce((acc, g) => acc + g.percentage, 0);
+    
+    if (total < 1.0) {
+        // Fill remaining with CO2
+        gases.push({ ...GAS_INFO.CO2, percentage: 1.0 - total });
+    } else {
+        // Normalize if over
+        gases.forEach(g => g.percentage /= total);
+    }
+
+    return gases.sort((a,b) => b.percentage - a.percentage);
 };
 
-const calculateDifficulty = (visualType: PlanetVisualType): number => {
-    // Landing Difficulty Logic (Weighted)
-    const diffRoll = Math.random();
-    if (diffRoll < 0.6) return Math.floor(Math.random() * 10) + 1;
-    if (diffRoll < 0.9) return Math.floor(Math.random() * 10) + 11;
-    return Math.floor(Math.random() * 10) + 21;
+/**
+ * Determines Visual Type based on weighted probabilities defined in GEN_RULES.
+ */
+const determineVisualType = (rng: RNG, biome: BiomeType): PlanetVisualType => {
+    const weights = GEN_RULES.VISUAL_WEIGHTS[biome];
+    return rng.weightedPick(weights);
 };
 
-// --- MAIN GENERATOR ---
+/**
+ * Calculates difficulty/cost based on visual type and RNG variance.
+ */
+const calculateDifficulty = (rng: RNG, visualType: PlanetVisualType): number => {
+    const baseMod = GEN_RULES.DIFFICULTY.VISUAL_MODIFIER[visualType] || 0;
+    const baseDiff = rng.chance(0.6) 
+        ? GEN_RULES.DIFFICULTY.BASE_LOW 
+        : GEN_RULES.DIFFICULTY.BASE_HIGH;
+    
+    return Math.max(1, Math.min(30, baseDiff + baseMod + rng.int(-5, 5)));
+};
+
+/**
+ * Generates a valid x,y position within safe map bounds.
+ */
+const generatePosition = (rng: RNG, width: number, height: number): {x: number, y: number} => {
+    const marginX = 100;
+    const marginY = 160; // Avoid UI bars
+    return {
+        x: rng.float(marginX, width - marginX),
+        y: rng.float(marginY, height - marginY)
+    };
+};
+
+// --- SUB-GENERATORS ---
+
+const createPlanetFromPreset = (def: Partial<Planet>, index: number, rng: RNG, mapW: number, mapH: number): Planet => {
+    const { x, y } = generatePosition(rng, mapW, mapH);
+    const biome = def.biome || BiomeType.BARREN;
+    const visualType = def.visualType || PlanetVisualType.TERRAN;
+    const style = BIOME_STYLES[biome];
+
+    // Basic atmosphere for preset
+    const atmosphere = generateAtmosphere(rng, biome, 1.0); 
+
+    return {
+        id: `planet-preset-${index}`,
+        name: def.name || generatePlanetName(),
+        x, y,
+        radius: visualType === PlanetVisualType.GAS_GIANT ? 70 : 40,
+        color: style.planetColor,
+        missionType: def.missionType || MissionType.DEFENSE,
+        totalWaves: def.totalWaves || 10,
+        geneStrength: def.geneStrength || 1.0,
+        sulfurIndex: def.sulfurIndex || 0,
+        landingDifficulty: def.landingDifficulty || 10,
+        completed: false,
+        biome,
+        visualType,
+        atmosphere,
+        buildings: []
+    };
+};
+
+const createRandomPlanet = (config: GalaxyConfig, index: number, rng: RNG, mapW: number, mapH: number): Planet => {
+    const { x, y } = generatePosition(rng, mapW, mapH);
+    
+    const biome = rng.pick(Object.values(BiomeType));
+    const style = BIOME_STYLES[biome];
+    
+    const visualType = determineVisualType(rng, biome);
+    const atmosphere = generateAtmosphere(rng, biome, config.maxOxygen);
+    const landingDifficulty = calculateDifficulty(rng, visualType);
+
+    // Mission Type
+    let missionType = MissionType.DEFENSE;
+    if (config.enableOffense && rng.chance(0.3)) {
+        missionType = MissionType.OFFENSE;
+    }
+
+    // Stats
+    const geneStrength = parseFloat(rng.float(config.minGeneStrength, config.maxGeneStrength).toFixed(2));
+    const sulfurIndex = rng.int(0, config.maxSulfur || 10);
+    
+    // Wave Calc (Non-linear scaling)
+    const minW = config.minWaves || 8;
+    const maxW = config.maxWaves || 40;
+    // Skew towards lower end
+    const waveSkew = rng.next() * rng.next(); 
+    const waves = Math.floor(minW + waveSkew * (maxW - minW));
+
+    return {
+        id: `planet-rnd-${index}`,
+        name: generatePlanetName(),
+        x, y,
+        radius: visualType === PlanetVisualType.GAS_GIANT ? rng.float(50, 80) : rng.float(30, 60),
+        color: style.planetColor,
+        missionType,
+        totalWaves: missionType === MissionType.OFFENSE ? 0 : waves,
+        geneStrength,
+        sulfurIndex,
+        landingDifficulty,
+        completed: false,
+        biome,
+        visualType,
+        atmosphere,
+        buildings: []
+    };
+};
+
+// --- MAIN GENERATOR ENTRY POINT ---
 
 export const generatePlanets = (config?: GalaxyConfig, width?: number, height?: number): Planet[] => {
-    const planets: Planet[] = [];
     const mapW = width || CANVAS_WIDTH;
     const mapH = height || CANVAS_HEIGHT;
+    const planets: Planet[] = [];
 
-    // --- PRESET LOGIC ---
+    // 1. Handle Presets (Famous Sectors)
     if (config && config.presetId) {
         const preset = FAMOUS_SECTORS.find(s => s.id === config.presetId);
         if (preset) {
-            // Initialize Deterministic RNG with the Sector ID
-            const rng = new SeededRNG(config.presetId);
-
+            // Deterministic RNG based on Sector ID
+            const seedRng = new RNG(config.presetId);
             preset.planets.forEach((def, i) => {
-                const x = (rng.next() * (mapW - 200)) + 100;
-                const y = (rng.next() * (mapH - 320)) + 160; 
-                
-                const biome = def.biome || BiomeType.BARREN;
-                const style = BIOME_STYLES[biome];
-                const visualType = def.visualType || PlanetVisualType.TERRAN;
-                const geneStrength = def.geneStrength || 1.0;
-                const sulfurIndex = def.sulfurIndex !== undefined ? def.sulfurIndex : 0;
-                const missionType = def.missionType || MissionType.DEFENSE;
-                
-                // Basic Atmosphere Calc based on biome/sulfur for presets
-                let oxygenPct = 0.2;
-                if (biome === BiomeType.TOXIC) oxygenPct = 0.1;
-                if (biome === BiomeType.ICE) oxygenPct = 0.15;
-                if (biome === BiomeType.BARREN) oxygenPct = 0.05;
-                
-                const atmosphere: AtmosphereGas[] = [
-                    { ...GAS_INFO.NITROGEN, percentage: 0.6 },
-                    { ...GAS_INFO.OXYGEN, percentage: oxygenPct },
-                ];
-                let total = atmosphere.reduce((acc, g) => acc + g.percentage, 0);
-                if (total < 1) atmosphere.push({ ...GAS_INFO.CO2, percentage: 1 - total });
-
-                planets.push({
-                    id: `planet-${i}`,
-                    name: def.name || generatePlanetName(),
-                    x, y,
-                    radius: visualType === PlanetVisualType.GAS_GIANT ? 70 : 40,
-                    color: style.planetColor,
-                    missionType,
-                    totalWaves: def.totalWaves || 0,
-                    geneStrength,
-                    sulfurIndex,
-                    landingDifficulty: def.landingDifficulty || 10,
-                    completed: false,
-                    biome,
-                    visualType,
-                    atmosphere,
-                    buildings: []
-                });
+                planets.push(createPlanetFromPreset(def, i, seedRng, mapW, mapH));
             });
             return planets;
         }
     }
 
-    // --- RANDOM LOGIC ---
-    const biomes = Object.values(BiomeType);
+    // 2. Handle Random Generation
+    // Uses global non-deterministic RNG for unique runs every scan
+    const rng = RNG.global;
     
-    const minGene = config ? config.minGeneStrength : 1.0;
-    const maxGene = config ? config.maxGeneStrength : 3.0;
-    const maxSulfur = config && config.maxSulfur !== undefined ? config.maxSulfur : 10;
-    const maxOxygen = config && config.maxOxygen !== undefined ? config.maxOxygen : 1.0;
-    const count = config && config.planetCount ? config.planetCount : 12;
-    
-    const minWaves = config && config.minWaves !== undefined ? config.minWaves : 8;
-    const maxWaves = config && config.maxWaves !== undefined ? config.maxWaves : 40;
-    const enableOffense = config && config.enableOffense !== undefined ? config.enableOffense : true;
+    // Default Config Fallback
+    const safeConfig: GalaxyConfig = {
+        minGeneStrength: 1.0,
+        maxGeneStrength: 3.0,
+        maxSulfur: 10,
+        maxOxygen: 1.0,
+        planetCount: 12,
+        minWaves: 8,
+        maxWaves: 40,
+        enableOffense: true,
+        ...config // Override with provided values
+    };
 
-    for(let i=0; i<count; i++) {
-        // Adjusted Safe Zones: 100px Horizontal, 160px Vertical to avoid UI bars
-        const x = (Math.random() * (mapW - 200)) + 100;
-        const y = (Math.random() * (mapH - 320)) + 160;
-        
-        const biome = biomes[Math.floor(Math.random() * biomes.length)];
-        const style = BIOME_STYLES[biome];
-        
-        const visualType = determineVisualType(biome);
-        const atmosphere = generateAtmosphere(biome, maxOxygen);
-        const landingDifficulty = calculateDifficulty(visualType);
-
-        // Mission Type Selection
-        let missionType = MissionType.DEFENSE;
-        if (enableOffense && Math.random() > 0.7) {
-            missionType = MissionType.OFFENSE;
-        }
-        
-        const rawGeneStrength = minGene + Math.random() * (maxGene - minGene);
-        const geneStrength = Math.round(rawGeneStrength * 100) / 100;
-        const sulfurIndex = Math.floor(Math.random() * (maxSulfur + 1));
-
-        // Wave Calculation: 
-        const waveRandom = Math.random();
-        const skewedRandom = waveRandom * waveRandom; 
-        const safeMin = Math.min(minWaves, maxWaves);
-        const safeMax = Math.max(minWaves, maxWaves);
-        const range = safeMax - safeMin;
-        const waves = safeMin + Math.floor(skewedRandom * (range + 1));
-
-        planets.push({
-            id: `planet-${i}`,
-            name: generatePlanetName(), 
-            x,
-            y,
-            radius: visualType === PlanetVisualType.GAS_GIANT ? 50 + Math.random() * 30 : 30 + Math.random() * 30,
-            color: style.planetColor,
-            missionType,
-            totalWaves: missionType === MissionType.OFFENSE ? 0 : waves,
-            geneStrength: geneStrength,
-            sulfurIndex: sulfurIndex,
-            landingDifficulty: landingDifficulty,
-            completed: false,
-            biome: biome,
-            visualType: visualType,
-            atmosphere,
-            buildings: [] // Initialize empty buildings array
-        });
+    for(let i = 0; i < (safeConfig.planetCount || 12); i++) {
+        planets.push(createRandomPlanet(safeConfig, i, rng, mapW, mapH));
     }
+
     return planets;
 };

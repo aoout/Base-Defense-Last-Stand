@@ -1,5 +1,5 @@
 
-import { Enemy, Entity, GameState, GameEventType, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent } from '../../types';
+import { Enemy, Entity, GameState, GameEventType, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, WeaponType } from '../../types';
 import { EventBus } from '../EventBus';
 
 export interface AIContext {
@@ -12,11 +12,16 @@ export interface AIContext {
 
 export interface AIBehavior {
     update(enemy: Enemy, context: AIContext): void;
+    
     /**
      * Called when enemy takes damage. 
+     * @param enemy The enemy instance
+     * @param amount The raw damage amount
+     * @param weaponType The type of weapon inflicting damage (optional)
+     * @param context AI Context
      * @returns The actual damage to apply (allows for armor/mitigation logic).
      */
-    onTakeDamage?(enemy: Enemy, amount: number, context: AIContext): number;
+    onTakeDamage?(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number;
     
     /**
      * Called when enemy HP <= 0.
@@ -28,8 +33,8 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
     
     public abstract update(enemy: Enemy, context: AIContext): void;
 
-    // Default: No mitigation
-    public onTakeDamage(enemy: Enemy, amount: number, context: AIContext): number {
+    // Default: No mitigation, returns raw damage
+    public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
         return amount;
     }
 

@@ -8,7 +8,7 @@ import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { StatManager } from './StatManager';
 import { DataManager } from '../DataManager';
 import { AIBehavior } from '../ai/AIBehavior';
-import { StandardBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior, TubeWormBehavior } from '../ai/StandardBehaviors';
+import { StandardBehavior, TankBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior, TubeWormBehavior } from '../ai/StandardBehaviors';
 import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior } from '../ai/BossBehaviors';
 import { GameEventType, SpawnBloodStainEvent, PlaySoundEvent, DamageSource, DamageEnemyEvent } from '../../types';
 
@@ -75,7 +75,7 @@ export class EnemyManager {
     private initializeBehaviors() {
         this.behaviors.set(EnemyType.GRUNT, new StandardBehavior());
         this.behaviors.set(EnemyType.RUSHER, new RusherBehavior());
-        this.behaviors.set(EnemyType.TANK, new StandardBehavior());
+        this.behaviors.set(EnemyType.TANK, new TankBehavior()); // Uses new TankBehavior
         this.behaviors.set(EnemyType.KAMIKAZE, new KamikazeBehavior());
         this.behaviors.set(EnemyType.VIPER, new ViperBehavior());
         this.behaviors.set(EnemyType.PUSTULE, new PustuleBehavior());
@@ -210,7 +210,7 @@ export class EnemyManager {
         return e;
     }
 
-    // --- PUBLIC SPAWNERS (Now just wrappers around createEnemyInstance) ---
+    // --- PUBLIC SPAWNERS (Wrapper methods) ---
 
     public spawnEnemy() {
         const state = this.engine.state;
@@ -261,9 +261,6 @@ export class EnemyManager {
 
         const x = state.worldWidth / 2;
         const y = 100;
-
-        // Apply Exploration Mode scaling logic handled inside factory via effectiveGeneStrength,
-        // but we pass it implicitly via GameMode check inside factory.
         
         return this.createEnemyInstance(EnemyType.TANK, x, y, {
             isBoss: true,
@@ -284,7 +281,7 @@ export class EnemyManager {
         this.createEnemyInstance(EnemyType.TANK, state.worldWidth / 2, 400, {
             isBoss: true,
             bossType: BossType.HIVE_MOTHER,
-            flatHp: 14000, // Base HP, will be multiplied by GeneStrength in factory, then we apply sulfur
+            flatHp: 14000, 
             hpMultiplier: hpMultiplier,
             angleOverride: Math.PI/2,
             speedOverride: 0, // Stationary
@@ -360,7 +357,7 @@ export class EnemyManager {
         let dmg = amount;
         const behavior = this.getBehavior(enemy);
         
-        // AI Logic Hook
+        // AI Logic Hook (Now handles resistance/armor)
         if (behavior.onTakeDamage) {
             const context = {
                 state: this.engine.state,
@@ -369,15 +366,8 @@ export class EnemyManager {
                 time: this.engine.time.now,
                 timeScale: 1
             };
-            dmg = behavior.onTakeDamage(enemy, dmg, context);
-        }
-
-        // Hardcoded Tank Shell Logic (Game Rule Override)
-        if (enemy.type === EnemyType.TANK && !enemy.isBoss && weaponType !== WeaponType.FLAMETHROWER) {
-            if (enemy.shellValue && enemy.shellValue > 0) {
-                const reduction = weaponType === WeaponType.PULSE_RIFLE ? 1 : 8;
-                enemy.shellValue = Math.max(0, enemy.shellValue - reduction);
-            }
+            // Now passing weaponType down
+            dmg = behavior.onTakeDamage(enemy, dmg, weaponType, context);
         }
   
         enemy.hp -= dmg;

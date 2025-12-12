@@ -4,7 +4,7 @@
 
 export * from './drawHelpers';
 export * from './drawEnvironment';
-export * from './drawUnits';
+export * from './drawUnits'; // Now points to the aggregator of visuals
 export * from './drawProjectiles';
 export * from './drawUI';
 export * from './drawTurretSpot';

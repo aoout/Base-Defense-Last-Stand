@@ -2,12 +2,12 @@
 import { GameState, Projectile, WeaponType, WeaponModule, GameEventType, SpawnProjectileEvent, DamageSource } from '../../types';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
-import { DataManager } from '../DataManager'; // IMPORT
+import { DataManager } from '../DataManager';
 
 export class ProjectileManager {
     private getState: () => GameState;
     private events: EventBus;
-    private data: DataManager; // ADDED
+    private data: DataManager;
     private pool: ObjectPool<Projectile>;
 
     constructor(getState: () => GameState, eventBus: EventBus, dataManager: DataManager) {
@@ -41,7 +41,7 @@ export class ProjectileManager {
         );
 
         this.events.on<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, (e) => {
-            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing, e.weaponType, e.explosionRadius);
+            this.spawnProjectile(e);
         });
     }
 
@@ -49,16 +49,28 @@ export class ProjectileManager {
         this.getState().projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean, weaponType?: WeaponType, explosionRadius?: number) {
-        const angle = Math.atan2(ty - y, tx - x);
+    /**
+     * Spawns a projectile using a configuration object.
+     * Refactored from 18 arguments to a single interface for readability.
+     */
+    public spawnProjectile(props: SpawnProjectileEvent) {
+        const { 
+            x, y, targetX, targetY, speed, damage, fromPlayer, color, 
+            homingTargetId, isHoming, createsToxicZone, maxRange = 1000, 
+            source = DamageSource.ENEMY, activeModules, isExplosive, 
+            isPiercing, weaponType, explosionRadius 
+        } = props;
+
+        const angle = Math.atan2(targetY - y, targetX - x);
         
         const proj = this.pool.get();
         proj.id = generateId('p');
-        proj.x = x; proj.y = y;
+        proj.x = x; 
+        proj.y = y;
         proj.speed = speed;
         proj.vx = Math.cos(angle) * speed;
         proj.vy = Math.sin(angle) * speed;
-        proj.damage = dmg;
+        proj.damage = damage;
         proj.color = color;
         proj.radius = 4;
         proj.rangeRemaining = maxRange;
@@ -67,7 +79,7 @@ export class ProjectileManager {
         proj.maxRange = maxRange;
         proj.source = source;
         
-        proj.targetId = homingTarget;
+        proj.targetId = homingTargetId;
         proj.isHoming = !!isHoming;
         proj.createsToxicZone = !!createsToxicZone;
         proj.activeModules = activeModules;
@@ -90,8 +102,7 @@ export class ProjectileManager {
         if (proj.weaponType === WeaponType.FLAMETHROWER) { proj.isPiercing = true; } 
         if (proj.weaponType === WeaponType.GRENADE_LAUNCHER) { proj.isExplosive = true; } 
 
-        // Legacy Color Sniffing (kept as fallback for older event calls, though ideally removed)
-        // Corrected casing just in case
+        // Legacy Color Sniffing (Fallback for older calls)
         if (!proj.weaponType) {
             if (color.toUpperCase() === '#22D3EE') { proj.isPiercing = true; proj.weaponType = WeaponType.PULSE_RIFLE; } 
             if (color.toUpperCase() === '#F97316') { proj.isPiercing = true; proj.weaponType = WeaponType.FLAMETHROWER; }
@@ -115,7 +126,6 @@ export class ProjectileManager {
                 if (target) {
                     // Simple steering
                     const angle = Math.atan2(target.y - p.y, target.x - p.x);
-                    // Instant turn for arcade feel, or use turnSpeed for smooth
                     const speed = Math.sqrt(p.vx**2 + p.vy**2);
                     p.vx = Math.cos(angle) * speed;
                     p.vy = Math.sin(angle) * speed;

@@ -1,5 +1,5 @@
 
-import { BiomeType } from "../types";
+import { BiomeType, PlanetVisualType } from "../types";
 
 export const GAS_INFO = {
     OXYGEN: { id: 'OXYGEN', name: "Oxygen", color: "#3b82f6", description: "Essential for biological respiration. Influences local fauna metabolism." },
@@ -64,5 +64,55 @@ export const BIOME_STYLES: Record<BiomeType, {
         craterColor: "#064e3b", // emerald-900
         dustColor: "#6ee7b7", // emerald-300
         atmosphereColor: "rgba(16, 185, 129, 0.05)" // slight green tint
+    }
+};
+
+/**
+ * Procedural Generation Rules
+ * Decouples logic from data for better maintainability.
+ */
+export const GEN_RULES = {
+    // Probability of visual types per Biome
+    VISUAL_WEIGHTS: {
+        [BiomeType.TOXIC]: [
+            { item: PlanetVisualType.GAS_GIANT, weight: 0.4 },
+            { item: PlanetVisualType.TERRAN, weight: 0.6 }
+        ],
+        [BiomeType.ICE]: [
+            { item: PlanetVisualType.RINGED, weight: 0.2 },
+            { item: PlanetVisualType.ICE, weight: 0.8 }
+        ],
+        [BiomeType.VOLCANIC]: [
+            { item: PlanetVisualType.LAVA, weight: 1.0 }
+        ],
+        [BiomeType.DESERT]: [
+            { item: PlanetVisualType.RINGED, weight: 0.3 },
+            { item: PlanetVisualType.BARREN, weight: 0.7 }
+        ],
+        [BiomeType.BARREN]: [
+            { item: PlanetVisualType.BARREN, weight: 0.5 },
+            { item: PlanetVisualType.TERRAN, weight: 0.5 }
+        ]
+    },
+    // Atmosphere Composition Rules (Base + Variance)
+    ATMOSPHERE: {
+        [BiomeType.BARREN]: { oxygen: 0.05, toxic: 0 },
+        [BiomeType.ICE]: { oxygen: 0.15, toxic: 0, helium: 0.05 },
+        [BiomeType.VOLCANIC]: { oxygen: 0.1, toxic: 0.15 }, // Sulfur
+        [BiomeType.DESERT]: { oxygen: 0.2, toxic: 0 },
+        [BiomeType.TOXIC]: { oxygen: 0.1, toxic: 0.2 }, // Methane
+    },
+    // Difficulty calculation weights
+    DIFFICULTY: {
+        BASE_LOW: 5,
+        BASE_HIGH: 25,
+        VISUAL_MODIFIER: {
+            [PlanetVisualType.LAVA]: 10,
+            [PlanetVisualType.GAS_GIANT]: 8,
+            [PlanetVisualType.RINGED]: 5,
+            [PlanetVisualType.TERRAN]: 2,
+            [PlanetVisualType.ICE]: 0,
+            [PlanetVisualType.BARREN]: -2
+        }
     }
 };

@@ -643,7 +643,15 @@ export class GameEngine {
   private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.audio.stopAmbience(); this.notifyUI('RETURN_MAP'); }
   public skipWave() { this.missionManager.skipWave(); this.notifyUI('WAVE_UPDATE'); }
   public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
-  public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange?: number, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[]) { this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, { x, y, targetX: tx, targetY: ty, speed, damage: dmg, fromPlayer, color, homingTargetId: homingTarget, isHoming, createsToxicZone, maxRange, source, activeModules }); }
+  
+  /**
+   * Spawns a projectile using the full configuration object.
+   * This updates the previous 14-argument method to be cleaner.
+   */
+  public spawnProjectile(props: SpawnProjectileEvent) {
+      this.eventBus.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, props);
+  }
+
   public spawnParticle(x: number, y: number, color: string, count: number, speed: number) { this.eventBus.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x, y, color, count, speed }); }
   
   public damageBase(amount: number) { 

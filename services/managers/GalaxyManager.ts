@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId } from '../../types';
+import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId, PersistentPlayerState } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { generateTerrain, generatePlanets } from '../../utils/worldGenerator';
 import { generateSectorName } from '../../utils/nameGenerator';
@@ -13,105 +13,58 @@ export class GalaxyManager {
         this.engine = engine;
     }
 
+    /**
+     * Main Entry Point: Deploys the player to a specific planet.
+     * Orchestrates state persistence, reset, and initialization.
+     */
     public deployToPlanet(id: string) {
         const planets = this.engine.state.planets;
         const targetPlanet = planets.find(p => p.id === id);
         
         if (!targetPlanet) {
-            console.error("Planet not found for deployment:", id);
+            console.error("[GalaxyManager] Planet not found for deployment:", id);
             return;
         }
   
-        const currentScraps = this.engine.state.player.score;
-        let dropCostPercent = targetPlanet.landingDifficulty / 100;
+        // 1. Calculate Costs & Validate Funds
+        const { dropCost, canAfford } = this.calculateDropCost(targetPlanet.landingDifficulty);
+        if (!canAfford) {
+            // Should be blocked by UI, but safety check here
+            return;
+        }
   
-        // Apply Reductions via StatManager
-        const reductionMod = this.engine.statManager.get(StatId.DROP_COST_REDUCTION, 0);
-        dropCostPercent = dropCostPercent * (1 - reductionMod);
-  
-        const dropCost = Math.floor(currentScraps * dropCostPercent);
-        const remainingScraps = Math.max(0, currentScraps - dropCost);
-  
-        const oldState = this.engine.state;
-        const persistentState = {
-            weapons: oldState.player.weapons,
-            loadout: oldState.player.loadout,
-            inventory: oldState.player.inventory,
-            upgrades: oldState.player.upgrades,
-            freeModules: oldState.player.freeModules,
-            grenadeModules: oldState.player.grenadeModules,
-            grenades: oldState.player.grenades,
-            encounteredEnemies: [...oldState.stats.encounteredEnemies],
-            sectorName: oldState.sectorName
-        };
-  
+        // 2. Capture State (Inventory, Upgrades, etc.) before Reset
+        const persistentState = this.capturePersistentState();
+        
+        // 3. Reset Engine (Clears enemies, projectiles, etc.)
         this.engine.reset(false);
         
+        // 4. Initialize New Game State
         const newState = this.engine.state;
-        newState.player.score = remainingScraps;
-        newState.player.weapons = persistentState.weapons;
-        newState.player.loadout = persistentState.loadout;
-        newState.player.inventory = persistentState.inventory;
-        newState.player.upgrades = persistentState.upgrades;
-        newState.player.freeModules = persistentState.freeModules;
-        newState.player.grenadeModules = persistentState.grenadeModules;
-        newState.player.grenades = persistentState.grenades;
-        newState.stats.encounteredEnemies = persistentState.encounteredEnemies;
-        newState.sectorName = persistentState.sectorName;
-  
+        
+        // Restore persistent data & Deduct Cost
+        this.restorePersistentState(newState, persistentState);
+        newState.player.score = Math.max(0, newState.player.score - dropCost);
+
+        // Setup Context
         newState.gameMode = GameMode.EXPLORATION;
         newState.selectedPlanetId = id;
         newState.currentPlanet = targetPlanet;
         newState.appMode = AppMode.GAMEPLAY;
         
+        // Re-apply RPG Stats (Modules/Upgrades)
         this.engine.spaceshipManager.registerModifiers();
         
+        // 5. Setup Gameplay Entities
         newState.base.hp = newState.base.maxHp;
+        this.initializeBaseDrop(newState);
         
-        // --- BASE DROP INITIALIZATION ---
-        // Start high above (e.g. 1500px up). Target is the configured base.y
-        newState.baseDrop = {
-            active: true,
-            y: newState.base.y - 1500, 
-            targetY: newState.base.y,
-            velocity: 0,
-            phase: 'ENTRY',
-            deployTimer: 0
-        };
+        // 6. Setup Mission Parameters (Waves/Bosses)
+        this.initializeMission(newState, targetPlanet);
         
-        // Hide player initially (will be spawned by logic when base lands)
-        // We move player to base center to be ready
-        newState.player.x = newState.base.x;
-        newState.player.y = newState.base.y; 
-  
-        if (targetPlanet.missionType === MissionType.OFFENSE) {
-            newState.wave.pendingCount = 0; 
-            newState.wave.index = 0; 
-            this.engine.enemyManager.spawnHiveMother(targetPlanet);
-        } else {
-            newState.wave.pendingCount = Math.ceil((12 + 5 * 1) * targetPlanet.geneStrength); 
-        }
-  
-        // TRIGGER AMBIENCE
-        this.engine.audio.startAmbience(targetPlanet.biome);
-
-        setTimeout(() => {
-          this.engine.addMessage(this.engine.t('ORBITAL_DROP_COST', {0: dropCost}), newState.player.x, newState.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
-          
-          if (oldState.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)) {
-               setTimeout(() => {
-                   this.engine.addMessage(this.engine.t('DEFLECTOR_ACTIVE'), newState.player.x, newState.player.y - 120, '#06b6d4', FloatingTextType.SYSTEM);
-               }, 1000);
-          }
-          
-          if (targetPlanet.missionType === MissionType.OFFENSE) {
-               setTimeout(() => {
-                   this.engine.addMessage(this.engine.t('MISSION_ASSAULT'), newState.player.x, newState.player.y - 140, '#fca5a5', FloatingTextType.SYSTEM);
-               }, 2000);
-          }
-        }, 1000);
-        
-        newState.terrain = generateTerrain(targetPlanet.visualType, targetPlanet.biome);
+        // 7. Trigger FX (Audio, Terrain, UI Messages)
+        this.initializeEnvironment(newState, targetPlanet);
+        this.queueDeploymentFX(targetPlanet, dropCost, persistentState.hasDeflector);
     }
 
     public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) {
@@ -174,7 +127,7 @@ export class GalaxyManager {
         const state = this.engine.state;
         const roll = Math.random();
         
-        // Reverted to 8% probability (Cancelled change)
+        // 8% probability
         if (roll > 0.08) return;
   
         const eventRoll = Math.random();
@@ -230,5 +183,125 @@ export class GalaxyManager {
         this.engine.addMessage(this.engine.t('SCAN_COMPLETE'), WORLD_WIDTH / 2, WORLD_HEIGHT / 2, '#06b6d4', FloatingTextType.SYSTEM);
         // FORCE UI UPDATE to show new sector name and planets
         this.engine.notifyUI('SECTOR_SCAN');
+    }
+
+    // --- PRIVATE HELPER METHODS (Refactoring) ---
+
+    private calculateDropCost(difficulty: number): { dropCost: number, canAfford: boolean } {
+        const currentScraps = this.engine.state.player.score;
+        let dropCostPercent = difficulty / 100;
+  
+        // Apply Reductions via StatManager
+        const reductionMod = this.engine.statManager.get(StatId.DROP_COST_REDUCTION, 0);
+        dropCostPercent = dropCostPercent * (1 - reductionMod);
+  
+        const dropCost = Math.floor(currentScraps * dropCostPercent);
+        return { dropCost, canAfford: currentScraps >= dropCost };
+    }
+
+    /**
+     * Extracts only the data that needs to persist between deployments.
+     */
+    private capturePersistentState() {
+        const oldState = this.engine.state;
+        return {
+            player: {
+                weapons: oldState.player.weapons,
+                loadout: oldState.player.loadout,
+                inventory: oldState.player.inventory,
+                upgrades: oldState.player.upgrades,
+                freeModules: oldState.player.freeModules,
+                grenadeModules: oldState.player.grenadeModules,
+                grenades: oldState.player.grenades,
+                score: oldState.player.score // Captured for reference, but modified later
+            },
+            stats: {
+                encounteredEnemies: [...oldState.stats.encounteredEnemies]
+            },
+            world: {
+                sectorName: oldState.sectorName
+            },
+            hasDeflector: oldState.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)
+        };
+    }
+
+    /**
+     * Applies persistent data to a fresh state object.
+     */
+    private restorePersistentState(newState: any, persistent: ReturnType<typeof this.capturePersistentState>) {
+        newState.player.weapons = persistent.player.weapons;
+        newState.player.loadout = persistent.player.loadout;
+        newState.player.inventory = persistent.player.inventory;
+        newState.player.upgrades = persistent.player.upgrades;
+        newState.player.freeModules = persistent.player.freeModules;
+        newState.player.grenadeModules = persistent.player.grenadeModules;
+        newState.player.grenades = persistent.player.grenades;
+        newState.player.score = persistent.player.score; // Will be adjusted for cost after
+
+        newState.stats.encounteredEnemies = persistent.stats.encounteredEnemies;
+        newState.sectorName = persistent.world.sectorName;
+    }
+
+    private initializeBaseDrop(newState: any) {
+        // Start high above (e.g. 1500px up). Target is the configured base.y
+        newState.baseDrop = {
+            active: true,
+            y: newState.base.y - 1500, 
+            targetY: newState.base.y,
+            velocity: 0,
+            phase: 'ENTRY',
+            deployTimer: 0
+        };
+        
+        // Hide player initially (will be spawned by logic when base lands)
+        // We move player to base center to be ready
+        newState.player.x = newState.base.x;
+        newState.player.y = newState.base.y; 
+    }
+
+    private initializeMission(newState: any, planet: any) {
+        if (planet.missionType === MissionType.OFFENSE) {
+            newState.wave.pendingCount = 0; 
+            newState.wave.index = 0; 
+            this.engine.enemyManager.spawnHiveMother(planet);
+        } else {
+            // Scale enemies by Gene Strength
+            newState.wave.pendingCount = Math.ceil((12 + 5 * 1) * planet.geneStrength); 
+        }
+    }
+
+    private initializeEnvironment(newState: any, planet: any) {
+        this.engine.audio.startAmbience(planet.biome);
+        newState.terrain = generateTerrain(planet.visualType, planet.biome);
+    }
+
+    private queueDeploymentFX(planet: any, cost: number, hasDeflector: boolean) {
+        const player = this.engine.state.player; // Reference to live player object (position might update)
+        
+        // Use a sequenced delay approach rather than nesting
+        setTimeout(() => {
+            this.engine.addMessage(
+                this.engine.t('ORBITAL_DROP_COST', {0: cost}), 
+                player.x, player.y - 100, '#F87171', FloatingTextType.SYSTEM
+            );
+        }, 1000);
+
+        if (hasDeflector) {
+            setTimeout(() => {
+                this.engine.addMessage(
+                    this.engine.t('DEFLECTOR_ACTIVE'), 
+                    player.x, player.y - 120, '#06b6d4', FloatingTextType.SYSTEM
+                );
+            }, 2000);
+        }
+
+        if (planet.missionType === MissionType.OFFENSE) {
+            setTimeout(() => {
+                this.engine.addMessage(
+                    this.engine.t('MISSION_ASSAULT'), 
+                    player.x, player.y - 140, '#fca5a5', FloatingTextType.SYSTEM
+                );
+            }, 3000);
+        }
     }
 }
