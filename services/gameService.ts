@@ -436,6 +436,7 @@ export class GameEngine {
   
   public damageArea(x: number, y: number, radius: number, damage: number, source: DamageSource = DamageSource.PLAYER) {
       this.aoeCache.length = 0;
+      // Using physics spatial grid for AOE query
       this.physics.spatialGrid.query(x, y, radius, this.aoeCache);
       for (const e of this.aoeCache) {
           const dSq = (e.x - x)**2 + (e.y - y)**2;
