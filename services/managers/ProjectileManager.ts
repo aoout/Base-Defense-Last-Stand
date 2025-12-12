@@ -29,6 +29,7 @@ export class ProjectileManager {
             }),
             (p) => {
                 p.isExplosive = false;
+                p.explosionRadius = undefined;
                 p.isPiercing = false;
                 p.weaponType = undefined;
                 p.hitIds = undefined;
@@ -40,7 +41,7 @@ export class ProjectileManager {
         );
 
         this.events.on<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, (e) => {
-            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing, e.weaponType);
+            this.spawnProjectile(e.x, e.y, e.targetX, e.targetY, e.speed, e.damage, e.fromPlayer, e.color, e.homingTargetId, e.isHoming, e.createsToxicZone, e.maxRange, e.source, e.activeModules, e.isExplosive, e.isPiercing, e.weaponType, e.explosionRadius);
         });
     }
 
@@ -48,7 +49,7 @@ export class ProjectileManager {
         this.getState().projectiles.push(projectile);
     }
 
-    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean, weaponType?: WeaponType) {
+    public spawnProjectile(x: number, y: number, tx: number, ty: number, speed: number, dmg: number, fromPlayer: boolean, color: string, homingTarget?: string, isHoming?: boolean, createsToxicZone?: boolean, maxRange: number = 1000, source: DamageSource = DamageSource.ENEMY, activeModules?: WeaponModule[], isExplosive?: boolean, isPiercing?: boolean, weaponType?: WeaponType, explosionRadius?: number) {
         const angle = Math.atan2(ty - y, tx - x);
         
         const proj = this.pool.get();
@@ -71,6 +72,7 @@ export class ProjectileManager {
         proj.createsToxicZone = !!createsToxicZone;
         proj.activeModules = activeModules;
         proj.isExplosive = !!isExplosive;
+        proj.explosionRadius = explosionRadius;
         proj.isPiercing = !!isPiercing;
         
         // Directly assign explicit type if provided

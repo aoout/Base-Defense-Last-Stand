@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { GameState, EnemyType, BossType, GameMode } from '../../types';
+import { GameState, EnemyType, BossType, GameMode, DamageSource } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
@@ -10,6 +10,7 @@ import { CanvasView } from './common/CanvasView';
 import { KeyBindingUI } from './KeyBindingUI';
 import { DS } from '../../theme/designSystem';
 import { Icons } from './Icons';
+import { SaveSlotItem } from './SaveSlot';
 
 // --- SUB-COMPONENTS ---
 
@@ -74,7 +75,7 @@ const TelemetryRow: React.FC<{ label: string, value: string | number, color?: st
     </div>
 );
 
-// --- SUB-VIEWS (Re-wrapped for new design) ---
+// --- SUB-VIEWS ---
 
 const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => void }> = ({ state, t, onBack }) => {
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -144,7 +145,7 @@ const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => vo
             {/* List */}
             <div className="w-72 flex flex-col h-full border-r border-slate-800 bg-black/40">
                 <button onClick={onBack} className="p-6 text-left border-b border-slate-800 hover:bg-white/5 transition-colors flex items-center gap-3 text-slate-400 hover:text-white">
-                    <span className="text-xl">«</span> <span className="font-bold text-sm tracking-widest">RETURN</span>
+                    <span className="text-xl">«</span> <span className="font-bold text-sm tracking-widest">{t('BACK')}</span>
                 </button>
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 p-2 space-y-1">
                     {allEntities.map(id => {
@@ -202,7 +203,7 @@ const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => vo
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-slate-700 font-mono text-sm tracking-widest">SELECT DATABASE ENTRY</div>
+                    <div className="flex items-center justify-center h-full text-slate-700 font-mono text-sm tracking-widest">{t('BESTIARY_HINT')}</div>
                 )}
             </div>
         </div>
@@ -210,7 +211,6 @@ const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => vo
 };
 
 const SettingsView: React.FC<{ engine: any, state: GameState, t: Translator, onBack: () => void }> = ({ engine, state, t, onBack }) => {
-    // Reusing logic, wrapping in new UI
     return (
         <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
             <div className="w-72 border-r border-slate-800 bg-black/40 p-6 flex flex-col">
@@ -254,19 +254,107 @@ const SettingsView: React.FC<{ engine: any, state: GameState, t: Translator, onB
     )
 }
 
+const LogsView: React.FC<{ t: Translator, onBack: () => void }> = ({ t, onBack }) => {
+    const [selectedLog, setSelectedLog] = useState(1);
+    const logs = [1, 2, 3, 4, 5];
+
+    return (
+        <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
+            <div className="w-72 border-r border-slate-800 bg-black/40 p-6 flex flex-col">
+                <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 mb-8 transition-colors">
+                    <span className="text-xl">«</span> <span className="font-bold text-xs tracking-widest">{t('BACK')}</span>
+                </button>
+                <h2 className="text-2xl font-display font-black text-white mb-2">{t('LOG_TITLE')}</h2>
+                <div className="text-[10px] text-yellow-600 font-mono mb-4 tracking-widest uppercase">{t('LOG_SUBTITLE')}</div>
+                
+                <div className="flex-1 space-y-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 pr-2">
+                    {logs.map(id => (
+                        <button 
+                            key={id} 
+                            onClick={() => setSelectedLog(id)}
+                            className={`w-full p-3 text-left border-l-2 transition-all ${selectedLog === id ? 'bg-slate-800 border-yellow-500 text-yellow-100' : 'border-transparent text-slate-500 hover:bg-slate-900 hover:text-slate-300'}`}
+                        >
+                            <div className="text-[9px] font-bold tracking-widest uppercase mb-1">{t(`LOG_${id}_DATE`)}</div>
+                            <div className="text-xs font-bold truncate">{t(`LOG_${id}_TITLE`)}</div>
+                        </button>
+                    ))}
+                </div>
+            </div>
+            
+            <div className="flex-1 bg-slate-900/50 p-12 overflow-y-auto">
+                <div className="max-w-3xl">
+                    <div className="flex justify-between items-end border-b border-slate-700 pb-4 mb-8">
+                        <div>
+                            <div className="text-yellow-500 font-bold text-xs tracking-[0.3em] mb-2">{t(`LOG_${selectedLog}_DATE`)}</div>
+                            <h1 className="text-3xl font-display font-black text-white">{t(`LOG_${selectedLog}_TITLE`)}</h1>
+                        </div>
+                        <div className="text-slate-600 font-mono text-xs">ARCHIVE_ID: 00{selectedLog}</div>
+                    </div>
+                    <div className="prose prose-invert prose-sm font-mono text-slate-300 leading-loose">
+                        {t(`LOG_${selectedLog}_CONTENT`)}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MemoryView: React.FC<{ engine: any, state: GameState, t: Translator, onBack: () => void }> = ({ engine, state, t, onBack }) => {
+    return (
+        <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
+            <div className="w-72 border-r border-slate-800 bg-black/40 p-6 flex flex-col">
+                <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 mb-8 transition-colors">
+                    <span className="text-xl">«</span> <span className="font-bold text-xs tracking-widest">{t('BACK')}</span>
+                </button>
+                <h2 className="text-2xl font-display font-black text-white mb-2">{t('MEMORY_STORAGE')}</h2>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">{t('MANUAL_MEMORY_DESC')}</p>
+                
+                <button 
+                    onClick={() => engine.saveGame()}
+                    className="w-full py-3 bg-blue-900/30 border border-blue-500/50 hover:bg-blue-900/50 hover:border-blue-400 text-blue-200 font-bold tracking-widest uppercase text-xs transition-all mb-2"
+                >
+                    {t('CREATE_SAVE')}
+                </button>
+            </div>
+            
+            <div className="flex-1 bg-slate-900/50 p-8 overflow-y-auto">
+                <div className="grid grid-cols-1 gap-4 max-w-4xl">
+                    {state.saveSlots.length === 0 && (
+                        <div className="text-center py-20 text-slate-600 font-mono border-2 border-dashed border-slate-800 rounded">
+                            {t('NO_ARCHIVES')}
+                        </div>
+                    )}
+                    {state.saveSlots.map(save => (
+                        <SaveSlotItem 
+                            key={save.id} 
+                            save={save} 
+                            onLoad={() => engine.loadGame(save.id)} 
+                            onDelete={() => engine.deleteSave(save.id)} 
+                            onPin={() => engine.togglePin(save.id)} 
+                            onExport={() => engine.exportSave(save.id)} 
+                        />
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- MAIN COMPONENT ---
 
 export const TacticalTerminal: React.FC = () => {
     const { state, engine } = useGame();
     const { t } = useLocale();
-    const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS'>('HOME');
+    const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS' | 'LOGS' | 'MEMORY'>('HOME');
 
     const handleResume = () => engine.togglePause();
     const handleQuit = () => engine.returnToMainMenu();
 
     // Accuracy Calculation
-    const accuracy = state.stats.shotsFired > 0 
-        ? ((state.stats.shotsHit / state.stats.shotsFired) * 100).toFixed(1) 
+    const damageSources = state.stats.damageBySource;
+    const totalPlayerSideDamage = (damageSources.PLAYER || 0) + (damageSources.TURRET || 0) + (damageSources.ALLY || 0) + (damageSources.ORBITAL || 0);
+    const playerShare = totalPlayerSideDamage > 0 
+        ? ((damageSources.PLAYER / totalPlayerSideDamage) * 100).toFixed(1) 
         : '0.0';
 
     const renderContent = () => {
@@ -274,11 +362,13 @@ export const TacticalTerminal: React.FC = () => {
             case 'DATABASE': return <BestiaryView state={state} t={t} onBack={() => setView('HOME')} />;
             case 'SETTINGS': return <SettingsView engine={engine} state={state} t={t} onBack={() => setView('HOME')} />;
             case 'CONTROLS': return <KeyBindingUI onClose={() => setView('HOME')} />;
+            case 'LOGS': return <LogsView t={t} onBack={() => setView('HOME')} />;
+            case 'MEMORY': return <MemoryView engine={engine} state={state} t={t} onBack={() => setView('HOME')} />;
             case 'PLANET': 
                 return state.currentPlanet ? (
                     <div className="w-full h-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl p-8 relative animate-fadeIn">
                         <button onClick={() => setView('HOME')} className="absolute top-6 right-6 text-slate-400 hover:text-white font-bold tracking-widest text-xs z-50 flex items-center gap-2">
-                            CLOSE ANALYSIS <span className="text-lg">×</span>
+                            {t('CLOSE_ANALYSIS')} <span className="text-lg">×</span>
                         </button>
                         <PlanetInfoPanel planet={state.currentPlanet} spaceship={state.spaceship} onShowDetail={() => {}} />
                     </div>
@@ -290,22 +380,22 @@ export const TacticalTerminal: React.FC = () => {
                     <div className="col-span-4 flex flex-col gap-6">
                         <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm relative overflow-hidden">
                             <div className="absolute top-0 right-0 p-3 opacity-10"><Icons.Chart /></div>
-                            <h3 className="text-cyan-500 font-bold text-xs tracking-widest mb-4 border-b border-cyan-900/30 pb-2">SESSION TELEMETRY</h3>
+                            <h3 className="text-cyan-500 font-bold text-xs tracking-widest mb-4 border-b border-cyan-900/30 pb-2">{t('SESSION_TELEMETRY')}</h3>
                             
                             <div className="space-y-1">
-                                <TelemetryRow label="MISSION TIME" value={(state.time / 60000).toFixed(2) + " m"} color="text-cyan-300" />
-                                <TelemetryRow label="CURRENT WAVE" value={state.wave.index} color="text-yellow-400" />
-                                <TelemetryRow label="ENEMIES KILLED" value={(Object.values(state.stats.killsByType) as number[]).reduce((a,b)=>a+b,0)} />
-                                <TelemetryRow label="ACCURACY" value={accuracy + "%"} />
-                                <TelemetryRow label="DAMAGE DEALT" value={(state.stats.damageDealt / 1000).toFixed(1) + "k"} />
+                                <TelemetryRow label={t('MISSION_TIME')} value={(state.time / 60000).toFixed(2) + " m"} color="text-cyan-300" />
+                                <TelemetryRow label={t('CURRENT_WAVE')} value={state.wave.index} color="text-yellow-400" />
+                                <TelemetryRow label={t('ENEMIES_KILLED')} value={(Object.values(state.stats.killsByType) as number[]).reduce((a,b)=>a+b,0)} />
+                                <TelemetryRow label={t('PLAYER_DMG_SHARE')} value={playerShare + "%"} />
+                                <TelemetryRow label={t('DAMAGE_DEALT')} value={(state.stats.damageDealt / 1000).toFixed(1) + "k"} />
                             </div>
                         </div>
 
                         <div className="bg-slate-900/50 rounded-xl p-6 border border-slate-800 backdrop-blur-sm flex-1 relative overflow-hidden flex flex-col">
-                            <h3 className="text-emerald-500 font-bold text-xs tracking-widest mb-4 border-b border-emerald-900/30 pb-2">RESOURCE LOG</h3>
+                            <h3 className="text-emerald-500 font-bold text-xs tracking-widest mb-4 border-b border-emerald-900/30 pb-2">{t('RESOURCE_LOG')}</h3>
                             <div className="flex-1 flex flex-col justify-center items-center gap-2">
                                 <div className="text-5xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">{Math.floor(state.player.score)}</div>
-                                <div className="text-xs text-slate-500 font-bold tracking-[0.3em]">BIOMASS UNITS</div>
+                                <div className="text-xs text-slate-500 font-bold tracking-[0.3em]">{t('BIOMASS_UNITS')}</div>
                             </div>
                             {state.spaceship.bioResources && (
                                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-800">
@@ -327,13 +417,14 @@ export const TacticalTerminal: React.FC = () => {
                     </div>
 
                     {/* RIGHT COLUMN: Navigation Grid (8 Cols) */}
-                    <div className="col-span-8 grid grid-cols-3 grid-rows-2 gap-4">
+                    <div className="col-span-8 grid grid-cols-4 grid-rows-3 gap-4">
+                        {/* ROW 1 */}
                         {/* RESUME (Double Width) */}
                         <div className="col-span-2 row-span-1">
                             <MenuCard 
                                 title={t('RESUME_HINT').replace('PRESS ESC TO ','')} 
-                                subtitle="RETURN TO COMBAT" 
-                                icon={<div className="text-2xl">▶</div>}
+                                subtitle={t('RETURN_TO_COMBAT')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Play /></svg>}
                                 onClick={handleResume}
                                 variant="primary"
                             />
@@ -343,30 +434,54 @@ export const TacticalTerminal: React.FC = () => {
                         <div className="col-span-1 row-span-1">
                             <MenuCard 
                                 title={t('TAB_DATABASE')} 
-                                subtitle="XENO INTEL" 
-                                icon={<Icons.Database />}
+                                subtitle={t('XENO_INTEL')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Database /></svg>}
                                 onClick={() => setView('DATABASE')}
                             />
                         </div>
 
                         {/* PLANET (Only in Exploration) */}
-                        {state.gameMode === GameMode.EXPLORATION && (
+                        {state.gameMode === GameMode.EXPLORATION ? (
                             <div className="col-span-1 row-span-1">
                                 <MenuCard 
-                                    title="PLANET" 
-                                    subtitle="ENV. SCAN" 
-                                    icon={<Icons.Planet />}
+                                    title={t('TAB_PLANET')} 
+                                    subtitle={t('ENV_SCAN')} 
+                                    icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Planet /></svg>}
                                     onClick={() => setView('PLANET')}
                                 />
                             </div>
+                        ) : (
+                            // Placeholder if not exploration to keep grid alignment
+                            <div className="col-span-1 row-span-1 opacity-20 pointer-events-none"></div>
                         )}
+
+                        {/* ROW 2 */}
+                        {/* LOGS */}
+                        <div className="col-span-1 row-span-1">
+                            <MenuCard 
+                                title={t('TAB_LOGS')} 
+                                subtitle={t('MISSION_ARCHIVES')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Logs /></svg>}
+                                onClick={() => setView('LOGS')}
+                            />
+                        </div>
+
+                        {/* MEMORY (Saves) */}
+                        <div className="col-span-1 row-span-1">
+                            <MenuCard 
+                                title={t('TAB_MEMORY')} 
+                                subtitle={t('CRYO_STASIS')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Save /></svg>}
+                                onClick={() => setView('MEMORY')}
+                            />
+                        </div>
 
                         {/* SETTINGS */}
                         <div className="col-span-1 row-span-1">
                             <MenuCard 
                                 title={t('SETTINGS_BTN')} 
-                                subtitle="CONFIG" 
-                                icon={<Icons.Settings />}
+                                subtitle={t('CONFIG')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Settings /></svg>}
                                 onClick={() => setView('SETTINGS')}
                             />
                         </div>
@@ -375,14 +490,14 @@ export const TacticalTerminal: React.FC = () => {
                         <div className="col-span-1 row-span-1">
                             <MenuCard 
                                 title={t('CONTROLS_BTN')} 
-                                subtitle="INPUT MAP" 
-                                icon={<Icons.Gamepad />}
+                                subtitle={t('INPUT_MAP')} 
+                                icon={<svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full"><Icons.Gamepad /></svg>}
                                 onClick={() => setView('CONTROLS')}
                             />
                         </div>
 
-                        {/* ABORT */}
-                        <div className="col-span-3 row-span-1 mt-4">
+                        {/* ROW 3: ABORT */}
+                        <div className="col-span-4 row-span-1 mt-auto">
                             <button 
                                 onClick={handleQuit}
                                 className="w-full py-4 border border-red-900/50 bg-red-950/20 text-red-600 hover:bg-red-900 hover:text-white hover:border-red-500 transition-all font-bold tracking-[0.3em] uppercase text-xs flex items-center justify-center gap-4 group"
@@ -411,10 +526,10 @@ export const TacticalTerminal: React.FC = () => {
                     <div>
                         <div className="flex items-center gap-3 mb-1">
                             <div className="w-3 h-3 bg-yellow-500 rounded-full animate-pulse shadow-[0_0_10px_#eab308]"></div>
-                            <span className="text-yellow-500 font-mono text-xs font-bold tracking-[0.3em]">SIMULATION PAUSED</span>
+                            <span className="text-yellow-500 font-mono text-xs font-bold tracking-[0.3em]">{t('SIMULATION_PAUSED')}</span>
                         </div>
                         <h1 className={`${DS.text.header} text-5xl text-white`}>
-                            TACTICAL COMMAND
+                            {t('SYSTEM_PAUSED_TITLE')}
                         </h1>
                     </div>
                     <div className="text-right opacity-50">
@@ -430,8 +545,8 @@ export const TacticalTerminal: React.FC = () => {
 
                 {/* Footer */}
                 <div className="h-12 border-t border-white/5 mt-8 flex items-center justify-between px-4 opacity-40 text-[10px] font-mono text-slate-500">
-                    <div>VANGUARD OS v4.0.2 // CONNECTED</div>
-                    <div>PRESS [ESC] TO CLOSE</div>
+                    <div>VANGUARD OS v4.0.2 // {t('CONNECTED')}</div>
+                    <div>{t('PRESS_ESC_CLOSE')}</div>
                 </div>
             </div>
         </div>

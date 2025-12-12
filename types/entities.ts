@@ -106,6 +106,7 @@ export interface Projectile extends Entity {
   fromPlayer: boolean; // true if player/ally/turret, false if enemy
   source: DamageSource; // Specific source for stats
   isExplosive?: boolean;
+  explosionRadius?: number;
   isPiercing?: boolean;
   weaponType?: WeaponType; // For rendering specific visuals
   maxRange?: number; // Total initial range

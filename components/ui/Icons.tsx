@@ -22,11 +22,31 @@ export const Icons = {
     Unlock: () => <path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6h1.9c0-1.71 1.39-3 3.1-3s3.1 1.29 3.1 3v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2z" />,
     Warning: () => <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />,
     Dashboard: () => <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />,
-    Database: () => <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z M11 7h2v2h-2zm0 4h2v6h-2z" />,
-    Planet: () => <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z M4.93 4.93l14.14 14.14 M19.07 4.93L4.93 19.07" />,
+    
+    // Updated Database (Stack)
+    Database: () => <path d="M12 3c-4.42 0-8 1.79-8 4v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 14c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V17c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V13c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2V4.9c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V9c0 .85-2.73 2-6 2z" />,
+    
+    // Updated Planet (Ringed) - Explicitly set fill/stroke to handle SVG wrapper context
+    Planet: () => (
+        <g>
+            <g fill="none" stroke="currentColor">
+                <circle cx="12" cy="12" r="6" strokeWidth="1.5" />
+                <path d="M3 15c0-3 6-5 9-5s9 2 9 5" opacity="0.5" />
+                <path d="M21 12c0 3-6 5-9 5s-9-2-9-5" strokeWidth="1.5" />
+                <path d="M12 2v3M12 19v3M2 12h3M19 12h3" opacity="0.3" />
+            </g>
+            <g fill="currentColor" stroke="none">
+                <rect x="16" y="4" width="4" height="1" />
+                <rect x="4" y="19" width="4" height="1" />
+            </g>
+        </g>
+    ),
+    
     Logs: () => <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
     Hazard: () => <path d="M12 2L1 21h22L12 2zm0 3.99L19.53 19H4.47L12 5.99zM11 16h2v2h-2zm0-6h2v4h-2z" />,
     StarMap: () => <path d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" />,
+    
+    Play: () => <path d="M8 5v14l11-7z" />,
     
     // New Icons for Actions
     DropPod: () => <path d="M12 2l-8 4v6l8 4 8-4V6l-8-4zm0 14v6m0-6l-8-4m8 4l8-4" />,

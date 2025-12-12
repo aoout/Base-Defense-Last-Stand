@@ -39,6 +39,35 @@ export const GAMEPLAY_EN = {
     MANUAL_MEMORY_LIMIT: "LIMIT",
     MANUAL_MEMORY_LIMIT_DESC: "Max 7 slots. Pin to prevent overwrite.",
     
+    // --- TACTICAL TERMINAL (PAUSE MENU) NEW ---
+    SYSTEM_PAUSED_TITLE: "TACTICAL COMMAND",
+    SIMULATION_PAUSED: "SIMULATION PAUSED",
+    SESSION_TELEMETRY: "SESSION TELEMETRY",
+    MISSION_TIME: "MISSION TIME",
+    CURRENT_WAVE: "CURRENT WAVE",
+    ENEMIES_KILLED: "ENEMIES KILLED",
+    ACCURACY: "ACCURACY",
+    DAMAGE_DEALT: "DAMAGE DEALT",
+    RESOURCE_LOG: "RESOURCE LOG",
+    BIOMASS_UNITS: "BIOMASS UNITS",
+    RETURN_TO_COMBAT: "RETURN TO COMBAT",
+    TAB_DATABASE: "DATABASE",
+    XENO_INTEL: "XENO INTEL",
+    TAB_PLANET: "PLANET",
+    ENV_SCAN: "ENV. SCAN",
+    CONFIG: "CONFIG",
+    INPUT_MAP: "INPUT MAP",
+    CLOSE_ANALYSIS: "CLOSE ANALYSIS",
+    CONNECTED: "CONNECTED",
+    PRESS_ESC_CLOSE: "PRESS [ESC] TO CLOSE",
+    
+    // New Buttons
+    TAB_LOGS: "LOGS",
+    MISSION_ARCHIVES: "MISSION ARCHIVES",
+    TAB_MEMORY: "MEMORY",
+    CRYO_STASIS: "CRYO STASIS",
+    CREATE_SAVE: "CREATE NEW SAVE POINT",
+
     // --- NEW TACTICAL METRICS ---
     SECTOR_THREAT: "SECTOR THREAT",
     ACTIVE_HOSTILES: "ACTIVE HOSTILES",
@@ -95,7 +124,7 @@ export const GAMEPLAY_EN = {
     // --- CAMPAIGN UI ---
     MISSION_FAILED: "MISSION FAILED",
     FINAL_SCORE: "FINAL SCORE",
-    ACCURACY: "ACCURACY",
+    ACCURACY_LABEL: "ACCURACY", // Renamed to avoid collision or reuse ACCURACY
     REPORT_ID: "REPORT ID",
     SAVE_INTEL: "SAVE INTEL",
     RE_DEPLOY: "RE-DEPLOY",
@@ -157,6 +186,35 @@ export const GAMEPLAY_CN = {
     MANUAL_MEMORY_LIMIT: "限制",
     MANUAL_MEMORY_LIMIT_DESC: "最多7个槽位。锁定以防止覆盖。",
     
+    // --- TACTICAL TERMINAL (PAUSE MENU) NEW ---
+    SYSTEM_PAUSED_TITLE: "战术指挥终端",
+    SIMULATION_PAUSED: "模拟已挂起",
+    SESSION_TELEMETRY: "会话遥测",
+    MISSION_TIME: "任务时长",
+    CURRENT_WAVE: "当前波次",
+    ENEMIES_KILLED: "击杀总数",
+    ACCURACY: "射击精度",
+    DAMAGE_DEALT: "造成伤害",
+    RESOURCE_LOG: "资源日志",
+    BIOMASS_UNITS: "生物质单位",
+    RETURN_TO_COMBAT: "重返战斗",
+    TAB_DATABASE: "异种数据库",
+    XENO_INTEL: "异种情报",
+    TAB_PLANET: "星球分析",
+    ENV_SCAN: "环境扫描",
+    CONFIG: "系统配置",
+    INPUT_MAP: "输入映射",
+    CLOSE_ANALYSIS: "关闭分析",
+    CONNECTED: "已连接",
+    PRESS_ESC_CLOSE: "按 [ESC] 关闭",
+
+    // New Buttons
+    TAB_LOGS: "指挥日志",
+    MISSION_ARCHIVES: "任务档案",
+    TAB_MEMORY: "记忆冷藏",
+    CRYO_STASIS: "静滞存储",
+    CREATE_SAVE: "建立新存储点",
+    
     // --- NEW TACTICAL METRICS ---
     SECTOR_THREAT: "扇区威胁度",
     ACTIVE_HOSTILES: "活跃敌对目标",
@@ -213,7 +271,7 @@ export const GAMEPLAY_CN = {
     // --- CAMPAIGN UI ---
     MISSION_FAILED: "任务失败",
     FINAL_SCORE: "最终得分",
-    ACCURACY: "命中率",
+    ACCURACY_LABEL: "命中率",
     REPORT_ID: "报告 ID",
     SAVE_INTEL: "保存情报",
     RE_DEPLOY: "重新部署",

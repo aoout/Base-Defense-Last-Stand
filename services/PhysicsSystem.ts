@@ -1,5 +1,5 @@
 
-import { GameState, Enemy, WeaponType, ModuleType, GameEventType, DamageEnemyEvent, DamagePlayerEvent, DamageBaseEvent, DamageAreaEvent, SpawnParticleEvent, SpawnToxicZoneEvent, PlaySoundEvent, DamageSource, StatId } from '../types';
+import { GameState, Enemy, WeaponType, ModuleType, GameEventType, DamageEnemyEvent, DamagePlayerEvent, DamageBaseEvent, DamageAreaEvent, SpawnParticleEvent, SpawnToxicZoneEvent, PlaySoundEvent, DamageSource, StatId, Projectile } from '../types';
 import { EventBus } from './EventBus';
 import { StatManager } from './managers/StatManager';
 import { DataManager } from './DataManager'; // IMPORT
@@ -60,40 +60,15 @@ export class PhysicsSystem {
                     // Narrow phase: Circle-Circle
                     if (circlesIntersect(p.x, p.y, p.radius, e.x, e.y, e.radius)) {
                         
-                        if (p.isPiercing) {
-                            if (!p.hitIds) p.hitIds = [];
-                            if (p.hitIds.includes(e.id)) continue; 
+                        // Check if piercing projectile already hit this enemy
+                        if (p.isPiercing && p.hitIds && p.hitIds.includes(e.id)) {
+                            continue;
                         }
 
-                        // Calculate Damage
-                        const statKey = `DMG_VS_${e.type}` as StatId;
-                        const multiplier = this.stats.get(statKey, 1.0);
-                        let finalDamage = p.damage * multiplier;
+                        // 1. Calculate Damage
+                        const finalDamage = this.calculateImpactDamage(p, e);
 
-                        // Module Logic: Pulse Rifle Decay
-                        if (p.isPiercing && p.weaponType === WeaponType.PULSE_RIFLE) {
-                            const hitCount = p.hitIds ? p.hitIds.length : 0;
-                            if (hitCount > 0) {
-                                finalDamage *= Math.pow(0.8, hitCount); // 20% Decay
-                            }
-                        }
-
-                        // Turret Logic: Railgun Decay (Piercing + Source Turret)
-                        if (p.isPiercing && p.source === DamageSource.TURRET) {
-                            const hitCount = p.hitIds ? p.hitIds.length : 0;
-                            if (hitCount > 0) {
-                                finalDamage *= Math.pow(0.92, hitCount); // 8% decay per hit
-                            }
-                        }
-
-                        // Module Logic: Kinetic Stabilizer
-                        if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
-                            const hitCount = p.hitIds ? p.hitIds.length : 0;
-                            if (hitCount === 1) {
-                                finalDamage *= 0.8;
-                            }
-                        }
-
+                        // 2. Apply Damage Event
                         this.events.emit<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, { 
                             targetId: e.id, 
                             amount: finalDamage, 
@@ -101,85 +76,18 @@ export class PhysicsSystem {
                             weaponType: p.weaponType 
                         });
                         
-                        // Hit Sound (Throttled by AudioService profile)
+                        // 3. Play Sound
                         this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'BULLET_HIT', x: e.x, y: e.y });
                         
-                        // Collision Response
-                        if (p.isPiercing) {
-                            p.hitIds!.push(e.id);
-                            // Kinetic Stabilizer limit: 2 hits
-                            if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
-                                if (p.hitIds.length >= 2) {
-                                    shouldRemove = true;
-                                }
-                            }
-                        } else if (p.isExplosive) {
-                            this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { x: p.x, y: p.y, radius: 100, damage: finalDamage, source: p.source });
-                            this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: p.x, y: p.y, color: '#f87171', count: 10, speed: 10 });
-                            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
-                            shouldRemove = true;
-                        } else {
-                            shouldRemove = true;
-                        }
+                        // 4. Handle Piercing / Explosive Logic / Removal
+                        shouldRemove = this.handleHitResponse(p, e, finalDamage);
                         
                         if (shouldRemove) break;
                     }
                 }
             } else {
                 // --- Enemy Projectiles vs Player/Base/Allies ---
-                
-                // 1. Vs Player
-                if (circlesIntersect(p.x, p.y, p.radius, state.player.x, state.player.y, state.player.radius)) {
-                    this.events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: p.damage });
-                    shouldRemove = true;
-                    if (p.createsToxicZone) {
-                        this.events.emit<SpawnToxicZoneEvent>(GameEventType.SPAWN_TOXIC_ZONE, { x: p.x, y: p.y });
-                    }
-                }
-
-                // 2. Vs Allies
-                if (!shouldRemove) {
-                    for (const ally of state.allies) {
-                        if (circlesIntersect(p.x, p.y, p.radius, ally.x, ally.y, 12)) {
-                            ally.hp -= p.damage; // Direct modification for allies for now (simple)
-                            shouldRemove = true;
-                            break;
-                        }
-                    }
-                }
-
-                // 3. Vs Turrets
-                if (!shouldRemove) {
-                    for (const spot of state.turretSpots) {
-                        if (spot.builtTurret) {
-                            if (circlesIntersect(p.x, p.y, p.radius, spot.x, spot.y, 15)) {
-                                spot.builtTurret.hp -= p.damage;
-                                shouldRemove = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // 4. Vs Bases
-                if (!shouldRemove) {
-                    // Check primary base
-                    const b = state.base;
-                    if (circleIntersectsAABB(p.x, p.y, p.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
-                        state.base.hp -= p.damage;
-                        this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
-                        shouldRemove = true;
-                    } 
-                    // Check secondary base
-                    else if (state.secondaryBase) {
-                        const sb = state.secondaryBase;
-                        if (circleIntersectsAABB(p.x, p.y, p.radius, sb.x - sb.width/2, sb.y - sb.height/2, sb.width, sb.height)) {
-                            state.secondaryBase.hp -= p.damage;
-                            this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
-                            shouldRemove = true;
-                        }
-                    }
-                }
+                shouldRemove = this.handleEnemyProjectileHit(p, state);
             }
 
             if (shouldRemove) {
@@ -187,6 +95,132 @@ export class PhysicsSystem {
                 p.rangeRemaining = -1;
             }
         }
+    }
+
+    /**
+     * Calculates impact damage based on weapon stats, enemy type multipliers, and modules.
+     */
+    private calculateImpactDamage(p: Projectile, e: Enemy): number {
+        // Base Stat Multiplier
+        const statKey = `DMG_VS_${e.type}` as StatId;
+        const multiplier = this.stats.get(statKey, 1.0);
+        let finalDamage = p.damage * multiplier;
+
+        // Module Logic: Pulse Rifle Decay
+        if (p.isPiercing && p.weaponType === WeaponType.PULSE_RIFLE) {
+            const hitCount = p.hitIds ? p.hitIds.length : 0;
+            if (hitCount > 0) {
+                finalDamage *= Math.pow(0.8, hitCount); // 20% Decay per hit
+            }
+        }
+
+        // Turret Logic: Railgun Decay (Piercing + Source Turret)
+        if (p.isPiercing && p.source === DamageSource.TURRET) {
+            const hitCount = p.hitIds ? p.hitIds.length : 0;
+            if (hitCount > 0) {
+                finalDamage *= Math.pow(0.92, hitCount); // 8% decay per hit
+            }
+        }
+
+        // Module Logic: Kinetic Stabilizer (Pierce Logic)
+        if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
+            const hitCount = p.hitIds ? p.hitIds.length : 0;
+            if (hitCount === 1) {
+                finalDamage *= 0.8; // 2nd hit deals 80% damage
+            }
+        }
+
+        return finalDamage;
+    }
+
+    /**
+     * Determines if the projectile should be removed and handles side effects (Explosions, piercing counters).
+     */
+    private handleHitResponse(p: Projectile, e: Enemy, dmg: number): boolean {
+        let shouldRemove = false;
+
+        if (p.isPiercing) {
+            if (!p.hitIds) p.hitIds = [];
+            p.hitIds.push(e.id);
+            
+            // Kinetic Stabilizer limit: 2 hits max
+            if (p.activeModules && p.activeModules.some(m => m.type === ModuleType.KINETIC_STABILIZER)) {
+                if (p.hitIds.length >= 2) {
+                    shouldRemove = true;
+                }
+            }
+            // Logic: Railgun (Sniper Turret) or others usually pierce infinitely until range dies
+            // or specific logic applies. Here we let it continue unless limited.
+        } else if (p.isExplosive) {
+            // Trigger Explosion
+            const radius = p.explosionRadius || 100;
+            this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, { x: p.x, y: p.y, radius: radius, damage: dmg, source: p.source });
+            this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: p.x, y: p.y, color: '#f87171', count: 10, speed: 10 });
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
+            shouldRemove = true;
+        } else {
+            // Standard Bullet
+            shouldRemove = true;
+        }
+
+        return shouldRemove;
+    }
+
+    private handleEnemyProjectileHit(p: Projectile, state: GameState): boolean {
+        let shouldRemove = false;
+
+        // 1. Vs Player
+        if (circlesIntersect(p.x, p.y, p.radius, state.player.x, state.player.y, state.player.radius)) {
+            this.events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: p.damage });
+            shouldRemove = true;
+            if (p.createsToxicZone) {
+                this.events.emit<SpawnToxicZoneEvent>(GameEventType.SPAWN_TOXIC_ZONE, { x: p.x, y: p.y });
+            }
+        }
+
+        // 2. Vs Allies
+        if (!shouldRemove) {
+            for (const ally of state.allies) {
+                if (circlesIntersect(p.x, p.y, p.radius, ally.x, ally.y, 12)) {
+                    ally.hp -= p.damage; 
+                    shouldRemove = true;
+                    break;
+                }
+            }
+        }
+
+        // 3. Vs Turrets
+        if (!shouldRemove) {
+            for (const spot of state.turretSpots) {
+                if (spot.builtTurret) {
+                    if (circlesIntersect(p.x, p.y, p.radius, spot.x, spot.y, 15)) {
+                        spot.builtTurret.hp -= p.damage;
+                        shouldRemove = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 4. Vs Bases
+        if (!shouldRemove) {
+            const b = state.base;
+            if (circleIntersectsAABB(p.x, p.y, p.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
+                state.base.hp -= p.damage;
+                this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
+                shouldRemove = true;
+            } 
+            else if (state.secondaryBase) {
+                const sb = state.secondaryBase;
+                if (circleIntersectsAABB(p.x, p.y, p.radius, sb.x - sb.width/2, sb.y - sb.height/2, sb.width, sb.height)) {
+                    state.secondaryBase.hp -= p.damage;
+                    this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
+                    shouldRemove = true;
+                }
+            }
+        }
+
+        return shouldRemove;
     }
 
     private handleEntityCollisions() {

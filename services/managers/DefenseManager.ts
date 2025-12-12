@@ -1,9 +1,10 @@
 
-import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode, Turret } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
 import { StatManager } from './StatManager';
+import { TurretBehavior, StandardBehavior, GaussBehavior, SniperBehavior, MissileBehavior } from './TurretBehaviors';
 
 export class DefenseManager {
     private getState: () => GameState;
@@ -11,12 +12,22 @@ export class DefenseManager {
     private spatialGrid: SpatialHashGrid<Enemy>;
     private stats: StatManager;
     private targetCache: Enemy[] = [];
+    
+    // Strategy Pattern for Turrets
+    private turretBehaviors: Map<TurretType, TurretBehavior>;
 
     constructor(getState: () => GameState, eventBus: EventBus, spatialGrid: SpatialHashGrid<Enemy>, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
         this.spatialGrid = spatialGrid;
         this.stats = statManager;
+
+        // Initialize Behaviors
+        this.turretBehaviors = new Map();
+        this.turretBehaviors.set(TurretType.STANDARD, new StandardBehavior());
+        this.turretBehaviors.set(TurretType.GAUSS, new GaussBehavior());
+        this.turretBehaviors.set(TurretType.SNIPER, new SniperBehavior());
+        this.turretBehaviors.set(TurretType.MISSILE, new MissileBehavior());
 
         // Subscribe to events
         this.events.on<DefenseIssueOrderEvent>(GameEventType.DEFENSE_ISSUE_ORDER, (e) => this.issueOrder(e.order));
@@ -30,7 +41,7 @@ export class DefenseManager {
         if (this.getState().baseDrop?.active) return;
 
         this.updateAllies(dt, time, timeScale);
-        this.updateTurrets(time);
+        this.updateTurrets(dt, time);
     }
 
     private updateAllies(dt: number, time: number, timeScale: number) {
@@ -142,12 +153,14 @@ export class DefenseManager {
         state.allies = state.allies.filter(a => a.hp > 0);
     }
 
-    private updateTurrets(time: number) {
+    private updateTurrets(dt: number, time: number) {
         const state = this.getState();
+        
         state.turretSpots.forEach(spot => {
             const t = spot.builtTurret;
             if (!t) return;
 
+            // Destruction Check
             if (t.hp <= 0) {
                 this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: spot.x, y: spot.y, color: '#ef4444', count: 10, speed: 5 });
                 this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: spot.x, y: spot.y, color: '#9ca3af', count: 8, speed: 3 });
@@ -155,88 +168,17 @@ export class DefenseManager {
                 spot.builtTurret = undefined;
                 return;
             }
-            
-            // Logic for Gauss Spin-Up Decay (reset if idle for > 2s)
-            if (t.type === TurretType.GAUSS && t.spinUp && t.spinUp > 0) {
-                if (time - t.lastFireTime > 2000) {
-                    t.spinUp = 0;
-                }
-            }
 
-            // Calculate Effective Fire Rate
-            // Base Fire Rate is stored in t.fireRate (already includes stat modifiers from upgrade/build time)
-            // Apply Dynamic Modifiers (Spin Up)
-            let currentFireRate = t.fireRate;
-            if (t.type === TurretType.GAUSS) {
-                // Formula: Base / (1 + Bonus%)
-                // SpinUp ranges 0.0 to 2.0
-                currentFireRate = t.fireRate / (1 + (t.spinUp || 0));
-            }
-
-            if (time - t.lastFireTime > currentFireRate) {
-                let target: Enemy | null = null;
-                let minDistSq = t.range * t.range;
-                let possibleTargets: Enemy[] = [];
-                if (t.range > 2000) possibleTargets = state.enemies;
-                else {
-                    this.targetCache.length = 0;
-                    this.spatialGrid.query(spot.x, spot.y, t.range, this.targetCache);
-                    possibleTargets = this.targetCache;
-                }
-
-                for (const e of possibleTargets) {
-                    const dSq = (e.x - spot.x)**2 + (e.y - spot.y)**2;
-                    if (dSq < minDistSq) {
-                        minDistSq = dSq;
-                        target = e;
-                    }
-                }
-
-                if (target) {
-                    t.angle = Math.atan2(target.y - spot.y, target.x - spot.x);
-                    
-                    let isExplosive = false;
-                    let isPiercing = false;
-                    let speed = 20;
-                    let color = '#10b981';
-                    let explosionRadius = 0;
-
-                    if (t.type === TurretType.SNIPER) { // Railgun
-                        isExplosive = false; 
-                        isPiercing = true; // Penetration
-                        color = '#FAFAFA'; // White/Cyan beam color
-                        speed = 60; // Very fast, beam-like
-                    } else if (t.type === TurretType.MISSILE) {
-                        isExplosive = true;
-                        explosionRadius = 100;
-                    }
-
-                    this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-                        x: spot.x, 
-                        y: spot.y, 
-                        targetX: target.x, 
-                        targetY: target.y, 
-                        speed: speed, 
-                        damage: t.damage, 
-                        fromPlayer: true, 
-                        color: color, 
-                        homingTargetId: t.type === TurretType.MISSILE ? target.id : undefined, 
-                        isHoming: t.type === TurretType.MISSILE, 
-                        maxRange: t.range, 
-                        source: DamageSource.TURRET,
-                        isExplosive: isExplosive,
-                        isPiercing: isPiercing,
-                        // @ts-ignore - passing extra prop to be handled by ProjectileManager/Physics
-                        explosionRadius: explosionRadius 
-                    });
-                    t.lastFireTime = time;
-                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: t.type });
-
-                    // Increment Spin Up
-                    if (t.type === TurretType.GAUSS) {
-                        t.spinUp = Math.min(2.0, (t.spinUp || 0) + 0.01);
-                    }
-                }
+            // Delegated Logic
+            const behavior = this.turretBehaviors.get(t.type);
+            if (behavior) {
+                behavior.update(t, {
+                    events: this.events,
+                    spatialGrid: this.spatialGrid,
+                    enemies: state.enemies,
+                    time,
+                    dt
+                });
             }
         });
     }
