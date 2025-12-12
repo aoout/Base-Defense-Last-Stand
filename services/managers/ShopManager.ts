@@ -1,95 +1,174 @@
 
 import { GameEngine } from '../gameService';
-import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, WeaponModule, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent, PlaySoundEvent } from '../../types';
+import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent, PlaySoundEvent } from '../../types';
 import { SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS, SPACESHIP_MODULES } from '../../data/registry';
+
+interface AmmoDefinition {
+    weapon: WeaponType;
+    amount: number;
+    priceKey: keyof typeof SHOP_PRICES;
+}
 
 export class ShopManager {
     private engine: GameEngine;
 
+    // --- DATA CATALOGS ---
+    // Centralized configuration to avoid magic strings in logic
+    private readonly AMMO_CATALOG: Record<string, AmmoDefinition> = {
+        'AR_AMMO':      { weapon: WeaponType.AR,               amount: 60,  priceKey: 'AR_AMMO' },
+        'SG_AMMO':      { weapon: WeaponType.SG,               amount: 16,  priceKey: 'SG_AMMO' },
+        'SR_AMMO':      { weapon: WeaponType.SR,               amount: 10,  priceKey: 'SR_AMMO' },
+        'PULSE_AMMO':   { weapon: WeaponType.PULSE_RIFLE,      amount: 90,  priceKey: 'PULSE_AMMO' },
+        'FLAME_AMMO':   { weapon: WeaponType.FLAMETHROWER,     amount: 200, priceKey: 'FLAME_AMMO' },
+        'GL_AMMO':      { weapon: WeaponType.GRENADE_LAUNCHER, amount: 12,  priceKey: 'GL_AMMO' },
+    };
+
+    private readonly WEAPON_CATALOG: Record<string, { type: WeaponType, priceKey: keyof typeof SHOP_PRICES }> = {
+        'WEAPON_PULSE': { type: WeaponType.PULSE_RIFLE,      priceKey: 'WEAPON_PULSE' },
+        'WEAPON_FLAME': { type: WeaponType.FLAMETHROWER,     priceKey: 'WEAPON_FLAME' },
+        'WEAPON_GL':    { type: WeaponType.GRENADE_LAUNCHER, priceKey: 'WEAPON_GL' },
+    };
+
     constructor(engine: GameEngine) {
         this.engine = engine;
-        
-        // Subscribe to Shop Events
+        this.setupEventListeners();
+    }
+
+    private setupEventListeners() {
         this.engine.eventBus.on<ShopPurchaseEvent>(GameEventType.SHOP_PURCHASE, (e) => this.purchaseItem(e.itemId));
         this.engine.eventBus.on<ShopEquipModuleEvent>(GameEventType.SHOP_EQUIP_MODULE, (e) => this.equipModule(e.target, e.moduleId));
         this.engine.eventBus.on<ShopUnequipModuleEvent>(GameEventType.SHOP_UNEQUIP_MODULE, (e) => this.unequipModule(e.target, e.moduleId));
         this.engine.eventBus.on<ShopSwapLoadoutEvent>(GameEventType.SHOP_SWAP_LOADOUT, (e) => this.swapLoadoutAndInventory(e.loadoutIndex, e.inventoryIndex));
     }
 
+    /**
+     * Main Entry Point for Purchases.
+     * Delegates to specific handlers based on item type.
+     */
     public purchaseItem(itemKey: string) {
-        const p = this.engine.state.player;
-        
-        // Ammo
-        if (itemKey === 'AR_AMMO' && p.score >= SHOP_PRICES.AR_AMMO) { p.score -= SHOP_PRICES.AR_AMMO; p.weapons[WeaponType.AR].ammoReserve += 60; }
-        if (itemKey === 'SG_AMMO' && p.score >= SHOP_PRICES.SG_AMMO) { p.score -= SHOP_PRICES.SG_AMMO; p.weapons[WeaponType.SG].ammoReserve += 16; }
-        if (itemKey === 'SR_AMMO' && p.score >= SHOP_PRICES.SR_AMMO) { p.score -= SHOP_PRICES.SR_AMMO; p.weapons[WeaponType.SR].ammoReserve += 10; }
-        if (itemKey === 'GRENADE' && p.score >= SHOP_PRICES.GRENADE) { p.score -= SHOP_PRICES.GRENADE; p.grenades++; }
-        
-        // New Ammo
-        if (itemKey === 'PULSE_AMMO' && p.score >= SHOP_PRICES.PULSE_AMMO) { p.score -= SHOP_PRICES.PULSE_AMMO; p.weapons[WeaponType.PULSE_RIFLE].ammoReserve += 90; }
-        if (itemKey === 'FLAME_AMMO' && p.score >= SHOP_PRICES.FLAME_AMMO) { p.score -= SHOP_PRICES.FLAME_AMMO; p.weapons[WeaponType.FLAMETHROWER].ammoReserve += 200; }
-        if (itemKey === 'GL_AMMO' && p.score >= SHOP_PRICES.GL_AMMO) { p.score -= SHOP_PRICES.GL_AMMO; p.weapons[WeaponType.GRENADE_LAUNCHER].ammoReserve += 12; }
-
-        // Weapons
-        if (itemKey === 'WEAPON_PULSE' && p.score >= SHOP_PRICES.WEAPON_PULSE) {
-            p.score -= SHOP_PRICES.WEAPON_PULSE;
-            this.addToInventory(WeaponType.PULSE_RIFLE);
-        }
-        if (itemKey === 'WEAPON_FLAME' && p.score >= SHOP_PRICES.WEAPON_FLAME) {
-            p.score -= SHOP_PRICES.WEAPON_FLAME;
-            this.addToInventory(WeaponType.FLAMETHROWER);
-        }
-        if (itemKey === 'WEAPON_GL' && p.score >= SHOP_PRICES.WEAPON_GL) {
-            p.score -= SHOP_PRICES.WEAPON_GL;
-            this.addToInventory(WeaponType.GRENADE_LAUNCHER);
-        }
-
-        // Upgrades
-        if (itemKey === DefenseUpgradeType.INFECTION_DISPOSAL || itemKey === DefenseUpgradeType.SPORE_BARRIER || itemKey === DefenseUpgradeType.IMPACT_PLATE) {
-             const info = DEFENSE_UPGRADE_INFO[itemKey as DefenseUpgradeType];
-             if (p.score >= info.cost && !p.upgrades.includes(itemKey as DefenseUpgradeType)) {
-                 p.score -= info.cost;
-                 p.upgrades.push(itemKey as DefenseUpgradeType);
-                 // Apply Immediate Effects
-                 if (itemKey === DefenseUpgradeType.SPORE_BARRIER) {
-                     const bonus = (info as any).maxArmorBonus;
-                     p.maxArmor += bonus;
-                     p.armor += bonus;
-                 }
-             }
-        }
-
-        // Modules
-        if (Object.values(ModuleType).includes(itemKey as ModuleType)) {
-            const m = MODULE_STATS[itemKey as ModuleType];
-            if (p.score >= m.cost) {
-                p.score -= m.cost;
-                p.freeModules.push({ id: `mod-${Date.now()}-${Math.random()}`, type: itemKey as ModuleType });
-            }
-        }
-
-        // Spaceship Modules
-        if (Object.values(SpaceshipModuleType).includes(itemKey as SpaceshipModuleType)) {
-            const m = SPACESHIP_MODULES[itemKey as SpaceshipModuleType];
-            if (p.score >= m.cost) {
-                 p.score -= m.cost;
-                 this.engine.state.spaceship.installedModules.push(itemKey as SpaceshipModuleType);
-                 
-                 // Play Upgrade Sound
-                 this.engine.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
-
-                 // Apply immediate effects
-                 if (itemKey === SpaceshipModuleType.BASE_REINFORCEMENT) {
-                     this.engine.state.base.maxHp += 3000;
-                     this.engine.state.base.hp += 3000;
-                 }
-                 // Unlock tree if cannon purchased
-                 if (itemKey === SpaceshipModuleType.ORBITAL_CANNON) {
-                     this.engine.generateOrbitalUpgradeTree();
-                 }
-            }
-        }
+        if (this.handleAmmoPurchase(itemKey)) return;
+        if (this.handleWeaponPurchase(itemKey)) return;
+        if (this.handleGrenadePurchase(itemKey)) return;
+        if (this.handleUpgradePurchase(itemKey)) return;
+        if (this.handleWeaponModulePurchase(itemKey)) return;
+        if (this.handleShipModulePurchase(itemKey)) return;
     }
+
+    // --- TRANSACTION HELPER ---
+    
+    /**
+     * Abstracts the "Check Balance -> Deduct -> Execute" flow.
+     * Returns true if transaction was successful.
+     */
+    private tryTransaction(cost: number, onPurchase: () => void, soundType: 'TURRET' | 'WEAPON' = 'TURRET'): boolean {
+        const p = this.engine.state.player;
+        if (p.score >= cost) {
+            p.score -= cost;
+            onPurchase();
+            // Play a sound to confirm transaction
+            if (soundType === 'TURRET') {
+                // Using generic UI confirmation sound variant
+                this.engine.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // --- HANDLERS ---
+
+    private handleAmmoPurchase(itemKey: string): boolean {
+        const def = this.AMMO_CATALOG[itemKey];
+        if (!def) return false;
+
+        return this.tryTransaction(SHOP_PRICES[def.priceKey], () => {
+            const p = this.engine.state.player;
+            p.weapons[def.weapon].ammoReserve += def.amount;
+        }, 'WEAPON');
+    }
+
+    private handleWeaponPurchase(itemKey: string): boolean {
+        const def = this.WEAPON_CATALOG[itemKey];
+        if (!def) return false;
+
+        return this.tryTransaction(SHOP_PRICES[def.priceKey], () => {
+            this.addToInventory(def.type);
+        });
+    }
+
+    private handleGrenadePurchase(itemKey: string): boolean {
+        if (itemKey !== 'GRENADE') return false;
+        
+        return this.tryTransaction(SHOP_PRICES.GRENADE, () => {
+            this.engine.state.player.grenades++;
+        });
+    }
+
+    private handleUpgradePurchase(itemKey: string): boolean {
+        // Check if key exists in Defense Upgrades
+        if (!Object.values(DefenseUpgradeType).includes(itemKey as DefenseUpgradeType)) return false;
+
+        const type = itemKey as DefenseUpgradeType;
+        const info = DEFENSE_UPGRADE_INFO[type];
+        const p = this.engine.state.player;
+
+        if (p.upgrades.includes(type)) return true; // Already owned
+
+        return this.tryTransaction(info.cost, () => {
+            p.upgrades.push(type);
+            
+            // Apply Immediate Effects
+            if (type === DefenseUpgradeType.SPORE_BARRIER) {
+                const bonus = (info as any).maxArmorBonus;
+                p.maxArmor += bonus;
+                p.armor += bonus;
+            }
+        });
+    }
+
+    private handleWeaponModulePurchase(itemKey: string): boolean {
+        if (!Object.values(ModuleType).includes(itemKey as ModuleType)) return false;
+
+        const type = itemKey as ModuleType;
+        const stats = MODULE_STATS[type];
+
+        return this.tryTransaction(stats.cost, () => {
+            const p = this.engine.state.player;
+            p.freeModules.push({ id: `mod-${Date.now()}-${Math.random()}`, type });
+        });
+    }
+
+    private handleShipModulePurchase(itemKey: string): boolean {
+        if (!Object.values(SpaceshipModuleType).includes(itemKey as SpaceshipModuleType)) return false;
+
+        const type = itemKey as SpaceshipModuleType;
+        const stats = SPACESHIP_MODULES[type];
+        const s = this.engine.state.spaceship;
+
+        if (s.installedModules.includes(type)) return true; // Already installed
+
+        return this.tryTransaction(stats.cost, () => {
+            s.installedModules.push(type);
+            this.applyShipModuleEffect(type);
+            
+            // Play specific upgrade sound
+            this.engine.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
+        });
+    }
+
+    private applyShipModuleEffect(type: SpaceshipModuleType) {
+        if (type === SpaceshipModuleType.BASE_REINFORCEMENT) {
+            this.engine.state.base.maxHp += 3000;
+            this.engine.state.base.hp += 3000;
+        }
+        if (type === SpaceshipModuleType.ORBITAL_CANNON) {
+            this.engine.generateOrbitalUpgradeTree();
+        }
+        // Force stat recalculation
+        this.engine.spaceshipManager.registerModifiers();
+    }
+
+    // --- INVENTORY MANAGEMENT HELPERS ---
 
     public addToInventory(type: WeaponType) {
         const idx = this.engine.state.player.inventory.findIndex(i => i === null);
@@ -114,37 +193,23 @@ export class ShopManager {
         if (modIndex === -1) return;
         
         const mod = p.freeModules[modIndex];
+        let targetModules = target === 'GRENADE' ? p.grenadeModules : p.weapons[target].modules;
+        const limit = target === 'GRENADE' || target === WeaponType.PISTOL ? 2 : 3;
 
-        if (target === 'GRENADE') {
-            if (p.grenadeModules.length < 2) {
-                p.freeModules.splice(modIndex, 1);
-                p.grenadeModules.push(mod);
-            }
-        } else {
-            const w = p.weapons[target];
-            const limit = target === WeaponType.PISTOL ? 2 : 3;
-            if (w.modules.length < limit) {
-                p.freeModules.splice(modIndex, 1);
-                w.modules.push(mod);
-            }
+        if (targetModules.length < limit) {
+            p.freeModules.splice(modIndex, 1);
+            targetModules.push(mod);
         }
     }
 
     public unequipModule(target: WeaponType | 'GRENADE', modId: string) {
         const p = this.engine.state.player;
-        if (target === 'GRENADE') {
-            const idx = p.grenadeModules.findIndex(m => m.id === modId);
-            if (idx !== -1) {
-                const mod = p.grenadeModules.splice(idx, 1)[0];
-                p.freeModules.push(mod);
-            }
-        } else {
-            const w = p.weapons[target];
-            const idx = w.modules.findIndex(m => m.id === modId);
-            if (idx !== -1) {
-                const mod = w.modules.splice(idx, 1)[0];
-                p.freeModules.push(mod);
-            }
+        let targetModules = target === 'GRENADE' ? p.grenadeModules : p.weapons[target].modules;
+        
+        const idx = targetModules.findIndex(m => m.id === modId);
+        if (idx !== -1) {
+            const mod = targetModules.splice(idx, 1)[0];
+            p.freeModules.push(mod);
         }
     }
 }

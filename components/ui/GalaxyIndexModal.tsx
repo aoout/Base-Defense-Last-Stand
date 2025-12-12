@@ -1,11 +1,13 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ModuleWindow } from './ModuleWindow';
 import { Variant } from '../../theme/designSystem';
-import { GalaxyConfig, BiomeType, PlanetVisualType } from '../../types';
+import { GalaxyConfig } from '../../types';
 import { useLocale } from '../contexts/LocaleContext';
 import { FAMOUS_SECTORS } from '../../data/sectors';
-import { BIOME_STYLES } from '../../data/world';
+import { BIOME_STYLES } from '../../data/world'; // Still needed for list rendering if any
+import { PRESETS, getColorHex } from '../../data/config/galaxyPresets';
+import { SectorRadar } from './visuals/SectorRadar';
 
 interface GalaxyIndexModalProps {
     onClose: () => void;
@@ -27,156 +29,11 @@ interface TacticalSliderProps {
 type DifficultyPreset = 'LOW' | 'MED' | 'HIGH' | 'CUSTOM';
 type TabType = 'PROTOCOLS' | 'ARCHIVES';
 
-const PRESETS = {
-    LOW: { min: 0.6, max: 2.4, sulfur: 5, oxygen: 80, count: 10, minWaves: 5, maxWaves: 15, offense: true, label: 'DIFF_LOW', color: 'emerald', desc: 'LOW THREAT' },
-    MED: { min: 1.0, max: 3.0, sulfur: 10, oxygen: 100, count: 12, minWaves: 8, maxWaves: 25, offense: true, label: 'DIFF_MED', color: 'cyan', desc: 'STANDARD' },
-    HIGH: { min: 1.0, max: 4.2, sulfur: 10, oxygen: 100, count: 14, minWaves: 15, maxWaves: 40, offense: true, label: 'DIFF_HIGH', color: 'red', desc: 'HIGH THREAT' },
-    CUSTOM: { min: 1.0, max: 3.0, sulfur: 10, oxygen: 100, count: 12, minWaves: 8, maxWaves: 30, offense: true, label: 'DIFF_CUSTOM', color: 'yellow', desc: 'MANUAL' }
-};
-
-// Helper to get hex colors
-const getColorHex = (colorName: string) => {
-    switch(colorName) {
-        case 'emerald': return '#10b981';
-        case 'cyan': return '#06b6d4';
-        case 'red': return '#ef4444';
-        case 'yellow': return '#eab308';
-        case 'purple': return '#a855f7';
-        default: return '#94a3b8';
-    }
-};
-
 // --- VISUALIZATION COMPONENTS ---
 
 const ScanlineOverlay = () => (
     <div className="absolute inset-0 pointer-events-none opacity-20 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.5)_50%)] bg-[size:100%_4px] z-0"></div>
 );
-
-const SectorVisualizer: React.FC<{ 
-    mode: TabType, 
-    color: string, 
-    sectorId?: string,
-    isScanning?: boolean
-}> = ({ mode, color, sectorId, isScanning }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const hexColor = getColorHex(color);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-
-        let animationFrameId: number;
-        let time = 0;
-
-        const render = () => {
-            time++;
-            const w = canvas.width;
-            const h = canvas.height;
-            const cx = w / 2;
-            const cy = h / 2;
-
-            ctx.clearRect(0, 0, w, h);
-
-            // Draw Background Grid
-            ctx.strokeStyle = `${hexColor}22`; // Very transparent
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            // Polar Grid
-            for(let r=50; r<w/2; r+=50) {
-                ctx.arc(cx, cy, r, 0, Math.PI*2);
-            }
-            // Spokes
-            for(let i=0; i<8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(cx + Math.cos(angle)*w, cy + Math.sin(angle)*w);
-            }
-            ctx.stroke();
-
-            if (mode === 'PROTOCOLS') {
-                // Scanning Animation
-                const scanRadius = (time * 2) % (w/2);
-                ctx.strokeStyle = hexColor;
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(cx, cy, scanRadius, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // Rotating Radar Sweep
-                const angle = (time * 0.02) % (Math.PI * 2);
-                ctx.fillStyle = `conic-gradient(from ${angle}rad, transparent 0deg, transparent 270deg, ${hexColor}66 360deg)`;
-                
-                ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.lineTo(cx + Math.cos(angle) * (w/2), cy + Math.sin(angle) * (w/2));
-                ctx.strokeStyle = hexColor;
-                ctx.lineWidth = 2;
-                ctx.stroke();
-
-                // Random blips
-                if (time % 20 === 0 || Math.random() > 0.9) {
-                    const bx = cx + (Math.random()-0.5) * w * 0.6;
-                    const by = cy + (Math.random()-0.5) * h * 0.6;
-                    ctx.fillStyle = '#fff';
-                    ctx.fillRect(bx, by, 2, 2);
-                }
-            } 
-            else if (mode === 'ARCHIVES' && sectorId) {
-                // Fixed System Visualization
-                const sector = FAMOUS_SECTORS.find(s => s.id === sectorId);
-                if (sector) {
-                    // Central Star
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = hexColor;
-                    ctx.fillStyle = '#fff';
-                    ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
-                    ctx.fillStyle = hexColor;
-                    ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
-                    ctx.shadowBlur = 0;
-
-                    // Planets
-                    sector.planets.forEach((p, idx) => {
-                        const orbitRadius = 40 + (idx * 18); // Tighter spacing for more planets
-                        const speed = 0.005 / (idx * 0.5 + 1);
-                        const angle = time * speed + (idx * 2);
-                        
-                        const px = cx + Math.cos(angle) * orbitRadius;
-                        const py = cy + Math.sin(angle) * orbitRadius;
-
-                        // Orbit Path
-                        ctx.strokeStyle = `${hexColor}22`;
-                        ctx.beginPath(); ctx.arc(cx, cy, orbitRadius, 0, Math.PI*2); ctx.stroke();
-
-                        // Planet Body
-                        const biomeStyle = BIOME_STYLES[p.biome || BiomeType.BARREN];
-                        ctx.fillStyle = biomeStyle.planetColor;
-                        let r = p.visualType === PlanetVisualType.GAS_GIANT ? 5 : 2.5;
-                        
-                        ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
-                        
-                        // Ring?
-                        if (p.visualType === PlanetVisualType.RINGED) {
-                            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-                            ctx.lineWidth = 1;
-                            ctx.beginPath(); ctx.ellipse(px, py, r+3, r-1, angle, 0, Math.PI*2); ctx.stroke();
-                        }
-                    });
-                }
-            }
-
-            animationFrameId = requestAnimationFrame(render);
-        };
-
-        render();
-        return () => cancelAnimationFrame(animationFrameId);
-    }, [mode, color, sectorId]);
-
-    return (
-        <canvas ref={canvasRef} width={400} height={400} className="w-full h-full object-contain" />
-    );
-};
 
 // --- UI COMPONENTS ---
 
@@ -419,7 +276,12 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                     <div className="flex-1 relative flex items-center justify-center min-h-0 p-4">
                         {/* THE VISUALIZER - Responsive container */}
                         <div className="w-full max-w-[500px] aspect-square relative">
-                            <SectorVisualizer mode={activeTab} color={themeColor} sectorId={selectedSectorId || undefined} />
+                            {/* Refactored Component */}
+                            <SectorRadar 
+                                mode={activeTab} 
+                                color={themeColor} 
+                                sectorId={selectedSectorId || undefined} 
+                            />
                             
                             {/* Danger Overlay Text */}
                             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none text-center">
@@ -552,7 +414,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                             {selectedSector.planets.map((p, i) => (
                                                 <div key={i} className="flex justify-between items-center text-xs py-2 px-3 bg-slate-900/50 border border-slate-800 hover:border-slate-600 transition-colors">
                                                     <div className="flex items-center gap-3">
-                                                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: BIOME_STYLES[p.biome || BiomeType.BARREN].planetColor}}></div>
+                                                        <div className="w-2 h-2 rounded-full" style={{backgroundColor: BIOME_STYLES[p.biome || 'BARREN' as any].planetColor}}></div>
                                                         <span className="text-slate-300 font-bold">{p.name}</span>
                                                     </div>
                                                     <div className="flex items-center gap-2">
