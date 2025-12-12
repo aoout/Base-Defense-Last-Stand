@@ -7,14 +7,19 @@ import { GameState, GameEventType } from './types';
 import { GameProvider } from './components/contexts/GameContext';
 
 const App: React.FC = () => {
-  // We use state only for the UI overlay.
-  // Game logic updates are decoupled from React renders.
-  const engineRef = useRef<GameEngine>(new GameEngine());
-  const [gameState, setGameState] = useState<GameState>(engineRef.current.state);
+  // Lazy initialization ensures GameEngine constructor (and its AudioContext) 
+  // runs exactly once, preventing ghost audio tracks.
+  const engineRef = useRef<GameEngine | null>(null);
+  
+  if (!engineRef.current) {
+    engineRef.current = new GameEngine();
+  }
+
+  // Use a safe reference for the effect closure
+  const engine = engineRef.current;
+  const [gameState, setGameState] = useState<GameState>(engine.state);
 
   useEffect(() => {
-    const engine = engineRef.current;
-
     // React to Engine UI Updates
     const handleUIUpdate = () => {
         // Force a re-render with fresh state
@@ -29,12 +34,12 @@ const App: React.FC = () => {
     return () => {
       engine.eventBus.off(GameEventType.UI_UPDATE, handleUIUpdate);
     };
-  }, []);
+  }, [engine]);
 
   return (
     <div className="relative w-full h-screen bg-gray-900 flex justify-center items-center overflow-hidden">
-      <GameCanvas engine={engineRef.current} />
-      <GameProvider engine={engineRef.current} state={gameState}>
+      <GameCanvas engine={engine} />
+      <GameProvider engine={engine} state={gameState}>
         <UIOverlay />
       </GameProvider>
     </div>

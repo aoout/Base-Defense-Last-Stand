@@ -97,22 +97,26 @@ const TelemetryRow: React.FC<{ label: string, value: string | number, color?: st
 // --- AUDIO DECK SUB-VIEW ---
 
 const AudioDeck: React.FC<{ engine: any, t: Translator, onBack: () => void }> = ({ engine, t, onBack }) => {
-    const audioCore = (engine.audio as any).core; 
+    // Initial State - Grab current values safely if possible, otherwise default
+    // We use a small hack to access core for *reading* initial values, but set via public API
+    const initialMaster = (engine.audio as any).core?.masterGain?.gain?.value ?? 0.5;
+    const initialMusic = (engine.audio as any).core?.musicGain?.gain?.value ?? 0.35;
+    const initialAmbience = (engine.audio as any).core?.ambienceGain?.gain?.value ?? 0.15;
     
-    const [masterVol, setMasterVol] = useState(audioCore.masterGain.gain.value);
-    const [musicVol, setMusicVol] = useState(audioCore.musicGain.gain.value);
-    const [ambienceVol, setAmbienceVol] = useState(audioCore.ambienceGain.gain.value);
+    const [masterVol, setMasterVol] = useState(initialMaster);
+    const [musicVol, setMusicVol] = useState(initialMusic);
+    const [ambienceVol, setAmbienceVol] = useState(initialAmbience);
 
     const updateVolume = (type: 'MASTER' | 'MUSIC' | 'AMBIENCE', val: number) => {
         const v = parseFloat(val.toString());
         if (type === 'MASTER') {
-            audioCore.masterGain.gain.setValueAtTime(v, audioCore.currentTime);
+            engine.audio.setMasterVolume(v);
             setMasterVol(v);
         } else if (type === 'MUSIC') {
-            audioCore.musicGain.gain.setValueAtTime(v, audioCore.currentTime);
+            engine.audio.setMusicVolume(v);
             setMusicVol(v);
         } else if (type === 'AMBIENCE') {
-            audioCore.ambienceGain.gain.setValueAtTime(v, audioCore.currentTime);
+            engine.audio.setAmbienceVolume(v);
             setAmbienceVol(v);
         }
     };

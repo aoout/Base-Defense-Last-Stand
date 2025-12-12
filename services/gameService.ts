@@ -118,8 +118,8 @@ export class GameEngine {
 
   constructor() {
     this.inputManager = new InputManager();
-    this.audio = new AudioService();
     this.eventBus = new EventBus();
+    this.audio = new AudioService(this.eventBus); // Inject EventBus into AudioService
     this.statManager = new StatManager();
     this.dataManager = new DataManager(); 
     
@@ -189,24 +189,8 @@ export class GameEngine {
   public closeShop() { this.state.isShopOpen = false; this.notifyUI('SHOP_CLOSE'); }
 
   private setupEventListeners() {
-      // Data-Driven Audio Mapping
-      this.eventBus.on<PlaySoundEvent>(GameEventType.PLAY_SOUND, (e) => {
-          switch (e.type) {
-              case 'WEAPON': this.audio.play(`WEAPON_${e.variant}`, e.x, e.y); break;
-              case 'RELOAD': this.audio.play(`RELOAD_${e.variant}`, e.x, e.y); break;
-              case 'TURRET': this.audio.play(`TURRET_${e.variant}`, e.x, e.y); break;
-              case 'ALLY': this.audio.play('ALLY_SHOOT', e.x, e.y); break;
-              case 'EXPLOSION': this.audio.play('EXPLOSION', e.x, e.y); break;
-              case 'GRENADE': case 'GRENADE_THROW': this.audio.play('GRENADE_THROW', e.x, e.y); break;
-              case 'ENEMY_DEATH': this.audio.play(e.variant ? 'BOSS_DEATH' : 'ENEMY_DEATH', e.x, e.y); break;
-              case 'VIPER_SHOOT': this.audio.play('VIPER_SHOOT', e.x, e.y); break;
-              case 'MELEE_HIT': this.audio.play('MELEE_HIT', e.x, e.y); break;
-              case 'BASE_DAMAGE': this.audio.play('BASE_DAMAGE', e.x, e.y); break;
-              case 'BULLET_HIT': this.audio.play('BULLET_HIT', e.x, e.y); break;
-              case 'ORBITAL_STRIKE': this.audio.play('ORBITAL_STRIKE', e.x, e.y); break;
-              case 'BOSS_DEATH': this.audio.play('BOSS_DEATH', e.x, e.y); break;
-          }
-      });
+      // Audio logic has been moved to AudioService.
+      // GameEngine only handles logic-impacting events now.
 
       this.eventBus.on<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, (e) => { this.playerManager.damagePlayer(e.amount); });
       this.eventBus.on<DamageBaseEvent>(GameEventType.DAMAGE_BASE, (e) => { this.damageBase(e.amount); });
@@ -323,7 +307,6 @@ export class GameEngine {
   private persistSettings() { if (this.state && this.state.settings) localStorage.setItem('VANGUARD_SETTINGS_V1', JSON.stringify(this.state.settings)); }
 
   public reset(fullReset: boolean = false, mode: GameMode = GameMode.SURVIVAL, customViewportW?: number, customViewportH?: number) {
-    this.audio.stopAmbience();
     const viewportW = customViewportW || (typeof window !== 'undefined' ? window.innerWidth : CANVAS_WIDTH);
     const viewportH = customViewportH || (typeof window !== 'undefined' ? window.innerHeight : CANVAS_HEIGHT);
 
@@ -340,6 +323,9 @@ export class GameEngine {
         settings: currentSettings
     });
 
+    // Notify Audio Service about state change implicitly via events or manually
+    // Since audio is now event-driven, we just ensure it's running
+    
     if (this.physics) this.physics.resize(this.state.worldWidth, this.state.worldHeight);
     if (!fullReset) { if (this.spaceshipManager) this.spaceshipManager.registerModifiers(); }
     
@@ -417,8 +403,15 @@ export class GameEngine {
 
       this.notifyUI('MISSION_COMPLETE');
   }
-  public claimYields() { if (this.state.pendingYieldReport) { this.state.player.score += this.state.pendingYieldReport.totalYield; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.state.pendingYieldReport = null; } this.finalizeMissionReturn(); }
-  private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.audio.stopAmbience(); this.notifyUI('RETURN_MAP'); }
+  public claimYields() { 
+      if (this.state.pendingYieldReport) { 
+          this.state.player.score += this.state.pendingYieldReport.totalYield; 
+          this.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+          this.state.pendingYieldReport = null; 
+      } 
+      this.finalizeMissionReturn(); 
+  }
+  private finalizeMissionReturn() { this.state.appMode = AppMode.EXPLORATION_MAP; this.galaxyManager.triggerGalacticEvent(); this.notifyUI('RETURN_MAP'); }
   public skipWave() { this.missionManager.skipWave(); this.notifyUI('WAVE_UPDATE'); }
   public damageEnemy(enemy: Enemy, amount: number, source: DamageSource) { this.enemyManager.damageEnemy(enemy, amount, source); }
   
@@ -476,7 +469,7 @@ export class GameEngine {
   public enterExplorationMode() { this.reset(true, GameMode.EXPLORATION); this.notifyUI('MODE_SWITCH'); }
   public enterCampaignMode() { this.reset(true, GameMode.CAMPAIGN); this.notifyUI('MODE_SWITCH'); }
   
-  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.audio.stopAmbience(); this.notifyUI('MODE_SWITCH'); }
+  public enterSpaceshipView() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
   public exitSpaceshipView() { this.state.appMode = AppMode.EXPLORATION_MAP; this.notifyUI('MODE_SWITCH'); }
   public enterOrbitalUpgradeMenu() { this.state.appMode = AppMode.ORBITAL_UPGRADES; this.notifyUI('MODE_SWITCH'); }
   public exitOrbitalUpgradeMenu() { this.state.appMode = AppMode.SPACESHIP_VIEW; this.notifyUI('MODE_SWITCH'); }
@@ -508,7 +501,7 @@ export class GameEngine {
       if (wasSuccess && this.state.gameMode === GameMode.EXPLORATION) { 
           if (this.state.pendingYieldReport && this.state.pendingYieldReport.totalYield > 0) { this.state.appMode = AppMode.YIELD_REPORT; } 
           else { this.finalizeMissionReturn(); } 
-      } else { this.state.appMode = AppMode.EXPLORATION_MAP; this.audio.stopAmbience(); } 
+      } else { this.state.appMode = AppMode.EXPLORATION_MAP; } 
       this.notifyUI('ASCEND'); 
   }
   public emergencyEvac() { 
@@ -522,9 +515,9 @@ export class GameEngine {
       });
       this.state.appMode = AppMode.EXPLORATION_MAP; this.state.currentPlanet = null; this.state.selectedPlanetId = null; 
       this.state.enemies = []; this.state.projectiles = []; this.state.allies = []; this.state.toxicZones = []; this.state.bloodStains = []; 
-      this.audio.stopAmbience(); this.notifyUI('EVAC'); 
+      this.notifyUI('EVAC'); 
   }
-  public activateBackdoor() { this.state.player.score += 9999999; this.audio.play('TURRET_2', this.state.base.x, this.state.base.y); this.addMessage("CHEAT ACTIVATED", this.state.player.x, this.state.player.y, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
+  public activateBackdoor() { this.state.player.score += 9999999; this.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 }); this.addMessage("CHEAT ACTIVATED", this.state.player.x, this.state.player.y, 'yellow', FloatingTextType.SYSTEM); this.notifyUI('CHEAT'); }
   public generateOrbitalUpgradeTree() { this.spaceshipManager.generateOrbitalUpgradeTree(); }
   public purchaseOrbitalUpgrade(nodeId: string) { this.spaceshipManager.purchaseOrbitalUpgrade(nodeId); this.notifyUI('UPGRADE'); }
   public generateCarapaceGrid() { this.spaceshipManager.generateCarapaceGrid(); }

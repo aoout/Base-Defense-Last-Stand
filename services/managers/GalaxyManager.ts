@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId, PersistentPlayerState } from '../../types';
+import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId, PersistentPlayerState, GameEventType } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { generateTerrain, generatePlanets } from '../../utils/worldGenerator';
 import { generateSectorName } from '../../utils/nameGenerator';
@@ -86,7 +86,7 @@ export class GalaxyManager {
                 createdAt: Date.now()
             });
             
-            this.engine.audio.play('TURRET_2');
+            this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
         }
     }
 

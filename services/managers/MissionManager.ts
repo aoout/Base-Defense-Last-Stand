@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, SpecialEventType, FloatingTextType, EnemyType, StatId } from '../../types';
+import { GameMode, MissionType, SpecialEventType, FloatingTextType, EnemyType, StatId, GameEventType } from '../../types';
 
 export class MissionManager {
     private engine: GameEngine;
@@ -86,7 +86,7 @@ export class MissionManager {
                 if (!existing) {
                     this.engine.enemyManager.spawnCampaignBoss();
                     this.engine.addMessage("SEISMIC WARNING: THE DEVOURER SURFACES", state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
-                    this.engine.audio.play('ORBITAL_STRIKE');
+                    this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'ORBITAL_STRIKE' });
                 }
             }
         }
@@ -217,7 +217,7 @@ export class MissionManager {
             state.player.score += Math.floor(finalReward);
             this.engine.addMessage(this.engine.t('LURE_REWARD', {0: Math.floor(finalReward)}), state.player.x, state.player.y - 80, '#fbbf24', FloatingTextType.LOOT);
             
-            this.engine.audio.play('BASE_DAMAGE'); 
+            this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'BASE_DAMAGE' });
             this.nextWave();
         } else {
             this.engine.addMessage(this.engine.t('LURE_PENDING'), state.player.x, state.player.y - 80, 'red', FloatingTextType.SYSTEM);

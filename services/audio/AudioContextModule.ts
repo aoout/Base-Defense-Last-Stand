@@ -1,12 +1,16 @@
 
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from "../../constants";
+import { createNoiseBuffer } from "../../utils/audioUtils";
 
 export class AudioContextModule {
     public ctx: AudioContext;
-    public masterGain: GainNode;
-    public musicGain: GainNode;
-    public ambienceGain: GainNode;
-    public sfxCompressor: DynamicsCompressorNode;
+    
+    // Buses
+    public readonly masterGain: GainNode;
+    public readonly musicGain: GainNode;
+    public readonly ambienceGain: GainNode;
+    public readonly sfxCompressor: DynamicsCompressorNode;
+    
+    // Shared Resources
     public noiseBuffer: AudioBuffer | null = null;
 
     constructor() {
@@ -22,6 +26,7 @@ export class AudioContextModule {
         this.masterGain.connect(this.ctx.destination);
 
         // 2. SFX Bus (Compressed)
+        // Dynamics compression helps punchy SFX (guns) sit well without clipping
         this.sfxCompressor = this.ctx.createDynamicsCompressor();
         this.sfxCompressor.threshold.value = -12;
         this.sfxCompressor.knee.value = 40;
@@ -40,23 +45,14 @@ export class AudioContextModule {
         this.ambienceGain.gain.value = 0.15;
         this.ambienceGain.connect(this.masterGain);
 
-        this.createNoiseBuffer();
+        // 5. Initialize Buffers
+        this.noiseBuffer = createNoiseBuffer(this.ctx, 2);
     }
 
     public async resume() {
         if (this.ctx.state === 'suspended') {
             await this.ctx.resume();
         }
-    }
-
-    private createNoiseBuffer() {
-        const bufferSize = this.ctx.sampleRate * 2; // 2 seconds
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = Math.random() * 2 - 1;
-        }
-        this.noiseBuffer = buffer;
     }
 
     public get currentTime() {
