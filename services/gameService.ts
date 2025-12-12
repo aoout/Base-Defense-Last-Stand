@@ -1,5 +1,5 @@
 
-import { GameState, AppMode, GameMode, GameEventType, FloatingTextType, PlanetBuildingType, GalaxyConfig } from '../types';
+import { GameState, AppMode, GameMode, GameEventType, FloatingTextType, PlanetBuildingType, GalaxyConfig, UserAction } from '../types';
 import { EventBus } from './EventBus';
 import { InputManager } from './InputManager';
 import { AudioService } from './audioService';
@@ -116,8 +116,108 @@ export class GameEngine {
         }
     }
 
-    public handleInputAction(action: any) {
-        // Input logic handled by managers via polling or events
+    public handleInputAction(action: UserAction) {
+        const state = this.state;
+
+        // --- GLOBAL SYSTEM INPUTS ---
+        if (action === UserAction.PAUSE) {
+            this.togglePause();
+            return;
+        }
+
+        if (action === UserAction.ESCAPE) {
+            if (state.isShopOpen) { this.closeShop(); return; }
+            if (state.isInventoryOpen) { this.toggleInventory(); return; }
+            if (state.isTacticalMenuOpen) { this.toggleTacticalMenu(); return; }
+            if (state.activeTurretId !== undefined) { this.defenseManager.closeTurretUpgrade(); return; }
+            
+            if (state.appMode === AppMode.EXPLORATION_MAP && state.selectedPlanetId) {
+                this.selectPlanet(null);
+                return;
+            }
+            if (state.appMode === AppMode.GAMEPLAY) {
+                this.togglePause();
+                return;
+            }
+            // If in sub-menus (Ship, Tech, etc.), return to hub
+            if ([AppMode.SPACESHIP_VIEW, AppMode.ORBITAL_UPGRADES, AppMode.CARAPACE_GRID, AppMode.BIO_SEQUENCING, AppMode.INFRASTRUCTURE_RESEARCH, AppMode.SHIP_COMPUTER].includes(state.appMode)) {
+                if (state.appMode === AppMode.SPACESHIP_VIEW) this.exitSpaceshipView();
+                else this.enterSpaceshipView();
+                return;
+            }
+            return;
+        }
+
+        // --- EXPLORATION MODE INTERACTION ---
+        if (state.appMode === AppMode.EXPLORATION_MAP) {
+            if (action === UserAction.FIRE) {
+                // Raycast for Planet
+                // Scale mouse position to internal resolution if resolutionScale is active
+                const resScale = state.settings.resolutionScale || 1.0;
+                const mx = this.inputManager.mouse.x * resScale;
+                const my = this.inputManager.mouse.y * resScale;
+                
+                let clickedPlanetId: string | null = null;
+
+                // Simple circle hit test
+                for (const p of state.planets) {
+                    const dx = mx - p.x;
+                    const dy = my - p.y;
+                    // Add buffer to radius for easier clicking
+                    if (dx*dx + dy*dy < (p.radius + 15) ** 2) {
+                        clickedPlanetId = p.id;
+                        break;
+                    }
+                }
+
+                if (clickedPlanetId) {
+                    this.selectPlanet(clickedPlanetId);
+                    this.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+                } else {
+                    this.selectPlanet(null);
+                }
+            }
+            return;
+        }
+
+        // --- GAMEPLAY INPUTS ---
+        if (state.appMode === AppMode.GAMEPLAY) {
+            if (state.isPaused || state.isGameOver) return;
+
+            switch(action) {
+                case UserAction.INVENTORY: this.toggleInventory(); break;
+                case UserAction.TACTICAL_MENU: this.toggleTacticalMenu(); break;
+                case UserAction.SHOP: 
+                    // Check distance to base
+                    if (Math.sqrt((state.player.x - state.base.x)**2 + (state.player.y - state.base.y)**2) < 300) {
+                        if (state.isShopOpen) this.closeShop();
+                        else {
+                            state.isShopOpen = true;
+                            this.notifyUI('SHOP_OPEN');
+                        }
+                    } else {
+                        this.addMessage("TOO FAR FROM BASE", state.player.x, state.player.y - 50, 'red', FloatingTextType.SYSTEM);
+                    }
+                    break;
+                case UserAction.INTERACT:
+                    this.eventBus.emit(GameEventType.DEFENSE_INTERACT, {});
+                    break;
+                case UserAction.RELOAD:
+                    this.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: this.time.now });
+                    break;
+                case UserAction.GRENADE:
+                    this.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {});
+                    break;
+                case UserAction.WEAPON_1: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 0 }); break;
+                case UserAction.WEAPON_2: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 1 }); break;
+                case UserAction.WEAPON_3: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 2 }); break;
+                case UserAction.WEAPON_4: this.eventBus.emit(GameEventType.PLAYER_SWITCH_WEAPON, { index: 3 }); break;
+                case UserAction.SKIP_WAVE: this.skipWave(); break;
+                case UserAction.ORDER_1: this.defenseManager.issueOrder('PATROL'); this.notifyUI(); break;
+                case UserAction.ORDER_2: this.defenseManager.issueOrder('FOLLOW'); this.notifyUI(); break;
+                case UserAction.ORDER_3: this.defenseManager.issueOrder('ATTACK'); this.notifyUI(); break;
+            }
+        }
     }
 
     public update(time: number) {
