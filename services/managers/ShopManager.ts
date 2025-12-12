@@ -70,6 +70,9 @@ export class ShopManager {
                 // Using generic UI confirmation sound variant
                 this.engine.eventBus.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
             }
+            
+            // Force UI Update (Critical for React components to reflect new funds/items immediately)
+            this.engine.notifyUI('TRANSACTION');
             return true;
         }
         return false;

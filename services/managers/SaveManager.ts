@@ -1,5 +1,5 @@
 
-import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType, WeaponType, CombatRecord } from '../../types';
+import { GameState, SaveFile, PersistentPlayerState, GameMode, AppMode, MissionType, FloatingTextType, WeaponType, CombatRecord, WeaponState } from '../../types';
 import { MAX_SAVE_SLOTS, MAX_PINNED_SLOTS, WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
 import { GameEngine } from '../gameService';
 import { CURRENT_VERSION } from '../../data/changelog';
@@ -185,7 +185,7 @@ export class SaveManager {
                 }
 
                 // 2. Weapon Reloading & Ammo Fixes
-                Object.values(this.engine.state.player.weapons).forEach(w => {
+                Object.values(this.engine.state.player.weapons).forEach((w: WeaponState) => {
                     // Prevent jamming: Reset fire timer to allow shooting immediately
                     w.lastFireTime = 0; 
 

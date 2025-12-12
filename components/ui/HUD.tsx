@@ -1,5 +1,5 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { WeaponType, GameMode, MissionType, BossType, StatId, AppMode } from '../../types';
 import { WEAPONS, PLAYER_STATS } from '../../data/registry';
 import { WeaponIcon } from './Shared';
@@ -142,14 +142,31 @@ const ResourceWidget: React.FC = () => {
     const { engine } = useGame();
     const { t } = useLocale();
     const ref = useRef<HTMLSpanElement>(null);
+    
+    // Backdoor Logic
+    const [clickCount, setClickCount] = useState(0);
+    const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const handleBackdoor = () => {
+        if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+        const newCount = clickCount + 1;
+        setClickCount(newCount);
+        
+        if (newCount >= 10) {
+            engine.activateBackdoor();
+            setClickCount(0);
+        } else {
+            clickTimerRef.current = setTimeout(() => setClickCount(0), 500);
+        }
+    };
 
     useGameLoop(() => {
         if (ref.current) ref.current.innerText = `${Math.floor(engine.state.player.score)}`;
     });
 
     return (
-        <div className="absolute top-6 right-6 group pointer-events-none">
-            <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1">
+        <div className="absolute top-6 right-6 group pointer-events-auto cursor-help" onClick={handleBackdoor}>
+            <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1 select-none">
                 <div className="flex items-center gap-2 mb-1">
                     <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></div>
                     <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
