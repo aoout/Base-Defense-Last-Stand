@@ -55,7 +55,7 @@ export const SectorRadar: React.FC<SectorRadarProps> = ({ mode, color, sectorId 
             if (mode === 'PROTOCOLS') {
                 renderProtocolsMode(ctx, cx, cy, w, hexColor, time);
             } else if (mode === 'ARCHIVES' && sectorId) {
-                renderArchivesMode(ctx, cx, cy, hexColor, sectorId, time);
+                renderArchivesMode(ctx, cx, cy, w, hexColor, sectorId, time);
             }
 
             animationFrameId = requestAnimationFrame(render);
@@ -103,22 +103,46 @@ export const SectorRadar: React.FC<SectorRadarProps> = ({ mode, color, sectorId 
         }
     };
 
-    const renderArchivesMode = (ctx: CanvasRenderingContext2D, cx: number, cy: number, color: string, id: string, time: number) => {
+    const renderArchivesMode = (ctx: CanvasRenderingContext2D, cx: number, cy: number, w: number, color: string, id: string, time: number) => {
         const sector = FAMOUS_SECTORS.find(s => s.id === id);
         if (!sector) return;
 
+        // --- DYNAMIC SCALING (ZOOM TO FIT) ---
+        // Calculate the raw extent of the solar system (distance to furthest planet)
+        const planetCount = sector.planets.length;
+        const baseRadius = 40;
+        const spacing = 18;
+        const lastPlanetIndex = Math.max(0, planetCount - 1);
+        const rawExtent = baseRadius + (lastPlanetIndex * spacing) + 12; // +12 buffer for visual radius
+        
+        // Define the visual boundary (leave some padding)
+        const maxAvailableRadius = (w / 2) - 25; 
+        
+        // Calculate scale factor to make the system fill the view
+        let scale = maxAvailableRadius / rawExtent;
+        
+        // Clamp scale to reasonable limits
+        // Lower bound 0.5: Prevent huge systems from shrinking to invisibility (though unlikely with spacing)
+        // Upper bound 1.4: Prevent single-planet systems from looking absurdly zoomed in
+        scale = Math.max(0.5, Math.min(scale, 1.4));
+
         // Central Star
+        // Scale the star slightly less aggressively so it doesn't dominate small systems
+        const starSize = 8 * Math.pow(scale, 0.7); 
+        
         ctx.shadowBlur = 20;
         ctx.shadowColor = color;
         ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(cx, cy, 8, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, starSize, 0, Math.PI*2); ctx.fill();
         ctx.fillStyle = color;
-        ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(cx, cy, starSize * 0.6, 0, Math.PI*2); ctx.fill();
         ctx.shadowBlur = 0;
 
         // Orbiting Planets
         sector.planets.forEach((p, idx) => {
-            const orbitRadius = 40 + (idx * 18); // Tighter spacing for more planets
+            // Apply zoom scale to orbit distance
+            const orbitRadius = (baseRadius + (idx * spacing)) * scale; 
+            
             const speed = 0.005 / (idx * 0.5 + 1);
             const angle = time * speed + (idx * 2);
             
@@ -127,20 +151,26 @@ export const SectorRadar: React.FC<SectorRadarProps> = ({ mode, color, sectorId 
 
             // Orbit Path
             ctx.strokeStyle = `${color}22`;
+            ctx.lineWidth = 1;
             ctx.beginPath(); ctx.arc(cx, cy, orbitRadius, 0, Math.PI*2); ctx.stroke();
 
             // Planet Body
             const biomeStyle = BIOME_STYLES[p.biome || BiomeType.BARREN];
             ctx.fillStyle = biomeStyle.planetColor;
-            let r = p.visualType === PlanetVisualType.GAS_GIANT ? 5 : 2.5;
             
+            // Scale planet size
+            let r = p.visualType === PlanetVisualType.GAS_GIANT ? 5 : 2.5;
+            // Also apply some scaling to planet bodies, but softer power curve
+            r = r * Math.pow(scale, 0.8); 
+            r = Math.max(1.5, r); // Ensure minimum visibility
+
             ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill();
             
             // Ring
             if (p.visualType === PlanetVisualType.RINGED) {
                 ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-                ctx.lineWidth = 1;
-                ctx.beginPath(); ctx.ellipse(px, py, r+3, r-1, angle, 0, Math.PI*2); ctx.stroke();
+                ctx.lineWidth = 1 * Math.pow(scale, 0.5);
+                ctx.beginPath(); ctx.ellipse(px, py, r * 2.2, r * 0.6, angle, 0, Math.PI*2); ctx.stroke();
             }
         });
     };

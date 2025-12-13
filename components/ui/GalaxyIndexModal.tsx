@@ -168,11 +168,11 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
             onClose={onClose}
             maxWidth="max-w-[1400px]"
         >
-            <div className="flex w-full h-full gap-0 relative">
+            <div className="flex w-full h-full gap-0 relative overflow-hidden">
                 <ScanlineOverlay />
 
                 {/* LEFT: Selection List */}
-                <div className="w-[300px] flex flex-col border-r border-slate-800 bg-slate-950/50 z-10">
+                <div className="w-[300px] flex flex-col border-r border-slate-800 bg-slate-950/50 z-10 overflow-hidden min-h-0">
                     <div className="flex border-b border-slate-800 shrink-0">
                         <button 
                             className={`flex-1 py-4 text-[10px] font-bold tracking-[0.2em] transition-all relative overflow-hidden group
@@ -192,7 +192,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                         </button>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-800 min-h-0">
                         {activeTab === 'PROTOCOLS' ? (
                             (['LOW', 'MED', 'HIGH', 'CUSTOM'] as const).map(preset => {
                                 const config = PRESETS[preset];
@@ -261,7 +261,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                 </div>
 
                 {/* CENTER: Radar & Viz */}
-                <div className="flex-1 flex flex-col relative z-10 overflow-hidden bg-black/40">
+                <div className="flex-1 flex flex-col relative z-10 overflow-hidden bg-black/40 min-w-0 min-h-0">
                     <div className="absolute top-6 left-6 text-[10px] font-mono text-slate-500 z-20 flex gap-4">
                         <div>
                             <span className="text-slate-600 mr-2">SYS.MODE</span>
@@ -274,8 +274,8 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                     </div>
 
                     <div className="flex-1 relative flex items-center justify-center min-h-0 p-4">
-                        {/* THE VISUALIZER - Responsive container */}
-                        <div className="w-full max-w-[500px] aspect-square relative">
+                        {/* THE VISUALIZER - Constrained Size */}
+                        <div className="w-full max-w-[400px] max-h-[400px] aspect-square relative mb-8">
                             {/* Refactored Component */}
                             <SectorRadar 
                                 mode={activeTab} 
@@ -298,7 +298,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
 
                     {/* Bottom Action Bar */}
                     <div className="h-20 border-t border-slate-800 bg-slate-950 flex items-center px-8 justify-between relative z-50 shrink-0">
-                        <div className="text-[10px] text-slate-600 font-mono max-w-xs">
+                        <div className="text-[10px] text-slate-600 font-mono max-w-xs hidden md:block">
                             WARNING: FTL JUMP REQUIRES SIGNIFICANT ENERGY. ENSURE PREPARATIONS ARE COMPLETE.
                         </div>
                         <button 
@@ -323,7 +323,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                 </div>
 
                 {/* RIGHT: Instrument Panel */}
-                <div className="w-[350px] flex flex-col border-l border-slate-800 bg-slate-950/80 z-10 relative">
+                <div className="w-[350px] flex flex-col border-l border-slate-800 bg-slate-950/80 z-10 relative overflow-hidden min-h-0">
                     
                     {/* Header */}
                     <div className="flex justify-between items-center h-12 px-4 border-b border-slate-800 bg-slate-900 shrink-0">
@@ -388,9 +388,9 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                         ) : (
                             // ARCHIVE DETAILS VIEW
                             selectedSector ? (
-                                <div className="flex flex-col h-full animate-fadeIn">
+                                <div className="flex flex-col h-full animate-fadeIn min-h-0">
                                     {/* LORE SECTION (Top 40%) - Independently Scrollable */}
-                                    <div className="p-4 pb-0 shrink-0 max-h-[40%] flex flex-col">
+                                    <div className="p-4 pb-0 shrink-0 max-h-[40%] flex flex-col min-h-0">
                                         <div className="bg-purple-900/10 border border-purple-500/30 p-4 relative overflow-y-auto scrollbar-thin scrollbar-thumb-purple-900 max-h-full">
                                             <div className="sticky top-0 right-0 float-right -mt-2 -mr-2 p-1 z-10">
                                                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
@@ -408,8 +408,8 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                         </div>
                                     </div>
 
-                                    {/* PLANET LIST (Remaining Space) - Independently Scrollable */}
-                                    <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-800">
+                                    {/* PLANET LIST - Fixed Height */}
+                                    <div className="h-[350px] overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-black/20 bg-black/20 border-t border-slate-800">
                                         <div className="space-y-1">
                                             {selectedSector.planets.map((p, i) => (
                                                 <div key={i} className="flex justify-between items-center text-xs py-1.5 px-3 bg-slate-900/50 border border-slate-800 hover:border-slate-600 transition-colors">

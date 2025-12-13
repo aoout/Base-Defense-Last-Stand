@@ -30,6 +30,26 @@ export const SHIP_EN = {
     BIO_TITLE: "BIO-SEQUENCING",
     BIO_SUB: "GENETIC AUGMENTATION",
 
+    // --- DASHBOARD UI (NEW) ---
+    SHIP_STATUS_TITLE: "VESSEL STATUS",
+    SHIP_SYS_LOAD: "SYS. LOAD",
+    SHIP_OS_VERSION: "Vanguard OS v4.2",
+    SHIP_DASHBOARD_TITLE: "COMMAND",
+    SHIP_DASHBOARD_SUB: "DASHBOARD",
+    SHIP_FAB_CORP: "VANGUARD ENGINEERING CORP // AUTH_KEY_99",
+    SHIP_EXPANSION_SLOT: "// EXPANSION SLOT A-9",
+    SHIP_COMPUTER_DESC: "Access operational logs, historical archives, and flight navigation protocols. Kernel version 4.4.2 stable.",
+    SHIP_ORBITAL_CARD_DESC: "Configure orbital bombardment parameters and auto-targeting priority.",
+    SHIP_ORBITAL_BTN: "OPEN CONSOLE",
+    SHIP_BIO_CARD_DESC: "Sequence collected biomass to unlock evolutionary advantages.",
+    SHIP_BIO_BTN: "ENTER LAB",
+    SHIP_XENO_CARD_DESC: "Study enemy physiology for damage bonuses.",
+    SHIP_XENO_BG: "ANALYZE",
+    SHIP_INFRA_CARD_DESC: "Permanent base fortifications.",
+    SHIP_INFRA_BG: "BUILD",
+    SHIP_KINETIC: "KINETIC",
+    SHIP_GENOME: "GENOME",
+
     // --- ORBITAL ---
     ORBITAL_TITLE: "ORBITAL ARRAY",
     ORBITAL_SUB: "KINETIC STRIKE CALIBRATION",
@@ -53,7 +73,7 @@ export const SHIP_EN = {
     HOVER_NODE: "HOVER NODE FOR DETAILS",
     
     // --- TECH / INFRA ---
-    XENO_TITLE: "CARAPACE",
+    XENO_TITLE: "CARAPACE ANALYSIS",
     ANALYSIS: "ANALYZER",
     WEAKNESS_MATRIX: "WEAKNESS MATRIX",
     XENO_STATS: "XENO STATS",
@@ -144,6 +164,26 @@ export const SHIP_CN = {
     BIO_TITLE: "生物测序",
     BIO_SUB: "基因增强",
 
+    // --- DASHBOARD UI (NEW CN) ---
+    SHIP_STATUS_TITLE: "舰船状态",
+    SHIP_SYS_LOAD: "系统负载",
+    SHIP_OS_VERSION: "先锋操作系统 v4.2",
+    SHIP_DASHBOARD_TITLE: "指挥",
+    SHIP_DASHBOARD_SUB: "仪表盘",
+    SHIP_FAB_CORP: "先锋工程集团 // 授权码_99",
+    SHIP_EXPANSION_SLOT: "// 扩展插槽 A-9",
+    SHIP_COMPUTER_DESC: "访问作战日志、历史档案和飞行导航协议。内核版本 4.4.2 稳定版。",
+    SHIP_ORBITAL_CARD_DESC: "配置轨道轰炸参数和自动瞄准优先级。",
+    SHIP_ORBITAL_BTN: "打开控制台",
+    SHIP_BIO_CARD_DESC: "对收集的生物质进行测序，以解锁进化优势。",
+    SHIP_BIO_BTN: "进入实验室",
+    SHIP_XENO_CARD_DESC: "研究敌人的一般生理机能以获得伤害加成。",
+    SHIP_XENO_BG: "分析",
+    SHIP_INFRA_CARD_DESC: "永久性的基地防御工事升级。",
+    SHIP_INFRA_BG: "建造",
+    SHIP_KINETIC: "动能",
+    SHIP_GENOME: "基因组",
+
     // --- ORBITAL ---
     ORBITAL_TITLE: "轨道阵列",
     ORBITAL_SUB: "动能打击校准",
@@ -167,7 +207,7 @@ export const SHIP_CN = {
     HOVER_NODE: "悬停节点以查看详情",
     
     // --- TECH / INFRA ---
-    XENO_TITLE: "甲壳",
+    XENO_TITLE: "甲壳分析",
     ANALYSIS: "分析仪",
     WEAKNESS_MATRIX: "弱点矩阵",
     XENO_STATS: "异种统计",
@@ -188,6 +228,7 @@ export const SHIP_CN = {
     INFRA_ACQUIRED: "已获取升级",
     INFRA_MAXED_MSG: "所有升级已获取",
     INFRA_LOCKED_MSG: "研究已锁定。完成任务以生成新提案。",
+    // Missing Infrastructure Descriptions Added
     INFRA_BASE_HP_DESC: "基地生命值 +{0}",
     INFRA_TURRET_HP_DESC: "炮塔生命值 +{0}",
     INFRA_TURRET_L1_DMG_DESC: "标准炮塔伤害 +{0}%",

@@ -54,7 +54,7 @@ const BentoCard: React.FC<{
             <div className="absolute inset-0 opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] pointer-events-none"></div>
             
             {(title || icon) && (
-                <div className="flex items-center justify-between p-6 pb-2 relative z-10">
+                <div className="flex items-center justify-between p-6 pb-2 relative z-10 shrink-0">
                     <div className="flex items-center gap-3">
                         {icon && <div className={`text-${active ? accent : 'slate'}-400 text-xl`}>{icon}</div>}
                         {title && <span className={`text-xs font-bold tracking-[0.2em] uppercase ${active ? `text-${accent}-400` : 'text-slate-500'}`}>{title}</span>}
@@ -115,7 +115,7 @@ const ModuleListItem: React.FC<{
             {installed ? (
                 <div className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/30 rounded text-[9px] font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                    INSTALLED
+                    {t('OWNED')}
                 </div>
             ) : (
                 <button
@@ -163,10 +163,10 @@ export const SpaceshipView: React.FC = () => {
                 <div>
                     <div className="flex items-center gap-3 mb-2">
                         <div className="w-3 h-3 bg-cyan-500 rounded-full animate-pulse shadow-[0_0_15px_cyan]"></div>
-                        <span className="text-[10px] font-mono font-bold text-cyan-500 tracking-[0.3em] uppercase">Vanguard OS v4.2</span>
+                        <span className="text-[10px] font-mono font-bold text-cyan-500 tracking-[0.3em] uppercase">{t('SHIP_OS_VERSION')}</span>
                     </div>
                     <h1 className="text-5xl font-display font-black text-white tracking-tight leading-none">
-                        COMMAND <span className="text-slate-600">DASHBOARD</span>
+                        {t('SHIP_DASHBOARD_TITLE')} <span className="text-slate-600">{t('SHIP_DASHBOARD_SUB')}</span>
                     </h1>
                 </div>
                 
@@ -190,7 +190,7 @@ export const SpaceshipView: React.FC = () => {
             <div className="flex-1 grid grid-cols-12 grid-rows-12 gap-6 min-h-0 relative z-10">
                 
                 {/* 1. SHIP STATUS (Top Left, 3x4) */}
-                <BentoCard className="col-span-3 row-span-4" title="VESSEL STATUS" icon={<Icons.Ship />} accent="blue" active>
+                <BentoCard className="col-span-3 row-span-4" title={t('SHIP_STATUS_TITLE')} icon={<Icons.Ship />} accent="blue" active>
                     <div className="flex flex-col h-full justify-between">
                         <div className="relative w-full aspect-square max-h-[160px] flex items-center justify-center self-center my-4">
                             <div className="absolute inset-0 border-4 border-slate-800 rounded-full animate-[spin_20s_linear_infinite]"></div>
@@ -200,7 +200,7 @@ export const SpaceshipView: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-auto border-t border-white/5 pt-4">
                             <StatPill label={t('HULL_INTEGRITY')} value={`${hullIntegrity}%`} color={hullIntegrity > 50 ? 'green' : 'red'} />
-                            <StatPill label="SYS. LOAD" value={`${moduleCount}/${totalModules}`} color="blue" />
+                            <StatPill label={t('SHIP_SYS_LOAD')} value={`${moduleCount}/${totalModules}`} color="blue" />
                         </div>
                     </div>
                 </BentoCard>
@@ -222,7 +222,7 @@ export const SpaceshipView: React.FC = () => {
                             ))}
                         </div>
                         <div className="mt-4 pt-4 border-t border-white/5 text-[10px] text-slate-500 text-center font-mono shrink-0">
-                            VANGUARD ENGINEERING CORP // AUTH_KEY_99
+                            {t('SHIP_FAB_CORP')}
                         </div>
                     </div>
                 </BentoCard>
@@ -238,8 +238,7 @@ export const SpaceshipView: React.FC = () => {
                 >
                     <div className="flex items-center justify-between h-full">
                         <p className="text-sm text-slate-400 max-w-md leading-relaxed">
-                            Access operational logs, historical archives, and flight navigation protocols. 
-                            Kernel version 4.4.2 stable.
+                            {t('SHIP_COMPUTER_DESC')}
                         </p>
                         <div className="h-12 w-12 rounded-full bg-cyan-500/10 border border-cyan-500/50 flex items-center justify-center text-cyan-400 text-2xl group-hover:scale-110 transition-transform">
                             →
@@ -258,12 +257,12 @@ export const SpaceshipView: React.FC = () => {
                     accent="red"
                 >
                     <div className="flex flex-col h-full justify-between">
-                        <div className="text-4xl text-red-500/20 font-black tracking-tighter absolute right-6 top-16">KINETIC</div>
+                        <div className="text-4xl text-red-500/20 font-black tracking-tighter absolute right-6 top-16">{t('SHIP_KINETIC')}</div>
                         <p className="text-xs text-slate-400 mt-2 relative z-10">
-                            Configure orbital bombardment parameters and auto-targeting priority.
+                            {t('SHIP_ORBITAL_CARD_DESC')}
                         </p>
                         <div className="mt-auto flex items-center gap-2 text-[10px] font-bold text-red-400 uppercase tracking-widest">
-                            <span>Open Console</span>
+                            <span>{t('SHIP_ORBITAL_BTN')}</span>
                             <span>→</span>
                         </div>
                     </div>
@@ -280,12 +279,12 @@ export const SpaceshipView: React.FC = () => {
                     accent="purple"
                 >
                     <div className="flex flex-col h-full justify-between">
-                        <div className="text-4xl text-purple-500/20 font-black tracking-tighter absolute right-6 top-16">GENOME</div>
+                        <div className="text-4xl text-purple-500/20 font-black tracking-tighter absolute right-6 top-16">{t('SHIP_GENOME')}</div>
                         <p className="text-xs text-slate-400 mt-2 relative z-10">
-                            Sequence collected biomass to unlock evolutionary advantages.
+                            {t('SHIP_BIO_CARD_DESC')}
                         </p>
                         <div className="mt-auto flex items-center gap-2 text-[10px] font-bold text-purple-400 uppercase tracking-widest">
-                            <span>Enter Lab</span>
+                            <span>{t('SHIP_BIO_BTN')}</span>
                             <span>→</span>
                         </div>
                     </div>
@@ -302,9 +301,11 @@ export const SpaceshipView: React.FC = () => {
                         icon={<Icons.Analysis />}
                         accent="emerald"
                     >
-                        <div className="text-4xl text-emerald-500/20 font-black tracking-tighter absolute right-6 top-12">ANALYZE</div>
-                        <div className="mt-auto pt-8 text-xs text-slate-400">
-                            Study enemy physiology for damage bonuses.
+                        <div className="flex flex-col h-full relative">
+                            <div className="text-4xl text-emerald-500/20 font-black tracking-tighter absolute right-0 top-0">{t('SHIP_XENO_BG')}</div>
+                            <div className="mt-auto text-xs text-slate-400 relative z-10">
+                                {t('SHIP_XENO_CARD_DESC')}
+                            </div>
                         </div>
                     </BentoCard>
 
@@ -317,9 +318,11 @@ export const SpaceshipView: React.FC = () => {
                         icon={<Icons.Crane />}
                         accent="yellow"
                     >
-                        <div className="text-4xl text-yellow-500/20 font-black tracking-tighter absolute right-6 top-12">BUILD</div>
-                        <div className="mt-auto pt-8 text-xs text-slate-400">
-                            Permanent base fortifications.
+                        <div className="flex flex-col h-full relative">
+                            <div className="text-4xl text-yellow-500/20 font-black tracking-tighter absolute right-0 top-0">{t('SHIP_INFRA_BG')}</div>
+                            <div className="mt-auto text-xs text-slate-400 relative z-10">
+                                {t('SHIP_INFRA_CARD_DESC')}
+                            </div>
                         </div>
                     </BentoCard>
                 </div>
@@ -327,7 +330,7 @@ export const SpaceshipView: React.FC = () => {
                 {/* FILLER */}
                 <BentoCard className="col-span-6 row-span-4 border-dashed border-slate-800 bg-transparent" disabled>
                     <div className="h-full flex items-center justify-center text-slate-700 font-mono text-xs tracking-widest">
-                        // EXPANSION SLOT A-9
+                        {t('SHIP_EXPANSION_SLOT')}
                     </div>
                 </BentoCard>
 
