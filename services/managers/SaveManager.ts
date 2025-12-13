@@ -90,6 +90,7 @@ export class SaveManager {
         this.enforceSlotLimit();
         this.persistSaves();
         this.engine.addMessage(this.engine.t('GAME_SAVED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
+        this.engine.notifyUI('SAVE_UPDATE');
     }
 
     public importSave(jsonString: string): boolean {
@@ -110,6 +111,7 @@ export class SaveManager {
             this.engine.state.saveSlots.unshift(newSave);
             this.enforceSlotLimit();
             this.persistSaves();
+            this.engine.notifyUI('SAVE_UPDATE');
             return true;
         } catch (e) {
             console.error("Import Failed", e);
@@ -204,6 +206,7 @@ export class SaveManager {
     public deleteSave(id: string) {
         this.engine.state.saveSlots = this.engine.state.saveSlots.filter(s => s.id !== id);
         this.persistSaves();
+        this.engine.notifyUI('SAVE_UPDATE');
     }
 
     public togglePin(id: string) {
@@ -214,6 +217,7 @@ export class SaveManager {
             }
             slot.isPinned = !slot.isPinned;
             this.persistSaves();
+            this.engine.notifyUI('SAVE_UPDATE');
         }
     }
 
