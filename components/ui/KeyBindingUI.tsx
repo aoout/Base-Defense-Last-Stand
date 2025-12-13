@@ -58,7 +58,7 @@ export const KeyBindingUI: React.FC<KeyBindingUIProps> = ({ onClose }) => {
     const groups = [
         { label: 'MOVEMENT', actions: [UserAction.MOVE_UP, UserAction.MOVE_DOWN, UserAction.MOVE_LEFT, UserAction.MOVE_RIGHT] },
         { label: 'COMBAT', actions: [UserAction.RELOAD, UserAction.GRENADE, UserAction.WEAPON_1, UserAction.WEAPON_2, UserAction.WEAPON_3, UserAction.WEAPON_4] },
-        { label: 'INTERACTION', actions: [UserAction.INTERACT, UserAction.SHOP, UserAction.INVENTORY, UserAction.TACTICAL_MENU, UserAction.SKIP_WAVE] },
+        { label: 'INTERACTION', actions: [UserAction.INTERACT, UserAction.SHOP, UserAction.INVENTORY, UserAction.TACTICAL_MENU, UserAction.SKIP_WAVE, UserAction.OPEN_HEROIC] },
         { label: 'TACTICAL', actions: [UserAction.ORDER_1, UserAction.ORDER_2, UserAction.ORDER_3] },
         { label: 'SYSTEM', actions: [UserAction.PAUSE, UserAction.ESCAPE] },
     ];

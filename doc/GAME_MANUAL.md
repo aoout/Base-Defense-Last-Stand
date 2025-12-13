@@ -29,6 +29,7 @@ This document serves as a quick reference. For deep technical specifications, re
 | **Shop** | `B` | Access Supply Depot (Must be near Base). |
 | **Backpack** | `C` | Manage inventory and weapon modules. |
 | **Command** | `TAB` | Issue orders to AI Squadmates. |
+| **Heroism** | `Q` | Open Heroic Zeal menu (Campaign Only). |
 
 ## The Enemy
 

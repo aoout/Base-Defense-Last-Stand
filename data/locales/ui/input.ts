@@ -24,6 +24,7 @@ export const INPUT_EN = {
     ACT_ORDER_3: "ORDER: ATTACK",
     ACT_PAUSE: "PAUSE",
     ACT_ESCAPE: "BACK / CANCEL",
+    ACT_OPEN_HEROIC: "HEROIC ZEAL",
     INPUT_PRESS_KEY: "PRESS ANY KEY...",
 };
 
@@ -52,5 +53,6 @@ export const INPUT_CN = {
     ACT_ORDER_3: "指令: 进攻",
     ACT_PAUSE: "暂停",
     ACT_ESCAPE: "返回 / 取消",
+    ACT_OPEN_HEROIC: "英雄热忱",
     INPUT_PRESS_KEY: "按任意键...",
 };

@@ -1,7 +1,7 @@
 
 import { IInputStrategy } from "../IInputStrategy";
 import { GameEngine } from "../../gameService";
-import { UserAction, GameEventType } from "../../../types";
+import { UserAction, GameEventType, GameMode, AppMode } from "../../../types";
 
 type ActionHandler = (engine: GameEngine) => boolean;
 
@@ -25,6 +25,13 @@ export class GameplayInputStrategy implements IInputStrategy {
         // UI Toggles
         [UserAction.INVENTORY]: (e) => { e.toggleInventory(); return true; },
         [UserAction.TACTICAL_MENU]: (e) => { e.toggleTacticalMenu(); return true; },
+        [UserAction.OPEN_HEROIC]: (e) => {
+            if (e.state.gameMode === GameMode.CAMPAIGN) {
+                e.sessionManager.setMode(AppMode.HEROIC_ZEAL);
+                return true;
+            }
+            return false;
+        },
         
         [UserAction.SHOP]: (e) => { 
             e.shopManager.toggleShop(); 

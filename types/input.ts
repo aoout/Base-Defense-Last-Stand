@@ -21,7 +21,8 @@ export enum UserAction {
     SKIP_WAVE = 'SKIP_WAVE',
     ORDER_1 = 'ORDER_1',
     ORDER_2 = 'ORDER_2',
-    ORDER_3 = 'ORDER_3'
+    ORDER_3 = 'ORDER_3',
+    OPEN_HEROIC = 'OPEN_HEROIC'
 }
 
 export type KeyBindingMap = Record<string, UserAction>; // Code -> Action

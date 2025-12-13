@@ -525,12 +525,28 @@ export const TacticalTerminal: React.FC = () => {
                                 </div>
                             </>
                         ) : (
-                            <div className="col-span-3 row-span-1 mt-auto">
-                                <button onClick={handleQuit} className="w-full h-full py-4 border border-red-900/50 bg-red-950/20 text-red-600 hover:bg-red-900 hover:text-white hover:border-red-500 transition-all font-bold tracking-[0.3em] uppercase text-xs flex items-center justify-center gap-4 group rounded-xl">
-                                    <span className="group-hover:-translate-x-1 transition-transform">«</span>
-                                    {t('RETURN_MAIN_MENU')}
-                                </button>
-                            </div>
+                            <>
+                                <div className="col-span-2 row-span-1 mt-auto">
+                                    <MenuCard 
+                                        title={t('RE_DEPLOY')} 
+                                        subtitle={t('SURVIVAL_DESC')} 
+                                        icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.DropPod /></svg>} 
+                                        onClick={() => engine.sessionManager.reset(true, GameMode.SURVIVAL)} 
+                                        variant="warning" 
+                                        index={8}
+                                    />
+                                </div>
+                                <div className="col-span-1 row-span-1 mt-auto">
+                                    <MenuCard 
+                                        title={t('ABORT_SESSION')} 
+                                        subtitle={t('RETURN_MAIN_MENU')} 
+                                        icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><Icons.Power /></svg>} 
+                                        onClick={handleQuit} 
+                                        variant="danger" 
+                                        index={9}
+                                    />
+                                </div>
+                            </>
                         )}
                     </div>
                 </div>

@@ -162,6 +162,7 @@ export class InputManager {
             [UserAction.PAUSE]: 'KeyP',
             [UserAction.ESCAPE]: 'Escape',
             [UserAction.SKIP_WAVE]: 'KeyL',
+            [UserAction.OPEN_HEROIC]: 'KeyQ',
             
             [UserAction.ORDER_1]: 'F1',
             [UserAction.ORDER_2]: 'F2',
