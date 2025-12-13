@@ -8,6 +8,10 @@ export { WeaponIcon, SystemIcon } from './Icons';
 
 // --- VISUAL FX COMPONENTS ---
 
+export const MonitorOverlay: React.FC<{ className?: string, opacity?: string, zIndex?: string }> = ({ className = "", opacity = "opacity-20", zIndex = "z-0" }) => (
+    <div className={`absolute inset-0 pointer-events-none ${zIndex} ${opacity} bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] ${className}`}></div>
+);
+
 export const CRTScanline: React.FC = () => (
     <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden rounded-xl">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[size:100%_2px,3px_100%] opacity-20"></div>

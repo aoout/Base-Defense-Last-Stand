@@ -6,7 +6,7 @@ import { drawPlanetSprite } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
 import { CanvasView } from './common/CanvasView';
 import { DS } from '../../theme/designSystem';
-import { CloseButton } from './Shared';
+import { CloseButton, MonitorOverlay } from './Shared';
 import { Icons } from './Icons';
 
 interface PlanetDetailScreenProps {
@@ -107,6 +107,7 @@ export const PlanetDetailScreen: React.FC<PlanetDetailScreenProps> = ({
             
             {/* 1. Background Environment */}
             <div className="absolute inset-0 pointer-events-none">
+                <MonitorOverlay zIndex="z-10" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0)_0%,rgba(2,6,23,1)_100%)]"></div>
                 {/* Tech Grid */}
                 <div className="absolute inset-0 opacity-10 bg-[linear-gradient(90deg,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:100px_100px]"></div>

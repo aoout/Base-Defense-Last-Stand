@@ -8,6 +8,7 @@ import { useGame } from '../contexts/GameContext';
 import { SectorTopBar } from './sector/SectorTopBar';
 import { SectorBottomDeck } from './sector/SectorBottomDeck';
 import { SectorActionPanel } from './sector/SectorActionPanel';
+import { MonitorOverlay } from './Shared';
 
 const DecorativeReticle: React.FC = () => (
     <div className="absolute inset-0 pointer-events-none opacity-20">
@@ -50,7 +51,7 @@ export const SectorMapUI: React.FC = () => {
         <div className="absolute inset-0 pointer-events-none flex flex-col justify-between overflow-hidden">
             
             {/* Global Overlay Effects */}
-            <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] bg-[length:100%_2px,3px_100%] pointer-events-none z-0"></div>
+            <MonitorOverlay zIndex="z-0" />
             <DecorativeReticle />
 
             {/* --- TOP: TELEMETRY BAR --- */}
