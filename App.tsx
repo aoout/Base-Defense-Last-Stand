@@ -21,45 +21,14 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // React to Engine UI Updates
-    // PERFORMANCE FIX: Only trigger React Re-renders for structural UI changes.
-    // Transient data (HP, Ammo, Score) is handled by components reading refs directly via useGameLoop.
+    // REFACTOR: Removed 'structuralReasons' whitelist. 
+    // Previously, developers had to manually register every new event string here, 
+    // which was a frequent source of bugs (UI not updating after a new action).
+    // Since UI_UPDATE is event-driven and low-frequency (compared to the 60fps game loop),
+    // it is safe and correct to trigger a React render on every occurrence.
     const handleUIUpdate = (e: any) => {
-        const structuralReasons = [
-            'MODE_SWITCH', 
-            'RETURN_MAIN_MENU', 
-            'RESET', 
-            'PAUSE_TOGGLE',
-            // Menus
-            'SHOP_OPEN', 
-            'SHOP_CLOSE', 
-            'INVENTORY_TOGGLE', 
-            'TACTICAL_TOGGLE',
-            'TURRET_MENU_OPEN',
-            'CLOSE_MENU',
-            // Game State
-            'GAME_OVER',
-            'MISSION_COMPLETE',
-            'DEPLOY',
-            'ASCEND',
-            'EVAC',
-            'YIELD_REPORT',
-            // Settings/Events
-            'SETTING_CHANGE',
-            'SECTOR_SCAN',
-            'HEROIC_GEN',
-            // Inventory & Loadout (CRITICAL FIX: These change Icons/Layout, so they need React Render)
-            'WEAPON_SWITCH',
-            'LOADOUT_SWAP',
-            'EQUIP_MODULE',
-            'UNEQUIP_MODULE',
-            'TRANSACTION', // For shop balance updates that might enable/disable buttons
-            'TURRET_BUILD' // To remove the "Build" prompt and show the turret UI
-        ];
-
-        if (!e.reason || structuralReasons.includes(e.reason)) {
-            // Force a re-render with fresh state shallow copy
-            setGameState({ ...engine.state });
-        }
+        // Force a re-render with fresh state shallow copy
+        setGameState({ ...engine.state });
     };
 
     engine.eventBus.on(GameEventType.UI_UPDATE, handleUIUpdate);

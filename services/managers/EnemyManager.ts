@@ -1,4 +1,3 @@
-
 import { GameEngine } from '../gameService';
 import { Enemy, EnemyType, BossType, GameMode, StatId, EnemySummonEvent, FloatingTextType, IGameSystem, EnemyKilledEvent, WeaponType, EnemySpawnOptions } from '../../types';
 import { calculateEnemyStats, selectEnemyType } from '../../utils/enemyUtils';
@@ -157,7 +156,7 @@ export class EnemyManager implements IGameSystem {
         e.radius = baseStats.radius;
         e.color = baseStats.color;
         e.detectionRange = baseStats.detectionRange;
-        e.lastAttackTime = this.engine.time.now;
+        e.lastAttackTime = this.engine.time.gameTime;
 
         // 5. Strategy Pattern Initialization (Replaces hardcoded logic)
         const behavior = this.getBehavior(e);
@@ -167,7 +166,7 @@ export class EnemyManager implements IGameSystem {
             state: this.engine.state,
             events: this.events,
             dt: 0,
-            time: this.engine.time.now,
+            time: this.engine.time.gameTime,
             timeScale: 1,
             t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
         };
@@ -229,7 +228,7 @@ export class EnemyManager implements IGameSystem {
             state: this.engine.state,
             events: this.events,
             dt,
-            time: this.engine.time.now,
+            time: this.engine.time.gameTime,
             timeScale,
             t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
         };
@@ -267,7 +266,7 @@ export class EnemyManager implements IGameSystem {
                 state: this.engine.state,
                 events: this.events,
                 dt: 0,
-                time: this.engine.time.now,
+                time: this.engine.time.gameTime,
                 timeScale: 1,
                 t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
             };
@@ -291,7 +290,7 @@ export class EnemyManager implements IGameSystem {
             state: this.engine.state,
             events: this.events,
             dt: 0,
-            time: this.engine.time.now,
+            time: this.engine.time.gameTime,
             timeScale: 1,
             t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
         };

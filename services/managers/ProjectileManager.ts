@@ -5,6 +5,40 @@ import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { DataManager } from '../DataManager';
 import { PROJECTILE_PRESETS } from '../../data/registry';
 
+// --- STRATEGY INTERFACES ---
+
+interface MovementBehavior {
+    update(p: Projectile, dt: number, state: GameState, timeScale: number): void;
+}
+
+class LinearMovement implements MovementBehavior {
+    update(p: Projectile, dt: number, state: GameState, timeScale: number): void {
+        p.x += p.vx * timeScale;
+        p.y += p.vy * timeScale;
+    }
+}
+
+class HomingMovement implements MovementBehavior {
+    update(p: Projectile, dt: number, state: GameState, timeScale: number): void {
+        if (p.targetId) {
+            const target = state.enemies.find(e => e.id === p.targetId);
+            if (target && target.hp > 0) {
+                const angle = Math.atan2(target.y - p.y, target.x - p.x);
+                // Simple steering: Update velocity vector to face target
+                // For smoother turning, we would interpolate angle, but instant turn fits the arcade feel
+                p.vx = Math.cos(angle) * p.speed;
+                p.vy = Math.sin(angle) * p.speed;
+                p.angle = angle;
+            } else {
+                // Target lost/dead: Continue linearly on last known vector
+                // p.targetId = undefined; // Optional: clear target to stop searching
+            }
+        }
+        p.x += p.vx * timeScale;
+        p.y += p.vy * timeScale;
+    }
+}
+
 export class ProjectileManager implements IGameSystem {
     public readonly systemId = 'PROJECTILE_SYSTEM';
 
@@ -12,11 +46,23 @@ export class ProjectileManager implements IGameSystem {
     private events: EventBus;
     private data: DataManager;
     private pool: ObjectPool<Projectile>;
+    
+    // Strategies
+    private behaviors: {
+        linear: LinearMovement;
+        homing: HomingMovement;
+    };
 
     constructor(getState: () => GameState, eventBus: EventBus, dataManager: DataManager) {
         this.getState = getState;
         this.events = eventBus;
         this.data = dataManager;
+
+        // Initialize Strategies
+        this.behaviors = {
+            linear: new LinearMovement(),
+            homing: new HomingMovement()
+        };
 
         // Initialize Pool
         this.pool = new ObjectPool<Projectile>(
@@ -141,43 +187,18 @@ export class ProjectileManager implements IGameSystem {
             const p = projectiles[i];
             let shouldRemove = false;
 
-            // Homing Steering
-            if (p.isHoming && p.targetId) {
-                const target = state.enemies.find(e => e.id === p.targetId);
-                if (target) {
-                    const angle = Math.atan2(target.y - p.y, target.x - p.x);
-                    const speed = Math.sqrt(p.vx**2 + p.vy**2);
-                    // Instant turn for now
-                    p.vx = Math.cos(angle) * speed;
-                    p.vy = Math.sin(angle) * speed;
-                    p.angle = angle;
-                }
-            }
+            // --- STRATEGY PATTERN EXECUTION ---
+            const behavior = p.isHoming ? this.behaviors.homing : this.behaviors.linear;
+            behavior.update(p, dt, state, timeScale);
             
-            // Integration
-            p.x += p.vx * timeScale;
-            p.y += p.vy * timeScale;
-            
-            // Lifecycle
-            const distTravelled = Math.sqrt((p.vx * timeScale)**2 + (p.vy * timeScale)**2);
+            // Lifecycle Management
+            // Calculate distance travelled this frame approx
+            const distTravelled = p.speed * timeScale; 
             p.rangeRemaining -= distTravelled;
 
-            // Removal Check
+            // Removal Check (Range Exceeded)
             if (p.rangeRemaining <= 0) {
-                // If it's an explosive projectile (like a grenade) and hits max range (destination), trigger explosion manually
-                if (p.isExplosive) {
-                    this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, {
-                        x: p.x, y: p.y,
-                        radius: p.explosionRadius || 100,
-                        damage: p.damage,
-                        source: p.source
-                    });
-                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
-                        x: p.x, y: p.y,
-                        color: '#f87171', count: 10, speed: 10
-                    });
-                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
-                }
+                this.handleExpiration(p);
                 shouldRemove = true;
             }
 
@@ -186,6 +207,23 @@ export class ProjectileManager implements IGameSystem {
                 projectiles[i] = projectiles[projectiles.length - 1];
                 projectiles.pop();
             }
+        }
+    }
+
+    private handleExpiration(p: Projectile) {
+        // If it's an explosive projectile (like a grenade) and hits max range (destination), trigger explosion manually
+        if (p.isExplosive) {
+            this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, {
+                x: p.x, y: p.y,
+                radius: p.explosionRadius || 100,
+                damage: p.damage,
+                source: p.source
+            });
+            this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
+                x: p.x, y: p.y,
+                color: '#f87171', count: 10, speed: 10
+            });
+            this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
         }
     }
 }

@@ -1,4 +1,3 @@
-
 import { IInputStrategy } from "../IInputStrategy";
 import { GameEngine } from "../../gameService";
 import { UserAction, GameEventType } from "../../../types";
@@ -36,7 +35,7 @@ export class GameplayInputStrategy implements IInputStrategy {
             e.eventBus.emit(GameEventType.DEFENSE_INTERACT, {}); 
             return true; 
         },
-        [UserAction.RELOAD]: (e) => { e.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: e.time.now }); return true; },
+        [UserAction.RELOAD]: (e) => { e.eventBus.emit(GameEventType.PLAYER_RELOAD, { time: e.time.gameTime }); return true; },
         [UserAction.GRENADE]: (e) => { e.eventBus.emit(GameEventType.PLAYER_THROW_GRENADE, {}); return true; },
         [UserAction.SKIP_WAVE]: (e) => { e.missionManager.skipWave(); return true; },
 

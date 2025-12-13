@@ -147,23 +147,42 @@ export class GameEngine {
         ];
     }
 
-    public update(time: number) {
-        const dt = time - this.time.now;
-        if (dt < 0) return; 
+    public update(realTime: number) {
+        // 1. Calculate Real Delta Time
+        this.time.update(realTime);
+        const dt = this.time.delta;
         
-        this.time.sync(time);
+        if (dt < 0 || dt > 1000) return; // Skip invalid frames or huge lag spikes
         
         const shouldUpdateLogic = this.state.appMode === AppMode.GAMEPLAY && !this.state.isPaused;
         const timeScale = shouldUpdateLogic ? 1 : 0;
         
+        // 2. Advance Game Time only if logic is running
+        if (shouldUpdateLogic) {
+            this.time.tickGameTime();
+        }
+
+        // 3. Update Systems with correct Time Context
+        // Use gameTime for simulation logic (physics, cooldowns)
+        // Use realTime for UI animations (handled by React/CSS mostly, but some canvas UI might need it)
+        const simTime = this.time.gameTime;
+
         if (shouldUpdateLogic) {
             for (const system of this.systems) {
-                system.update(dt, time, timeScale);
+                system.update(dt, simTime, timeScale);
             }
+            // Update internal state time for persistence
+            this.state.time = simTime;
         }
         
+        // Camera updates even when paused (for smoothing/shake decay if we had it), 
+        // but generally follows player.
         this.cameraSystem.update(dt);
-        this.loopListeners.forEach(l => l(dt, time));
+        
+        // Loop listeners (e.g. React Hooks) might want RealTime for UI animations
+        // or GameTime for gameplay sync. We pass both ideally, but existing signature is (dt, time).
+        // We pass realTime here because UI animations usually want to keep playing (like glowing buttons) even if paused.
+        this.loopListeners.forEach(l => l(dt, realTime));
     }
 
     public resize(w: number, h: number) {
@@ -200,15 +219,6 @@ export class GameEngine {
         this.eventBus.emit(GameEventType.UI_UPDATE, { reason });
     }
 
-    // --- DEPRECATED PROXIES REMOVED ---
-    // All specific logic calls (e.g., enterSpaceshipView, saveGame, purchaseUpgrade)
-    // have been removed. Consumers must access the specific manager directly:
-    // e.g., engine.sessionManager.setMode(...) or engine.saveManager.saveGame()
-    
-    // Shortcuts for extremely common UI toggles can remain if they are "Global" state,
-    // but ideally should move to SessionManager or UIManager.
-    // Keeping these 4 purely for InputStrategy convenience for now, but implemented via Managers.
-    
     public toggleInventory() {
         this.state.isInventoryOpen = !this.state.isInventoryOpen;
         this.notifyUI('INVENTORY_TOGGLE');
@@ -236,7 +246,6 @@ export class GameEngine {
         this.sessionManager.activateBackdoor();
     }
     
-    // Specialized Wrappers for UI (Optional, but kept minimal)
     public selectPlanet(id: string | null) { this.state.selectedPlanetId = id; this.notifyUI(); }
     public deployToPlanet(id: string) { this.galaxyManager.deployToPlanet(id); }
     public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) { this.galaxyManager.constructBuilding(planetId, type, slotIndex); this.notifyUI(); }

@@ -1,47 +1,8 @@
 
-import { Projectile, Particle, OrbitalBeam, ToxicZone, BloodStain, WeaponType, ModuleType, DamageSource } from '../types';
+import { Projectile, OrbitalBeam, ToxicZone, BloodStain, WeaponType, ModuleType, DamageSource } from '../types';
 import { isVisible, getSprite } from './drawHelpers';
 
-// BATCHED & CACHED PARTICLE RENDERER
-export const drawParticlesBatch = (ctx: CanvasRenderingContext2D, particles: Particle[], camera: {x: number, y: number}) => {
-    if (particles.length === 0) return;
-
-    // 1. Group particles by Color to minimize Texture switching
-    const batches: Record<string, Particle[]> = {};
-
-    for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        if (!isVisible(p.x, p.y, p.radius, camera)) continue;
-
-        if (!batches[p.color]) {
-            batches[p.color] = [];
-        }
-        batches[p.color].push(p);
-    }
-
-    // 2. Draw Batches using drawImage (Blitting)
-    const BASE_SPRITE_SIZE = 32; 
-    
-    for (const color in batches) {
-        const sprite = getSprite(color, BASE_SPRITE_SIZE);
-        const batch = batches[color];
-        
-        for (let i = 0; i < batch.length; i++) {
-            const p = batch[i];
-            const drawSize = p.radius * 4; 
-            
-            ctx.globalAlpha = Math.max(0, p.life);
-            ctx.drawImage(
-                sprite, 
-                p.x - drawSize/2, 
-                p.y - drawSize/2, 
-                drawSize, 
-                drawSize
-            );
-        }
-    }
-    ctx.globalAlpha = 1.0;
-};
+// NOTE: drawParticlesBatch has been moved to EffectRenderer class to use persistent pooling.
 
 export const drawProjectile = (ctx: CanvasRenderingContext2D, p: Projectile) => {
     ctx.translate(p.x, p.y);

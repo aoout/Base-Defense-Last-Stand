@@ -63,19 +63,11 @@ export class SaveManager {
         
         this.engine.state.savedPlayerState = persistent;
 
-        // --- TIME NORMALIZATION (Hydration Prep) ---
-        // We inject a special 'savedAtGameTime' field into the data blob (using JSON magic)
-        // This helps us calculate relative offsets on load.
-        // However, a simpler, more robust approach for this codebase is to save
-        // relative durations for CRITICAL timers (Reload, Regen) directly in the objects 
-        // or ensure we handle the offset on load.
-        
-        // We will perform a deep copy and modify timestamps to be "relative to now" 
-        // where preserving exact timing matters.
         const stateToSave = JSON.parse(JSON.stringify(this.engine.state));
         
-        // Store the game time at save moment
-        (stateToSave as any).metaGameTime = this.engine.time.now;
+        // Store current SIMULATION time to restore exact state
+        // Note: state.time is already updated in GameEngine loop, but explicitly saving meta just in case
+        (stateToSave as any).metaGameTime = this.engine.time.gameTime;
 
         // Clean up transient entities
         stateToSave.projectiles = [];
@@ -91,7 +83,7 @@ export class SaveManager {
             isPinned: false,
             data: JSON.stringify(stateToSave),
             mode: this.engine.state.gameMode,
-            version: CURRENT_VERSION // Stamp with current system version
+            version: CURRENT_VERSION
         };
 
         this.engine.state.saveSlots.unshift(newSave);
@@ -113,7 +105,7 @@ export class SaveManager {
                 isPinned: false,
                 data: parsed.data,
                 mode: parsed.mode,
-                version: parsed.version || "0.9.0" // Default to base if missing on import
+                version: parsed.version || "0.9.0"
             };
             this.engine.state.saveSlots.unshift(newSave);
             this.enforceSlotLimit();
@@ -144,7 +136,6 @@ export class SaveManager {
                 let data = JSON.parse(slot.data);
                 
                 // 2. Run Migration Service
-                // We pass current settings to preserve language preference/performance settings
                 const currentContext = {
                     settings: this.engine.state.settings
                 };
@@ -153,13 +144,15 @@ export class SaveManager {
                 data = MigrationService.migrate(data, saveVersion, currentContext);
 
                 // 3. Hydrate State
-                // Sync Time Manager to current fresh time
-                this.engine.time.sync(performance.now());
-                const currentNow = this.engine.time.now;
-                const oldSaveTime = (data as any).metaGameTime || 0; // The time when save happened
-
                 Object.assign(this.engine.state, data);
                 
+                // --- TIME SYNCHRONIZATION ---
+                // Crucial fix: Set the Engine's Simulation Time to the saved time.
+                // This ensures all absolute timestamps (like reloadStartTime) in the save file
+                // remain valid relative to 'now'.
+                const savedTime = data.time || (data as any).metaGameTime || 0;
+                this.engine.time.sync(savedTime);
+
                 this.engine.state.isPaused = false;
                 this.engine.state.appMode = AppMode.GAMEPLAY;
                 this.engine.state.camera = { x: 0, y: 0 };
@@ -168,57 +161,36 @@ export class SaveManager {
                      this.engine.state.appMode = AppMode.EXPLORATION_MAP;
                 }
 
-                // --- TIMESTAMP HYDRATION & FIXES ---
-                
-                // 1. Player Regeneration Logic (Sanitization)
-                let loadedHitTime = this.engine.state.player.lastHitTime;
-                
-                // Detection for Legacy Unix Timestamp saves (numbers > 1 trillion)
-                // OR null/undefined values
-                if (!loadedHitTime || loadedHitTime > 1000000000000) {
-                    // Reset to a safe value so regen can start immediately
+                // 4. Sanitize Timestamps
+                // Even with sync, if logic changed, we ensure no negative delays
+                const currentNow = this.engine.time.gameTime;
+
+                // Player Regen
+                if (!this.engine.state.player.lastHitTime) {
                     this.engine.state.player.lastHitTime = currentNow - 999999;
-                } else {
-                    // Standard Sim Time Hydration
-                    const timeSinceHit = oldSaveTime - loadedHitTime;
-                    this.engine.state.player.lastHitTime = currentNow - timeSinceHit;
                 }
 
-                // 2. Weapon Reloading & Ammo Fixes
+                // Weapons
                 Object.values(this.engine.state.player.weapons).forEach((w: WeaponState) => {
-                    // Prevent jamming: Reset fire timer to allow shooting immediately
-                    w.lastFireTime = 0; 
-
-                    // FIX: JSON serializes Infinity as null. Restore it for Pistol.
+                    w.lastFireTime = 0; // Unjam
                     if (w.type === WeaponType.PISTOL || w.ammoReserve === null) {
                         w.ammoReserve = Infinity;
                     }
-
-                    // Reloading hydration
-                    if (w.reloading) {
-                        const timeSinceReloadStart = oldSaveTime - w.reloadStartTime;
-                        w.reloadStartTime = currentNow - timeSinceReloadStart;
-                    } else {
-                        w.reloadStartTime = 0;
+                    // If mid-reload, ensure it doesn't get stuck in past
+                    if (w.reloading && w.reloadStartTime > currentNow) {
+                        w.reloadStartTime = currentNow;
                     }
                 });
 
-                // 3. Enemy Attack Cooldowns
+                // Clear transient timers that shouldn't persist
                 this.engine.state.enemies.forEach(e => {
-                    e.lastAttackTime = 0;
-                    if (e.bossNextShotTime) e.bossNextShotTime = currentNow + 1000; // Small delay
+                    e.lastAttackTime = currentNow - 1000;
                 });
 
-                // 4. Allies & Turrets
-                this.engine.state.allies.forEach(a => { a.lastFireTime = 0; });
-                this.engine.state.turretSpots.forEach(s => {
-                    if (s.builtTurret) s.builtTurret.lastFireTime = 0;
-                });
-                
                 // 5. Re-register Stats
                 if (this.engine.spaceshipManager) {
-                    this.engine.statManager.clear(); // Clear old stats
-                    this.engine.spaceshipManager.registerModifiers(); // Rebuild from persistent data
+                    this.engine.statManager.clear(); 
+                    this.engine.spaceshipManager.registerModifiers(); 
                 }
 
                 this.engine.addMessage(this.engine.t('GAME_LOADED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
