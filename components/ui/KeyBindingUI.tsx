@@ -65,20 +65,13 @@ export const KeyBindingUI: React.FC<KeyBindingUIProps> = ({ onClose }) => {
 
     return (
         <div className="absolute inset-0 z-[300] bg-black/80 flex items-center justify-center backdrop-blur-sm pointer-events-auto">
-            <div className="w-[800px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-8 flex flex-col max-h-[80vh]">
+            <div className="relative w-[800px] bg-slate-900 border-2 border-cyan-600 shadow-[0_0_50px_rgba(6,182,212,0.2)] p-8 flex flex-col max-h-[80vh]">
+                <CloseButton onClick={onClose} colorClass="border-cyan-600 text-cyan-500 hover:text-white hover:bg-cyan-900" />
+                
                 <div className="flex justify-between items-center mb-6 border-b border-cyan-900 pb-4">
                     <div>
                         <h2 className="text-2xl font-display font-black text-white tracking-widest">{t('INPUT_TITLE')}</h2>
                         <p className="text-cyan-600 text-xs font-mono tracking-widest">{t('INPUT_SUB')}</p>
-                    </div>
-                    <div className="flex gap-4">
-                        <button 
-                            onClick={handleReset}
-                            className="px-4 py-2 text-[10px] border border-red-900 text-red-500 hover:bg-red-900/20 uppercase tracking-widest transition-colors"
-                        >
-                            {t('INPUT_RESET')}
-                        </button>
-                        <CloseButton onClick={onClose} colorClass="border-cyan-600 text-cyan-500 hover:text-white hover:bg-cyan-900" />
                     </div>
                 </div>
 
@@ -114,8 +107,16 @@ export const KeyBindingUI: React.FC<KeyBindingUIProps> = ({ onClose }) => {
                     </div>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-800 text-center text-xs text-slate-500 font-mono">
-                    {listeningAction ? t('INPUT_PRESS_KEY') : t('INPUT_SUB')}
+                <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center">
+                    <button 
+                        onClick={handleReset}
+                        className="px-4 py-2 text-[10px] border border-red-900 text-red-500 hover:bg-red-900/20 uppercase tracking-widest transition-colors"
+                    >
+                        {t('INPUT_RESET')}
+                    </button>
+                    <div className="text-xs text-slate-500 font-mono">
+                        {listeningAction ? t('INPUT_PRESS_KEY') : t('INPUT_SUB')}
+                    </div>
                 </div>
             </div>
         </div>

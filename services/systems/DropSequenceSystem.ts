@@ -1,9 +1,11 @@
 
-import { GameState, GameEventType, PlaySoundEvent, SpawnParticleEvent, FloatingTextType } from '../../types';
+import { GameState, GameEventType, PlaySoundEvent, SpawnParticleEvent, FloatingTextType, IGameSystem } from '../../types';
 import { EventBus } from '../EventBus';
 import { FXManager } from '../managers/FXManager';
 
-export class DropSequenceSystem {
+export class DropSequenceSystem implements IGameSystem {
+    public readonly systemId = 'DROP_SEQUENCE_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private fx: FXManager; // Optional helper for direct text? Or emit events.
@@ -14,7 +16,7 @@ export class DropSequenceSystem {
         this.fx = fx;
     }
 
-    public update(dt: number, timeScale: number) {
+    public update(dt: number, time: number, timeScale: number) {
         const state = this.getState();
         const bd = state.baseDrop;
 

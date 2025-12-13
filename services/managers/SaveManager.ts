@@ -97,7 +97,7 @@ export class SaveManager {
         this.engine.state.saveSlots.unshift(newSave);
         this.enforceSlotLimit();
         this.persistSaves();
-        this.engine.addMessage("GAME SAVED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
+        this.engine.addMessage(this.engine.t('GAME_SAVED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
     }
 
     public importSave(jsonString: string): boolean {
@@ -221,10 +221,10 @@ export class SaveManager {
                     this.engine.spaceshipManager.registerModifiers(); // Rebuild from persistent data
                 }
 
-                this.engine.addMessage("GAME LOADED", WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
+                this.engine.addMessage(this.engine.t('GAME_LOADED'), WORLD_WIDTH/2, WORLD_HEIGHT/2, '#10B981', FloatingTextType.SYSTEM);
             } catch (e) {
                 console.error("Failed to load save", e);
-                this.engine.addMessage("LOAD FAILED: CORRUPT DATA", WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red', FloatingTextType.SYSTEM);
+                this.engine.addMessage(this.engine.t('LOAD_FAIL_CORRUPT'), WORLD_WIDTH/2, WORLD_HEIGHT/2, 'red', FloatingTextType.SYSTEM);
             }
         }
     }

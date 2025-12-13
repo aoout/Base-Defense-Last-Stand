@@ -6,6 +6,8 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
     private cols: number = 0;
     private rows: number = 0;
     private cells: T[][] = []; 
+    
+    // Optimization: Persistent Set to avoid GC pressure during high-frequency queries
     private queryIds: Set<string>; 
 
     constructor(cellSize: number) {
@@ -19,16 +21,29 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
         this.cols = Math.ceil(width / this.cellSize);
         this.rows = Math.ceil(height / this.cellSize);
         
-        // Re-allocate buckets
-        this.cells = new Array(this.cols * this.rows).fill(null).map(() => []);
-        this.clear();
+        // Re-allocate buckets only if size changes drastically, 
+        // but for safety in this engine, we just reset.
+        // To optimize further, we could reuse existing arrays if length is sufficient.
+        const totalCells = this.cols * this.rows;
+        
+        // If we already have enough cells, just clear them. If not, create new.
+        if (this.cells.length < totalCells) {
+            this.cells = new Array(totalCells).fill(null).map(() => []);
+        } else {
+            this.clear();
+        }
     }
 
     public clear() {
         // Zero-Allocation Clear: Reuse the existing arrays
-        for (let i = 0; i < this.cells.length; i++) {
-            this.cells[i].length = 0;
+        // This is much faster than assigning []
+        const len = this.cells.length;
+        for (let i = 0; i < len; i++) {
+            if (this.cells[i].length > 0) {
+                this.cells[i].length = 0;
+            }
         }
+        // queryIds is cleared at start of query, but good practice to clear here too
         this.queryIds.clear();
     }
 
@@ -67,6 +82,7 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
         const iStartY = Math.max(0, startY);
         const iEndY = Math.min(this.rows - 1, endY);
 
+        // Reuse the Set instance
         this.queryIds.clear();
         
         for (let y = iStartY; y <= iEndY; y++) {
@@ -75,7 +91,8 @@ export class SpatialHashGrid<T extends { x: number, y: number, radius: number, i
                 const cell = this.cells[index];
                 
                 if (cell) {
-                    for (let i = 0; i < cell.length; i++) {
+                    const cellLen = cell.length;
+                    for (let i = 0; i < cellLen; i++) {
                         const item = cell[i];
                         if (!this.queryIds.has(item.id)) {
                             this.queryIds.add(item.id);

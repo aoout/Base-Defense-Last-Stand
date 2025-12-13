@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { OrbitalUpgradeEffect, OrbitalUpgradeNode } from '../../types';
+import { OrbitalUpgradeEffect, OrbitalUpgradeNode, AppMode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
@@ -13,11 +13,11 @@ export const OrbitalUpgradeUI: React.FC = () => {
     const [hoveredNode, setHoveredNode] = useState<OrbitalUpgradeNode | null>(null);
 
     const handlePurchase = (nodeId: string) => {
-        engine.purchaseOrbitalUpgrade(nodeId);
+        engine.spaceshipManager.purchaseOrbitalUpgrade(nodeId);
     }
 
     const handleClose = () => {
-        engine.exitOrbitalUpgradeMenu();
+        engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW);
     }
 
     // Calculate detailed stats

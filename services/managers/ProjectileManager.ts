@@ -1,10 +1,13 @@
 
-import { GameState, Projectile, WeaponType, WeaponModule, GameEventType, SpawnProjectileEvent, DamageSource } from '../../types';
+import { GameState, Projectile, WeaponType, WeaponModule, GameEventType, SpawnProjectileEvent, DamageSource, IGameSystem, DamageAreaEvent, PlaySoundEvent, SpawnParticleEvent } from '../../types';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
 import { DataManager } from '../DataManager';
+import { PROJECTILE_PRESETS } from '../../data/registry';
 
-export class ProjectileManager {
+export class ProjectileManager implements IGameSystem {
+    public readonly systemId = 'PROJECTILE_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private data: DataManager;
@@ -28,6 +31,7 @@ export class ProjectileManager {
                 source: DamageSource.ENEMY
             }),
             (p) => {
+                // Reset transient properties
                 p.isExplosive = false;
                 p.explosionRadius = undefined;
                 p.isPiercing = false;
@@ -37,6 +41,7 @@ export class ProjectileManager {
                 p.createsToxicZone = false;
                 p.activeModules = undefined;
                 p.targetId = undefined;
+                p.turnSpeed = undefined;
             }
         );
 
@@ -51,68 +56,84 @@ export class ProjectileManager {
 
     /**
      * Spawns a projectile using a configuration object.
-     * Refactored from 18 arguments to a single interface for readability.
+     * Uses Preset ID to hydrate default stats, then applies overrides.
      */
     public spawnProjectile(props: SpawnProjectileEvent) {
-        const { 
-            x, y, targetX, targetY, speed, damage, fromPlayer, color, 
-            homingTargetId, isHoming, createsToxicZone, maxRange = 1000, 
-            source = DamageSource.ENEMY, activeModules, isExplosive, 
-            isPiercing, weaponType, explosionRadius 
-        } = props;
+        const { x, y, targetX, targetY, damage, presetId } = props;
+
+        // Hydrate configuration
+        let config: any = {};
+        
+        if (presetId && PROJECTILE_PRESETS[presetId]) {
+            config = { ...PROJECTILE_PRESETS[presetId] };
+        }
+
+        // Apply overrides from props
+        if (props.speed !== undefined) config.speed = props.speed;
+        if (props.fromPlayer !== undefined) config.fromPlayer = props.fromPlayer;
+        if (props.color !== undefined) config.color = props.color;
+        if (props.source !== undefined) config.source = props.source;
+        if (props.maxRange !== undefined) config.maxRange = props.maxRange;
+        if (props.isHoming !== undefined) config.isHoming = props.isHoming;
+        if (props.createsToxicZone !== undefined) config.createsToxicZone = props.createsToxicZone;
+        if (props.isExplosive !== undefined) config.isExplosive = props.isExplosive;
+        if (props.explosionRadius !== undefined) config.explosionRadius = props.explosionRadius;
+        if (props.isPiercing !== undefined) config.isPiercing = props.isPiercing;
+        if (props.weaponType !== undefined) config.weaponType = props.weaponType;
+
+        // Fallbacks for critical missing data (if no preset used)
+        if (config.speed === undefined) config.speed = 10;
+        if (config.maxRange === undefined) config.maxRange = 1000;
+        if (config.fromPlayer === undefined) config.fromPlayer = false;
+        if (config.source === undefined) config.source = DamageSource.ENEMY;
+        if (config.color === undefined) config.color = '#fff';
 
         const angle = Math.atan2(targetY - y, targetX - x);
         
         const proj = this.pool.get();
         proj.id = generateId('p');
+        
+        // Physics
         proj.x = x; 
         proj.y = y;
-        proj.speed = speed;
-        proj.vx = Math.cos(angle) * speed;
-        proj.vy = Math.sin(angle) * speed;
-        proj.damage = damage;
-        proj.color = color;
-        proj.radius = 4;
-        proj.rangeRemaining = maxRange;
-        proj.fromPlayer = fromPlayer;
+        proj.speed = config.speed;
+        proj.vx = Math.cos(angle) * config.speed;
+        proj.vy = Math.sin(angle) * config.speed;
         proj.angle = angle;
-        proj.maxRange = maxRange;
-        proj.source = source;
         
-        proj.targetId = homingTargetId;
-        proj.isHoming = !!isHoming;
-        proj.createsToxicZone = !!createsToxicZone;
-        proj.activeModules = activeModules;
-        proj.isExplosive = !!isExplosive;
-        proj.explosionRadius = explosionRadius;
-        proj.isPiercing = !!isPiercing;
+        // Stats
+        proj.damage = damage;
+        proj.rangeRemaining = config.maxRange;
+        proj.maxRange = config.maxRange;
+        proj.source = config.source;
+        proj.fromPlayer = config.fromPlayer;
         
-        // Directly assign explicit type if provided
-        if (weaponType) {
-            proj.weaponType = weaponType;
+        // Visuals
+        proj.color = config.color;
+        proj.radius = config.radius || 4;
+        
+        // Logic Flags
+        proj.targetId = props.homingTargetId;
+        proj.isHoming = !!config.isHoming;
+        proj.createsToxicZone = !!config.createsToxicZone;
+        proj.activeModules = props.activeModules;
+        proj.isExplosive = !!config.isExplosive;
+        proj.explosionRadius = config.explosionRadius;
+        proj.isPiercing = !!config.isPiercing;
+        
+        if (config.weaponType) {
+            proj.weaponType = config.weaponType;
         }
 
-        // Auto-detect flags based on modules or explicit type
-        if (activeModules) {
-             if (activeModules.some(m => m.type === 'KINETIC_STABILIZER')) proj.isPiercing = true;
-        }
-        
-        // Fallback for special properties if flags weren't explicitly set but type was known
-        if (proj.weaponType === WeaponType.PULSE_RIFLE) { proj.isPiercing = true; } 
-        if (proj.weaponType === WeaponType.FLAMETHROWER) { proj.isPiercing = true; } 
-        if (proj.weaponType === WeaponType.GRENADE_LAUNCHER) { proj.isExplosive = true; } 
-
-        // Legacy Color Sniffing (Fallback for older calls)
-        if (!proj.weaponType) {
-            if (color.toUpperCase() === '#22D3EE') { proj.isPiercing = true; proj.weaponType = WeaponType.PULSE_RIFLE; } 
-            if (color.toUpperCase() === '#F97316') { proj.isPiercing = true; proj.weaponType = WeaponType.FLAMETHROWER; }
-            if (color.toUpperCase() === '#1F2937') { proj.isExplosive = true; proj.weaponType = WeaponType.GRENADE_LAUNCHER; }
+        // Apply Module Effects (Global Logic)
+        if (proj.activeModules) {
+             if (proj.activeModules.some(m => m.type === 'KINETIC_STABILIZER')) proj.isPiercing = true;
         }
 
         this.getState().projectiles.push(proj);
     }
 
-    public update(dt: number, timeScale: number) {
+    public update(dt: number, time: number, timeScale: number) {
         const state = this.getState();
         const projectiles = state.projectiles;
         
@@ -124,9 +145,9 @@ export class ProjectileManager {
             if (p.isHoming && p.targetId) {
                 const target = state.enemies.find(e => e.id === p.targetId);
                 if (target) {
-                    // Simple steering
                     const angle = Math.atan2(target.y - p.y, target.x - p.x);
                     const speed = Math.sqrt(p.vx**2 + p.vy**2);
+                    // Instant turn for now
                     p.vx = Math.cos(angle) * speed;
                     p.vy = Math.sin(angle) * speed;
                     p.angle = angle;
@@ -141,8 +162,22 @@ export class ProjectileManager {
             const distTravelled = Math.sqrt((p.vx * timeScale)**2 + (p.vy * timeScale)**2);
             p.rangeRemaining -= distTravelled;
 
-            // Removal Check (Range or Externally marked by PhysicsSystem via negative range)
+            // Removal Check
             if (p.rangeRemaining <= 0) {
+                // If it's an explosive projectile (like a grenade) and hits max range (destination), trigger explosion manually
+                if (p.isExplosive) {
+                    this.events.emit<DamageAreaEvent>(GameEventType.DAMAGE_AREA, {
+                        x: p.x, y: p.y,
+                        radius: p.explosionRadius || 100,
+                        damage: p.damage,
+                        source: p.source
+                    });
+                    this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, {
+                        x: p.x, y: p.y,
+                        color: '#f87171', count: 10, speed: 10
+                    });
+                    this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'EXPLOSION', x: p.x, y: p.y });
+                }
                 shouldRemove = true;
             }
 

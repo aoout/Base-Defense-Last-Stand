@@ -269,14 +269,14 @@ const SettingsView: React.FC<{ engine: any, state: GameState, t: Translator, onB
                 <div className="grid grid-cols-2 gap-12 max-w-4xl">
                     <div className="space-y-6">
                         <h3 className="text-cyan-500 text-xs font-bold tracking-[0.2em] border-b border-cyan-900/50 pb-2 mb-4">GRAPHICS</h3>
-                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_PERFORMANCE')}</span><button onClick={() => engine.toggleSetting('performanceMode')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}</button></div>
-                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_SHADOWS')}</span><button onClick={() => engine.toggleSetting('showShadows')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showShadows ? t('SETTING_ON') : t('SETTING_OFF')}</button></div>
-                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_LIGHTING')}</span><button onClick={() => engine.toggleSetting('lightingQuality')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')}</button></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_PERFORMANCE')}</span><button onClick={() => engine.sessionManager.toggleSetting('performanceMode')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{t(`SETTING_${state.settings.performanceMode || 'BALANCED'}`)}</button></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_SHADOWS')}</span><button onClick={() => engine.sessionManager.toggleSetting('showShadows')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showShadows ? t('SETTING_ON') : t('SETTING_OFF')}</button></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_LIGHTING')}</span><button onClick={() => engine.sessionManager.toggleSetting('lightingQuality')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.lightingQuality === 'HIGH' ? t('SETTING_HIGH') : t('SETTING_LOW')}</button></div>
                     </div>
                     <div className="space-y-6">
                         <h3 className="text-cyan-500 text-xs font-bold tracking-[0.2em] border-b border-cyan-900/50 pb-2 mb-4">SYSTEM</h3>
-                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_LANGUAGE')}</span><button onClick={() => engine.toggleSetting('language')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.language === 'EN' ? 'ENGLISH' : '中文'}</button></div>
-                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('HUD_OVERLAY')}</span><button onClick={() => engine.toggleSetting('showHUD')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showHUD ? t('SETTING_ON') : t('SETTING_OFF')}</button></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('SETTING_LANGUAGE')}</span><button onClick={() => engine.sessionManager.toggleSetting('language')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.language === 'EN' ? 'ENGLISH' : '中文'}</button></div>
+                        <div className="flex justify-between items-center"><span className="text-sm font-bold text-slate-300">{t('HUD_OVERLAY')}</span><button onClick={() => engine.sessionManager.toggleSetting('showHUD')} className="bg-slate-800 px-4 py-1.5 rounded border border-slate-600 hover:border-cyan-500 text-xs font-mono text-cyan-400 transition-all w-32">{state.settings.showHUD ? t('SETTING_ON') : t('SETTING_OFF')}</button></div>
                     </div>
                 </div>
             </div>
@@ -325,12 +325,12 @@ const MemoryView: React.FC<{ engine: any, state: GameState, t: Translator, onBac
                 <button onClick={onBack} className="text-slate-400 hover:text-white flex items-center gap-2 mb-8 transition-colors"><span className="text-xl">«</span> <span className="font-bold text-xs tracking-widest">{t('BACK')}</span></button>
                 <h2 className="text-2xl font-display font-black text-white mb-2">{t('MEMORY_STORAGE')}</h2>
                 <p className="text-xs text-slate-500 leading-relaxed mb-6">{t('MANUAL_MEMORY_DESC')}</p>
-                <button onClick={() => engine.saveGame()} className="w-full py-3 bg-blue-900/30 border border-blue-500/50 hover:bg-blue-900/50 hover:border-blue-400 text-blue-200 font-bold tracking-widest uppercase text-xs transition-all mb-2">{t('CREATE_SAVE')}</button>
+                <button onClick={() => engine.saveManager.saveGame()} className="w-full py-3 bg-blue-900/30 border border-blue-500/50 hover:bg-blue-900/50 hover:border-blue-400 text-blue-200 font-bold tracking-widest uppercase text-xs transition-all mb-2">{t('CREATE_SAVE')}</button>
             </div>
             <div className="flex-1 bg-slate-900/50 p-8 overflow-y-auto">
                 <div className="grid grid-cols-1 gap-4 max-w-4xl">
                     {state.saveSlots.length === 0 && <div className="text-center py-20 text-slate-600 font-mono border-2 border-dashed border-slate-800 rounded">{t('NO_ARCHIVES')}</div>}
-                    {state.saveSlots.map(save => <SaveSlotItem key={save.id} save={save} onLoad={() => engine.loadGame(save.id)} onDelete={() => engine.deleteSave(save.id)} onPin={() => engine.togglePin(save.id)} onExport={() => engine.exportSave(save.id)} />)}
+                    {state.saveSlots.map(save => <SaveSlotItem key={save.id} save={save} onLoad={() => engine.saveManager.loadGame(save.id)} onDelete={() => engine.saveManager.deleteSave(save.id)} onPin={() => engine.saveManager.togglePin(save.id)} onExport={() => engine.saveManager.exportSaveString(save.id)} />)}
                 </div>
             </div>
         </div>
@@ -344,8 +344,8 @@ export const TacticalTerminal: React.FC = () => {
     const { t } = useLocale();
     const [view, setView] = useState<'HOME' | 'DATABASE' | 'PLANET' | 'SETTINGS' | 'CONTROLS' | 'LOGS' | 'MEMORY' | 'AUDIO'>('HOME');
 
-    const handleResume = () => engine.togglePause();
-    const handleQuit = () => engine.returnToMainMenu();
+    const handleResume = () => engine.sessionManager.togglePause();
+    const handleQuit = () => engine.sessionManager.returnToMainMenu();
 
     const damageSources = state.stats.damageBySource;
     const totalPlayerSideDamage = (damageSources.PLAYER || 0) + (damageSources.TURRET || 0) + (damageSources.ALLY || 0) + (damageSources.ORBITAL || 0);
@@ -388,7 +388,7 @@ export const TacticalTerminal: React.FC = () => {
                                 <div className="text-5xl font-mono font-bold text-white tracking-tighter drop-shadow-lg">{Math.floor(state.player.score)}</div>
                                 <div className="text-xs text-slate-500 font-bold tracking-[0.3em]">{t('BIOMASS_UNITS')}</div>
                             </div>
-                            {state.spaceship.bioResources && (
+                            {state.spaceship.bioResources && state.gameMode === GameMode.EXPLORATION && (
                                 <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-800">
                                     <div className="text-center"><div className="text-[9px] text-cyan-500 font-bold">ALPHA</div><div className="text-white font-mono font-bold">{state.spaceship.bioResources.ALPHA}</div></div>
                                     <div className="text-center"><div className="text-[9px] text-orange-500 font-bold">BETA</div><div className="text-white font-mono font-bold">{state.spaceship.bioResources.BETA}</div></div>
@@ -441,7 +441,7 @@ export const TacticalTerminal: React.FC = () => {
                                         title={t('EMERGENCY_EVAC')} 
                                         subtitle={t('RETURN_SHIP')} 
                                         icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.Extraction /></svg>} 
-                                        onClick={() => engine.emergencyEvac()} 
+                                        onClick={() => engine.sessionManager.emergencyEvac()} 
                                         variant="warning" 
                                         index={8}
                                     />

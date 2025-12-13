@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { WeaponType, HeroicUpgradeType, SystemIconType } from '../../types';
+import { WeaponType, HeroicUpgradeType, SystemIconType, SpaceshipModuleType } from '../../types';
 
 // --- GENERIC ICONS ---
 export const Icons = {
@@ -24,10 +24,8 @@ export const Icons = {
     Warning: () => <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />,
     Dashboard: () => <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />,
     
-    // Updated Database (Stack)
     Database: () => <path d="M12 3c-4.42 0-8 1.79-8 4v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 14c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V17c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2v-2.1c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V13c0 .85-2.73 2-6 2zm0-4c-3.27 0-6-1.15-6-2V4.9c1.23.99 3.49 1.6 6 1.6s4.77-.61 6-1.6V9c0 .85-2.73 2-6 2z" />,
     
-    // Updated Planet (Ringed)
     Planet: () => (
         <g>
             <g fill="none" stroke="currentColor">
@@ -48,12 +46,10 @@ export const Icons = {
     StarMap: () => <path d="M12 2L2 22h20L12 2zm0 4l6 12H6l6-12z" />,
     Play: () => <path d="M8 5v14l11-7z" />,
     
-    // New Icons for Actions
     DropPod: () => <path d="M12 2l-8 4v6l8 4 8-4V6l-8-4zm0 14v6m0-6l-8-4m8 4l8-4" />,
     Crane: () => <path d="M4 20h16M4 16h2v4H4v-4zm4-9l4-4 4 4v9H8V7zm4 0v4m-4 0h8" />,
     Analysis: () => <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
 
-    // Audio Disc Icon
     Disc: () => (
         <g stroke="currentColor" fill="none">
             <circle cx="12" cy="12" r="10" strokeWidth="2" />
@@ -64,13 +60,45 @@ export const Icons = {
         </g>
     ),
 
-    // Emergency Evac Icon
     Extraction: () => (
         <g stroke="currentColor" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <polyline points="16 17 21 12 16 7" />
             <line x1="21" y1="12" x2="9" y2="12" />
         </g>
+    ),
+};
+
+export const ModuleIcons: Record<SpaceshipModuleType, React.FC> = {
+    [SpaceshipModuleType.BASE_REINFORCEMENT]: () => (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 19c-4.41-1.23-7.23-4.9-8-8.86V6.3l8-3.56 8 3.56v4.84c-.77 3.96-3.59 7.63-8 8.86z"/>
+            <rect x="11" y="8" width="2" height="8" rx="1"/>
+            <rect x="8" y="11" width="8" height="2" rx="1"/>
+        </svg>
+    ),
+    [SpaceshipModuleType.CARAPACE_ANALYZER]: () => (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-full h-full">
+            <path d="M3 3h6M3 21h6M21 3h-6M21 21h-6M12 8v8M8 12h8" />
+            <circle cx="12" cy="12" r="3" />
+        </svg>
+    ),
+    [SpaceshipModuleType.ORBITAL_CANNON]: () => (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+            <path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/>
+            <rect x="11" y="2" width="2" height="20" opacity="0.6"/>
+            <circle cx="12" cy="12" r="2" fill="white"/>
+        </svg>
+    ),
+    [SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR]: () => (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 2c4.41 0 8 3.59 8 8s-3.59 8-8 8-8-3.59-8-8 3.59-8 8-8zm-1 12h2v2h-2zm0-10h2v8h-2z"/>
+        </svg>
+    ),
+    [SpaceshipModuleType.BIO_SEQUENCING]: () => (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+            <path d="M9 3L7.17 5H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2h-3.17L15 3H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-1l-1.25-2.75L8 13l2.75-1.25L12 9l1.25 2.75L16 13l-2.75 1.25z"/>
+        </svg>
     ),
 };
 

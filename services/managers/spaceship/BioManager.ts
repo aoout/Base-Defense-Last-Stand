@@ -1,18 +1,57 @@
 
-import { GameState, BioNode, BioResource, BioBuffType, BioTask, EnemyType, GameEventType, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, StatId, ModifierType } from '../../../types';
+import { GameState, BioNode, BioResource, BioBuffType, BioTask, EnemyType, GameEventType, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, StatId, ModifierType, EnemyKilledEvent } from '../../../types';
 import { EventBus } from '../../EventBus';
 import { StatManager } from '../StatManager';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../constants';
+import { ISpaceshipSystem } from './ISpaceshipSystem';
 
-export class BioManager {
+export class BioManager implements ISpaceshipSystem {
+    public readonly systemId = 'BIO';
+    
     private getState: () => GameState;
     private events: EventBus;
-    private stats: StatManager;
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
-        this.stats = statManager;
+        this.setupEventListeners();
+    }
+
+    private setupEventListeners() {
+        this.events.on<EnemyKilledEvent>(GameEventType.ENEMY_KILLED, (e) => {
+            this.checkTaskProgress(e.type);
+        });
+    }
+
+    public update(dt: number): void {
+        // Bio system is event-driven
+    }
+
+    public applyStats(stats: StatManager): void {
+        const s = this.getState().spaceship;
+        // Clean up previous modifiers from this source
+        stats.removeSource(this.systemId);
+
+        if (s.bioNodes) {
+            s.bioNodes.forEach(node => {
+                if (node.isUnlocked) {
+                    let statId: string | null = null;
+                    switch(node.buffType) {
+                        case BioBuffType.ALLY_HP: statId = StatId.ALLY_MAX_HP; break;
+                        case BioBuffType.ALLY_DMG: statId = StatId.ALLY_DAMAGE; break;
+                        case BioBuffType.LURE_BONUS: statId = StatId.LURE_BONUS; break;
+                        case BioBuffType.GENE_REDUCTION: statId = StatId.GENE_REDUCTION; break;
+                        case BioBuffType.ALPHA_YIELD: statId = StatId.YIELD_ALPHA; break;
+                        case BioBuffType.BETA_YIELD: statId = StatId.YIELD_BETA; break;
+                        case BioBuffType.GAMMA_YIELD: statId = StatId.YIELD_GAMMA; break;
+                    }
+                    if (statId) {
+                        const modType = statId === StatId.GENE_REDUCTION ? ModifierType.FLAT : ModifierType.PERCENT_ADD;
+                        stats.add({ statId, value: node.buffValue, type: modType, source: this.systemId });
+                    }
+                }
+            });
+        }
     }
 
     public generateGrid() {
@@ -104,23 +143,11 @@ export class BioManager {
         const parts = [Math.random(), Math.random(), Math.random()];
         const sumParts = parts.reduce((a, b) => a + b, 0);
 
-        let alpha = Math.floor((parts[0] / sumParts) * basePoints);
-        let beta = Math.floor((parts[1] / sumParts) * basePoints);
-        let gamma = Math.floor((parts[2] / sumParts) * basePoints);
-
-        const alphaBuff = this.stats.get(StatId.YIELD_ALPHA, 0);
-        const betaBuff = this.stats.get(StatId.YIELD_BETA, 0);
-        const gammaBuff = this.stats.get(StatId.YIELD_GAMMA, 0);
-
-        alpha = Math.floor(alpha * (1 + alphaBuff));
-        beta = Math.floor(beta * (1 + betaBuff));
-        gamma = Math.floor(gamma * (1 + gammaBuff));
-
-        s.bioResources[BioResource.ALPHA] += alpha;
-        s.bioResources[BioResource.BETA] += beta;
-        s.bioResources[BioResource.GAMMA] += gamma;
-
-        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+        s.bioResources[BioResource.ALPHA] += Math.floor((parts[0] / sumParts) * basePoints);
+        s.bioResources[BioResource.BETA] += Math.floor((parts[1] / sumParts) * basePoints);
+        s.bioResources[BioResource.GAMMA] += Math.floor((parts[2] / sumParts) * basePoints);
+        
+        this.events.emit(GameEventType.UI_UPDATE, { reason: 'BIO_RESEARCH' });
     }
 
     public unlockNode(nodeId: number) {
@@ -146,16 +173,6 @@ export class BioManager {
         s.bioResources[BioResource.GAMMA] -= node.cost[BioResource.GAMMA];
 
         node.isUnlocked = true;
-        
-        // Notify parent to re-register all stats (since Facade controls the full registration)
-        // Or we can expose a method on Facade. Ideally Facade calls us.
-        // But here we need to trigger it. We'll emit a UI update which might be enough, 
-        // but for Stats to update immediately, we should re-register.
-        // Since we don't have reference to Facade, we rely on the fact that Facade calls registerModifiers
-        // on load/init. For runtime updates, we can just push the new mod?
-        // Actually, easiest is to assume the caller (Facade) will re-register if we are called from there.
-        // Wait, UI calls Facade -> Facade calls Manager. Facade can re-register after Manager returns.
-        
         this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 1 });
     }
 
@@ -215,32 +232,6 @@ export class BioManager {
                 s.activeBioTask = null;
                 this.generateTasks();
             }
-        }
-    }
-
-    public registerModifiers() {
-        const s = this.getState().spaceship;
-        this.stats.removeSource('BIO');
-
-        if (s.bioNodes) {
-            s.bioNodes.forEach(node => {
-                if (node.isUnlocked) {
-                    let statId: string | null = null;
-                    switch(node.buffType) {
-                        case BioBuffType.ALLY_HP: statId = StatId.ALLY_MAX_HP; break;
-                        case BioBuffType.ALLY_DMG: statId = StatId.ALLY_DAMAGE; break;
-                        case BioBuffType.LURE_BONUS: statId = StatId.LURE_BONUS; break;
-                        case BioBuffType.GENE_REDUCTION: statId = StatId.GENE_REDUCTION; break;
-                        case BioBuffType.ALPHA_YIELD: statId = StatId.YIELD_ALPHA; break;
-                        case BioBuffType.BETA_YIELD: statId = StatId.YIELD_BETA; break;
-                        case BioBuffType.GAMMA_YIELD: statId = StatId.YIELD_GAMMA; break;
-                    }
-                    if (statId) {
-                        const modType = statId === StatId.GENE_REDUCTION ? ModifierType.FLAT : ModifierType.PERCENT_ADD;
-                        this.stats.add({ statId, value: node.buffValue, type: modType, source: 'BIO' });
-                    }
-                }
-            });
         }
     }
 }

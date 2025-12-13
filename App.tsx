@@ -21,15 +21,51 @@ const App: React.FC = () => {
 
   useEffect(() => {
     // React to Engine UI Updates
-    const handleUIUpdate = () => {
-        // Force a re-render with fresh state
-        setGameState({ ...engine.state });
+    // PERFORMANCE FIX: Only trigger React Re-renders for structural UI changes.
+    // Transient data (HP, Ammo, Score) is handled by components reading refs directly via useGameLoop.
+    const handleUIUpdate = (e: any) => {
+        const structuralReasons = [
+            'MODE_SWITCH', 
+            'RETURN_MAIN_MENU', 
+            'RESET', 
+            'PAUSE_TOGGLE',
+            // Menus
+            'SHOP_OPEN', 
+            'SHOP_CLOSE', 
+            'INVENTORY_TOGGLE', 
+            'TACTICAL_TOGGLE',
+            'TURRET_MENU_OPEN',
+            'CLOSE_MENU',
+            // Game State
+            'GAME_OVER',
+            'MISSION_COMPLETE',
+            'DEPLOY',
+            'ASCEND',
+            'EVAC',
+            'YIELD_REPORT',
+            // Settings/Events
+            'SETTING_CHANGE',
+            'SECTOR_SCAN',
+            'HEROIC_GEN',
+            // Inventory & Loadout (CRITICAL FIX: These change Icons/Layout, so they need React Render)
+            'WEAPON_SWITCH',
+            'LOADOUT_SWAP',
+            'EQUIP_MODULE',
+            'UNEQUIP_MODULE',
+            'TRANSACTION', // For shop balance updates that might enable/disable buttons
+            'TURRET_BUILD' // To remove the "Build" prompt and show the turret UI
+        ];
+
+        if (!e.reason || structuralReasons.includes(e.reason)) {
+            // Force a re-render with fresh state shallow copy
+            setGameState({ ...engine.state });
+        }
     };
 
     engine.eventBus.on(GameEventType.UI_UPDATE, handleUIUpdate);
 
     // Initial sync
-    handleUIUpdate();
+    setGameState({ ...engine.state });
 
     return () => {
       engine.eventBus.off(GameEventType.UI_UPDATE, handleUIUpdate);

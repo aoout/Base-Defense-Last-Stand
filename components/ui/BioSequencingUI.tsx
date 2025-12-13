@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { BioResource, BioBuffType, EnemyType } from '../../types';
+import { BioResource, BioBuffType, EnemyType, AppMode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
@@ -63,23 +63,23 @@ export const BioSequencingUI: React.FC = () => {
     }, [s.bioNodes]);
 
     const handleClose = () => {
-        engine.exitBioSequencing();
+        engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW);
     }
 
     const handleResearch = () => {
-        engine.conductBioResearch();
+        engine.spaceshipManager.conductBioResearch();
     }
 
     const handleUnlockNode = (id: number) => {
-        engine.unlockBioNode(id);
+        engine.spaceshipManager.unlockBioNode(id);
     }
 
     const handleAcceptTask = (id: string) => {
-        engine.acceptBioTask(id);
+        engine.spaceshipManager.acceptBioTask(id);
     }
 
     const handleAbortTask = () => {
-        engine.abortBioTask();
+        engine.spaceshipManager.abortBioTask();
     }
 
     // Calculate Total Buffs

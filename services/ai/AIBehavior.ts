@@ -1,6 +1,7 @@
 
-import { Enemy, Entity, GameState, GameEventType, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, WeaponType } from '../../types';
+import { Enemy, Entity, GameState, GameEventType, DamagePlayerEvent, DamageBaseEvent, PlaySoundEvent, WeaponType, EnemySpawnOptions } from '../../types';
 import { EventBus } from '../EventBus';
+import { TargetingLogic } from './TargetingLogic';
 
 export interface AIContext {
     state: GameState;
@@ -8,17 +9,27 @@ export interface AIContext {
     dt: number;
     time: number;
     timeScale: number;
+    // Helper function for localization
+    t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 export interface AIBehavior {
+    /**
+     * Called immediately after the enemy entity is created but before it enters the game loop.
+     * Use this to initialize specific state (timers, counters, flags).
+     * Replaces the logic previously hardcoded in EnemyManager.spawn.
+     */
+    initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void;
+
+    /**
+     * Called immediately after spawn (Legacy hook, can be merged into initialize over time).
+     */
+    onSpawn?(enemy: Enemy, options?: any): void;
+
     update(enemy: Enemy, context: AIContext): void;
     
     /**
      * Called when enemy takes damage. 
-     * @param enemy The enemy instance
-     * @param amount The raw damage amount
-     * @param weaponType The type of weapon inflicting damage (optional)
-     * @param context AI Context
      * @returns The actual damage to apply (allows for armor/mitigation logic).
      */
     onTakeDamage?(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number;
@@ -31,68 +42,39 @@ export interface AIBehavior {
 
 export abstract class BaseEnemyBehavior implements AIBehavior {
     
+    public initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void {
+        // Base initialization handles common overrides
+        if (options) {
+            if (options.isBoss) {
+                enemy.isBoss = true;
+                enemy.bossType = options.bossType;
+            }
+            if (options.scaleY !== undefined) enemy.visualScaleY = options.scaleY;
+            if (options.armorValue !== undefined) enemy.armorValue = options.armorValue;
+            
+            // Campaign Wandering Logic
+            if (options.isWandering) {
+                enemy.isWandering = true;
+                enemy.wanderDuration = options.wanderDuration;
+            }
+        }
+    }
+
+    public onSpawn(enemy: Enemy, options?: any): void {}
+
     public abstract update(enemy: Enemy, context: AIContext): void;
 
-    // Default: No mitigation, returns raw damage
     public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
         return amount;
     }
 
-    // Default: No special death logic
-    public onDeath(enemy: Enemy, context: AIContext): void {
-        // No-op
-    }
+    public onDeath(enemy: Enemy, context: AIContext): void {}
+
+    // --- SHARED UTILITIES ---
 
     protected acquireTarget(enemy: Enemy, context: AIContext): Entity {
-        const { state } = context;
-        
-        let target: Entity = state.base as unknown as Entity; // Default target
-        
-        // Distance check for Bases
-        let distBaseSq = (enemy.x - state.base.x)**2 + (enemy.y - state.base.y)**2;
-        let minDistSq = distBaseSq;
-
-        if (state.secondaryBase) {
-            const distSecSq = (enemy.x - state.secondaryBase.x)**2 + (enemy.y - state.secondaryBase.y)**2;
-            if (distSecSq < minDistSq) {
-                minDistSq = distSecSq;
-                target = state.secondaryBase as unknown as Entity;
-            }
-        }
-
-        // Detection range override
-        if (enemy.detectionRange) {
-            const detectionSq = enemy.detectionRange ** 2;
-            
-            // Check Player
-            const distPlayerSq = (enemy.x - state.player.x)**2 + (enemy.y - state.player.y)**2;
-            if (distPlayerSq < detectionSq && distPlayerSq < minDistSq) { 
-                minDistSq = distPlayerSq; 
-                target = state.player; 
-            }
-
-            // Check Allies
-            for (const ally of state.allies) {
-                 const dSq = (enemy.x - ally.x)**2 + (enemy.y - ally.y)**2;
-                 if (dSq < detectionSq && dSq < minDistSq) { 
-                     minDistSq = dSq; 
-                     target = ally; 
-                }
-            }
-
-            // Check Turrets
-            for (const spot of state.turretSpots) {
-                if (spot.builtTurret) {
-                    const dSq = (enemy.x - spot.builtTurret.x)**2 + (enemy.y - spot.builtTurret.y)**2;
-                    if (dSq < detectionSq && dSq < minDistSq) { 
-                        minDistSq = dSq; 
-                        target = spot.builtTurret; 
-                    }
-                }
-            }
-        }
-
-        return target;
+        // Delegate to the specialized static logic
+        return TargetingLogic.acquireNearestTarget(enemy, context.state);
     }
 
     protected moveTowards(enemy: Enemy, target: Entity, speed: number, timeScale: number): void {

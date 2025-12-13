@@ -1,10 +1,11 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId, PersistentPlayerState, GameEventType } from '../../types';
+import { GameMode, MissionType, AppMode, PlanetBuildingType, PlanetYieldInfo, GalacticEventType, GalacticEvent, SpaceshipModuleType, FloatingTextType, GalaxyConfig, StatId, GameEventType, Planet, EnemyType, BossType } from '../../types';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../constants';
-import { generateTerrain, generatePlanets } from '../../utils/worldGenerator';
+import { generatePlanets } from '../../utils/worldGenerator';
 import { generateSectorName } from '../../utils/nameGenerator';
 import { GAS_INFO } from '../../data/world';
+import { StateBuilder } from '../StateBuilder';
 
 export class GalaxyManager {
     private engine: GameEngine;
@@ -14,12 +15,22 @@ export class GalaxyManager {
     }
 
     /**
-     * Main Entry Point: Deploys the player to a specific planet.
-     * Orchestrates state persistence, reset, and initialization.
+     * Centralized logic for calculating potential yields from a planet.
      */
+    public estimatePlanetYields(planet: Planet): { biomass: number, oxygen: number } {
+        const o2Gas = planet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id);
+        const o2 = o2Gas ? o2Gas.percentage : 0;
+
+        // Yield Formulas
+        const biomass = Math.floor(800 * (1 + planet.geneStrength));
+        const oxygen = Math.floor(1700 * (1 + 1.8 * o2));
+
+        return { biomass, oxygen };
+    }
+
     public deployToPlanet(id: string) {
-        const planets = this.engine.state.planets;
-        const targetPlanet = planets.find(p => p.id === id);
+        const currentPlanets = this.engine.state.planets;
+        const targetPlanet = currentPlanets.find(p => p.id === id);
         
         if (!targetPlanet) {
             console.error("[GalaxyManager] Planet not found for deployment:", id);
@@ -29,42 +40,54 @@ export class GalaxyManager {
         // 1. Calculate Costs & Validate Funds
         const { dropCost, canAfford } = this.calculateDropCost(targetPlanet.landingDifficulty);
         if (!canAfford) {
-            // Should be blocked by UI, but safety check here
             return;
         }
   
-        // 2. Capture State (Inventory, Upgrades, etc.) before Reset
-        const persistentState = this.capturePersistentState();
-        
-        // 3. Reset Engine (Clears enemies, projectiles, etc.)
-        this.engine.reset(false);
-        
-        // 4. Initialize New Game State
-        const newState = this.engine.state;
-        
-        // Restore persistent data & Deduct Cost
-        this.restorePersistentState(newState, persistentState);
+        // 2. Build New State
+        const newState = StateBuilder.build({
+            mode: GameMode.EXPLORATION,
+            fullReset: false, // Soft reset to keep items
+            viewportW: this.engine.state.viewportWidth,
+            viewportH: this.engine.state.viewportHeight,
+            playerManager: this.engine.playerManager,
+            dataManager: this.engine.dataManager,
+            currentState: this.engine.state,
+            settings: this.engine.state.settings,
+            targetPlanet: targetPlanet
+        });
+
+        // 3. Deduct Cost
         newState.player.score = Math.max(0, newState.player.score - dropCost);
 
-        // Setup Context
-        newState.gameMode = GameMode.EXPLORATION;
-        newState.selectedPlanetId = id;
-        newState.currentPlanet = targetPlanet;
-        newState.appMode = AppMode.GAMEPLAY;
+        // 4. Swap Engine State
+        this.engine.state = newState;
         
-        // Re-apply RPG Stats (Modules/Upgrades)
+        // 5. Re-apply RPG Stats
         this.engine.spaceshipManager.registerModifiers();
         
-        // 5. Setup Gameplay Entities
-        newState.base.hp = newState.base.maxHp;
-        this.initializeBaseDrop(newState);
+        // 6. Finalize Setup
+        this.engine.audio.startAmbience(targetPlanet.biome);
         
-        // 6. Setup Mission Parameters (Waves/Bosses)
-        this.initializeMission(newState, targetPlanet);
-        
-        // 7. Trigger FX (Audio, Terrain, UI Messages)
-        this.initializeEnvironment(newState, targetPlanet);
-        this.queueDeploymentFX(targetPlanet, dropCost, persistentState.hasDeflector);
+        if (targetPlanet.missionType === MissionType.OFFENSE) {
+            // Spawn Hive Mother immediately for Offense missions
+            // Refactored to use generic spawn
+            const hpMultiplier = (1 + 0.08 * targetPlanet.sulfurIndex);
+            
+            this.engine.enemyManager.spawn(EnemyType.TANK, this.engine.state.worldWidth / 2, 400, {
+                isBoss: true,
+                bossType: BossType.HIVE_MOTHER,
+                flatHp: 14000, 
+                hpMultiplier: hpMultiplier,
+                angleOverride: Math.PI/2,
+                speedOverride: 0,
+                armorValue: 90
+            });
+        }
+
+        // 7. Notify UI
+        this.engine.notifyUI('DEPLOY');
+
+        this.queueDeploymentFX(targetPlanet, dropCost);
     }
 
     public constructBuilding(planetId: string, type: PlanetBuildingType, slotIndex: number) {
@@ -98,13 +121,14 @@ export class GalaxyManager {
             if (p.completed && p.buildings && p.buildings.length > 0) {
                 let bioYield = 0;
                 let oxyYield = 0;
-  
+                
+                const estimates = this.estimatePlanetYields(p);
+
                 p.buildings.forEach(b => {
                     if (b.type === PlanetBuildingType.BIOMASS_EXTRACTOR) {
-                        bioYield += 800 * (1 + p.geneStrength);
+                        bioYield += estimates.biomass;
                     } else if (b.type === PlanetBuildingType.OXYGEN_EXTRACTOR) {
-                        const o2 = p.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
-                        oxyYield += 1700 * (1 + 1.8 * o2);
+                        oxyYield += estimates.oxygen;
                     }
                 });
   
@@ -185,7 +209,7 @@ export class GalaxyManager {
         this.engine.notifyUI('SECTOR_SCAN');
     }
 
-    // --- PRIVATE HELPER METHODS (Refactoring) ---
+    // --- PRIVATE HELPER METHODS ---
 
     private calculateDropCost(difficulty: number): { dropCost: number, canAfford: boolean } {
         const currentScraps = this.engine.state.player.score;
@@ -199,86 +223,10 @@ export class GalaxyManager {
         return { dropCost, canAfford: currentScraps >= dropCost };
     }
 
-    /**
-     * Extracts only the data that needs to persist between deployments.
-     */
-    private capturePersistentState() {
-        const oldState = this.engine.state;
-        return {
-            player: {
-                weapons: oldState.player.weapons,
-                loadout: oldState.player.loadout,
-                inventory: oldState.player.inventory,
-                upgrades: oldState.player.upgrades,
-                freeModules: oldState.player.freeModules,
-                grenadeModules: oldState.player.grenadeModules,
-                grenades: oldState.player.grenades,
-                score: oldState.player.score // Captured for reference, but modified later
-            },
-            stats: {
-                encounteredEnemies: [...oldState.stats.encounteredEnemies]
-            },
-            world: {
-                sectorName: oldState.sectorName
-            },
-            hasDeflector: oldState.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR)
-        };
-    }
-
-    /**
-     * Applies persistent data to a fresh state object.
-     */
-    private restorePersistentState(newState: any, persistent: ReturnType<typeof this.capturePersistentState>) {
-        newState.player.weapons = persistent.player.weapons;
-        newState.player.loadout = persistent.player.loadout;
-        newState.player.inventory = persistent.player.inventory;
-        newState.player.upgrades = persistent.player.upgrades;
-        newState.player.freeModules = persistent.player.freeModules;
-        newState.player.grenadeModules = persistent.player.grenadeModules;
-        newState.player.grenades = persistent.player.grenades;
-        newState.player.score = persistent.player.score; // Will be adjusted for cost after
-
-        newState.stats.encounteredEnemies = persistent.stats.encounteredEnemies;
-        newState.sectorName = persistent.world.sectorName;
-    }
-
-    private initializeBaseDrop(newState: any) {
-        // Start high above (e.g. 1500px up). Target is the configured base.y
-        newState.baseDrop = {
-            active: true,
-            y: newState.base.y - 1500, 
-            targetY: newState.base.y,
-            velocity: 0,
-            phase: 'ENTRY',
-            deployTimer: 0
-        };
+    private queueDeploymentFX(planet: any, cost: number) {
+        const player = this.engine.state.player; 
+        const hasDeflector = this.engine.state.spaceship.installedModules.includes(SpaceshipModuleType.ATMOSPHERIC_DEFLECTOR);
         
-        // Hide player initially (will be spawned by logic when base lands)
-        // We move player to base center to be ready
-        newState.player.x = newState.base.x;
-        newState.player.y = newState.base.y; 
-    }
-
-    private initializeMission(newState: any, planet: any) {
-        if (planet.missionType === MissionType.OFFENSE) {
-            newState.wave.pendingCount = 0; 
-            newState.wave.index = 0; 
-            this.engine.enemyManager.spawnHiveMother(planet);
-        } else {
-            // Scale enemies by Gene Strength
-            newState.wave.pendingCount = Math.ceil((12 + 5 * 1) * planet.geneStrength); 
-        }
-    }
-
-    private initializeEnvironment(newState: any, planet: any) {
-        this.engine.audio.startAmbience(planet.biome);
-        newState.terrain = generateTerrain(planet.visualType, planet.biome);
-    }
-
-    private queueDeploymentFX(planet: any, cost: number, hasDeflector: boolean) {
-        const player = this.engine.state.player; // Reference to live player object (position might update)
-        
-        // Use a sequenced delay approach rather than nesting
         setTimeout(() => {
             this.engine.addMessage(
                 this.engine.t('ORBITAL_DROP_COST', {0: cost}), 

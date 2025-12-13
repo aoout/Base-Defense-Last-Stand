@@ -1,24 +1,23 @@
 
-import { GameState, Enemy, GameEventType, DamagePlayerEvent, DamageBaseEvent, DamageAreaEvent, SpawnParticleEvent, SpawnToxicZoneEvent, PlaySoundEvent, DamageSource, Projectile, Entity } from '../types';
+import { GameState, Enemy, GameEventType, Projectile, IGameSystem, EnemyType, CollisionProjectileEnemyEvent, CollisionProjectilePlayerEvent, CollisionProjectileBaseEvent, CollisionProjectileAllyEvent, CollisionKamikazeEvent } from '../types';
 import { EventBus } from './EventBus';
 import { StatManager } from './managers/StatManager';
 import { DataManager } from './DataManager';
 import { SpatialHashGrid } from '../utils/spatialHash';
 import { circlesIntersect, circleIntersectsAABB } from '../utils/collision';
-import { EnemyType } from '../types';
-import { CombatEvaluator } from './systems/CombatEvaluator';
 
 /**
- * PhysicsSystem
- * Role: The "Eyes" of the engine. It detects overlaps and geometry checks.
- * It delegates the "Consequences" of those overlaps to the CombatEvaluator.
+ * PhysicsSystem (Refactored)
+ * Role: The "Eyes" of the engine. It ONLY detects overlaps.
+ * It emits collision events that other systems (CombatSystem) react to.
  */
-export class PhysicsSystem {
+export class PhysicsSystem implements IGameSystem {
+    public readonly systemId = 'PHYSICS_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     
     public spatialGrid: SpatialHashGrid<Enemy>;
-    private combat: CombatEvaluator;
     private nearbyCache: Enemy[] = [];
 
     // Collision Radii Configuration
@@ -32,9 +31,6 @@ export class PhysicsSystem {
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager, dataManager: DataManager) {
         this.getState = getState;
         this.events = eventBus;
-        
-        // Instantiate the Logic Sub-system
-        this.combat = new CombatEvaluator(statManager, eventBus);
         this.spatialGrid = new SpatialHashGrid<Enemy>(100);
     }
 
@@ -45,14 +41,11 @@ export class PhysicsSystem {
     public update(dt: number) {
         this.updateSpatialHash();
         
-        // 1. Combat resolution (Projectiles)
+        // 1. Projectiles
         this.processProjectiles(); 
         
         // 2. Physical Body collisions (Kamikazes)
         this.processEntityCollisions(); 
-        
-        // 3. Environmental Hazards (Acid pools)
-        this.processEnvironmentDamage(dt); 
     }
 
     private updateSpatialHash() {
@@ -69,22 +62,17 @@ export class PhysicsSystem {
         const state = this.getState();
         const projectiles = state.projectiles;
 
-        // Iterate backwards for safe removal
+        // Iterate backwards for safe removal references (though removal happens via range flag now)
         for (let i = projectiles.length - 1; i >= 0; i--) {
             const p = projectiles[i];
             
-            // Mark for removal if range exhausted (handled by ProjectileManager usually, but safe double check)
-            if (p.rangeRemaining <= 0) {
-                // already marked, skip physics
-                continue;
-            }
+            // Skip already destroyed projectiles
+            if (p.rangeRemaining <= 0) continue;
 
-            const collisionHappened = p.fromPlayer 
-                ? this.checkPlayerProjectileCollisions(p)
-                : this.checkEnemyProjectileCollisions(p, state);
-
-            if (collisionHappened) {
-                p.rangeRemaining = -1; // Flag for removal
+            if (p.fromPlayer) {
+                this.checkPlayerProjectileCollisions(p);
+            } else {
+                this.checkEnemyProjectileCollisions(p, state);
             }
         }
     }
@@ -92,7 +80,7 @@ export class PhysicsSystem {
     /**
      * Checks collisions for Player/Ally/Turret bullets against Enemies.
      */
-    private checkPlayerProjectileCollisions(p: Projectile): boolean {
+    private checkPlayerProjectileCollisions(p: Projectile) {
         this.nearbyCache.length = 0;
         this.spatialGrid.query(p.x, p.y, this.COL_RADIUS.PROJECTILE_CHECK, this.nearbyCache);
 
@@ -103,47 +91,60 @@ export class PhysicsSystem {
             }
 
             // B. Logic Check (Don't hit same target twice if piercing)
-            if (this.combat.hasAlreadyHit(p, enemy.id)) {
+            // Note: Projectile hit history is stored on the projectile itself
+            if (p.isPiercing && p.hitIds && p.hitIds.includes(enemy.id)) {
                 continue;
             }
 
-            // C. Resolution
-            this.combat.resolveHit(p, enemy);
+            // C. Emit Event
+            this.events.emit<CollisionProjectileEnemyEvent>(GameEventType.COLLISION_PROJECTILE_ENEMY, {
+                projectile: p,
+                enemy: enemy
+            });
 
-            // D. Lifecycle Check
-            if (this.combat.shouldTerminate(p, enemy)) {
-                return true; // Destroy projectile
-            }
+            // Note: Physics doesn't decide to destroy the bullet. 
+            // CombatSystem listens to the event and sets p.rangeRemaining = -1 if needed.
+            // If the bullet is destroyed by CombatSystem, we break the loop to prevent hitting multiple enemies in same frame
+            // (Unless it's piercing, handled by Logic)
+            
+            if (p.rangeRemaining <= 0) break;
         }
-
-        return false;
     }
 
     /**
      * Checks collisions for Enemy bullets against Player side.
      */
-    private checkEnemyProjectileCollisions(p: Projectile, state: GameState): boolean {
+    private checkEnemyProjectileCollisions(p: Projectile, state: GameState) {
         // 1. Player
         if (circlesIntersect(p.x, p.y, p.radius, state.player.x, state.player.y, this.COL_RADIUS.PLAYER)) {
-            this.events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: p.damage });
-            this.combat.triggerEnvironmentalEffect(p);
-            return true;
+            this.events.emit<CollisionProjectilePlayerEvent>(GameEventType.COLLISION_PROJECTILE_PLAYER, { projectile: p });
+            return;
         }
 
         // 2. Allies
-        // Optimization: Simple loop is fast enough for < 10 allies
         for (const ally of state.allies) {
             if (circlesIntersect(p.x, p.y, p.radius, ally.x, ally.y, this.COL_RADIUS.ALLY)) {
-                ally.hp -= p.damage;
-                return true;
+                this.events.emit<CollisionProjectileAllyEvent>(GameEventType.COLLISION_PROJECTILE_ALLY, { 
+                    projectile: p, 
+                    allyId: ally.id 
+                });
+                return;
             }
         }
 
         // 3. Turrets
         for (const spot of state.turretSpots) {
             if (spot.builtTurret && circlesIntersect(p.x, p.y, p.radius, spot.x, spot.y, this.COL_RADIUS.TURRET)) {
-                spot.builtTurret.hp -= p.damage;
-                return true;
+                // Simplified: Treat turret hit as base damage or separate?
+                // Legacy system treated it as structure damage.
+                // Reusing CollisionProjectileBase for simplicity or logic can be handled in CombatSystem
+                // For now, let's treat turret hit as generic base hit or just damage it directly if we want strict decoupling
+                // Ideally: Emit COLLISION_PROJECTILE_TURRET. 
+                // Fallback: We'll modify CombatSystem to handle Turret HP if we had IDs.
+                // Quick Fix: Allow Physics to modify HP ONLY for simple structures? 
+                // No, sticking to pattern: Emit Base Hit (structure damage).
+                this.events.emit<CollisionProjectileBaseEvent>(GameEventType.COLLISION_PROJECTILE_BASE, { projectile: p });
+                return;
             }
         }
 
@@ -151,13 +152,10 @@ export class PhysicsSystem {
         const bases = [state.base, state.secondaryBase].filter((b): b is NonNullable<typeof b> => !!b);
         for (const b of bases) {
             if (circleIntersectsAABB(p.x, p.y, p.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
-                b.hp -= p.damage;
-                this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
-                return true;
+                this.events.emit<CollisionProjectileBaseEvent>(GameEventType.COLLISION_PROJECTILE_BASE, { projectile: p });
+                return;
             }
         }
-
-        return false;
     }
 
     // --- PHYSICAL ENTITY COLLISIONS ---
@@ -168,46 +166,23 @@ export class PhysicsSystem {
         const kamikazes = state.enemies.filter(e => e.type === EnemyType.KAMIKAZE && e.hp > 0);
         
         for (const k of kamikazes) {
-            if (this.checkKamikazeImpact(k, state)) {
-                // Detonate
-                this.combat.triggerExplosion({ x: k.x, y: k.y, explosionRadius: 100, source: DamageSource.ENEMY } as Projectile, k.damage);
-                this.events.emit<SpawnToxicZoneEvent>(GameEventType.SPAWN_TOXIC_ZONE, { x: k.x, y: k.y });
-                this.events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: k.x, y: k.y, color: '#a855f7', count: 12, speed: 15 });
-                
-                k.hp = 0; // Destroy entity
+            // Check Player
+            if (circlesIntersect(k.x, k.y, k.radius, state.player.x, state.player.y, this.COL_RADIUS.PLAYER)) {
+                this.events.emit<CollisionKamikazeEvent>(GameEventType.COLLISION_KAMIKAZE_IMPACT, { enemy: k, targetType: 'PLAYER' });
+                continue;
             }
-        }
-    }
-
-    private checkKamikazeImpact(k: Enemy, state: GameState): boolean {
-        // Check Player
-        if (circlesIntersect(k.x, k.y, k.radius, state.player.x, state.player.y, this.COL_RADIUS.PLAYER)) return true;
-        
-        // Check Allies
-        if (state.allies.some(a => circlesIntersect(k.x, k.y, k.radius, a.x, a.y, this.COL_RADIUS.ALLY))) return true;
-
-        // Check Bases
-        const bases = [state.base, state.secondaryBase].filter((b): b is NonNullable<typeof b> => !!b);
-        if (bases.some(b => circleIntersectsAABB(k.x, k.y, k.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height))) return true;
-
-        return false;
-    }
-
-    private processEnvironmentDamage(dt: number) {
-        const state = this.getState();
-        const p = state.player;
-        const tickRate = 500; // ms
-
-        // Optimization: Only run collision check on tick intervals, not every frame
-        for (const z of state.toxicZones) {
-            const prevTick = Math.ceil((z.life + dt) / tickRate);
-            const currTick = Math.ceil(z.life / tickRate);
             
-            if (prevTick !== currTick) {
-                if (circlesIntersect(p.x, p.y, this.COL_RADIUS.PLAYER, z.x, z.y, z.radius)) {
-                    const tickDamage = z.damagePerSecond * (tickRate / 1000);
-                    this.events.emit<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, { amount: tickDamage });
-                }
+            // Check Allies
+            if (state.allies.some(a => circlesIntersect(k.x, k.y, k.radius, a.x, a.y, this.COL_RADIUS.ALLY))) {
+                this.events.emit<CollisionKamikazeEvent>(GameEventType.COLLISION_KAMIKAZE_IMPACT, { enemy: k, targetType: 'ALLY' });
+                continue;
+            }
+
+            // Check Bases
+            const bases = [state.base, state.secondaryBase].filter((b): b is NonNullable<typeof b> => !!b);
+            if (bases.some(b => circleIntersectsAABB(k.x, k.y, k.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height))) {
+                this.events.emit<CollisionKamikazeEvent>(GameEventType.COLLISION_KAMIKAZE_IMPACT, { enemy: k, targetType: 'BASE' });
+                continue;
             }
         }
     }

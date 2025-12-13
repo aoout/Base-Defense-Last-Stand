@@ -1,6 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent, PlaySoundEvent } from '../../types';
+import { WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, GameEventType, ShopPurchaseEvent, ShopEquipModuleEvent, ShopUnequipModuleEvent, ShopSwapLoadoutEvent, PlaySoundEvent, FloatingTextType } from '../../types';
 import { SHOP_PRICES, DEFENSE_UPGRADE_INFO, MODULE_STATS, SPACESHIP_MODULES } from '../../data/registry';
 
 interface AmmoDefinition {
@@ -39,6 +39,29 @@ export class ShopManager {
         this.engine.eventBus.on<ShopEquipModuleEvent>(GameEventType.SHOP_EQUIP_MODULE, (e) => this.equipModule(e.target, e.moduleId));
         this.engine.eventBus.on<ShopUnequipModuleEvent>(GameEventType.SHOP_UNEQUIP_MODULE, (e) => this.unequipModule(e.target, e.moduleId));
         this.engine.eventBus.on<ShopSwapLoadoutEvent>(GameEventType.SHOP_SWAP_LOADOUT, (e) => this.swapLoadoutAndInventory(e.loadoutIndex, e.inventoryIndex));
+    }
+
+    /**
+     * Toggles shop visibility, handling distance checks and UI feedback.
+     */
+    public toggleShop() {
+        const state = this.engine.state;
+        const p = state.player;
+        const b = state.base;
+        
+        // Distance Check (300px radius from base center)
+        const dist = Math.sqrt((p.x - b.x)**2 + (p.y - b.y)**2);
+        
+        if (dist < 300) {
+            if (state.isShopOpen) {
+                this.engine.closeShop();
+            } else {
+                state.isShopOpen = true;
+                this.engine.notifyUI('SHOP_OPEN');
+            }
+        } else {
+            this.engine.addMessage(this.engine.t('TOO_FAR_BASE'), p.x, p.y - 50, 'red', FloatingTextType.SYSTEM);
+        }
     }
 
     /**
@@ -165,7 +188,7 @@ export class ShopManager {
             this.engine.state.base.hp += 3000;
         }
         if (type === SpaceshipModuleType.ORBITAL_CANNON) {
-            this.engine.generateOrbitalUpgradeTree();
+            this.engine.spaceshipManager.generateOrbitalUpgradeTree();
         }
         // Force stat recalculation
         this.engine.spaceshipManager.registerModifiers();
@@ -188,6 +211,10 @@ export class ShopManager {
         const oldWeapon = p.loadout[loadoutIdx];
         p.loadout[loadoutIdx] = invItem.type;
         p.inventory[invIdx] = { id: `w-${Date.now()}`, type: oldWeapon };
+        
+        // Notify UI for drag-and-drop updates
+        this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+        this.engine.notifyUI('LOADOUT_SWAP');
     }
 
     public equipModule(target: WeaponType | 'GRENADE', modId: string) {
@@ -196,12 +223,28 @@ export class ShopManager {
         if (modIndex === -1) return;
         
         const mod = p.freeModules[modIndex];
+
+        // --- COMPATIBILITY CHECK ---
+        // @ts-ignore
+        const modInfo = MODULE_STATS[mod.type];
+        if (modInfo && modInfo.only) {
+            const allowed = modInfo.only as (WeaponType | string)[];
+            if (!allowed.includes(target)) {
+                this.engine.addMessage(this.engine.t('INCOMPATIBLE_MOD'), p.x, p.y - 60, 'red', FloatingTextType.SYSTEM);
+                return;
+            }
+        }
+
         let targetModules = target === 'GRENADE' ? p.grenadeModules : p.weapons[target].modules;
         const limit = target === 'GRENADE' || target === WeaponType.PISTOL ? 2 : 3;
 
         if (targetModules.length < limit) {
             p.freeModules.splice(modIndex, 1);
             targetModules.push(mod);
+            
+            // Audio Feedback & UI Refresh
+            this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'BUILD' });
+            this.engine.notifyUI('EQUIP_MODULE');
         }
     }
 
@@ -213,6 +256,10 @@ export class ShopManager {
         if (idx !== -1) {
             const mod = targetModules.splice(idx, 1)[0];
             p.freeModules.push(mod);
+            
+            // Audio Feedback & UI Refresh
+            this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+            this.engine.notifyUI('UNEQUIP_MODULE');
         }
     }
 }

@@ -2,6 +2,56 @@
 import { BioBuffType, BioResource, BossType, DamageSource, DefenseUpgradeType, EnemyType, FloatingTextType, GameMode, HeroicUpgradeType, InfrastructureUpgradeType, OrbitalUpgradeEffect, SpaceshipModuleType, WeaponType } from './enums';
 import { InventoryItem, WeaponModule, WeaponState } from './items';
 
+// --- VISUAL SYSTEM TYPES ---
+export type CachePolicy = 'STATIC' | 'DYNAMIC';
+
+export interface IVisualDefinition<T> {
+    /** The render function to draw this entity */
+    render: (ctx: CanvasRenderingContext2D, entity: T, time: number, lodLevel: number) => void;
+    /** 
+     * Determines if this entity should be cached as a static sprite.
+     * @param lodLevel Current LOD level (0=Quality, 1=Balanced, 2=Performance)
+     */
+    getCachePolicy: (lodLevel: number) => CachePolicy;
+    /** Generates a unique key for the cache (e.g. based on Type + Color + Radius) */
+    getCacheKey: (entity: T) => string;
+}
+
+/**
+ * Standard interface for any system that needs to run in the main game loop.
+ */
+export interface IGameSystem {
+    /**
+     * Unique identifier for the system (used for debugging or dependency resolution.
+     */
+    readonly systemId: string;
+
+    /**
+     * Called every frame.
+     * @param dt Delta time in milliseconds since last frame.
+     * @param time Total game time in milliseconds.
+     * @param timeScale Simulation speed multiplier (0 for pause, 1 for normal).
+     */
+    update(dt: number, time: number, timeScale: number): void;
+}
+
+// Interface for spawn overrides (Moved from EnemyManager to prevent circular deps)
+export interface EnemySpawnOptions {
+    isBoss?: boolean;
+    bossType?: BossType;
+    hpMultiplier?: number;
+    flatHp?: number;
+    scaleY?: number;
+    scoreOverride?: number;
+    angleOverride?: number;
+    speedOverride?: number;
+    armorValue?: number;
+    burrowState?: 'SURFACING' | 'IDLE' | 'DIVING' | 'UNDERGROUND';
+    isWandering?: boolean;
+    wanderDuration?: number;
+    bossSummonTimer?: number;
+}
+
 export interface BioNode {
     id: number;
     q: number;

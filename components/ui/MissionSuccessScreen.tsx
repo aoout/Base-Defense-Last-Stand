@@ -90,7 +90,7 @@ export const MissionSuccessScreen: React.FC = () => {
                     </p>
 
                     <CyberButton 
-                        onClick={() => engine.ascendToOrbit()}
+                        onClick={() => engine.sessionManager.ascendToOrbit()}
                         variant="emerald"
                         className="py-4 px-16 text-xl w-96"
                         label={t('INITIATE_ASCENT')}

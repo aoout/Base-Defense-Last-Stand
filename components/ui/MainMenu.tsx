@@ -5,22 +5,19 @@ import { useGame } from '../contexts/GameContext';
 import { KeyBindingUI } from './KeyBindingUI';
 import { SaveSlotItem } from './SaveSlot';
 import { CHANGELOG, CURRENT_VERSION } from '../../data/changelog';
-import { CombatRecord } from '../../types';
+import { CombatRecord, GameMode } from '../../types';
 import { DS } from '../../theme/designSystem';
 
 // --- VISUAL PRIMITIVES ---
 
-// 3D Parallax Layer
 const ParallaxLayer: React.FC<{ 
     depth: number; 
     mousePos: { x: number, y: number }; 
     children: React.ReactNode; 
     className?: string;
 }> = ({ depth, mousePos, children, className = "" }) => {
-    // Calculate offset based on mouse position (-1 to 1)
     const x = mousePos.x * depth * 40; 
     const y = mousePos.y * depth * 40;
-    
     return (
         <div 
             className={`absolute inset-0 transition-transform duration-100 ease-out will-change-transform ${className}`}
@@ -31,23 +28,18 @@ const ParallaxLayer: React.FC<{
     );
 };
 
-// Meteor Shower Effect
 const MeteorShower: React.FC = () => {
     const [meteors, setMeteors] = useState<{id: number, top: number, left: number}[]>([]);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            // Restrained frequency: ~1 meteor every 4 seconds on average
             if (Math.random() < 0.05) { 
                 const id = Date.now();
                 setMeteors(prev => [...prev, {
                     id,
-                    // Spawn mostly in top-right quadrant for diagonal fall
                     top: Math.random() * 40 - 20, 
                     left: 20 + Math.random() * 80
                 }]);
-                
-                // Cleanup after animation
                 setTimeout(() => {
                     setMeteors(prev => prev.filter(m => m.id !== id));
                 }, 2500); 
@@ -81,7 +73,6 @@ const MeteorShower: React.FC = () => {
     );
 };
 
-// Main Menu Navigation Button
 const NavButton: React.FC<{ 
     label: string; 
     subLabel: string; 
@@ -97,7 +88,6 @@ const NavButton: React.FC<{
         className="group relative flex flex-col items-end py-6 pl-24 pr-0 transition-all duration-500 ease-out pointer-events-auto hover:pr-8"
         style={{ animationDelay: `${delay}ms` }}
     >
-        {/* Animated Background Line */}
         <div className={`absolute top-1/2 right-0 w-0 h-[1px] bg-current transition-all duration-300 group-hover:w-full opacity-0 group-hover:opacity-100 ${accentColor}`}></div>
         
         <div className={`text-5xl md:text-7xl font-black font-display tracking-tight uppercase transition-all duration-300 text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-slate-400 origin-right group-hover:scale-105 drop-shadow-2xl`}>
@@ -109,7 +99,6 @@ const NavButton: React.FC<{
     </button>
 );
 
-// Unified Slide-Over Panel for Sub-Menus (Mica Effect & Silky Animation)
 const CinematicPanel: React.FC<{
     title: string;
     subtitle: string;
@@ -118,23 +107,18 @@ const CinematicPanel: React.FC<{
     accentColor?: string;
 }> = ({ title, subtitle, onClose, children, accentColor = "bg-cyan-500" }) => {
     
-    // 1. Extract base color name for dynamic gradients
-    // e.g. "bg-cyan-500" -> "cyan"
     const colorName = accentColor.replace('bg-', '').replace('-500', '');
-    
-    // 2. Map color names to RGB values for rgba() usage
     const colorMap: Record<string, string> = {
-        'cyan': '34, 211, 238',    // cyan-400
-        'blue': '59, 130, 246',    // blue-500
-        'emerald': '52, 211, 153', // emerald-400
-        'yellow': '250, 204, 21',  // yellow-400
-        'purple': '192, 132, 252', // purple-400
-        'red': '248, 113, 113',    // red-400
-        'slate': '148, 163, 184',  // slate-400
+        'cyan': '34, 211, 238',    
+        'blue': '59, 130, 246',    
+        'emerald': '52, 211, 153', 
+        'yellow': '250, 204, 21',  
+        'purple': '192, 132, 252', 
+        'red': '248, 113, 113',    
+        'slate': '148, 163, 184',  
         'white': '255, 255, 255'
     };
-    
-    const rgb = colorMap[colorName] || '255, 255, 255'; // Fallback to white
+    const rgb = colorMap[colorName] || '255, 255, 255'; 
 
     return (
         <>
@@ -148,23 +132,15 @@ const CinematicPanel: React.FC<{
                     100% { opacity: 1; transform: translateY(0); }
                 }
                 .mica-panel {
-                    /* Base Dark Glass */
                     background-color: rgba(15, 23, 42, 0.60); 
-                    
-                    /* Dynamic Subtle Gradient Tint */
                     background-image: 
                         linear-gradient(135deg, rgba(${rgb}, 0.08) 0%, rgba(15, 23, 42, 0) 50%),
                         linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.2) 100%);
-
-                    /* Advanced Blur & Saturation */
                     backdrop-filter: blur(50px) saturate(200%);
-                    
-                    /* Edge Lighting & Deep Shadow */
                     box-shadow: 
                         inset 1px 0 0 rgba(255, 255, 255, 0.1),
-                        inset 0 0 20px rgba(${rgb}, 0.05), /* Subtle inner color glow */
+                        inset 0 0 20px rgba(${rgb}, 0.05),
                         -20px 0 100px rgba(0,0,0,0.9);
-                        
                     animation: silkySlideIn 0.6s cubic-bezier(0.19, 1, 0.22, 1) forwards;
                 }
                 .mica-content {
@@ -177,17 +153,10 @@ const CinematicPanel: React.FC<{
             `}</style>
 
             <div className="absolute inset-y-0 right-0 w-full md:w-[65%] lg:w-[50%] z-50 flex flex-col pointer-events-auto mica-panel border-l border-white/5 overflow-hidden">
-                
-                {/* Noise Texture Overlay */}
                 <div className="absolute inset-0 bg-noise pointer-events-none mix-blend-overlay opacity-30"></div>
-                
-                {/* Ambient Glow Blob */}
                 <div className={`absolute -top-40 -right-40 w-[800px] h-[800px] ${accentColor} opacity-[0.08] blur-[150px] pointer-events-none rounded-full`}></div>
-
-                {/* Decorative Top Edge */}
                 <div className="absolute top-0 left-0 w-full h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
 
-                {/* Header */}
                 <div className="pt-24 pb-8 px-16 flex justify-between items-end shrink-0 relative z-10 mica-content">
                     <div>
                         <div className="flex items-center gap-3 mb-4">
@@ -210,7 +179,6 @@ const CinematicPanel: React.FC<{
                     </button>
                 </div>
 
-                {/* Scrollable Content */}
                 <div className="flex-1 overflow-y-auto px-16 pb-16 custom-scrollbar relative z-10 mica-content delay-75">
                     {children}
                 </div>
@@ -218,8 +186,6 @@ const CinematicPanel: React.FC<{
         </>
     );
 };
-
-// --- CONTENT COMPONENTS ---
 
 const SettingRow: React.FC<{ label: string, value: string | number, onClick: () => void }> = ({ label, value, onClick }) => (
     <button onClick={onClick} className="w-full flex justify-between items-center py-6 border-b border-white/5 group hover:bg-white/5 hover:px-6 transition-all duration-500 ease-out text-left relative overflow-hidden rounded-sm">
@@ -262,7 +228,6 @@ export const MainMenu: React.FC = () => {
     const { t } = useLocale();
     const fileInputRef = useRef<HTMLInputElement>(null);
     
-    // UI State
     const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
     const [activeOverlay, setActiveOverlay] = useState<'SAVES' | 'HISTORY' | 'SETTINGS' | 'CONTROLS' | 'CHANGELOG' | null>(null);
     const [hoveredSection, setHoveredSection] = useState<'DEFAULT' | 'SURVIVAL' | 'CAMPAIGN' | 'EXPLORE' | 'SYSTEM'>('DEFAULT');
@@ -273,18 +238,17 @@ export const MainMenu: React.FC = () => {
         setMousePos({ x, y });
     };
 
-    // Logic Wrappers
     const handleImportClick = () => fileInputRef.current?.click();
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = (ev) => { if (ev.target?.result) engine.importSave(ev.target.result as string); };
+        reader.onload = (ev) => { if (ev.target?.result) engine.saveManager.importSave(ev.target.result as string); };
         reader.readAsText(file);
         e.target.value = '';
     };
     const handleExportSave = (id: string) => {
-        const json = engine.exportSave(id);
+        const json = engine.saveManager.exportSaveString(id);
         if (json) {
             const blob = new Blob([json], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
@@ -294,7 +258,6 @@ export const MainMenu: React.FC = () => {
         }
     };
 
-    // Dynamic Atmosphere Colors
     const getOrbColor = () => {
         switch(hoveredSection) {
             case 'SURVIVAL': return 'shadow-[0_0_150px_rgba(6,182,212,0.4)] bg-cyan-500';
@@ -311,18 +274,18 @@ export const MainMenu: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-24 gap-y-12">
                 <div>
                     <h3 className="text-white font-bold text-xs tracking-[0.2em] mb-6 uppercase border-b border-white/10 pb-2 opacity-50">GAMEPLAY</h3>
-                    <SettingRow label={t('SETTING_LANGUAGE')} value={state.settings.language === 'EN' ? 'ENGLISH' : '中文'} onClick={() => engine.toggleSetting('language')} />
-                    <SettingRow label={t('HUD_OVERLAY')} value={state.settings.showHUD ? 'ON' : 'OFF'} onClick={() => engine.toggleSetting('showHUD')} />
-                    <SettingRow label={t('DMG_TEXT')} value={state.settings.showDamageNumbers ? 'ON' : 'OFF'} onClick={() => engine.toggleSetting('showDamageNumbers')} />
-                    <SettingRow label={t('AUTO_RETURN')} value={state.settings.autoReturnToMenu ? 'ON' : 'OFF'} onClick={() => engine.toggleSetting('autoReturnToMenu')} />
+                    <SettingRow label={t('SETTING_LANGUAGE')} value={state.settings.language === 'EN' ? 'ENGLISH' : '中文'} onClick={() => engine.sessionManager.toggleSetting('language')} />
+                    <SettingRow label={t('HUD_OVERLAY')} value={state.settings.showHUD ? 'ON' : 'OFF'} onClick={() => engine.sessionManager.toggleSetting('showHUD')} />
+                    <SettingRow label={t('DMG_TEXT')} value={state.settings.showDamageNumbers ? 'ON' : 'OFF'} onClick={() => engine.sessionManager.toggleSetting('showDamageNumbers')} />
+                    <SettingRow label={t('AUTO_RETURN')} value={state.settings.autoReturnToMenu ? 'ON' : 'OFF'} onClick={() => engine.sessionManager.toggleSetting('autoReturnToMenu')} />
                 </div>
                 <div>
                     <h3 className="text-white font-bold text-xs tracking-[0.2em] mb-6 uppercase border-b border-white/10 pb-2 opacity-50">GRAPHICS</h3>
-                    <SettingRow label={t('SETTING_PERFORMANCE')} value={state.settings.performanceMode || 'BALANCED'} onClick={() => engine.toggleSetting('performanceMode')} />
-                    <SettingRow label={t('SETTING_RESOLUTION')} value={`${(state.settings.resolutionScale || 1.0)*100}%`} onClick={() => engine.toggleSetting('resolutionScale')} />
-                    <SettingRow label={t('SETTING_SHADOWS')} value={state.settings.showShadows ? 'ON' : 'OFF'} onClick={() => engine.toggleSetting('showShadows')} />
-                    <SettingRow label={t('SETTING_PARTICLES')} value={state.settings.particleIntensity} onClick={() => engine.toggleSetting('particleIntensity')} />
-                    <SettingRow label={t('SETTING_ANIM_BG')} value={state.settings.animatedBackground ? 'ON' : 'OFF'} onClick={() => engine.toggleSetting('animatedBackground')} />
+                    <SettingRow label={t('SETTING_PERFORMANCE')} value={state.settings.performanceMode || 'BALANCED'} onClick={() => engine.sessionManager.toggleSetting('performanceMode')} />
+                    <SettingRow label={t('SETTING_RESOLUTION')} value={`${(state.settings.resolutionScale || 1.0)*100}%`} onClick={() => engine.sessionManager.toggleSetting('resolutionScale')} />
+                    <SettingRow label={t('SETTING_SHADOWS')} value={state.settings.showShadows ? 'ON' : 'OFF'} onClick={() => engine.sessionManager.toggleSetting('showShadows')} />
+                    <SettingRow label={t('SETTING_PARTICLES')} value={state.settings.particleIntensity} onClick={() => engine.sessionManager.toggleSetting('particleIntensity')} />
+                    <SettingRow label={t('SETTING_ANIM_BG')} value={state.settings.animatedBackground ? 'ON' : 'OFF'} onClick={() => engine.sessionManager.toggleSetting('animatedBackground')} />
                 </div>
             </div>
             <div className="mt-12">
@@ -353,9 +316,9 @@ export const MainMenu: React.FC = () => {
                     <SaveSlotItem 
                         key={save.id} 
                         save={save} 
-                        onLoad={() => engine.loadGame(save.id)} 
-                        onDelete={() => engine.deleteSave(save.id)} 
-                        onPin={() => engine.togglePin(save.id)} 
+                        onLoad={() => engine.saveManager.loadGame(save.id)} 
+                        onDelete={() => engine.saveManager.deleteSave(save.id)} 
+                        onPin={() => engine.saveManager.togglePin(save.id)} 
                         onExport={() => handleExportSave(save.id)} 
                     />
                 ))}
@@ -414,43 +377,33 @@ export const MainMenu: React.FC = () => {
         <div className="absolute inset-0 w-full h-full bg-[#020202] overflow-hidden font-sans select-none text-slate-200 pointer-events-auto cursor-default" onMouseMove={handleMouseMove}>
             <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleFileChange} />
             
-            {/* LAYER 0: PARALLAX BACKGROUND */}
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,#111827_0%,#000000_100%)] z-0"></div>
             
             <ParallaxLayer depth={0.1} mousePos={mousePos}>
-                {/* Subtle Grid */}
                 <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '60px 60px' }}></div>
             </ParallaxLayer>
 
-            {/* LAYER 0.5: METEOR SHOWER (Behind core, in front of grid) */}
             <ParallaxLayer depth={0.15} mousePos={mousePos}>
                 <MeteorShower />
             </ParallaxLayer>
 
-            {/* LAYER 1: The Core (Midground Object) */}
             <ParallaxLayer depth={0.3} mousePos={mousePos} className="flex items-center justify-center">
-                {/* Dynamic Orb */}
                 <div className={`w-[60vh] h-[60vh] rounded-full transition-all duration-1000 opacity-20 blur-3xl ${getOrbColor()}`}></div>
-                
-                {/* Tech Rings */}
                 <div className="absolute w-[50vh] h-[50vh] border border-white/5 rounded-full animate-[spin_60s_linear_infinite]"></div>
                 <div className="absolute w-[70vh] h-[70vh] border border-dashed border-white/5 rounded-full animate-[spin_40s_linear_infinite_reverse]"></div>
             </ParallaxLayer>
 
-            {/* LAYER 2: Structural Frame (Foreground) */}
             <ParallaxLayer depth={0.6} mousePos={mousePos}>
                 <div className="absolute -left-[10%] top-0 bottom-0 w-[40%] bg-black/90 transform -skew-x-12 blur-sm"></div>
                 <div className="absolute -right-[10%] top-0 bottom-0 w-[20%] bg-black/90 transform skew-x-12 blur-sm"></div>
             </ParallaxLayer>
 
-            {/* LAYER 3: Particles / Dust (Fastest) */}
             <ParallaxLayer depth={1.2} mousePos={mousePos} className="pointer-events-none">
                 <div className="absolute top-1/4 left-1/4 w-1 h-1 bg-white/40 rounded-full blur-[1px]"></div>
                 <div className="absolute top-3/4 right-1/3 w-2 h-2 bg-white/20 rounded-full blur-[2px]"></div>
                 <div className="absolute bottom-1/4 left-1/2 w-1 h-1 bg-cyan-500/40 rounded-full"></div>
             </ParallaxLayer>
 
-            {/* MOUSE SPOTLIGHT */}
             <div 
                 className="absolute inset-0 pointer-events-none z-10 mix-blend-overlay opacity-30"
                 style={{
@@ -458,10 +411,8 @@ export const MainMenu: React.FC = () => {
                 }}
             ></div>
 
-            {/* UI LAYER */}
             <div className={`absolute inset-0 z-40 p-8 md:p-16 flex flex-col justify-between pointer-events-none transition-all duration-500 ${activeOverlay ? 'opacity-30 blur-sm scale-95' : 'opacity-100 scale-100'}`}>
                 
-                {/* TOP LEFT: Brand */}
                 <div className="pointer-events-auto transform transition-transform duration-500 hover:translate-x-2 w-max" style={{ transform: `translate(${-mousePos.x * 10}px, ${-mousePos.y * 10}px)` }}>
                     <div className="flex items-center gap-4 mb-4">
                         <div className="h-px w-12 bg-cyan-500"></div>
@@ -477,12 +428,11 @@ export const MainMenu: React.FC = () => {
                     </div>
                 </div>
 
-                {/* BOTTOM RIGHT: Navigation */}
                 <div className="absolute bottom-16 right-16 flex flex-col items-end pointer-events-auto" style={{ transform: `translate(${mousePos.x * 15}px, ${mousePos.y * 15}px)` }}>
                     <NavButton 
                         label={t('SURVIVAL_MODE')} 
                         subLabel="ENDLESS DEFENSE PROTOCOL" 
-                        onClick={() => engine.enterSurvivalMode()} 
+                        onClick={() => engine.sessionManager.reset(true, GameMode.SURVIVAL)} 
                         onHover={() => setHoveredSection('SURVIVAL')}
                         accentColor="text-cyan-400"
                         delay={100}
@@ -490,7 +440,7 @@ export const MainMenu: React.FC = () => {
                     <NavButton 
                         label={t('CAMPAIGN_MODE')} 
                         subLabel="NARRATIVE OPERATIONS" 
-                        onClick={() => engine.enterCampaignMode()} 
+                        onClick={() => engine.sessionManager.reset(true, GameMode.CAMPAIGN)} 
                         onHover={() => setHoveredSection('CAMPAIGN')}
                         accentColor="text-yellow-400"
                         delay={200}
@@ -498,7 +448,7 @@ export const MainMenu: React.FC = () => {
                     <NavButton 
                         label={t('EXPLORE_MODE')} 
                         subLabel="SECTOR CARTOGRAPHY" 
-                        onClick={() => engine.enterExplorationMode()} 
+                        onClick={() => engine.sessionManager.reset(true, GameMode.EXPLORATION)} 
                         onHover={() => setHoveredSection('EXPLORE')}
                         accentColor="text-purple-400"
                         delay={300}
@@ -506,7 +456,6 @@ export const MainMenu: React.FC = () => {
                     
                     <div className="h-px w-64 bg-gradient-to-l from-slate-700 to-transparent my-10"></div>
 
-                    {/* Secondary Nav */}
                     <div className="flex gap-12">
                         <button 
                             onClick={() => setActiveOverlay('SETTINGS')}
@@ -544,7 +493,6 @@ export const MainMenu: React.FC = () => {
                 </div>
             </div>
 
-            {/* --- CINEMATIC OVERLAYS --- */}
             {activeOverlay === 'SETTINGS' && renderSettings()}
             {activeOverlay === 'SAVES' && renderSaves()}
             {activeOverlay === 'HISTORY' && renderHistory()}

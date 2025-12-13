@@ -82,6 +82,34 @@ export enum DamageSource {
     ENEMY = 'ENEMY' // For incoming damage, not tracked in stats usually
 }
 
+// New: Projectile Identifiers for Presets
+export enum ProjectileID {
+    // Player Weapons
+    P_PISTOL = 'P_PISTOL',
+    P_AR = 'P_AR',
+    P_SG = 'P_SG',
+    P_SR = 'P_SR',
+    P_FLAME = 'P_FLAME',
+    P_PULSE = 'P_PULSE',
+    P_GRENADE = 'P_GRENADE',
+    P_GRENADE_FRAG = 'P_GRENADE_FRAG', // The explosive payload
+
+    // Turrets
+    T_STANDARD = 'T_STANDARD',
+    T_GAUSS = 'T_GAUSS',
+    T_SNIPER = 'T_SNIPER',
+    T_MISSILE = 'T_MISSILE',
+
+    // Allies
+    ALLY_STD = 'ALLY_STD',
+
+    // Enemies
+    E_VIPER = 'E_VIPER',
+    E_BOSS_BLUE = 'E_BOSS_BLUE',
+    E_BOSS_PURPLE = 'E_BOSS_PURPLE',
+    E_DEVOURER = 'E_DEVOURER'
+}
+
 export enum TerrainType {
     CRATER = 'CRATER',
     ROCK = 'ROCK',

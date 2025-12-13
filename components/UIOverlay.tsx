@@ -51,7 +51,7 @@ const UIOverlay: React.FC = () => {
     } else if (state.appMode === AppMode.CARAPACE_GRID) {
         content = <CarapaceAnalyzerUI />;
     } else if (state.appMode === AppMode.SHIP_COMPUTER) {
-        content = <ShipComputer onClose={() => engine.exitShipComputer()} />;
+        content = <ShipComputer onClose={() => engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW)} />;
     } else if (state.appMode === AppMode.INFRASTRUCTURE_RESEARCH) {
         content = <InfrastructureResearchUI />;
     } else if (state.appMode === AppMode.PLANET_CONSTRUCTION) {
@@ -85,7 +85,7 @@ const UIOverlay: React.FC = () => {
                     state.gameMode === GameMode.CAMPAIGN ? (
                         <CampaignFailureScreen />
                     ) : state.gameMode === GameMode.EXPLORATION ? (
-                        <ExtractionScreen state={state} onEvac={() => engine.emergencyEvac()} />
+                        <ExtractionScreen state={state} onEvac={() => engine.sessionManager.emergencyEvac()} />
                     ) : (
                         <MissionFailedScreen />
                     )

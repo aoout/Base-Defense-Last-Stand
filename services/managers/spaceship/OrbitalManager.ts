@@ -3,16 +3,24 @@ import { GameState, SpaceshipModuleType, Enemy, OrbitalUpgradeNode, OrbitalUpgra
 import { EventBus } from '../../EventBus';
 import { StatManager } from '../StatManager';
 import { ORBITAL_STATS } from '../../../data/config/upgrades';
+import { ISpaceshipSystem } from './ISpaceshipSystem';
 
-export class OrbitalManager {
+export class OrbitalManager implements ISpaceshipSystem {
+    public readonly systemId = 'ORBITAL';
+
     private getState: () => GameState;
     private events: EventBus;
-    private stats: StatManager;
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
-        this.stats = statManager;
+    }
+
+    public applyStats(stats: StatManager): void {
+        // Orbital Manager stores its stats primarily in state.spaceship (e.g. orbitalDamageMultiplier).
+        // It uses them directly in update(). 
+        // If we wanted to expose them to the global StatManager, we would do it here.
+        // For now, this acts as a placeholder or could be used if Orbital effects became global.
     }
 
     public update(dt: number) {

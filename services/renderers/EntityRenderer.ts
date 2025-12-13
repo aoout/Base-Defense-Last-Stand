@@ -1,12 +1,11 @@
 
-import { GameState, PerformanceMode } from '../../types';
+import { GameState } from '../../types';
 import { LOD_THRESHOLDS } from '../../data/registry';
 import { AssetManager } from '../managers/AssetManager';
+import { visualRegistry } from './VisualRegistry';
 import { 
     drawTurretSpot, drawBase, drawTurret, drawAllySprite, drawPlayerSprite, 
-    drawEnemyBars, drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, 
-    drawPustule, drawTubeWorm, drawDevourer, drawBossRed, drawBossBlue, 
-    drawBossPurple, drawHiveMother, isVisible
+    drawEnemyBars, isVisible
 } from '../../utils/renderers';
 
 export class EntityRenderer {
@@ -36,7 +35,6 @@ export class EntityRenderer {
         // Draw Base(s)
         const dropState = (state.baseDrop && state.baseDrop.active) ? state.baseDrop : null;
         const baseY = dropState ? dropState.y : state.base.y;
-        
         const drawingBase = { ...state.base, y: baseY };
         
         drawBase(ctx, drawingBase, state.settings.showShadows, dropState);
@@ -58,16 +56,21 @@ export class EntityRenderer {
             if (!isVisible(ally.x, ally.y, ally.radius, camera)) return;
             ctx.save();
             ctx.translate(ally.x, ally.y);
+            
+            // Render Sprite (Rotated)
+            ctx.save();
             ctx.rotate(ally.angle);
             const isMoving = ally.speed > 0;
             drawAllySprite(ctx, ally, time, isMoving, state.settings.showShadows);
             ctx.restore();
+            
+            ctx.restore();
         });
 
-        // Draw Enemies
+        // Draw Enemies (Optimized)
         this.renderEnemies(ctx, state, time);
 
-        // Draw Player (Only if Base is NOT dropping)
+        // Draw Player
         if (!state.baseDrop || !state.baseDrop.active) {
             this.renderPlayer(ctx, state, time);
         }
@@ -75,6 +78,7 @@ export class EntityRenderer {
 
     private renderEnemies(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
         const { camera } = state;
+        const showShadows = state.settings.showShadows;
         
         // Dynamic Level-of-Detail Calculation
         const perfMode = state.settings.performanceMode || 'BALANCED';
@@ -86,56 +90,52 @@ export class EntityRenderer {
         if (count > thresholds.superLow) lodLevel = 2; // Super Low
         else if (count > thresholds.low) lodLevel = 1; // Low
 
-        const useCachedSprites = lodLevel > 0;
+        // --- BATCHING: DRAW ALL SHADOWS FIRST ---
+        // This avoids switching ctx.fillStyle and ctx.save/restore thousands of times interleaved
+        if (showShadows && lodLevel < 2) {
+            ctx.fillStyle = 'rgba(0,0,0,0.3)';
+            ctx.beginPath();
+            state.enemies.forEach(e => {
+                if (!isVisible(e.x, e.y, e.radius, camera)) return;
+                if (e.visualScaleY !== undefined && e.visualScaleY <= 0.5) return; // Don't shadow burrowed units
 
+                // Draw ellipse directly without save/restore/translate overhead if possible
+                // Using standard ellipse command
+                ctx.moveTo(e.x + e.radius, e.y + 5);
+                ctx.ellipse(e.x, e.y + 5, e.radius, e.radius * 0.6, 0, 0, Math.PI*2);
+            });
+            ctx.fill();
+        }
+
+        // --- DRAW ENTITIES ---
         state.enemies.forEach(e => {
             if (!isVisible(e.x, e.y, e.radius, camera)) return;
 
             ctx.save();
             ctx.translate(e.x, e.y);
             
-            // Shadow
-            if (state.settings.showShadows && (e.visualScaleY === undefined || e.visualScaleY > 0.5)) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.beginPath();
-                ctx.ellipse(0, 5, e.radius, e.radius*0.6, 0, 0, Math.PI*2);
-                ctx.fill();
-            }
-
+            // 1. Render Body (Rotated)
+            ctx.save();
             ctx.rotate(e.angle);
 
-            if (useCachedSprites && e.type !== 'PUSTULE' && e.type !== 'TUBE_WORM') {
-                const sprite = this.assetManager.getEnemySprite(e.type, e.bossType, e.color, e.radius);
+            // --- DATA DRIVEN RENDERING ---
+            const def = visualRegistry.getDefinition(e);
+            
+            // Try to get a cached sprite
+            const sprite = this.assetManager.getSprite(e, def, lodLevel);
+
+            if (sprite) {
+                // Static Render (Cached)
                 const size = sprite.width;
                 const offset = size / 2;
                 ctx.drawImage(sprite, -offset, -offset, size, size);
             } else {
-                // Vector Drawing (Animated)
-                if (e.isBoss && e.bossType) {
-                    switch(e.bossType) {
-                        case 'RED_SUMMONER': drawBossRed(ctx, e, time); break;
-                        case 'BLUE_BURST': drawBossBlue(ctx, e, time); break;
-                        case 'PURPLE_ACID': drawBossPurple(ctx, e, time); break;
-                        case 'HIVE_MOTHER': drawHiveMother(ctx, e, time); break;
-                    }
-                } else {
-                    switch(e.type) {
-                        case 'GRUNT': drawGrunt(ctx, e, time, lodLevel); break;
-                        case 'RUSHER': drawRusher(ctx, e, time, lodLevel); break;
-                        case 'TANK': drawTank(ctx, e, time, lodLevel); break;
-                        case 'KAMIKAZE': drawKamikaze(ctx, e, time, lodLevel); break;
-                        case 'VIPER': drawViper(ctx, e, time, lodLevel); break;
-                        case 'PUSTULE': drawPustule(ctx, e, time, lodLevel); break;
-                        case 'TUBE_WORM': 
-                            if (e.isBoss) drawDevourer(ctx, e, time);
-                            else drawTubeWorm(ctx, e, time);
-                            break;
-                    }
-                }
+                // Dynamic Render (Direct)
+                def.render(ctx, e, time, lodLevel);
             }
-            
-            // UI Bars (HP / Shell)
-            // Hide bars if underground
+            ctx.restore(); // End Body Rotation
+
+            // 2. Render UI Bars (Fixed Horizontal Orientation)
             if (e.type !== 'TUBE_WORM' || (e.visualScaleY || 1) > 0.1) {
                 drawEnemyBars(ctx, e, lodLevel);
             }
@@ -169,17 +169,6 @@ export class EntityRenderer {
         }
 
         ctx.rotate(p.angle);
-        // We assume InputManager is handled by the Engine and passed via state flags if needed, 
-        // but here we might need to know if player is moving for animation.
-        // A clean way is to check player velocity if we had physics, 
-        // but currently we check Input keys in RenderService. 
-        // For now, let's assume 'true' for simplicity or add a flag to Player entity later.
-        // Or simpler: pass isMoving as an argument? 
-        // Since we split the renderer, we lost the `input` reference.
-        // Let's rely on a visual trick or add a prop to Player. 
-        // Hack: Math.sin(time) always animates "breathing", movement leg stride only matters a bit.
-        // We will default isMoving to true for breathing animation, or derive it.
-        // Just always animate for now to keep it simple.
         drawPlayerSprite(ctx, p, time, true);
         ctx.restore();
     }

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { InfrastructureOption, InfrastructureUpgradeType } from '../../types';
+import { InfrastructureOption, InfrastructureUpgradeType, AppMode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
@@ -16,11 +16,11 @@ export const InfrastructureResearchUI: React.FC = () => {
     const isMaxed = upgrades.length >= maxUpgrades;
 
     const handlePurchase = (optionId: string) => {
-        engine.purchaseInfrastructureUpgrade(optionId);
+        engine.spaceshipManager.purchaseInfrastructureUpgrade(optionId);
     }
 
     const handleClose = () => {
-        engine.exitInfrastructureResearch();
+        engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW);
     }
 
     const getUpgradeName = (option: InfrastructureOption) => {

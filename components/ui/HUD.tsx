@@ -11,6 +11,7 @@ import { CyberButton } from './atoms/CyberButton';
 
 const StatusWidget: React.FC = () => {
     const { state, engine } = useGame();
+    const { t } = useLocale();
     const hpRef = useRef<HTMLDivElement>(null);
     const hpTextRef = useRef<HTMLSpanElement>(null);
     const secHpRef = useRef<HTMLDivElement>(null);
@@ -32,13 +33,13 @@ const StatusWidget: React.FC = () => {
     return (
         <div className="absolute bottom-8 left-8 w-64 flex flex-col gap-4 pointer-events-none">
             <div className="flex items-end gap-2 mb-2">
-                <span className="text-4xl font-display font-black text-white/20 select-none">BASE</span>
+                <span className="text-4xl font-display font-black text-white/20 select-none">{t('HUD_BASE_TITLE')}</span>
                 <div className="h-px bg-white/20 flex-1 mb-2"></div>
             </div>
             
             <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                 <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
-                    <span className="text-blue-400">{isCampaign ? "PRIMARY" : "STRUCTURE"}</span>
+                    <span className="text-blue-400">{isCampaign ? t('HUD_PRIMARY') : t('HUD_STRUCTURE')}</span>
                     <span ref={hpTextRef} className="text-white"></span>
                 </div>
                 <div className="w-full h-3 bg-slate-800 relative z-10">
@@ -50,7 +51,7 @@ const StatusWidget: React.FC = () => {
             {state.secondaryBase && (
                 <div className="bg-slate-900/80 p-3 border-l-2 border-blue-500 backdrop-blur-sm relative overflow-hidden">
                     <div className="flex justify-between text-xs font-mono font-bold mb-1 relative z-10">
-                        <span className="text-blue-400">SECONDARY</span>
+                        <span className="text-blue-400">{t('HUD_SECONDARY')}</span>
                         <span ref={secHpTextRef} className="text-white"></span>
                     </div>
                     <div className="w-full h-3 bg-slate-800 relative z-10">
@@ -153,7 +154,7 @@ const ResourceWidget: React.FC = () => {
         setClickCount(newCount);
         
         if (newCount >= 10) {
-            engine.activateBackdoor();
+            engine.sessionManager.activateBackdoor();
             setClickCount(0);
         } else {
             clickTimerRef.current = setTimeout(() => setClickCount(0), 500);
@@ -169,7 +170,7 @@ const ResourceWidget: React.FC = () => {
             <div className="bg-slate-900/90 px-5 py-2 border-r-4 border-yellow-500 flex flex-col items-end shadow-lg transform transition-transform group-hover:-translate-x-1 select-none">
                 <div className="flex items-center gap-2 mb-1">
                     <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-ping"></div>
-                    <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">Molecular Storage</span>
+                    <span className="text-[10px] text-yellow-600 font-bold uppercase tracking-widest">{t('HUD_MOLECULAR_STORAGE')}</span>
                 </div>
                 <div className="flex items-baseline gap-2">
                     <span ref={ref} className="text-4xl font-display font-bold text-white tracking-wide"></span>
@@ -243,7 +244,7 @@ const MissionWidget: React.FC = () => {
                 lureRef.current.style.pointerEvents = 'auto';
                 if (lureRewardRef.current) {
                     const reward = engine.statManager.get(StatId.LURE_BONUS, Math.max(0, Math.floor((s.wave.timer / 1000) * s.wave.index)));
-                    lureRewardRef.current.innerText = `REWARD: ${Math.floor(reward)}`;
+                    lureRewardRef.current.innerText = `${t('LURE_REWARD', {0: Math.floor(reward)})}`;
                 }
             } else {
                 lureRef.current.style.height = '0';
@@ -273,13 +274,13 @@ const MissionWidget: React.FC = () => {
                 {isOffense ? (
                     <div className="flex flex-col items-center w-full z-10">
                         <div className="flex justify-between w-full items-end border-b border-red-900/50 pb-1 mb-1">
-                            <span className="text-[14px] font-display font-bold tracking-[0.1em] text-red-700 animate-pulse">ASSAULT OPS</span>
-                            <span className="text-[10px] font-mono text-red-400">TARGET LOCKED</span>
+                            <span className="text-[14px] font-display font-bold tracking-[0.1em] text-red-700 animate-pulse">{t('ASSAULT_OPS')}</span>
+                            <span className="text-[10px] font-mono text-red-400">{t('HUD_TARGET_LOCKED')}</span>
                         </div>
                         {hiveMother ? (
                             <div className="w-full mt-1">
                                 <div className="flex justify-between text-xs font-mono font-bold text-red-200 mb-1">
-                                    <span>BOSS INTEGRITY</span>
+                                    <span>{t('HUD_BOSS_INTEGRITY')}</span>
                                     <span ref={bossHpTextRef} className="font-display text-lg"></span>
                                 </div>
                                 <div className="h-3 w-full bg-red-950/50 border border-red-800 relative skew-x-[-10deg] overflow-hidden">
@@ -293,16 +294,16 @@ const MissionWidget: React.FC = () => {
                 ) : (
                     <div className="flex flex-col items-center w-full z-10">
                         <div className="flex justify-between w-full items-baseline border-b border-cyan-900/50 pb-1 mb-1">
-                            <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">SECTOR DEFENSE</span>
+                            <span className="text-[14px] font-display font-bold tracking-[0.1em] text-cyan-700">{t('HUD_SECTOR_DEFENSE')}</span>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-cyan-600 font-mono">WAVE</span>
+                                <span className="text-[10px] text-cyan-600 font-mono">{t('HUD_WAVE')}</span>
                                 <span ref={waveNumRef} className="text-2xl font-display font-black text-white leading-none"></span>
                             </div>
                         </div>
                         <div className="relative w-full flex justify-center items-center py-1">
                             {isCleanup ? (
                                 <div className="flex flex-col items-center">
-                                    <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">HOSTILES REMAINING</span>
+                                    <span className="text-xs font-bold text-yellow-500 animate-pulse tracking-wider">{t('HUD_HOSTILES_REMAINING')}</span>
                                     <span ref={enemyCountRef} className="text-4xl font-display font-bold text-red-500 tracking-widest"></span>
                                 </div>
                             ) : (
@@ -328,7 +329,7 @@ const MissionWidget: React.FC = () => {
                     <div className="w-1 h-3 bg-yellow-600/50"></div>
                 </div>
                 <button 
-                    onClick={() => engine.skipWave()}
+                    onClick={() => engine.missionManager.skipWave()}
                     className="group relative bg-yellow-500/10 hover:bg-yellow-500/90 border-x border-b border-yellow-500 text-yellow-400 hover:text-black px-6 py-1 font-black text-xs tracking-[0.2em] uppercase transition-all cursor-pointer clip-path-trapezoid-bottom backdrop-blur-sm pointer-events-auto"
                     style={{ clipPath: 'polygon(10% 0, 90% 0, 100% 100%, 0% 100%)' }}
                 >
@@ -351,8 +352,7 @@ const HeroicZealTrigger: React.FC = () => {
     if (state.gameMode !== GameMode.CAMPAIGN) return null;
 
     const handleClick = () => {
-        engine.state.appMode = AppMode.HEROIC_ZEAL;
-        engine.notifyUI();
+        engine.sessionManager.setMode(AppMode.HEROIC_ZEAL);
     }
 
     return (

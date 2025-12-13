@@ -1,7 +1,6 @@
 
 import { GameEngine } from '../gameService';
-import { Enemy, EnemyType, BossType, GameMode, StatId, EnemySummonEvent, WeaponType, FloatingTextType } from '../../types';
-import { GAS_INFO } from '../../data/world';
+import { Enemy, EnemyType, BossType, GameMode, StatId, EnemySummonEvent, FloatingTextType, IGameSystem, EnemyKilledEvent, WeaponType, EnemySpawnOptions } from '../../types';
 import { calculateEnemyStats, selectEnemyType } from '../../utils/enemyUtils';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
@@ -9,35 +8,46 @@ import { StatManager } from './StatManager';
 import { DataManager } from '../DataManager';
 import { AIBehavior } from '../ai/AIBehavior';
 import { StandardBehavior, TankBehavior, KamikazeBehavior, ViperBehavior, PustuleBehavior, RusherBehavior, TubeWormBehavior } from '../ai/StandardBehaviors';
-import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior } from '../ai/BossBehaviors';
-import { GameEventType, SpawnBloodStainEvent, PlaySoundEvent, DamageSource, DamageEnemyEvent } from '../../types';
+import { RedSummonerBehavior, BlueBurstBehavior, PurpleAcidBehavior, HiveMotherBehavior, DevourerBossBehavior } from '../ai/BossBehaviors';
+import { GameEventType, DamageSource, DamageEnemyEvent } from '../../types';
 
-// Interface for spawn overrides to avoid massive argument lists
-interface EnemySpawnOptions {
-    isBoss?: boolean;
-    bossType?: BossType;
-    hpMultiplier?: number; // Multiplicative override
-    flatHp?: number; // Absolute override
-    scaleY?: number; // For burrowing visuals
-    scoreOverride?: number;
-    angleOverride?: number;
-    speedOverride?: number;
-    // Special Flags
-    armorValue?: number;
-    burrowState?: 'SURFACING' | 'IDLE' | 'DIVING' | 'UNDERGROUND';
-    isWandering?: boolean;
-    wanderDuration?: number;
-    bossSummonTimer?: number;
-}
+const DEFAULT_ENEMY_PROPS: Partial<Enemy> = {
+    isBoss: false,
+    bossType: undefined,
+    bossSummonTimer: undefined,
+    bossBurstCount: undefined,
+    bossNextShotTime: undefined,
+    shedTimer: undefined,
+    shedCount: undefined,
+    shellRegenTimer: undefined,
+    burrowTimer: undefined,
+    cannibalTimer: undefined,
+    eatingTimer: 0,
+    activeTime: 0,
+    wanderTimer: 0,
+    armorValue: undefined,
+    dashCharges: undefined,
+    dashTimer: undefined,
+    shellValue: undefined,
+    maxShell: undefined,
+    burrowState: undefined,
+    visualScaleY: 1,
+    storedScore: 0,
+    huntingTargetId: undefined,
+    isWandering: false,
+    wanderPoint: undefined,
+};
 
-export class EnemyManager {
+export class EnemyManager implements IGameSystem {
+    public readonly systemId = 'ENEMY_SYSTEM';
+
     private engine: GameEngine;
     private events: EventBus;
     private stats: StatManager;
     private data: DataManager;
     private enemyPool: ObjectPool<Enemy>;
     
-    // AI Strategies
+    // AI Strategies Registry
     private behaviors: Map<string, AIBehavior> = new Map();
 
     constructor(engine: GameEngine, eventBus: EventBus, statManager: StatManager, dataManager: DataManager) {
@@ -46,7 +56,7 @@ export class EnemyManager {
         this.stats = statManager;
         this.data = dataManager;
 
-        // Initialize Pool with factory and resetter
+        // Initialize Pool
         this.enemyPool = new ObjectPool<Enemy>(
             () => ({
                 id: '', type: EnemyType.GRUNT, x: 0, y: 0, radius: 0, angle: 0, color: '',
@@ -75,67 +85,44 @@ export class EnemyManager {
     private initializeBehaviors() {
         this.behaviors.set(EnemyType.GRUNT, new StandardBehavior());
         this.behaviors.set(EnemyType.RUSHER, new RusherBehavior());
-        this.behaviors.set(EnemyType.TANK, new TankBehavior()); // Uses new TankBehavior
+        this.behaviors.set(EnemyType.TANK, new TankBehavior());
         this.behaviors.set(EnemyType.KAMIKAZE, new KamikazeBehavior());
         this.behaviors.set(EnemyType.VIPER, new ViperBehavior());
         this.behaviors.set(EnemyType.PUSTULE, new PustuleBehavior());
         this.behaviors.set(EnemyType.TUBE_WORM, new TubeWormBehavior());
 
+        // Bosses
         this.behaviors.set(BossType.RED_SUMMONER, new RedSummonerBehavior());
         this.behaviors.set(BossType.BLUE_BURST, new BlueBurstBehavior());
         this.behaviors.set(BossType.PURPLE_ACID, new PurpleAcidBehavior());
         this.behaviors.set(BossType.HIVE_MOTHER, new HiveMotherBehavior());
+        
+        // Campaign Special Boss (The Devourer)
+        this.behaviors.set('DEVOURER', new DevourerBossBehavior());
     }
 
     private getBehavior(enemy: Enemy): AIBehavior {
+        // Handle explicit Boss Types first
         if (enemy.isBoss && enemy.bossType) {
             return this.behaviors.get(enemy.bossType) || this.behaviors.get(EnemyType.TANK)!;
         }
+        // Handle Campaign Devourer (Tube Worm Boss variant)
+        if (enemy.isBoss && enemy.type === EnemyType.TUBE_WORM) {
+            return this.behaviors.get('DEVOURER')!;
+        }
+        // Standard mapping
         return this.behaviors.get(enemy.type) || this.behaviors.get(EnemyType.GRUNT)!;
     }
 
-    /**
-     * Resets a pooled enemy object to a clean state.
-     */
     private resetEnemyState(e: Enemy) {
-        // Core Identity
-        e.isBoss = false;
-        e.bossType = undefined;
-        
-        // Timers & Counters
-        e.bossSummonTimer = undefined;
-        e.bossBurstCount = undefined;
-        e.bossNextShotTime = undefined;
-        e.shedTimer = undefined;
-        e.shedCount = undefined;
-        e.shellRegenTimer = undefined;
-        e.burrowTimer = undefined;
-        e.cannibalTimer = undefined;
-        e.eatingTimer = 0;
-        e.activeTime = 0;
-        e.wanderTimer = 0;
-        
-        // Status
-        e.armorValue = undefined;
-        e.dashCharges = undefined;
-        e.dashTimer = undefined;
-        e.shellValue = undefined;
-        e.maxShell = undefined;
-        
-        // State
-        e.burrowState = undefined;
-        e.visualScaleY = 1;
-        e.storedScore = 0;
-        e.huntingTargetId = undefined;
-        e.isWandering = false;
-        e.wanderPoint = undefined;
+        Object.assign(e, DEFAULT_ENEMY_PROPS);
     }
 
     /**
-     * UNIFIED ENEMY FACTORY
-     * Centralizes creation logic, stats calculation, and state injection.
+     * Generic Spawn Method.
+     * Refactored to delegate specific initialization to AIBehavior strategies.
      */
-    private createEnemyInstance(type: EnemyType, x: number, y: number, options: EnemySpawnOptions = {}): Enemy {
+    public spawn(type: EnemyType, x: number, y: number, options: EnemySpawnOptions = {}): Enemy {
         const state = this.engine.state;
         
         // 1. Get Base Data
@@ -160,7 +147,7 @@ export class EnemyManager {
         e.y = y;
         e.angle = options.angleOverride || 0;
         
-        // 4. Apply Stats (with optional overrides)
+        // 4. Apply Calculated Stats
         e.maxHp = options.flatHp || calculatedStats.maxHp * (options.hpMultiplier || 1);
         e.hp = e.maxHp;
         e.damage = calculatedStats.damage;
@@ -172,35 +159,30 @@ export class EnemyManager {
         e.detectionRange = baseStats.detectionRange;
         e.lastAttackTime = this.engine.time.now;
 
-        // 5. Apply Specific Flags from Options
-        if (options.isBoss) {
-            e.isBoss = true;
-            e.bossType = options.bossType;
-        }
-        if (options.scaleY !== undefined) e.visualScaleY = options.scaleY;
-        if (options.armorValue !== undefined) e.armorValue = options.armorValue;
-        if (options.burrowState) e.burrowState = options.burrowState;
-        if (options.isWandering) e.isWandering = true;
-        if (options.wanderDuration) e.wanderDuration = options.wanderDuration;
-        if (options.bossSummonTimer) e.bossSummonTimer = options.bossSummonTimer;
+        // 5. Strategy Pattern Initialization (Replaces hardcoded logic)
+        const behavior = this.getBehavior(e);
+        
+        // Create context for initialization
+        const context = {
+            state: this.engine.state,
+            events: this.events,
+            dt: 0,
+            time: this.engine.time.now,
+            timeScale: 1,
+            t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
+        };
 
-        // 6. Unit Specific Initializations (Cleaned up from messy ifs)
-        if (type === EnemyType.RUSHER) {
-            e.dashCharges = 0;
-            e.dashTimer = 0;
+        // Delegate initialization
+        if (behavior.initialize) {
+            behavior.initialize(e, context, options);
         }
-        if (type === EnemyType.TANK) {
-            e.shellValue = 100;
-            e.maxShell = 100;
-            e.shellRegenTimer = 0;
-        }
-        // Boss initialization defaults
-        if (e.isBoss) {
-            e.bossBurstCount = 0;
-            e.bossNextShotTime = 0;
+        
+        // Legacy Hook (can be removed later once all logic is moved to initialize)
+        if (behavior.onSpawn) {
+            behavior.onSpawn(e, options);
         }
 
-        // 7. Register
+        // 6. Register
         state.enemies.push(e);
         const trackingId = options.bossType || type;
         if (!state.stats.encounteredEnemies.includes(trackingId)) {
@@ -208,85 +190,6 @@ export class EnemyManager {
         }
 
         return e;
-    }
-
-    // --- PUBLIC SPAWNERS (Wrapper methods) ---
-
-    public spawnEnemy() {
-        const state = this.engine.state;
-        const type = selectEnemyType(state.wave.index, state.gameMode, state.currentPlanet, state.wave.activeEvent);
-        const x = Math.random() * state.worldWidth;
-        const y = -50; 
-        this.createEnemyInstance(type, x, y);
-    }
-
-    public spawnSpecificEnemy(type: EnemyType, x: number, y: number) {
-        return this.createEnemyInstance(type, x, y);
-    }
-
-    public spawnPustule(x: number, y: number) {
-        this.createEnemyInstance(EnemyType.PUSTULE, x, y, {
-            bossSummonTimer: 15000
-        });
-    }
-
-    public spawnCampaignBoss() {
-        const state = this.engine.state;
-        const corners = [
-            { x: 100, y: 100 },
-            { x: state.worldWidth - 100, y: 100 },
-            { x: 100, y: state.worldHeight - 100 },
-            { x: state.worldWidth - 100, y: state.worldHeight - 100 }
-        ];
-        const corner = corners[Math.floor(Math.random() * corners.length)];
-
-        return this.createEnemyInstance(EnemyType.TUBE_WORM, corner.x, corner.y, {
-            isBoss: true,
-            flatHp: state.campaign.bossHp || 4000000,
-            angleOverride: Math.PI/2,
-            scoreOverride: 50000,
-            isWandering: true,
-            wanderDuration: 60000,
-            burrowState: 'SURFACING',
-            scaleY: 0
-        });
-    }
-
-    public spawnBoss() {
-        const state = this.engine.state;
-        const roll = Math.random();
-        let bossType = BossType.RED_SUMMONER;
-        if (roll > 0.6) bossType = BossType.BLUE_BURST;
-        if (roll > 0.85) bossType = BossType.PURPLE_ACID;
-
-        const x = state.worldWidth / 2;
-        const y = 100;
-        
-        return this.createEnemyInstance(EnemyType.TANK, x, y, {
-            isBoss: true,
-            bossType: bossType,
-            angleOverride: Math.PI/2
-        });
-    }
-
-    public spawnHiveMother(planet: any) {
-        const state = this.engine.state;
-        
-        let hpMultiplier = 1;
-        // Sulfur Logic for Hive Mother HP scaling was: 1 + 0.08 * sulfur
-        if (planet) {
-            hpMultiplier = (1 + 0.08 * planet.sulfurIndex);
-        }
-
-        this.createEnemyInstance(EnemyType.TANK, state.worldWidth / 2, 400, {
-            isBoss: true,
-            bossType: BossType.HIVE_MOTHER,
-            flatHp: 14000, 
-            hpMultiplier: hpMultiplier,
-            angleOverride: Math.PI/2,
-            speedOverride: 0, // Stationary
-            armorValue: 90
-        });
     }
 
     private handleSummon(e: EnemySummonEvent) {
@@ -311,23 +214,24 @@ export class EnemyManager {
                     this.engine.state.wave.activeEvent 
                 );
                 
-                this.spawnSpecificEnemy(type, sx, sy);
+                this.spawn(type, sx, sy);
             }
         } else {
-            this.spawnSpecificEnemy(e.type, e.x, e.y);
+            this.spawn(e.type, e.x, e.y);
         }
     }
 
     // --- GAME LOOP ---
 
-    public update(dt: number, timeScale: number) {
+    public update(dt: number, time: number, timeScale: number) {
         const enemies = this.engine.state.enemies;
         const context = {
             state: this.engine.state,
             events: this.events,
             dt,
             time: this.engine.time.now,
-            timeScale
+            timeScale,
+            t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
         };
 
         for (let i = enemies.length - 1; i >= 0; i--) {
@@ -357,16 +261,16 @@ export class EnemyManager {
         let dmg = amount;
         const behavior = this.getBehavior(enemy);
         
-        // AI Logic Hook (Now handles resistance/armor)
+        // AI Logic Hook (Armor / Shell / Enrage)
         if (behavior.onTakeDamage) {
             const context = {
                 state: this.engine.state,
                 events: this.events,
                 dt: 0,
                 time: this.engine.time.now,
-                timeScale: 1
+                timeScale: 1,
+                t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
             };
-            // Now passing weaponType down
             dmg = behavior.onTakeDamage(enemy, dmg, weaponType, context);
         }
   
@@ -374,8 +278,9 @@ export class EnemyManager {
         
         if (this.engine.state.settings.showDamageNumbers) {
             let color = '#ffffff';
+            // Specific check for visual feedback on shell hits (can be generalized in onTakeDamage return if needed)
             if (enemy.type === EnemyType.TANK && enemy.shellValue && enemy.shellValue > 0) {
-                color = '#9ca3af'; // Grey for armor hit
+                color = '#9ca3af';
             }
             this.engine.fxManager.addFloatingText(`${Math.ceil(dmg)}`, enemy.x, enemy.y, color, FloatingTextType.DAMAGE);
         }
@@ -387,7 +292,8 @@ export class EnemyManager {
             events: this.events,
             dt: 0,
             time: this.engine.time.now,
-            timeScale: 1
+            timeScale: 1,
+            t: (key: string, params?: Record<string, string | number>) => this.engine.t(key, params)
         };
 
         const behavior = this.getBehavior(e);
@@ -395,25 +301,26 @@ export class EnemyManager {
             behavior.onDeath(e, context);
         }
 
+        // DECOUPLED LOGIC:
+        // We now just emit the event. 
+        // Score calculation, Audio, FX, and BioTasks are handled by listeners.
+        
         let geneMultiplier = 1;
         if (this.engine.state.gameMode === GameMode.EXPLORATION && this.engine.state.currentPlanet) {
             geneMultiplier = this.engine.state.currentPlanet.geneStrength;
         }
+        const score = Math.floor(e.scoreReward * geneMultiplier);
 
-        let score = Math.floor(e.scoreReward * geneMultiplier);
-        
-        if (e.storedScore && e.storedScore > 0) {
-            score += Math.floor(e.storedScore * geneMultiplier);
-            if (e.storedScore > 50) {
-                this.engine.fxManager.addFloatingText(`HOARD RECOVERED: +${Math.floor(e.storedScore * geneMultiplier)}`, e.x, e.y - 20, '#fbbf24', FloatingTextType.LOOT);
-            }
-        }
-  
-        this.engine.state.player.score += score;
-        if (e.isBoss) this.engine.state.stats.killsByType['BOSS']++;
-        else this.engine.state.stats.killsByType[e.type]++;
-        this.engine.spaceshipManager.checkBioTaskProgress(e.type);
-        this.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, { x: e.x, y: e.y, color: e.color, maxHp: e.maxHp });
-        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ENEMY_DEATH', variant: e.isBoss, x: e.x, y: e.y });
+        this.events.emit<EnemyKilledEvent>(GameEventType.ENEMY_KILLED, {
+            enemy: e,
+            x: e.x,
+            y: e.y,
+            scoreReward: score,
+            type: e.type,
+            isBoss: !!e.isBoss,
+            color: e.color,
+            maxHp: e.maxHp,
+            storedScore: e.storedScore
+        });
     }
 }

@@ -10,7 +10,8 @@ import {
     GameSettings,
     Player,
     EnemyType,
-    DamageSource
+    DamageSource,
+    Planet
 } from '../types';
 import { 
     WORLD_WIDTH, 
@@ -33,6 +34,7 @@ interface BuilderContext {
     dataManager: DataManager;
     currentState?: GameState; // Optional: for soft resets/persistence
     settings: GameSettings;
+    targetPlanet?: Planet | null; // NEW: Context for immediate deployment configuration
 }
 
 /**
@@ -41,21 +43,25 @@ interface BuilderContext {
  * 1. Calculate World Dimensions based on GameMode.
  * 2. Handle Logic for "Soft Reset" (preserving inventory) vs "Hard Reset".
  * 3. Construct the clean GameState tree.
+ * 4. Configure environment based on Target Planet (if provided).
  */
 export class StateBuilder {
 
     public static build(ctx: BuilderContext): GameState {
-        const { mode, fullReset, currentState } = ctx;
+        const { mode, fullReset, currentState, targetPlanet } = ctx;
         
         // 1. Determine Dimensions
         const { worldW, worldH } = this.getWorldDimensions(mode);
         const { basePos, playerPos } = this.getSpawnPositions(mode, worldW, worldH);
 
         // 2. Generate World Data
-        const sectorName = !fullReset && currentState?.sectorName ? currentState.sectorName : generateSectorName();
-        const terrain = generateTerrain(PlanetVisualType.BARREN, 'BARREN' as any, worldW, worldH);
+        // If targetPlanet is provided, use its biome/visuals for terrain generation immediately
+        const visualType = targetPlanet ? targetPlanet.visualType : PlanetVisualType.BARREN;
+        const biome = targetPlanet ? targetPlanet.biome : 'BARREN' as any;
+        const terrain = generateTerrain(visualType, biome, worldW, worldH);
         
-        // Planets: Preserve if soft reset, else generate new
+        // Sector Data: Preserve if soft reset, else new
+        const sectorName = !fullReset && currentState?.sectorName ? currentState.sectorName : generateSectorName();
         const planets = !fullReset && currentState?.planets 
             ? currentState.planets 
             : generatePlanets(undefined, ctx.viewportW, ctx.viewportH);
@@ -63,7 +69,7 @@ export class StateBuilder {
         // Ensure data integrity for planets
         planets.forEach(p => { if (!p.buildings) p.buildings = []; });
 
-        // 3. Build Player
+        // 3. Build Player (Hydrating from old state if needed)
         const player = this.buildPlayer(ctx, playerPos.x, playerPos.y);
 
         // 4. Build Turret Spots
@@ -71,21 +77,45 @@ export class StateBuilder {
 
         // 5. Build Complex Sub-States
         const spaceship = this.buildSpaceshipState(fullReset, currentState);
-        const waveState = this.buildWaveState(mode);
+        
+        // 6. Base Drop Logic (If deploying to a planet)
+        // If we are deploying, start base high up
+        const baseDrop = targetPlanet ? {
+            active: true,
+            y: basePos.y - 1500,
+            targetY: basePos.y,
+            velocity: 0,
+            phase: 'ENTRY' as const,
+            deployTimer: 0
+        } : null;
+
+        // Adjust Player Spawn if Dropping
+        if (baseDrop) {
+            player.x = basePos.x;
+            player.y = basePos.y; // Hidden inside base
+        }
+
+        // 7. Wave State (Configured for Planet if exists)
+        const waveState = this.buildWaveState(mode, targetPlanet);
         const campaignState = this.buildCampaignState(mode);
         
-        // 6. Persistence & Meta
+        // 8. Final Assembly
         const saveSlots = !fullReset && currentState?.saveSlots ? currentState.saveSlots : [];
-        const appMode = mode === GameMode.EXPLORATION ? AppMode.EXPLORATION_MAP : AppMode.GAMEPLAY;
+        
+        // AppMode: If we have a target planet, we go straight to gameplay.
+        // Otherwise, if exploration mode but no planet, go to map.
+        let appMode = AppMode.GAMEPLAY;
+        if (mode === GameMode.EXPLORATION && !targetPlanet) {
+            appMode = AppMode.EXPLORATION_MAP;
+        }
 
-        // 7. Construct Final State
         const state: GameState = {
             appMode,
             gameMode: mode,
             sectorName,
             planets,
-            currentPlanet: null,
-            selectedPlanetId: null,
+            currentPlanet: targetPlanet || null,
+            selectedPlanetId: targetPlanet?.id || null,
             savedPlayerState: null,
             activeGalacticEvent: null,
             pendingYieldReport: null,
@@ -107,8 +137,8 @@ export class StateBuilder {
                 hp: BASE_STATS.maxHp, 
                 maxHp: BASE_STATS.maxHp 
             },
-            secondaryBase: undefined, // Campaign specific logic could go here
-            baseDrop: null, // Initialized by GalaxyManager later if needed
+            secondaryBase: undefined,
+            baseDrop,
 
             // Collections
             terrain,
@@ -248,7 +278,7 @@ export class StateBuilder {
         };
     }
 
-    private static buildWaveState(mode: GameMode) {
+    private static buildWaveState(mode: GameMode, planet?: Planet | null) {
         if (mode === GameMode.CAMPAIGN) {
             return {
                 index: 0,
@@ -261,12 +291,27 @@ export class StateBuilder {
                 activeEvent: SpecialEventType.NONE
             };
         }
+
+        // Logic moved from GalaxyManager to here for consistency
+        let pendingCount = 17;
+        let index = 1;
+
+        if (planet) {
+            if (planet.missionType === MissionType.OFFENSE) {
+                pendingCount = 0; // Offense spawns handled by boss
+                index = 0;
+            } else {
+                // Scale initial enemies by Gene Strength
+                pendingCount = Math.ceil((12 + 5 * 1) * planet.geneStrength); 
+            }
+        }
+
         return {
-            index: 1,
+            index: index,
             timer: 30000,
             duration: 30000,
             spawnTimer: 0,
-            pendingCount: 17,
+            pendingCount: pendingCount,
             spawnedCount: 0,
             totalCount: 99999,
             activeEvent: SpecialEventType.NONE

@@ -1,7 +1,8 @@
 
-import { DamageSource, FloatingTextType, WeaponType, AllyOrder, TurretType, EnemyType } from './enums';
+import { DamageSource, FloatingTextType, WeaponType, AllyOrder, TurretType, EnemyType, ProjectileID } from './enums';
 import { WeaponModule } from './items';
 import { GalaxyConfig } from './world';
+import { Projectile, Enemy, Entity } from './entities';
 
 export enum GameEventType {
     // Spawning
@@ -10,6 +11,16 @@ export enum GameEventType {
     SPAWN_TOXIC_ZONE = 'SPAWN_TOXIC_ZONE',
     SPAWN_BLOOD_STAIN = 'SPAWN_BLOOD_STAIN',
     ENEMY_SUMMON = 'ENEMY_SUMMON',
+    
+    // Lifecycle
+    ENEMY_KILLED = 'ENEMY_KILLED', // New decoupled event
+
+    // Physics & Collisions (NEW)
+    COLLISION_PROJECTILE_ENEMY = 'COLLISION_PROJECTILE_ENEMY',
+    COLLISION_PROJECTILE_PLAYER = 'COLLISION_PROJECTILE_PLAYER',
+    COLLISION_PROJECTILE_BASE = 'COLLISION_PROJECTILE_BASE',
+    COLLISION_PROJECTILE_ALLY = 'COLLISION_PROJECTILE_ALLY',
+    COLLISION_KAMIKAZE_IMPACT = 'COLLISION_KAMIKAZE_IMPACT',
     
     // Combat
     DAMAGE_PLAYER = 'DAMAGE_PLAYER',
@@ -20,10 +31,11 @@ export enum GameEventType {
     // Audio & UI
     PLAY_SOUND = 'PLAY_SOUND',
     SHOW_FLOATING_TEXT = 'SHOW_FLOATING_TEXT',
-    UI_UPDATE = 'UI_UPDATE', // New Event for Structural UI Changes
+    UI_UPDATE = 'UI_UPDATE',
     
     // Game State
     MISSION_COMPLETE = 'MISSION_COMPLETE',
+    GAME_OVER = 'GAME_OVER',
 
     // Player Actions (Input)
     PLAYER_SWITCH_WEAPON = 'PLAYER_SWITCH_WEAPON',
@@ -43,27 +55,74 @@ export enum GameEventType {
     DEFENSE_CLOSE_MENU = 'DEFENSE_CLOSE_MENU'
 }
 
+export interface EnemyKilledEvent {
+    enemy: Enemy;
+    x: number;
+    y: number;
+    scoreReward: number;
+    type: EnemyType;
+    isBoss: boolean;
+    color: string;
+    maxHp: number;
+    storedScore?: number;
+}
+
 export interface SpawnProjectileEvent {
+    // Spatial properties are always required
     x: number;
     y: number;
     targetX: number;
     targetY: number;
-    speed: number;
     damage: number;
-    fromPlayer: boolean;
-    color: string;
+
+    // Optional ID for preset lookup (Recommended)
+    presetId?: ProjectileID;
+
+    // Overrides (Can be inferred from presetId)
+    speed?: number;
+    fromPlayer?: boolean;
+    color?: string;
+    source?: DamageSource;
+    maxRange?: number;
+    
+    // Specific Logic Flags
     homingTargetId?: string;
     isHoming?: boolean;
     createsToxicZone?: boolean;
     isExplosive?: boolean;
     isPiercing?: boolean;
-    maxRange?: number;
-    source: DamageSource;
     activeModules?: WeaponModule[];
     // @ts-ignore
     explosionRadius?: number;
-    weaponType?: WeaponType; // Added for precise identification
+    weaponType?: WeaponType; 
 }
+
+// --- NEW COLLISION PAYLOADS ---
+export interface CollisionProjectileEnemyEvent {
+    projectile: Projectile;
+    enemy: Enemy;
+}
+
+export interface CollisionProjectilePlayerEvent {
+    projectile: Projectile;
+}
+
+export interface CollisionProjectileBaseEvent {
+    projectile: Projectile;
+    // We don't pass the base object because it's a singleton in state, logic can access it
+}
+
+export interface CollisionProjectileAllyEvent {
+    projectile: Projectile;
+    allyId: string;
+}
+
+export interface CollisionKamikazeEvent {
+    enemy: Enemy;
+    targetType: 'PLAYER' | 'BASE' | 'ALLY';
+}
+
+// --- EXISTING PAYLOADS ---
 
 export interface SpawnParticleEvent {
     x: number;
@@ -105,7 +164,7 @@ export interface DamageEnemyEvent {
     targetId: string;
     amount: number;
     source: DamageSource;
-    weaponType?: WeaponType; // For type-specific damage logic (e.g. Flamethrower vs Shell)
+    weaponType?: WeaponType; 
 }
 
 export interface DamageAreaEvent {
@@ -118,9 +177,9 @@ export interface DamageAreaEvent {
 
 export interface PlaySoundEvent {
     type: 'WEAPON' | 'TURRET' | 'ALLY' | 'EXPLOSION' | 'GRENADE' | 'GRENADE_THROW' | 'ENEMY_DEATH' | 'VIPER_SHOOT' | 'MELEE_HIT' | 'BASE_DAMAGE' | 'RELOAD' | 'BULLET_HIT' | 'ORBITAL_STRIKE' | 'BOSS_DEATH';
-    variant?: WeaponType | number | boolean | string; // WeaponType, TurretLevel, isBoss
-    x?: number; // Spatial Audio X
-    y?: number; // Spatial Audio Y
+    variant?: WeaponType | number | boolean | string; 
+    x?: number; 
+    y?: number; 
 }
 
 export interface ShowFloatingTextEvent {

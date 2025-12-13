@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { HeroicNode, HeroicUpgradeType } from '../../types';
+import { HeroicNode, HeroicUpgradeType, AppMode } from '../../types';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CloseButton } from './Shared';
@@ -34,7 +34,7 @@ export const HeroicZealUI: React.FC = () => {
     
     // Auto-generate if missing
     useEffect(() => {
-        engine.generateHeroicGrid();
+        engine.spaceshipManager.generateHeroicGrid();
     }, [engine]);
 
     // Calculate Render Positions
@@ -74,13 +74,11 @@ export const HeroicZealUI: React.FC = () => {
     }, [s.heroicNodes]);
 
     const handlePurchase = (id: number) => {
-        engine.purchaseHeroicNode(id);
+        engine.spaceshipManager.purchaseHeroicNode(id);
     };
 
     const handleClose = () => {
-        engine.notifyUI(); 
-        engine.state.appMode = 'GAMEPLAY' as any; 
-        engine.notifyUI();
+        engine.sessionManager.setMode(AppMode.GAMEPLAY);
     }
 
     const getNodeColorKey = (type: HeroicUpgradeType) => {
@@ -109,7 +107,7 @@ export const HeroicZealUI: React.FC = () => {
     };
 
     return (
-        <div className="absolute inset-0 bg-[#050505] z-[200] overflow-hidden font-mono select-none flex">
+        <div className="absolute inset-0 bg-[#050505] z-[200] overflow-hidden font-mono select-none flex pointer-events-auto">
             
             {/* LEFT PANEL: Summary & Stats */}
             <div className="w-80 bg-[#0a0a0a] border-r border-slate-800 p-8 flex flex-col z-20 shadow-[20px_0_50px_rgba(0,0,0,0.8)] relative">

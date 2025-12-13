@@ -1,5 +1,5 @@
 
-import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent, Player, WeaponState } from '../../types';
+import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent, Player, WeaponState, DamagePlayerEvent, IGameSystem, ProjectileID, WeaponStats } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
@@ -8,7 +8,9 @@ import { UserAction } from '../../types';
 import { PLAYER_STATS, INITIAL_AMMO } from '../../data/registry';
 import { INVENTORY_SIZE } from '../../constants';
 
-export class PlayerManager {
+export class PlayerManager implements IGameSystem {
+    public readonly systemId = 'PLAYER_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private input: InputManager;
@@ -25,6 +27,7 @@ export class PlayerManager {
         this.events.on(GameEventType.PLAYER_SWITCH_WEAPON, (e: any) => this.switchWeapon(e.index));
         this.events.on(GameEventType.PLAYER_RELOAD, (e: any) => this.reload(e.time));
         this.events.on(GameEventType.PLAYER_THROW_GRENADE, () => this.throwGrenade());
+        this.events.on<DamagePlayerEvent>(GameEventType.DAMAGE_PLAYER, (e) => this.damagePlayer(e.amount));
     }
 
     // --- FACTORY METHOD ---
@@ -148,12 +151,40 @@ export class PlayerManager {
         }
     }
 
+    /**
+     * Calculates final damage based on stats and modules.
+     * Pure function (mostly) for easier testing/maintenance.
+     */
+    private calculateBallistics(weaponStats: WeaponStats, weaponState: WeaponState) {
+        // 1. Base Damage
+        let damage = this.stats.get(StatId.PLAYER_DAMAGE, weaponStats.damage); 
+        
+        // 2. Module Modifiers
+        weaponState.modules.forEach(m => {
+            if (m.type === ModuleType.GEL_BARREL) damage *= 1.4;
+            if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
+            if (m.type === ModuleType.TENSION_SPRING) damage *= 1.2;
+        });
+
+        // 3. Resolve Projectile ID
+        let projectileId = ProjectileID.P_AR;
+        switch(weaponState.type) {
+            case WeaponType.PISTOL: projectileId = ProjectileID.P_PISTOL; break;
+            case WeaponType.SG: projectileId = ProjectileID.P_SG; break;
+            case WeaponType.SR: projectileId = ProjectileID.P_SR; break;
+            case WeaponType.FLAMETHROWER: projectileId = ProjectileID.P_FLAME; break;
+            case WeaponType.PULSE_RIFLE: projectileId = ProjectileID.P_PULSE; break;
+            case WeaponType.GRENADE_LAUNCHER: projectileId = ProjectileID.P_GRENADE; break;
+        }
+
+        return { damage, projectileId };
+    }
+
     private fireWeapon(time: number) {
         const state = this.getState();
         const p = state.player;
         const weaponType = p.loadout[p.currentWeaponIndex];
         const wState = p.weapons[weaponType];
-        // USE DATA MANAGER
         const wStats = this.data.getWeaponStats(weaponType);
 
         if (wState.reloading || time - wState.lastFireTime < wStats.fireRate) return;
@@ -169,34 +200,22 @@ export class PlayerManager {
 
         const spread = p.isAiming ? wStats.spread * 0.5 : wStats.spread;
         
+        // DECOUPLED CALCULATION
+        const { damage, projectileId } = this.calculateBallistics(wStats, wState);
+
         const spawnProjectile = (angleOffset: number = 0) => {
             const finalAngle = p.angle + (Math.random() - 0.5) * spread + angleOffset;
             const targetX = p.x + Math.cos(finalAngle) * 1000;
             const targetY = p.y + Math.sin(finalAngle) * 1000;
             
-            let damage = this.stats.get(StatId.PLAYER_DAMAGE, wStats.damage); 
-            
-            wState.modules.forEach(m => {
-                if (m.type === ModuleType.GEL_BARREL) damage *= 1.4;
-                if (m.type === ModuleType.MICRO_RUPTURER) damage *= 1.6;
-                if (m.type === ModuleType.TENSION_SPRING) damage *= 1.2;
-            });
-
             this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                presetId: projectileId,
                 x: p.x,
                 y: p.y,
                 targetX,
                 targetY,
-                speed: wStats.projectileSpeed,
                 damage,
-                fromPlayer: true,
-                color: weaponType === WeaponType.PULSE_RIFLE ? '#22d3ee' : '#fbbf24', 
-                maxRange: wStats.range,
-                source: DamageSource.PLAYER,
-                activeModules: wState.modules,
-                isPiercing: wStats.isPiercing,
-                isExplosive: wStats.isExplosive,
-                weaponType: weaponType
+                activeModules: wState.modules
             });
         };
 
@@ -244,6 +263,10 @@ export class PlayerManager {
         if (p.currentWeaponIndex !== index) {
             p.weapons[p.loadout[p.currentWeaponIndex]].reloading = false; // Cancel reload
             p.currentWeaponIndex = index;
+            
+            // Audio & UI Feedback
+            this.events.emit(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
+            this.events.emit(GameEventType.UI_UPDATE, { reason: 'WEAPON_SWITCH' });
         }
     }
 
@@ -258,19 +281,13 @@ export class PlayerManager {
             const targetY = p.y + Math.sin(p.angle) * 400;
             
             this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+                presetId: ProjectileID.P_GRENADE_FRAG,
                 x: p.x,
                 y: p.y,
                 targetX,
                 targetY,
-                speed: 12,
                 damage: PLAYER_STATS.grenadeDamage,
-                fromPlayer: true,
-                color: '#fff',
-                maxRange: 400,
-                source: DamageSource.PLAYER,
-                isExplosive: true,
-                activeModules: p.grenadeModules,
-                weaponType: WeaponType.GRENADE_LAUNCHER 
+                activeModules: p.grenadeModules
             });
         }
     }
@@ -304,9 +321,11 @@ export class PlayerManager {
         p.lastHitTime = state.time; 
         
         if (p.hp <= 0) {
-            state.isGameOver = true;
-            state.isPaused = true;
-            this.events.emit(GameEventType.UI_UPDATE, { reason: 'GAME_OVER' });
+            // DELEGATE TO GAME ENGINE via EVENT
+            // This ensures saving logic happens centrally
+            if (!state.isGameOver) {
+                this.events.emit(GameEventType.GAME_OVER, {});
+            }
         }
     }
 }

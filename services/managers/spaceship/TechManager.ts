@@ -1,18 +1,101 @@
 
 import { GameState, CarapaceNode, EnemyType, InfrastructureOption, InfrastructureUpgradeType, GameEventType, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, StatId, ModifierType } from '../../../types';
+import { TRANSLATIONS } from '../../../data/locales';
 import { EventBus } from '../../EventBus';
 import { StatManager } from '../StatManager';
 import { WORLD_WIDTH, WORLD_HEIGHT } from '../../../constants';
+import { ISpaceshipSystem } from './ISpaceshipSystem';
 
-export class TechManager {
+export class TechManager implements ISpaceshipSystem {
+    public readonly systemId = 'TECH'; // Covers both Carapace and Infrastructure
+
     private getState: () => GameState;
     private events: EventBus;
-    private stats: StatManager;
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
-        this.stats = statManager;
+    }
+
+    private t(key: string, params?: Record<string, string | number>): string {
+        const lang = this.getState().settings.language || 'EN';
+        // @ts-ignore
+        const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
+        // @ts-ignore
+        let str = dict[key] || key;
+        if (params) {
+            Object.entries(params).forEach(([k, v]) => {
+                str = str.replace(`{${k}}`, String(v));
+            });
+        }
+        return str;
+    }
+
+    public update(dt: number): void {
+        // No per-frame update needed for tech/research
+    }
+
+    public applyStats(stats: StatManager): void {
+        const s = this.getState().spaceship;
+        
+        // Clean up previous modifiers from this source
+        stats.removeSource(this.systemId);
+
+        // 1. CARAPACE
+        if (s.carapaceGrid) {
+            // Row Bonuses (Global Damage)
+            s.carapaceGrid.rowBonuses.forEach(rb => {
+                if (rb.unlocked) {
+                    stats.add({ statId: StatId.PLAYER_DAMAGE, value: rb.damageBonus, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+            });
+            // Col Bonuses (Player Armor)
+            s.carapaceGrid.colBonuses.forEach(cb => {
+                if (cb.unlocked) {
+                    stats.add({ statId: StatId.PLAYER_MAX_ARMOR, value: cb.armorBonus, type: ModifierType.FLAT, source: this.systemId });
+                }
+            });
+            // Nodes (Specific Enemy Damage)
+            s.carapaceGrid.nodes.flat().forEach(node => {
+                if (node.purchased) {
+                    const statKey = `DMG_VS_${node.targetEnemy}` as StatId;
+                    stats.add({ statId: statKey, value: node.damageBonus, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+            });
+        }
+
+        // 2. INFRASTRUCTURE
+        if (s.infrastructureUpgrades) {
+            s.infrastructureUpgrades.forEach(upg => {
+                if (upg.type === InfrastructureUpgradeType.BASE_HP) {
+                    stats.add({ statId: StatId.BASE_MAX_HP, value: upg.value, type: ModifierType.FLAT, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_HP) {
+                    stats.add({ statId: StatId.TURRET_HP, value: upg.value, type: ModifierType.FLAT, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_DMG) {
+                    stats.add({ statId: StatId.TURRET_DAMAGE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_RATE) {
+                    stats.add({ statId: StatId.TURRET_RATE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_DMG) {
+                    stats.add({ statId: StatId.TURRET_L1_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_COST) {
+                    stats.add({ statId: StatId.TURRET_COST, value: -upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_GAUSS_RATE) {
+                    stats.add({ statId: StatId.TURRET_GAUSS_RATE, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_SNIPER_RANGE) {
+                    stats.add({ statId: StatId.TURRET_SNIPER_RANGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+                else if (upg.type === InfrastructureUpgradeType.TURRET_MISSILE_DMG) {
+                    stats.add({ statId: StatId.TURRET_MISSILE_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: this.systemId });
+                }
+            });
+        }
     }
 
     // --- CARAPACE ANALYZER ---
@@ -85,7 +168,7 @@ export class TechManager {
         if (rowNodes.every(n => n.purchased)) {
             s.carapaceGrid.rowBonuses[row].unlocked = true;
             this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: `ROW BONUS UNLOCKED: DAMAGE +${Math.round(s.carapaceGrid.rowBonuses[row].damageBonus * 100)}%`,
+                text: this.t('ROW_BONUS_UNLOCKED', {0: Math.round(s.carapaceGrid.rowBonuses[row].damageBonus * 100)}),
                 x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, color: '#06b6d4', type: FloatingTextType.SYSTEM
             });
         }
@@ -100,7 +183,7 @@ export class TechManager {
         if (colComplete) {
             s.carapaceGrid.colBonuses[col].unlocked = true;
             this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: `COL BONUS UNLOCKED: ARMOR +${s.carapaceGrid.colBonuses[col].armorBonus}`,
+                text: this.t('COL_BONUS_UNLOCKED', {0: s.carapaceGrid.colBonuses[col].armorBonus}),
                 x: WORLD_WIDTH/2, y: WORLD_HEIGHT/2, color: '#06b6d4', type: FloatingTextType.SYSTEM
             });
         }
@@ -162,67 +245,5 @@ export class TechManager {
         s.infrastructureOptions = []; 
         
         this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
-    }
-
-    public registerModifiers() {
-        const s = this.getState().spaceship;
-        
-        // 1. CARAPACE
-        this.stats.removeSource('CARAPACE');
-        if (s.carapaceGrid) {
-            // Row Bonuses (Global Damage)
-            s.carapaceGrid.rowBonuses.forEach(rb => {
-                if (rb.unlocked) {
-                    this.stats.add({ statId: StatId.PLAYER_DAMAGE, value: rb.damageBonus, type: ModifierType.PERCENT_ADD, source: 'CARAPACE' });
-                }
-            });
-            // Col Bonuses (Player Armor)
-            s.carapaceGrid.colBonuses.forEach(cb => {
-                if (cb.unlocked) {
-                    this.stats.add({ statId: StatId.PLAYER_MAX_ARMOR, value: cb.armorBonus, type: ModifierType.FLAT, source: 'CARAPACE' });
-                }
-            });
-            // Nodes (Specific Enemy Damage)
-            s.carapaceGrid.nodes.flat().forEach(node => {
-                if (node.purchased) {
-                    const statKey = `DMG_VS_${node.targetEnemy}` as StatId;
-                    this.stats.add({ statId: statKey, value: node.damageBonus, type: ModifierType.PERCENT_ADD, source: 'CARAPACE' });
-                }
-            });
-        }
-
-        // 2. INFRASTRUCTURE
-        this.stats.removeSource('INFRASTRUCTURE');
-        if (s.infrastructureUpgrades) {
-            s.infrastructureUpgrades.forEach(upg => {
-                if (upg.type === InfrastructureUpgradeType.BASE_HP) {
-                    this.stats.add({ statId: StatId.BASE_MAX_HP, value: upg.value, type: ModifierType.FLAT, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_HP) {
-                    this.stats.add({ statId: StatId.TURRET_HP, value: upg.value, type: ModifierType.FLAT, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_DMG) {
-                    this.stats.add({ statId: StatId.TURRET_DAMAGE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.GLOBAL_TURRET_RATE) {
-                    this.stats.add({ statId: StatId.TURRET_RATE_GLOBAL, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_DMG) {
-                    this.stats.add({ statId: StatId.TURRET_L1_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_L1_COST) {
-                    this.stats.add({ statId: StatId.TURRET_COST, value: -upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_GAUSS_RATE) {
-                    this.stats.add({ statId: StatId.TURRET_GAUSS_RATE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_SNIPER_RANGE) {
-                    this.stats.add({ statId: StatId.TURRET_SNIPER_RANGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-                else if (upg.type === InfrastructureUpgradeType.TURRET_MISSILE_DMG) {
-                    this.stats.add({ statId: StatId.TURRET_MISSILE_DAMAGE, value: upg.value, type: ModifierType.PERCENT_ADD, source: 'INFRASTRUCTURE' });
-                }
-            });
-        }
     }
 }

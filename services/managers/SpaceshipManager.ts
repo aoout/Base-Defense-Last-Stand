@@ -1,23 +1,30 @@
 
-import { GameState, EnemyType, DefenseUpgradeType, GameEventType, PlaySoundEvent, StatId, ModifierType, SpaceshipModuleType } from '../../types';
+import { GameState, EnemyType, DefenseUpgradeType, GameEventType, PlaySoundEvent, StatId, ModifierType, SpaceshipModuleType, IGameSystem } from '../../types';
 import { PLAYER_STATS, ALLY_STATS, BASE_STATS, DEFENSE_UPGRADE_INFO } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { StatManager } from './StatManager';
+import { ISpaceshipSystem } from './spaceship/ISpaceshipSystem';
 import { OrbitalManager } from './spaceship/OrbitalManager';
 import { BioManager } from './spaceship/BioManager';
 import { TechManager } from './spaceship/TechManager';
 import { HeroicManager } from './spaceship/HeroicManager';
 
-export class SpaceshipManager {
+export class SpaceshipManager implements IGameSystem {
+    public readonly systemId = 'SPACESHIP_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private stats: StatManager;
 
-    // Sub-Managers
-    private orbitalManager: OrbitalManager;
-    private bioManager: BioManager;
-    private techManager: TechManager;
-    private heroicManager: HeroicManager;
+    // Sub-Managers (Exposed as public for backwards compatibility with GameEngine calls if any)
+    // In a stricter refactor, these would be private and accessed via the `systems` list.
+    public orbitalManager: OrbitalManager;
+    public bioManager: BioManager;
+    public techManager: TechManager;
+    public heroicManager: HeroicManager;
+
+    // The unified list for iteration
+    private systems: ISpaceshipSystem[];
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
@@ -29,11 +36,19 @@ export class SpaceshipManager {
         this.bioManager = new BioManager(getState, eventBus, statManager);
         this.techManager = new TechManager(getState, eventBus, statManager);
         this.heroicManager = new HeroicManager(getState, eventBus, statManager);
+
+        // Register them in the generic system list
+        this.systems = [
+            this.orbitalManager,
+            this.bioManager,
+            this.techManager,
+            this.heroicManager
+        ];
     }
 
     public update(dt: number) {
-        // Delegate orbital logic
-        this.orbitalManager.update(dt);
+        // Delegate updates to all registered systems
+        this.systems.forEach(sys => sys.update(dt));
     }
 
     // --- ORBITAL DELEGATES ---
@@ -43,7 +58,7 @@ export class SpaceshipManager {
   
     public purchaseOrbitalUpgrade(nodeId: string) {
         this.orbitalManager.purchaseUpgrade(nodeId);
-        this.registerModifiers(); // Recalculate if needed (rare for orbital, but good practice)
+        this.registerModifiers(); 
     }
 
     // --- CARAPACE DELEGATES ---
@@ -53,7 +68,7 @@ export class SpaceshipManager {
 
     public purchaseCarapaceNode(row: number, col: number) {
         this.techManager.purchaseCarapaceNode(row, col);
-        this.registerModifiers(); // Critical for stat updates
+        this.registerModifiers(); 
     }
 
     // --- INFRASTRUCTURE DELEGATES ---
@@ -126,12 +141,11 @@ export class SpaceshipManager {
         const s = state.spaceship;
         const p = state.player;
 
-        // 1. Trigger Sub-Managers to register their source-specific stats
-        this.bioManager.registerModifiers();
-        this.techManager.registerModifiers();
-        this.heroicManager.registerModifiers();
+        // 1. Iterate through all registered systems and apply their stats
+        this.systems.forEach(sys => sys.applyStats(this.stats));
         
         // 2. Register Global/Core Upgrades (Modules & Player)
+        // These belong to the "Core" Spaceship Manager scope
         this.stats.removeSource('SPACESHIP_MODULES');
         this.stats.removeSource('PLAYER_UPGRADES');
 

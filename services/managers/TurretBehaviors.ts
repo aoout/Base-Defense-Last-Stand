@@ -1,5 +1,5 @@
 
-import { Turret, Enemy, GameEventType, SpawnProjectileEvent, PlaySoundEvent, DamageSource, TurretType, SpawnParticleEvent } from '../../types';
+import { Turret, Enemy, GameEventType, SpawnProjectileEvent, PlaySoundEvent, DamageSource, TurretType, SpawnParticleEvent, ProjectileID } from '../../types';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
 
@@ -84,16 +84,13 @@ abstract class BaseTurretBehavior implements TurretBehavior {
 export class StandardBehavior extends BaseTurretBehavior {
     protected fire(turret: Turret, target: Enemy, context: TurretContext): void {
         context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+            presetId: ProjectileID.T_STANDARD,
             x: turret.x, 
             y: turret.y, 
             targetX: target.x, 
             targetY: target.y, 
-            speed: 20, 
             damage: turret.damage, 
-            fromPlayer: true, 
-            color: '#10b981', 
-            maxRange: turret.range, 
-            source: DamageSource.TURRET
+            maxRange: turret.range
         });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: TurretType.STANDARD });
     }
@@ -107,16 +104,13 @@ export class GaussBehavior extends BaseTurretBehavior {
 
     protected fire(turret: Turret, target: Enemy, context: TurretContext): void {
         context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+            presetId: ProjectileID.T_GAUSS,
             x: turret.x, 
             y: turret.y, 
             targetX: target.x, 
             targetY: target.y, 
-            speed: 24, 
             damage: turret.damage, 
-            fromPlayer: true, 
-            color: '#10b981', 
-            maxRange: turret.range, 
-            source: DamageSource.TURRET
+            maxRange: turret.range
         });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: TurretType.GAUSS });
     }
@@ -130,17 +124,13 @@ export class GaussBehavior extends BaseTurretBehavior {
 export class SniperBehavior extends BaseTurretBehavior {
     protected fire(turret: Turret, target: Enemy, context: TurretContext): void {
         context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+            presetId: ProjectileID.T_SNIPER,
             x: turret.x, 
             y: turret.y, 
             targetX: target.x, 
             targetY: target.y, 
-            speed: 60, // Instant-hit visual feel
             damage: turret.damage, 
-            fromPlayer: true, 
-            color: '#FAFAFA', // White Beam 
-            maxRange: turret.range, 
-            source: DamageSource.TURRET,
-            isPiercing: true
+            maxRange: turret.range
         });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: TurretType.SNIPER });
     }
@@ -149,19 +139,13 @@ export class SniperBehavior extends BaseTurretBehavior {
 export class MissileBehavior extends BaseTurretBehavior {
     protected fire(turret: Turret, target: Enemy, context: TurretContext): void {
         context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
+            presetId: ProjectileID.T_MISSILE,
             x: turret.x, 
             y: turret.y, 
             targetX: target.x, 
             targetY: target.y, 
-            speed: 18, 
             damage: turret.damage, 
-            fromPlayer: true, 
-            color: '#ef4444', 
             maxRange: turret.range, 
-            source: DamageSource.TURRET,
-            isHoming: true,
-            isExplosive: true,
-            explosionRadius: 100,
             homingTargetId: target.id
         });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: TurretType.MISSILE });

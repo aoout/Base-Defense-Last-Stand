@@ -1,12 +1,15 @@
 
-import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode, Turret } from '../../types';
+import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode, Turret, IGameSystem, ProjectileID } from '../../types';
 import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
+import { TRANSLATIONS } from '../../data/locales';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
 import { StatManager } from './StatManager';
 import { TurretBehavior, StandardBehavior, GaussBehavior, SniperBehavior, MissileBehavior } from './TurretBehaviors';
 
-export class DefenseManager {
+export class DefenseManager implements IGameSystem {
+    public readonly systemId = 'DEFENSE_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private spatialGrid: SpatialHashGrid<Enemy>;
@@ -34,6 +37,20 @@ export class DefenseManager {
         this.events.on(GameEventType.DEFENSE_INTERACT, () => this.interact());
         this.events.on<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, (e) => this.confirmTurretUpgrade(e.type));
         this.events.on(GameEventType.DEFENSE_CLOSE_MENU, () => this.closeTurretUpgrade());
+    }
+
+    private t(key: string, params?: Record<string, string | number>): string {
+        const lang = this.getState().settings.language || 'EN';
+        // @ts-ignore
+        const dict = TRANSLATIONS[lang] || TRANSLATIONS.EN;
+        // @ts-ignore
+        let str = dict[key] || key;
+        if (params) {
+            Object.entries(params).forEach(([k, v]) => {
+                str = str.replace(`{${k}}`, String(v));
+            });
+        }
+        return str;
     }
 
     public update(dt: number, time: number, timeScale: number) {
@@ -71,7 +88,7 @@ export class DefenseManager {
             });
             state.lastAllySpawnTime = Date.now();
             this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                text: "REINFORCEMENTS ARRIVED", x: spawnX, y: state.base.y - 20, color: '#3b82f6', type: FloatingTextType.SYSTEM
+                text: this.t('REINFORCEMENTS_ARRIVED'), x: spawnX, y: state.base.y - 20, color: '#3b82f6', type: FloatingTextType.SYSTEM
             });
         }
 
@@ -124,7 +141,10 @@ export class DefenseManager {
 
                 if (d < ALLY_STATS.range && time - a.lastFireTime > 500) {
                     this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
-                        x: a.x, y: a.y, targetX: target.x, targetY: target.y, speed: 15, damage: a.damage, fromPlayer: true, color: '#60a5fa', maxRange: ALLY_STATS.range + 50, source: DamageSource.ALLY
+                        presetId: ProjectileID.ALLY_STD,
+                        x: a.x, y: a.y, 
+                        targetX: target.x, targetY: target.y, 
+                        damage: a.damage
                     });
                     a.lastFireTime = time;
                     this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'ALLY' });
@@ -231,14 +251,18 @@ export class DefenseManager {
                         spinUp: 0
                     };
                     this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'BUILD' });
+                    // Force UI Update to show new turret
+                    this.events.emit(GameEventType.UI_UPDATE, { reason: 'TURRET_BUILD' });
                 } else {
                     this.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
-                        text: "INSUFFICIENT FUNDS", x: p.x, y: p.y - 50, color: 'red', type: FloatingTextType.SYSTEM
+                        text: this.t('INSUFFICIENT_FUNDS_TEXT'), x: p.x, y: p.y - 50, color: 'red', type: FloatingTextType.SYSTEM
                     });
                 }
             } else {
                 if (spot.builtTurret.level < 2) {
                     state.activeTurretId = closestSpot;
+                    // FORCE UI UPDATE to open the upgrade menu immediately
+                    this.events.emit(GameEventType.UI_UPDATE, { reason: 'TURRET_MENU_OPEN' });
                 }
             }
         }

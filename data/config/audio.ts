@@ -1,5 +1,11 @@
 
-import { SoundProfile, WeaponType } from "../../types";
+import { SoundProfile, WeaponType, GameEventType } from "../../types";
+
+// Mapping Interface
+interface SoundMapEntry {
+    profileId: string;
+    variant?: string | number | boolean; // If present, match specific variant
+}
 
 export const SFX_LIBRARY: Record<string, SoundProfile> = {
     // --- WEAPONS FIRE ---
@@ -255,4 +261,43 @@ export const SFX_LIBRARY: Record<string, SoundProfile> = {
             { type: 'OSCILLATOR', oscillatorType: 'square', frequency: 50, volume: 0.3, duration: 0.8, delay: 0.1 }
         ]
     }
+};
+
+/**
+ * Maps complex GameEvent types to simple String Profile IDs
+ */
+export const EVENT_TO_SOUND_MAP: Record<string, string> = {
+    [`WEAPON_${WeaponType.AR}`]: `WEAPON_${WeaponType.AR}`,
+    [`WEAPON_${WeaponType.SG}`]: `WEAPON_${WeaponType.SG}`,
+    [`WEAPON_${WeaponType.SR}`]: `WEAPON_${WeaponType.SR}`,
+    [`WEAPON_${WeaponType.PISTOL}`]: `WEAPON_${WeaponType.PISTOL}`,
+    [`WEAPON_${WeaponType.FLAMETHROWER}`]: `WEAPON_${WeaponType.FLAMETHROWER}`,
+    [`WEAPON_${WeaponType.PULSE_RIFLE}`]: `WEAPON_${WeaponType.PULSE_RIFLE}`,
+    [`WEAPON_${WeaponType.GRENADE_LAUNCHER}`]: `WEAPON_${WeaponType.GRENADE_LAUNCHER}`,
+    
+    [`RELOAD_${WeaponType.AR}`]: `RELOAD_${WeaponType.AR}`,
+    [`RELOAD_${WeaponType.SG}`]: `RELOAD_${WeaponType.SG}`,
+    [`RELOAD_${WeaponType.SR}`]: `RELOAD_${WeaponType.SR}`,
+    [`RELOAD_${WeaponType.PISTOL}`]: `RELOAD_${WeaponType.PISTOL}`,
+    [`RELOAD_${WeaponType.FLAMETHROWER}`]: `RELOAD_${WeaponType.FLAMETHROWER}`,
+    [`RELOAD_${WeaponType.PULSE_RIFLE}`]: `RELOAD_${WeaponType.PULSE_RIFLE}`,
+    [`RELOAD_${WeaponType.GRENADE_LAUNCHER}`]: `RELOAD_${WeaponType.GRENADE_LAUNCHER}`,
+
+    'TURRET_BUILD': 'TURRET_BUILD',
+    'TURRET_UPGRADE': 'TURRET_UPGRADE',
+    'TURRET_STANDARD': 'TURRET_1',
+    'TURRET_GAUSS': 'TURRET_1',
+    'TURRET_SNIPER': 'TURRET_SNIPER',
+    'TURRET_MISSILE': 'TURRET_2', // Fallback
+    
+    'ALLY': 'ALLY_SHOOT',
+    'EXPLOSION': 'EXPLOSION',
+    'GRENADE_THROW': 'GRENADE_THROW',
+    'VIPER_SHOOT': 'VIPER_SHOOT',
+    'MELEE_HIT': 'MELEE_HIT',
+    'BASE_DAMAGE': 'BASE_DAMAGE',
+    'BULLET_HIT': 'BULLET_HIT',
+    'ORBITAL_STRIKE': 'ORBITAL_STRIKE',
+    'BOSS_DEATH': 'BOSS_DEATH',
+    'ENEMY_DEATH': 'ENEMY_DEATH'
 };

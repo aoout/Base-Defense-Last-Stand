@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { CarapaceNode, EnemyType } from '../../types';
+import { CarapaceNode, EnemyType, AppMode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm } from '../../utils/renderers';
 import { useLocale } from '../contexts/LocaleContext';
@@ -61,11 +61,11 @@ export const CarapaceAnalyzerUI: React.FC = () => {
     if (!grid) return null;
 
     const handlePurchase = (row: number, col: number) => {
-        engine.purchaseCarapaceNode(row, col);
+        engine.spaceshipManager.purchaseCarapaceNode(row, col);
     }
 
     const handleClose = () => {
-        engine.exitCarapaceGrid();
+        engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW);
     }
 
     // Calculate Totals (Directly in render to ensure fresh data from mutable state)

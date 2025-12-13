@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { GalaxyConfig, StatId } from '../../types';
+import { GalaxyConfig, StatId, AppMode } from '../../types';
 import { PlanetDetailScreen } from './PlanetDetailScreen';
 import { GalaxyIndexModal } from './GalaxyIndexModal';
 import { useLocale } from '../contexts/LocaleContext';
@@ -28,12 +28,11 @@ export const SectorMapUI: React.FC = () => {
     const [showIndex, setShowIndex] = useState(false);
 
     const handleScan = (config: GalaxyConfig) => {
-        const event = new CustomEvent('game-action', { detail: { type: 'SCAN_SECTOR', config } });
-        window.dispatchEvent(event);
+        engine.galaxyManager.scanSector(config);
     };
 
     const handleDeploy = (id: string) => {
-        engine.deployToPlanet(id);
+        engine.galaxyManager.deployToPlanet(id);
     };
 
     // Calculate drop cost
@@ -57,8 +56,8 @@ export const SectorMapUI: React.FC = () => {
             {/* --- TOP: TELEMETRY BAR --- */}
             <SectorTopBar 
                 sectorName={state.sectorName || t('SECTOR_NAME')} 
-                onSave={() => engine.saveGame()} 
-                onExit={() => engine.returnToMainMenu()}
+                onSave={() => engine.saveManager.saveGame()} 
+                onExit={() => engine.sessionManager.returnToMainMenu()}
             />
 
             {/* --- MIDDLE: INTERACTION LAYER (Planet Panel) --- */}
@@ -72,14 +71,14 @@ export const SectorMapUI: React.FC = () => {
                         onClose={() => engine.selectPlanet(null)}
                         onShowDetail={() => setViewingDetail(true)}
                         onDeploy={handleDeploy}
-                        onConstruct={() => engine.enterPlanetConstruction()}
+                        onConstruct={() => engine.sessionManager.setMode(AppMode.PLANET_CONSTRUCTION)}
                     />
                 )}
             </div>
 
             {/* --- BOTTOM: CONTROL DECK --- */}
             <SectorBottomDeck 
-                onOpenShip={() => engine.enterSpaceshipView()} 
+                onOpenShip={() => engine.sessionManager.setMode(AppMode.SPACESHIP_VIEW)} 
                 onOpenIndex={() => setShowIndex(true)} 
             />
 
@@ -100,7 +99,7 @@ export const SectorMapUI: React.FC = () => {
                     canAfford={canAfford}
                     onClose={() => setViewingDetail(false)} 
                     onDeploy={() => handleDeploy(planet.id)}
-                    onOpenConstruction={() => engine.enterPlanetConstruction()}
+                    onOpenConstruction={() => engine.sessionManager.setMode(AppMode.PLANET_CONSTRUCTION)}
                 />
             )}
 

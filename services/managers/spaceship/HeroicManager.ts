@@ -2,24 +2,75 @@
 import { GameState, HeroicNode, HeroicUpgradeType, StatId, ModifierType, GameEventType, PlaySoundEvent } from '../../../types';
 import { EventBus } from '../../EventBus';
 import { StatManager } from '../StatManager';
+import { ISpaceshipSystem } from './ISpaceshipSystem';
 
-export class HeroicManager {
+export class HeroicManager implements ISpaceshipSystem {
+    public readonly systemId = 'HEROIC';
+
     private getState: () => GameState;
     private events: EventBus;
-    private stats: StatManager;
 
     constructor(getState: () => GameState, eventBus: EventBus, statManager: StatManager) {
         this.getState = getState;
         this.events = eventBus;
-        this.stats = statManager;
+    }
+
+    public update(dt: number): void {
+        // No per-frame update needed
+    }
+
+    public applyStats(stats: StatManager): void {
+        const s = this.getState().spaceship;
+        
+        // Clean up previous modifiers from this source
+        stats.removeSource(this.systemId);
+
+        if (s.heroicNodes) {
+            s.heroicNodes.forEach(node => {
+                if (node.purchased) {
+                    let statId: string | null = null;
+                    let modType = ModifierType.FLAT;
+                    let val = node.value;
+
+                    switch(node.type) {
+                        case HeroicUpgradeType.MAX_HP: 
+                            statId = StatId.PLAYER_MAX_HP; 
+                            modType = ModifierType.FLAT; 
+                            break;
+                        case HeroicUpgradeType.MAX_ARMOR: 
+                            statId = StatId.PLAYER_MAX_ARMOR; 
+                            modType = ModifierType.FLAT; 
+                            break;
+                        case HeroicUpgradeType.DAMAGE: 
+                            statId = StatId.PLAYER_DAMAGE; 
+                            modType = ModifierType.PERCENT_ADD; 
+                            break;
+                        case HeroicUpgradeType.MOVE_SPEED: 
+                            statId = StatId.PLAYER_MOVE_SPEED; 
+                            modType = ModifierType.PERCENT_ADD; 
+                            break;
+                        case HeroicUpgradeType.RELOAD_SPEED: 
+                            statId = StatId.PLAYER_RELOAD_SPEED; 
+                            modType = ModifierType.PERCENT_ADD; 
+                            val = -node.value; // Reduction
+                            break;
+                        case HeroicUpgradeType.TURRET_MASTERY: 
+                            statId = StatId.TURRET_DAMAGE_GLOBAL; 
+                            modType = ModifierType.PERCENT_ADD; 
+                            break;
+                    }
+
+                    if (statId) {
+                        stats.add({ statId, value: val, type: modType, source: this.systemId });
+                    }
+                }
+            });
+        }
     }
 
     public generateGrid() {
         const s = this.getState().spaceship;
         // Check if we need to regenerate (either empty, or legacy heart shape detected)
-        // Legacy heart shape had x/y roughly in range [-1, 1].
-        // New Helix shape will have y spanning much larger range (e.g. 0 to 100).
-        // We force regeneration if it looks like the old grid or is empty.
         
         let needRegen = false;
         if (!s.heroicNodes || s.heroicNodes.length === 0) {
@@ -44,11 +95,6 @@ export class HeroicManager {
         const totalNodes = 100;
         
         // --- HELIX PARAMETERS ---
-        // We create 3 strands intertwined.
-        // Strand 0: Offense (Left)
-        // Strand 1: Utility (Center/Core)
-        // Strand 2: Defense (Right)
-        
         const verticalSpacing = 0.8; // Distance between rows
         const radius = 2.5; // Width of the helix
         const twistRate = 0.2; // How fast it spins
@@ -137,28 +183,7 @@ export class HeroicManager {
         if (!node || node.purchased) return;
         if (p.score < node.cost) return;
 
-        // Connectivity Logic for Helix
-        // 1. Bottom nodes (row 0 => ids 0,1,2) are always unlockable
-        // 2. Otherwise, need connection to a node in the Previous Row
-        // Simplified connectivity: Need ANY node from (row-1) to be purchased? 
-        // Or strictly same strand? Let's allow cross-strand connections for flexibility.
-        // Rule: Can buy Node N if ANY node in range [N-4, N-1] is purchased.
-        // Actually, let's say you need a connection from the node "below" it geometrically.
-        
-        // Strict Strand Logic:
-        // Strand 0 (Left) needs prev Node on Strand 0 OR Center
-        // Strand 1 (Center) needs prev Node on Center OR Left OR Right
-        // Strand 2 (Right) needs prev Node on Strand 2 OR Center
-        
-        // Let's implement a simpler "Proximity" check since we have x,y
-        // Or just ID based:
-        // Node i is unlockable if:
-        // i < 3 (Base layer)
-        // OR (i-3 is purchased) [Same strand vertical]
-        // OR (i-2 is purchased) [Diagonal]
-        // OR (i-4 is purchased) [Diagonal]
-        
-        // Let's go with: You can buy node I if any node J is purchased AND J is in the row directly below I.
+        // Connection Check
         const row = Math.floor(id / 3);
         let isReachable = false;
         
@@ -184,52 +209,5 @@ export class HeroicManager {
         node.purchased = true;
         
         this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 2 });
-    }
-
-    public registerModifiers() {
-        const s = this.getState().spaceship;
-        this.stats.removeSource('HEROIC');
-
-        if (s.heroicNodes) {
-            s.heroicNodes.forEach(node => {
-                if (node.purchased) {
-                    let statId: string | null = null;
-                    let modType = ModifierType.FLAT;
-                    let val = node.value;
-
-                    switch(node.type) {
-                        case HeroicUpgradeType.MAX_HP: 
-                            statId = StatId.PLAYER_MAX_HP; 
-                            modType = ModifierType.FLAT; 
-                            break;
-                        case HeroicUpgradeType.MAX_ARMOR: 
-                            statId = StatId.PLAYER_MAX_ARMOR; 
-                            modType = ModifierType.FLAT; 
-                            break;
-                        case HeroicUpgradeType.DAMAGE: 
-                            statId = StatId.PLAYER_DAMAGE; 
-                            modType = ModifierType.PERCENT_ADD; 
-                            break;
-                        case HeroicUpgradeType.MOVE_SPEED: 
-                            statId = StatId.PLAYER_MOVE_SPEED; 
-                            modType = ModifierType.PERCENT_ADD; 
-                            break;
-                        case HeroicUpgradeType.RELOAD_SPEED: 
-                            statId = StatId.PLAYER_RELOAD_SPEED; 
-                            modType = ModifierType.PERCENT_ADD; 
-                            val = -node.value; // Reduction
-                            break;
-                        case HeroicUpgradeType.TURRET_MASTERY: 
-                            statId = StatId.TURRET_DAMAGE_GLOBAL; 
-                            modType = ModifierType.PERCENT_ADD; 
-                            break;
-                    }
-
-                    if (statId) {
-                        this.stats.add({ statId, value: val, type: modType, source: 'HEROIC' });
-                    }
-                }
-            });
-        }
     }
 }

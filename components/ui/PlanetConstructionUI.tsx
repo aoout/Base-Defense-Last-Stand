@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { PlanetBuildingType } from '../../types';
+import { PlanetBuildingType, AppMode } from '../../types';
 import { ModuleWindow } from './ModuleWindow';
 import { drawPlanetSprite } from '../../utils/renderers';
 import { GAS_INFO } from '../../data/world';
@@ -15,11 +15,11 @@ export const PlanetConstructionUI: React.FC = () => {
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
 
     const handleConstruct = (planetId: string, type: PlanetBuildingType, slotIndex: number) => {
-        engine.constructBuilding(planetId, type, slotIndex);
+        engine.galaxyManager.constructBuilding(planetId, type, slotIndex);
     }
 
     const handleClose = () => {
-        engine.exitPlanetConstruction();
+        engine.sessionManager.setMode(AppMode.EXPLORATION_MAP);
     }
 
     const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
@@ -36,13 +36,10 @@ export const PlanetConstructionUI: React.FC = () => {
     // Buildings
     const buildings = planet.buildings || [];
 
-    // Yield Calculations
-    const o2Gas = planet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id);
-    const o2 = o2Gas ? o2Gas.percentage : 0;
-    
-    const biomassYield = Math.floor(800 * (1 + planet.geneStrength));
-    // Updated calculation for preview
-    const oxygenYield = Math.floor(1700 * (1 + 1.8 * o2));
+    // Retrieve Centralized Yield Estimates (Refactored to remove logic from View)
+    const estimates = engine.galaxyManager.estimatePlanetYields(planet);
+    const oxygenGas = planet.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id);
+    const o2 = oxygenGas ? oxygenGas.percentage : 0;
 
     const renderBuildingCard = (type: PlanetBuildingType, cost: number, yieldVal: number) => {
         const canAfford = state.player.score >= cost;
@@ -109,8 +106,8 @@ export const PlanetConstructionUI: React.FC = () => {
                     </div>
 
                     <div className="flex-1">
-                        {renderBuildingCard(PlanetBuildingType.BIOMASS_EXTRACTOR, 5500, biomassYield)}
-                        {renderBuildingCard(PlanetBuildingType.OXYGEN_EXTRACTOR, 7000, oxygenYield)}
+                        {renderBuildingCard(PlanetBuildingType.BIOMASS_EXTRACTOR, 5500, estimates.biomass)}
+                        {renderBuildingCard(PlanetBuildingType.OXYGEN_EXTRACTOR, 7000, estimates.oxygen)}
                     </div>
                 </div>
 

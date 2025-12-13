@@ -1,10 +1,12 @@
 
-import { GameState, Particle, BloodStain, FloatingText, FloatingTextType, GameEventType, SpawnParticleEvent, SpawnBloodStainEvent, SpawnToxicZoneEvent, ShowFloatingTextEvent } from '../../types';
+import { GameState, Particle, BloodStain, FloatingText, FloatingTextType, GameEventType, SpawnParticleEvent, SpawnBloodStainEvent, SpawnToxicZoneEvent, ShowFloatingTextEvent, IGameSystem, EnemyKilledEvent, PlaySoundEvent } from '../../types';
 import { TOXIC_ZONE_STATS } from '../../data/registry';
 import { EventBus } from '../EventBus';
 import { ObjectPool, generateId } from '../../utils/ObjectPool';
 
-export class FXManager {
+export class FXManager implements IGameSystem {
+    public readonly systemId = 'FX_SYSTEM';
+
     private getState: () => GameState;
     private events: EventBus;
     private particlePool: ObjectPool<Particle>;
@@ -48,13 +50,29 @@ export class FXManager {
         this.events.on<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, (e) => {
             this.addFloatingText(e.text, e.x, e.y, e.color, e.type, e.time);
         });
+        this.events.on<EnemyKilledEvent>(GameEventType.ENEMY_KILLED, (e) => {
+            this.handleEnemyKilled(e);
+        });
     }
 
-    public update(dt: number, timeScale: number) {
+    public update(dt: number, time: number, timeScale: number) {
         this.updateParticles(dt, timeScale);
         this.updateBlood(dt);
         this.updateToxicZones(dt);
         this.updateFloatingTexts(dt, timeScale);
+    }
+
+    private handleEnemyKilled(e: EnemyKilledEvent) {
+        // Blood
+        this.spawnBloodStain(e.x, e.y, e.color, e.maxHp);
+        
+        // Sound
+        this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { 
+            type: 'ENEMY_DEATH', 
+            variant: e.isBoss, 
+            x: e.x, 
+            y: e.y 
+        });
     }
 
     private updateParticles(dt: number, timeScale: number) {

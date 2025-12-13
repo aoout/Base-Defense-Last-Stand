@@ -243,13 +243,5 @@ export const drawBase = (ctx: CanvasRenderingContext2D, base: { x: number, y: nu
         ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI*2); ctx.fill();
     }
 
-    const bHpPct = base.hp / base.maxHp;
-    ctx.fillStyle = '#7F1D1D';
-    ctx.fillRect(-w/2, h/2 + 5, w, 6);
-    ctx.fillStyle = '#10B981';
-    ctx.fillRect(-w/2, h/2 + 5, w * bHpPct, 6);
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.fillRect(-w/2, h/2 + 5, w * bHpPct, 2);
-
     ctx.restore();
 }

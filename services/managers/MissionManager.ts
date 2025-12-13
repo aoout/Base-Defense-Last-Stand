@@ -1,8 +1,11 @@
 
 import { GameEngine } from '../gameService';
-import { GameMode, MissionType, SpecialEventType, FloatingTextType, EnemyType, StatId, GameEventType } from '../../types';
+import { GameMode, MissionType, SpecialEventType, FloatingTextType, EnemyType, StatId, GameEventType, IGameSystem, BossType } from '../../types';
+import { selectEnemyType } from '../../utils/enemyUtils';
 
-export class MissionManager {
+export class MissionManager implements IGameSystem {
+    public readonly systemId = 'MISSION_SYSTEM';
+
     private engine: GameEngine;
 
     // Configuration Constants
@@ -55,10 +58,10 @@ export class MissionManager {
                 const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER, EnemyType.TUBE_WORM];
                 const type = types[Math.floor(Math.random() * types.length)];
                 
-                this.engine.enemyManager.spawnSpecificEnemy(type, x, y);
+                this.engine.enemyManager.spawn(type, x, y);
             }
             
-            this.engine.addMessage("HOSTILE DETECTED ON PERIMETER", state.player.x, state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
+            this.engine.addMessage(this.engine.t('HOSTILE_DETECTED'), state.player.x, state.player.y - 100, '#F87171', FloatingTextType.SYSTEM);
         }
     }
 
@@ -69,7 +72,9 @@ export class MissionManager {
 
             const pos = this.findSafeSpawnPosition(state, 1000); // 1000 min dist from base
             if (pos) {
-                this.engine.enemyManager.spawnPustule(pos.x, pos.y);
+                this.engine.enemyManager.spawn(EnemyType.PUSTULE, pos.x, pos.y, {
+                    bossSummonTimer: 15000
+                });
                 this.engine.addMessage(this.engine.t('BOSS_DETECTED'), pos.x, pos.y, '#a3e635', FloatingTextType.SYSTEM);
             }
         }
@@ -84,8 +89,26 @@ export class MissionManager {
             if (Math.random() < 0.6) {
                 const existing = state.enemies.find((e: any) => e.type === EnemyType.TUBE_WORM && e.isBoss);
                 if (!existing) {
-                    this.engine.enemyManager.spawnCampaignBoss();
-                    this.engine.addMessage("SEISMIC WARNING: THE DEVOURER SURFACES", state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
+                    const corners = [
+                        { x: 100, y: 100 },
+                        { x: state.worldWidth - 100, y: 100 },
+                        { x: 100, y: state.worldHeight - 100 },
+                        { x: state.worldWidth - 100, y: state.worldHeight - 100 }
+                    ];
+                    const corner = corners[Math.floor(Math.random() * corners.length)];
+
+                    this.engine.enemyManager.spawn(EnemyType.TUBE_WORM, corner.x, corner.y, {
+                        isBoss: true,
+                        flatHp: state.campaign.bossHp || 4000000,
+                        angleOverride: Math.PI/2,
+                        scoreOverride: 50000,
+                        isWandering: true,
+                        wanderDuration: 60000,
+                        burrowState: 'SURFACING',
+                        scaleY: 0
+                    });
+
+                    this.engine.addMessage(this.engine.t('DEVOURER_SURFACES'), state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
                     this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'ORBITAL_STRIKE' });
                 }
             }
@@ -114,11 +137,24 @@ export class MissionManager {
 
         if (state.wave.spawnTimer > spawnInterval) {
             if (state.wave.pendingCount > 0) {
-                this.engine.enemyManager.spawnEnemy();
+                this.spawnWaveEnemy();
                 state.wave.pendingCount--;
             }
             state.wave.spawnTimer -= spawnInterval; 
         }
+    }
+
+    private spawnWaveEnemy() {
+        const state = this.engine.state;
+        const type = this.selectEnemyTypeForWave(state);
+        const x = Math.random() * state.worldWidth;
+        const y = -50; 
+        this.engine.enemyManager.spawn(type, x, y);
+    }
+
+    // Moved selection logic wrapper here (util imported elsewhere)
+    private selectEnemyTypeForWave(state: any): EnemyType {
+        return selectEnemyType(state.wave.index, state.gameMode, state.currentPlanet, state.wave.activeEvent);
     }
 
     private checkWaveCompletion() {
@@ -134,7 +170,7 @@ export class MissionManager {
                 const allEnemiesDefeated = state.enemies.length === 0;
 
                 if (allEnemiesSpawned && allEnemiesDefeated) {
-                    this.engine.completeMission();
+                    this.engine.sessionManager.completeMission();
                 }
             } else {
                 this.nextWave();
@@ -172,7 +208,7 @@ export class MissionManager {
                 // Boss Event
                 if (state.gameMode === GameMode.SURVIVAL || (state.currentPlanet?.missionType === MissionType.DEFENSE)) {
                     state.wave.activeEvent = SpecialEventType.BOSS;
-                    this.engine.enemyManager.spawnBoss(); 
+                    this.spawnBoss(); 
                     this.engine.addMessage(this.engine.t('BOSS_DETECTED'), state.worldWidth/2, state.worldHeight/2, 'purple', FloatingTextType.SYSTEM);
                 }
             }
@@ -197,6 +233,23 @@ export class MissionManager {
         
         state.wave.pendingCount += newEnemies;
         this.engine.notifyUI('WAVE_UPDATE');
+    }
+
+    private spawnBoss() {
+        const state = this.engine.state;
+        const roll = Math.random();
+        let bossType = BossType.RED_SUMMONER;
+        if (roll > 0.6) bossType = BossType.BLUE_BURST;
+        if (roll > 0.85) bossType = BossType.PURPLE_ACID;
+
+        const x = state.worldWidth / 2;
+        const y = 100;
+        
+        this.engine.enemyManager.spawn(EnemyType.TANK, x, y, {
+            isBoss: true,
+            bossType: bossType,
+            angleOverride: Math.PI/2
+        });
     }
 
     public skipWave() {

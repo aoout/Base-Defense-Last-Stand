@@ -1,35 +1,40 @@
 
-import { EnemyType, BossType, Projectile, Enemy } from '../../types';
-import { 
-    drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawTubeWorm,
-    drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother,
-    drawProjectile
-} from '../../utils/renderers';
+import { Projectile, IVisualDefinition } from '../../types';
+import { drawProjectile } from '../../utils/renderers';
 
 export class AssetManager {
     private spriteCache: Map<string, HTMLCanvasElement> = new Map();
 
     /**
-     * Clears the entire cache. Useful when changing quality settings or themes.
+     * Clears the entire cache.
      */
     public clearCache() {
         this.spriteCache.clear();
     }
 
     /**
-     * Generates or retrieves a cached sprite for an enemy.
-     * The sprite is a static snapshot (time = 0) of the entity.
+     * Generic sprite retrieval.
+     * If the definition says STATIC, it attempts to fetch/create a cached canvas.
+     * If DYNAMIC, it returns null (caller should draw directly).
      */
-    public getEnemySprite(type: EnemyType, bossType: BossType | undefined, color: string, radius: number): HTMLCanvasElement {
-        // Create a unique key for this specific visual configuration
-        const key = `ENEMY_${type}_${bossType || 'NONE'}_${color}_${radius}`;
+    public getSprite<T>(entity: T, def: IVisualDefinition<T>, lodLevel: number): HTMLCanvasElement | null {
+        // 1. Check Policy
+        const policy = def.getCachePolicy(lodLevel);
+        if (policy === 'DYNAMIC') return null;
+
+        // 2. Generate Key
+        // We append LOD level to key because Low LOD might draw differently (less detail) even if static
+        const key = `${def.getCacheKey(entity)}_LOD${lodLevel}`;
 
         if (this.spriteCache.has(key)) {
             return this.spriteCache.get(key)!;
         }
 
-        // Generate the sprite
-        const buffer = 40; // Extra space for limbs/glows extending beyond radius
+        // 3. Generate Sprite
+        // We assume 'radius' exists on entity for sizing, or we pass a size?
+        // In this game, all renderable entities have a radius.
+        const radius = (entity as any).radius || 20;
+        const buffer = 40; // Extra draw space
         const size = (radius + buffer) * 2;
         const center = size / 2;
 
@@ -40,41 +45,8 @@ export class AssetManager {
 
         if (ctx) {
             ctx.translate(center, center);
-            // Mock enemy object for the drawer
-            const mockEnemy: any = {
-                type,
-                bossType,
-                isBoss: !!bossType,
-                color,
-                radius,
-                // Static mock data
-                x: 0, y: 0, angle: 0, hp: 100, maxHp: 100,
-                visualScaleY: 1 // For Tube Worm
-            };
-
-            // Rotate -90deg because our draw functions assume facing right (0), 
-            // but for a sprite we usually want it facing UP or Right consistently.
-            // Actually, drawUnits assume standard canvas orientation. 
-            // Let's draw it neutral.
-            
-            // Draw the unit at time=0 (Static Pose)
-            if (bossType) {
-                switch (bossType) {
-                    case BossType.RED_SUMMONER: drawBossRed(ctx, mockEnemy, 0); break;
-                    case BossType.BLUE_BURST: drawBossBlue(ctx, mockEnemy, 0); break;
-                    case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEnemy, 0); break;
-                    case BossType.HIVE_MOTHER: drawHiveMother(ctx, mockEnemy, 0); break;
-                }
-            } else {
-                switch (type) {
-                    case EnemyType.GRUNT: drawGrunt(ctx, mockEnemy, 0, 0); break;
-                    case EnemyType.RUSHER: drawRusher(ctx, mockEnemy, 0, 0); break;
-                    case EnemyType.TANK: drawTank(ctx, mockEnemy, 0, 0); break;
-                    case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEnemy, 0, 0); break;
-                    case EnemyType.VIPER: drawViper(ctx, mockEnemy, 0, 0); break;
-                    case EnemyType.TUBE_WORM: drawTubeWorm(ctx, mockEnemy, 0); break;
-                }
-            }
+            // Render at time 0 for static snapshot
+            def.render(ctx, entity, 0, lodLevel);
         }
 
         this.spriteCache.set(key, canvas);
@@ -82,11 +54,9 @@ export class AssetManager {
     }
 
     /**
-     * Generates or retrieves a cached sprite for a projectile.
-     * Mostly useful for complex projectiles, as simple circles are fast enough.
+     * Legacy projectile caching (could be refactored into VisualRegistry too, but kept simple here)
      */
     public getProjectileSprite(p: Projectile): HTMLCanvasElement | null {
-        // Only cache complex projectiles
         if (!p.isHoming && !p.createsToxicZone && p.weaponType !== 'Flamethrower') return null;
 
         const key = `PROJ_${p.weaponType}_${p.color}_${p.isHoming}`;
@@ -104,11 +74,7 @@ export class AssetManager {
 
         if (ctx) {
             ctx.translate(center, center);
-            // Mock projectile
-            const mockProj: any = {
-                ...p,
-                x: 0, y: 0, angle: 0
-            };
+            const mockProj: any = { ...p, x: 0, y: 0, angle: 0 };
             drawProjectile(ctx, mockProj);
         }
 
