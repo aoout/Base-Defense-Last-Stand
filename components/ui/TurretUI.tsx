@@ -1,7 +1,7 @@
 
 import React, { useCallback } from 'react';
 import { TurretType, GameEventType, DefenseUpgradeTurretEvent, StatId, ModifierType, Turret } from '../../types';
-import { TURRET_COSTS, TURRET_STATS } from '../../data/registry';
+import { TURRET_COSTS, TURRET_STATS, TURRET_RETROFIT_COSTS } from '../../data/registry';
 import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { CloseButton } from './Shared';
@@ -65,6 +65,9 @@ export const TurretUpgradeUI: React.FC = () => {
     const spot = state.turretSpots[turretId];
     if (!spot || !spot.builtTurret) return null;
 
+    const currentTurret = spot.builtTurret;
+    const isRetrofit = currentTurret.level === 2;
+
     const handleConfirmUpgrade = (type: TurretType) => {
         engine.eventBus.emit<DefenseUpgradeTurretEvent>(GameEventType.DEFENSE_UPGRADE_TURRET, { type });
     };
@@ -74,15 +77,7 @@ export const TurretUpgradeUI: React.FC = () => {
     };
 
     // Calculate dynamic stats for preview
-    // NOTE: Using DataManager could be added to Turret definitions if we had a getTurretStats method,
-    // but turrets are currently defined in registry.ts directly as TURRET_STATS without a wrapper.
-    // For consistency with recent refactors, we should ideally move TURRET_STATS to DataManager,
-    // but it's currently hardcoded in registry. We'll use the imported TURRET_STATS for now as DataManager only wraps Weapons/Enemies.
-    // This comment acknowledges the gap.
-    
     const getCalculatedStats = (type: TurretType) => {
-        // Fallback to static registry for now, or add getTurretStats to DataManager later
-        // Currently: importing TURRET_STATS directly is acceptable as it's not dynamic yet.
         const base = TURRET_STATS[type];
         const stats = engine.statManager;
 
@@ -117,11 +112,11 @@ export const TurretUpgradeUI: React.FC = () => {
         };
     };
 
-    const upgrades = [
+    let upgrades = [
         { 
             type: TurretType.GAUSS, 
             name: t('GAUSS_NAME'), 
-            cost: TURRET_COSTS.upgrade_gauss, 
+            cost: isRetrofit ? TURRET_RETROFIT_COSTS[TurretType.GAUSS] : TURRET_COSTS.upgrade_gauss, 
             desc: t('GAUSS_DESC'),
             color: '#10b981', // Emerald
             textColor: 'text-emerald-400',
@@ -131,7 +126,7 @@ export const TurretUpgradeUI: React.FC = () => {
         { 
             type: TurretType.SNIPER, 
             name: t('SNIPER_NAME'), 
-            cost: TURRET_COSTS.upgrade_sniper, 
+            cost: isRetrofit ? TURRET_RETROFIT_COSTS[TurretType.SNIPER] : TURRET_COSTS.upgrade_sniper, 
             desc: t('SNIPER_DESC'),
             color: '#ffffff', // White
             textColor: 'text-slate-200',
@@ -141,7 +136,7 @@ export const TurretUpgradeUI: React.FC = () => {
         { 
             type: TurretType.MISSILE, 
             name: t('MISSILE_NAME'), 
-            cost: TURRET_COSTS.upgrade_missile, 
+            cost: isRetrofit ? TURRET_RETROFIT_COSTS[TurretType.MISSILE] : TURRET_COSTS.upgrade_missile, 
             desc: t('MISSILE_DESC'),
             color: '#ef4444', // Red
             textColor: 'text-red-400',
@@ -149,6 +144,11 @@ export const TurretUpgradeUI: React.FC = () => {
             bgGradient: 'from-red-900/40'
         }
     ];
+
+    // Filter out current type for Retrofit
+    if (isRetrofit) {
+        upgrades = upgrades.filter(u => u.type !== currentTurret.type);
+    }
 
     return (
         <div className="absolute inset-0 bg-slate-950/90 flex items-center justify-center pointer-events-auto z-[150] backdrop-blur-sm">
@@ -159,7 +159,9 @@ export const TurretUpgradeUI: React.FC = () => {
                 <CloseButton onClick={handleClose} colorClass="border-slate-600 text-slate-400 hover:text-white hover:bg-slate-800 z-20" />
 
                 <div className="text-center mb-8 relative z-10">
-                    <h2 className="text-3xl font-display font-black text-white tracking-[0.2em] uppercase">{t('SYSTEM_UPGRADE')}</h2>
+                    <h2 className="text-3xl font-display font-black text-white tracking-[0.2em] uppercase">
+                        {t(isRetrofit ? 'SYSTEM_RETROFIT' : 'SYSTEM_UPGRADE')}
+                    </h2>
                     <div className="flex justify-center items-center gap-2 mt-2">
                         <span className="text-xs text-slate-500 font-mono tracking-widest">{t('SELECT_MODULE')}</span>
                         <div className="h-px w-12 bg-slate-700"></div>
@@ -167,7 +169,7 @@ export const TurretUpgradeUI: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-6 relative z-10">
+                <div className={`grid ${isRetrofit ? 'grid-cols-2' : 'grid-cols-3'} gap-6 relative z-10 px-8`}>
                     {upgrades.map(u => {
                         const canAfford = p.score >= u.cost;
                         const stats = getCalculatedStats(u.type);

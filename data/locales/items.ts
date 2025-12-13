@@ -73,6 +73,7 @@ export const ITEMS_EN = {
 
     // --- TURRETS ---
     SYSTEM_UPGRADE: "HARDWARE UPGRADE",
+    SYSTEM_RETROFIT: "HARDWARE RETROFIT",
     SELECT_MODULE: "SELECT CONFIGURATION",
     GAUSS_NAME: "GAUSS REPEATER",
     GAUSS_DESC: "Spins up 1% faster per shot (Max +200%). Base Rate 240ms.",
@@ -85,6 +86,9 @@ export const ITEMS_EN = {
     SPD: "RPM",
     GLOBAL: "GLOBAL",
     CANCEL_HINT: "CANCEL [ESC]",
+    BUILD_TURRET: "BUILD TURRET",
+    UPGRADE_TURRET: "UPGRADE TURRET",
+    RETROFIT_TURRET: "RETROFIT TURRET",
 };
 
 export const ITEMS_CN = {
@@ -168,6 +172,7 @@ export const ITEMS_CN = {
 
     // --- TURRETS ---
     SYSTEM_UPGRADE: "硬件升级",
+    SYSTEM_RETROFIT: "硬件改装",
     SELECT_MODULE: "选择配置方案",
     GAUSS_NAME: "高斯机炮",
     GAUSS_DESC: "每次射击增加1%攻速（上限+200%）。基础射速240ms。",
@@ -180,4 +185,7 @@ export const ITEMS_CN = {
     SPD: "射速",
     GLOBAL: "全图",
     CANCEL_HINT: "取消 [ESC]",
+    BUILD_TURRET: "建造炮塔",
+    UPGRADE_TURRET: "升级炮塔",
+    RETROFIT_TURRET: "改装炮塔",
 };

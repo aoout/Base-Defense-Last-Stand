@@ -15,7 +15,7 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
     // State to trigger render only when CONTENT changes (Type, Cost, Affordability)
     // We do NOT store X/Y here to avoid re-rendering React components every frame.
     const [promptData, setPromptData] = useState<{
-        type: 'DEPOT' | 'BUILD' | 'UPGRADE' | null,
+        type: 'DEPOT' | 'BUILD' | 'UPGRADE' | 'RETROFIT' | null,
         cost?: number,
         canAfford?: boolean
     }>({ type: null });
@@ -41,7 +41,7 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
         }
 
         const p = s.player;
-        let newType: 'DEPOT' | 'BUILD' | 'UPGRADE' | null = null;
+        let newType: 'DEPOT' | 'BUILD' | 'UPGRADE' | 'RETROFIT' | null = null;
         let newCost = 0;
         let newAfford = false;
         
@@ -86,7 +86,7 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
                 if (spot.builtTurret.level < 2) {
                     newType = 'UPGRADE';
                 } else {
-                    newType = null;
+                    newType = 'RETROFIT'; // Level 2 can be retrofitted
                 }
             } else {
                 newType = 'BUILD';
@@ -151,6 +151,15 @@ export const InteractPrompt: React.FC<{ state: GameState }> = () => {
             <div className="flex gap-2 items-center">
                 <span className="font-black text-emerald-300 bg-emerald-900/50 px-1.5 rounded">[{interactKey}]</span>
                 <span>{t('UPGRADE_TURRET')}</span>
+            </div>
+        );
+    } else if (promptData.type === 'RETROFIT') {
+        borderColor = 'border-purple-500';
+        textColor = 'text-purple-400';
+        content = (
+            <div className="flex gap-2 items-center">
+                <span className="font-black text-purple-300 bg-purple-900/50 px-1.5 rounded">[{interactKey}]</span>
+                <span>{t('RETROFIT_TURRET')}</span>
             </div>
         );
     } else if (promptData.type === 'BUILD') {

@@ -9,6 +9,12 @@ export const TURRET_COSTS = {
   upgrade_missile: 4100,
 };
 
+export const TURRET_RETROFIT_COSTS = {
+  [TurretType.GAUSS]: 500,
+  [TurretType.SNIPER]: 700,
+  [TurretType.MISSILE]: 1100,
+};
+
 export const TURRET_STATS = {
   // HP increased by 50% (1200->1800, 3600->5400, 3000->4500, 2400->3600)
   [TurretType.STANDARD]: { hp: 1800, range: 400, damage: 60, fireRate: 120 },

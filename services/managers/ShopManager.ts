@@ -117,6 +117,16 @@ export class ShopManager {
         const def = this.WEAPON_CATALOG[itemKey];
         if (!def) return false;
 
+        const p = this.engine.state.player;
+        
+        // Check if player already owns this weapon (in loadout OR inventory)
+        const inLoadout = p.loadout.includes(def.type);
+        const inInventory = p.inventory.some(i => i !== null && i.type === def.type);
+
+        if (inLoadout || inInventory) {
+            return true; // Consider handled (UI should have disabled this, but safety check)
+        }
+
         return this.tryTransaction(SHOP_PRICES[def.priceKey], () => {
             this.addToInventory(def.type);
         });

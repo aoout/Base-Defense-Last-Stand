@@ -1,6 +1,6 @@
 
 import { AllyOrder, TurretType, Enemy, FloatingTextType, DamageSource, GameState, GameEventType, SpawnParticleEvent, PlaySoundEvent, SpawnProjectileEvent, ShowFloatingTextEvent, DefenseIssueOrderEvent, DefenseUpgradeTurretEvent, StatId, GameMode, Turret, IGameSystem, ProjectileID } from '../../types';
-import { ALLY_STATS, TURRET_STATS, TURRET_COSTS } from '../../data/registry';
+import { ALLY_STATS, TURRET_STATS, TURRET_COSTS, TURRET_RETROFIT_COSTS } from '../../data/registry';
 import { TRANSLATIONS } from '../../data/locales';
 import { EventBus } from '../EventBus';
 import { SpatialHashGrid } from '../../utils/spatialHash';
@@ -262,11 +262,10 @@ export class DefenseManager implements IGameSystem {
                     });
                 }
             } else {
-                if (spot.builtTurret.level < 2) {
-                    state.activeTurretId = closestSpot;
-                    // FORCE UI UPDATE to open the upgrade menu immediately
-                    this.events.emit(GameEventType.UI_UPDATE, { reason: 'TURRET_MENU_OPEN' });
-                }
+                // Open menu for Upgrade (L1->L2) OR Retrofit (L2->L2)
+                state.activeTurretId = closestSpot;
+                // FORCE UI UPDATE to open the upgrade menu immediately
+                this.events.emit(GameEventType.UI_UPDATE, { reason: 'TURRET_MENU_OPEN' });
             }
         }
     }
@@ -278,9 +277,18 @@ export class DefenseManager implements IGameSystem {
         if (!spot.builtTurret) return;
         
         let cost = 0;
-        if (type === TurretType.GAUSS) cost = TURRET_COSTS.upgrade_gauss;
-        if (type === TurretType.SNIPER) cost = TURRET_COSTS.upgrade_sniper;
-        if (type === TurretType.MISSILE) cost = TURRET_COSTS.upgrade_missile;
+        
+        // Check if it's a Retrofit (Level 2 -> Level 2) or Upgrade (Level 1 -> Level 2)
+        if (spot.builtTurret.level === 2) {
+            // Retrofit Cost
+            // @ts-ignore
+            cost = TURRET_RETROFIT_COSTS[type] || 9999;
+        } else {
+            // Upgrade Cost
+            if (type === TurretType.GAUSS) cost = TURRET_COSTS.upgrade_gauss;
+            if (type === TurretType.SNIPER) cost = TURRET_COSTS.upgrade_sniper;
+            if (type === TurretType.MISSILE) cost = TURRET_COSTS.upgrade_missile;
+        }
 
         if (state.player.score >= cost) {
             state.player.score -= cost;
@@ -308,7 +316,7 @@ export class DefenseManager implements IGameSystem {
             if (type === TurretType.GAUSS) specificMult = this.stats.get(StatId.TURRET_GAUSS_RATE, 1.0);
             
             spot.builtTurret.fireRate = baseStats.fireRate / (rateMult * specificMult);
-            spot.builtTurret.spinUp = 0; // Reset spinup on upgrade
+            spot.builtTurret.spinUp = 0; // Reset spinup on upgrade/retrofit
             
             this.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'TURRET', variant: 'UPGRADE' });
             this.closeTurretUpgrade();

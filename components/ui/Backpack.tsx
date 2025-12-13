@@ -10,6 +10,9 @@ import { useLocale } from '../contexts/LocaleContext';
 import { useGame } from '../contexts/GameContext';
 import { Icons } from './Icons';
 
+// --- UTILS ---
+const getWeaponNameKey = (type: string) => `WEAPON_${type.replace(/\s+/g, '_').toUpperCase()}_NAME`;
+
 // --- SUB-COMPONENTS ---
 
 const TechStatRow: React.FC<{ label: string, value: string | number, barValue?: number, color?: string }> = ({ label, value, barValue, color = 'cyan' }) => (
@@ -32,8 +35,9 @@ const TechStatRow: React.FC<{ label: string, value: string | number, barValue?: 
 const InventorySlot: React.FC<{ 
     item: { type: WeaponType } | null, 
     idx: number, 
-    onDragStart: (e: React.DragEvent) => void 
-}> = ({ item, idx, onDragStart }) => (
+    onDragStart: (e: React.DragEvent) => void,
+    t: any
+}> = ({ item, idx, onDragStart, t }) => (
     <div 
         draggable={!!item}
         onDragStart={onDragStart}
@@ -47,7 +51,7 @@ const InventorySlot: React.FC<{
             <>
                 <WeaponIcon type={item.type} className="w-5 h-5 text-slate-400 group-hover:text-cyan-400 transition-colors mr-3" />
                 <div className="text-[10px] font-bold text-slate-300 group-hover:text-white tracking-wider uppercase truncate">
-                    {item.type}
+                    {t(getWeaponNameKey(item.type))}
                 </div>
             </>
         ) : (
@@ -96,7 +100,7 @@ const HardpointCard: React.FC<{
                 </div>
                 <div className="min-w-0">
                     <div className={`text-sm sm:text-base font-display font-black uppercase tracking-wide leading-none mb-0.5 truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
-                        {t(`WEAPON_${type}_NAME`)}
+                        {t(getWeaponNameKey(type))}
                     </div>
                     <div className="text-[8px] text-slate-500 font-mono truncate">
                         {type === WeaponType.PISTOL ? 'SIDEARM CLASS' : 'PRIMARY CLASS'}
@@ -188,6 +192,7 @@ export const TacticalBackpack: React.FC = () => {
                                     key={idx} 
                                     idx={idx} 
                                     item={p.inventory[idx]} 
+                                    t={t}
                                     onDragStart={(e) => {
                                         if (p.inventory[idx]) {
                                             setDraggedItemIdx(idx);
@@ -257,7 +262,7 @@ export const TacticalBackpack: React.FC = () => {
                             <div className="relative z-10 text-center px-4">
                                 <div className="text-[10px] text-cyan-500 font-bold tracking-[0.2em] mb-1 uppercase">ANALYZING</div>
                                 <div className="text-2xl sm:text-3xl font-display font-black text-white uppercase tracking-wider truncate">
-                                    {selectedWeapon === 'GRENADE' ? t('GRENADE') : t(`WEAPON_${selectedWeapon}_NAME`)}
+                                    {selectedWeapon === 'GRENADE' ? t('GRENADE') : t(getWeaponNameKey(selectedWeapon as string))}
                                 </div>
                             </div>
                         </div>
@@ -334,4 +339,3 @@ export const TacticalBackpack: React.FC = () => {
         </div>
     );
 };
-    

@@ -89,6 +89,12 @@ export const ShopModal: React.FC = () => {
         return t('COMPAT_ALL');
     };
 
+    const isWeaponOwned = (type: WeaponType) => {
+        const inLoadout = p.loadout.includes(type);
+        const inInventory = p.inventory.some(i => i !== null && i.type === type);
+        return inLoadout || inInventory;
+    };
+
     const headerRight = (
         <div className="flex flex-col items-end mr-16">
             <div className={`${DS.text.label} text-yellow-600 mb-1`}>{t('AVAILABLE_FUNDS')}</div>
@@ -191,30 +197,26 @@ export const ShopModal: React.FC = () => {
 
                    {activeTab === 'WEAPONS' && (
                         <div className="grid grid-cols-2 gap-4">
-                            <ShopItemCard 
-                                name={t('WEAPON_PULSE_RIFLE_NAME')}
-                                desc={t('WEAPON_PULSE_DESC')}
-                                cost={SHOP_PRICES.WEAPON_PULSE} 
-                                canAfford={p.score >= SHOP_PRICES.WEAPON_PULSE}
-                                onClick={() => handlePurchase('WEAPON_PULSE')}
-                                icon={<WeaponIcon type={WeaponType.PULSE_RIFLE} />}
-                            />
-                            <ShopItemCard 
-                                name={t('WEAPON_FLAMETHROWER_NAME')}
-                                desc={t('WEAPON_FLAME_DESC')}
-                                cost={SHOP_PRICES.WEAPON_FLAME} 
-                                canAfford={p.score >= SHOP_PRICES.WEAPON_FLAME}
-                                onClick={() => handlePurchase('WEAPON_FLAME')}
-                                icon={<WeaponIcon type={WeaponType.FLAMETHROWER} />}
-                            />
-                            <ShopItemCard 
-                                name={t('WEAPON_GRENADE_LAUNCHER_NAME')}
-                                desc={t('WEAPON_GL_DESC')}
-                                cost={SHOP_PRICES.WEAPON_GL} 
-                                canAfford={p.score >= SHOP_PRICES.WEAPON_GL}
-                                onClick={() => handlePurchase('WEAPON_GL')}
-                                icon={<WeaponIcon type={WeaponType.GRENADE_LAUNCHER} />}
-                            />
+                            {[
+                                { name: 'WEAPON_PULSE_RIFLE_NAME', desc: 'WEAPON_PULSE_DESC', id: 'WEAPON_PULSE', cost: SHOP_PRICES.WEAPON_PULSE, type: WeaponType.PULSE_RIFLE },
+                                { name: 'WEAPON_FLAMETHROWER_NAME', desc: 'WEAPON_FLAME_DESC', id: 'WEAPON_FLAME', cost: SHOP_PRICES.WEAPON_FLAME, type: WeaponType.FLAMETHROWER },
+                                { name: 'WEAPON_GRENADE_LAUNCHER_NAME', desc: 'WEAPON_GL_DESC', id: 'WEAPON_GL', cost: SHOP_PRICES.WEAPON_GL, type: WeaponType.GRENADE_LAUNCHER },
+                            ].map(w => {
+                                const owned = isWeaponOwned(w.type);
+                                return (
+                                    <ShopItemCard 
+                                        key={w.id}
+                                        name={t(w.name)}
+                                        desc={t(w.desc)}
+                                        cost={w.cost} 
+                                        canAfford={p.score >= w.cost}
+                                        disabled={owned}
+                                        label={owned ? t('OWNED') : undefined}
+                                        onClick={() => handlePurchase(w.id)}
+                                        icon={<WeaponIcon type={w.type} />}
+                                    />
+                                );
+                            })}
                         </div>
                    )}
 
