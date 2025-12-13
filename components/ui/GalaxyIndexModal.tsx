@@ -48,7 +48,7 @@ const TacticalSlider: React.FC<TacticalSliderProps> = ({ label, value, min, max,
     const percentage = Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
 
     return (
-        <div className={`mb-4 group ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+        <div className={`mb-2 group ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
             <div className="flex justify-between items-end mb-1">
                 <label className="text-[10px] font-bold text-slate-500 tracking-[0.1em] uppercase group-hover:text-slate-300 transition-colors">{label}</label>
                 <div className={`font-mono text-xs font-bold ${textClass} bg-slate-900 px-2 py-0.5 border border-slate-700 rounded`}>
@@ -173,7 +173,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
 
                 {/* LEFT: Selection List */}
                 <div className="w-[300px] flex flex-col border-r border-slate-800 bg-slate-950/50 z-10">
-                    <div className="flex border-b border-slate-800">
+                    <div className="flex border-b border-slate-800 shrink-0">
                         <button 
                             className={`flex-1 py-4 text-[10px] font-bold tracking-[0.2em] transition-all relative overflow-hidden group
                                 ${activeTab === 'PROTOCOLS' ? 'text-cyan-400 bg-slate-900' : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900/50'}`}
@@ -192,7 +192,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                         </button>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin scrollbar-thumb-slate-800">
                         {activeTab === 'PROTOCOLS' ? (
                             (['LOW', 'MED', 'HIGH', 'CUSTOM'] as const).map(preset => {
                                 const config = PRESETS[preset];
@@ -210,7 +210,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                     <button 
                                         key={preset} 
                                         onClick={() => setMode(preset)} 
-                                        className={`w-full p-4 border transition-all text-left group relative overflow-hidden ${colorClass}`}
+                                        className={`w-full p-3 border transition-all text-left group relative overflow-hidden ${colorClass}`}
                                     >
                                         <div className="relative z-10 flex justify-between items-center">
                                             <div>
@@ -240,7 +240,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                     <button 
                                         key={sector.id} 
                                         onClick={() => setSelectedSectorId(sector.id)} 
-                                        className={`w-full p-4 border transition-all text-left group relative overflow-hidden ${colorClass}`}
+                                        className={`w-full p-3 border transition-all text-left group relative overflow-hidden ${colorClass}`}
                                     >
                                         <div className="relative z-10">
                                             <div className="flex justify-between items-center mb-1">
@@ -326,7 +326,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                 <div className="w-[350px] flex flex-col border-l border-slate-800 bg-slate-950/80 z-10 relative">
                     
                     {/* Header */}
-                    <div className="flex justify-between items-center h-14 px-6 border-b border-slate-800 bg-slate-900">
+                    <div className="flex justify-between items-center h-12 px-4 border-b border-slate-800 bg-slate-900 shrink-0">
                         <h3 className="text-xs font-bold text-slate-300 tracking-[0.2em] uppercase">{t('INDEX_DEF')}</h3>
                         <div className="flex items-center gap-2">
                             <div className={`w-1.5 h-1.5 rounded-full ${isLocked || activeTab === 'ARCHIVES' ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'}`}></div>
@@ -337,20 +337,20 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                     </div>
 
                     {/* Content - DYNAMIC SCROLLING HANDLING */}
-                    <div className={`flex-1 flex flex-col relative min-h-0 ${activeTab === 'PROTOCOLS' ? 'overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-800' : 'overflow-hidden'}`}>
+                    <div className={`flex-1 flex flex-col relative min-h-0 ${activeTab === 'PROTOCOLS' ? 'overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-slate-800' : 'overflow-hidden'}`}>
                         
                         {activeTab === 'PROTOCOLS' ? (
-                            <div className="space-y-8 animate-fadeIn">
+                            <div className="space-y-6 animate-fadeIn">
                                 {/* Random Generation Sliders */}
                                 <div>
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 border-b border-slate-800 pb-1 flex justify-between">
                                         <span>{t('MISSION_PARAMS')}</span>
                                         <span className="text-slate-700">/// 01</span>
                                     </div>
                                     <TacticalSlider label={t('MIN_WAVES')} value={minWaves} min={1} max={50} step={1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMinWaves(Math.min(v, maxWaves))} />
                                     <TacticalSlider label={t('MAX_WAVES')} value={maxWaves} min={1} max={60} step={1} color={PRESETS[mode].color} disabled={isLocked} onChange={(v) => setMaxWaves(Math.max(v, minWaves))} />
                                     
-                                    <div className={`mt-4 flex justify-between items-center p-3 border rounded transition-colors ${offenseEnabled ? 'bg-red-900/20 border-red-500/50' : 'bg-slate-900 border-slate-700'} ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'}`} onClick={() => !isLocked && setOffenseEnabled(!offenseEnabled)}>
+                                    <div className={`mt-2 flex justify-between items-center p-2 border rounded transition-colors ${offenseEnabled ? 'bg-red-900/20 border-red-500/50' : 'bg-slate-900 border-slate-700'} ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'}`} onClick={() => !isLocked && setOffenseEnabled(!offenseEnabled)}>
                                         <div className="flex flex-col">
                                             <span className={`text-[10px] font-bold tracking-wider ${offenseEnabled ? 'text-red-400' : 'text-slate-500'}`}>{t('ENABLE_OFFENSE')}</span>
                                             <span className="text-[9px] text-slate-600 font-mono">BOSS ENCOUNTER PROBABILITY</span>
@@ -362,7 +362,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                 </div>
 
                                 <div>
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 border-b border-slate-800 pb-1 flex justify-between">
                                         <span>GENETIC SEQUENCER</span>
                                         <span className="text-slate-700">/// 02</span>
                                     </div>
@@ -371,7 +371,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                 </div>
                                 
                                 <div>
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-4 border-b border-slate-800 pb-1 flex justify-between">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2 border-b border-slate-800 pb-1 flex justify-between">
                                         <span>TOPOGRAPHY</span>
                                         <span className="text-slate-700">/// 03</span>
                                     </div>
@@ -379,7 +379,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                 </div>
 
                                 {isLocked && (
-                                    <div className="mt-8 p-4 border border-slate-800 bg-slate-900/50 text-center">
+                                    <div className="mt-4 p-2 border border-slate-800 bg-slate-900/50 text-center">
                                         <div className="text-red-500 text-[10px] font-mono tracking-widest animate-pulse">PARAMETER LOCK ENGAGED</div>
                                         <div className="text-slate-600 text-[9px] mt-1">SWITCH TO MANUAL MODE TO OVERRIDE</div>
                                     </div>
@@ -390,7 +390,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                             selectedSector ? (
                                 <div className="flex flex-col h-full animate-fadeIn">
                                     {/* LORE SECTION (Top 40%) - Independently Scrollable */}
-                                    <div className="p-6 pb-0 shrink-0 max-h-[40%] flex flex-col">
+                                    <div className="p-4 pb-0 shrink-0 max-h-[40%] flex flex-col">
                                         <div className="bg-purple-900/10 border border-purple-500/30 p-4 relative overflow-y-auto scrollbar-thin scrollbar-thumb-purple-900 max-h-full">
                                             <div className="sticky top-0 right-0 float-right -mt-2 -mr-2 p-1 z-10">
                                                 <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping"></div>
@@ -401,7 +401,7 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                     </div>
                                     
                                     {/* DIVIDER */}
-                                    <div className="px-6 pt-4 pb-2 shrink-0">
+                                    <div className="px-4 pt-4 pb-2 shrink-0">
                                         <div className="text-[10px] text-slate-500 font-bold uppercase border-b border-slate-800 pb-1 flex justify-between">
                                             <span>STELLAR BODIES</span>
                                             <span className="text-slate-700">/// {selectedSector.planets.length} DETECTED</span>
@@ -409,10 +409,10 @@ export const GalaxyIndexModal: React.FC<GalaxyIndexModalProps> = ({ onClose, onS
                                     </div>
 
                                     {/* PLANET LIST (Remaining Space) - Independently Scrollable */}
-                                    <div className="flex-1 overflow-y-auto px-6 pb-6 scrollbar-thin scrollbar-thumb-slate-800">
+                                    <div className="flex-1 overflow-y-auto px-4 pb-4 scrollbar-thin scrollbar-thumb-slate-800">
                                         <div className="space-y-1">
                                             {selectedSector.planets.map((p, i) => (
-                                                <div key={i} className="flex justify-between items-center text-xs py-2 px-3 bg-slate-900/50 border border-slate-800 hover:border-slate-600 transition-colors">
+                                                <div key={i} className="flex justify-between items-center text-xs py-1.5 px-3 bg-slate-900/50 border border-slate-800 hover:border-slate-600 transition-colors">
                                                     <div className="flex items-center gap-3">
                                                         <div className="w-2 h-2 rounded-full" style={{backgroundColor: BIOME_STYLES[p.biome || 'BARREN' as any].planetColor}}></div>
                                                         <span className="text-slate-300 font-bold">{p.name}</span>
