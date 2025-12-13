@@ -529,9 +529,9 @@ export const TacticalTerminal: React.FC = () => {
                                 <div className="col-span-2 row-span-1 mt-auto">
                                     <MenuCard 
                                         title={t('RE_DEPLOY')} 
-                                        subtitle={t('SURVIVAL_DESC')} 
+                                        subtitle={state.gameMode === GameMode.CAMPAIGN ? t('CAMPAIGN_DESC') : t('SURVIVAL_DESC')} 
                                         icon={<svg viewBox="0 0 24 24" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="2"><Icons.DropPod /></svg>} 
-                                        onClick={() => engine.sessionManager.reset(true, GameMode.SURVIVAL)} 
+                                        onClick={() => engine.sessionManager.reset(true, state.gameMode)} 
                                         variant="warning" 
                                         index={8}
                                     />
