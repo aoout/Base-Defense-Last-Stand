@@ -243,8 +243,11 @@ export class DefenseManager implements IGameSystem {
 
                     spot.builtTurret = {
                         id: `t-${Date.now()}`,
-                        x: spot.x, y: spot.y, radius: 12, angle: 0, color: '', level: 1,
-                        type: TurretType.STANDARD, lastFireTime: 0,
+                        x: spot.x, y: spot.y, radius: 12, 
+                        angle: -Math.PI / 2, // Facing UP by default
+                        color: '', level: 1,
+                        // Fix: Initialize lastFireTime to a past value to prevent instant firing animation on build
+                        type: TurretType.STANDARD, lastFireTime: -2000, 
                         range: baseStats.range,
                         hp: finalHp, maxHp: finalHp,
                         damage: finalDmg, fireRate: finalRate,

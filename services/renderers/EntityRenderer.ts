@@ -22,13 +22,16 @@ export class EntityRenderer {
     public render(ctx: CanvasRenderingContext2D, state: GameState, time: number) {
         const { camera } = state;
         const dropActive = state.baseDrop && state.baseDrop.active;
+        
+        // Use Game Simulation Time for entities to ensure animations sync with logic (like fire rate cooldowns)
+        const simTime = state.time;
 
         // 1. Static Structures (Turret Spots)
         if (!dropActive || state.baseDrop!.phase === 'DEPLOY') {
             state.turretSpots.forEach(spot => {
                 if (!isVisible(spot.x, spot.y, 20, camera)) return;
                 if (!spot.builtTurret) {
-                    drawTurretSpot(ctx, spot, time);
+                    drawTurretSpot(ctx, spot, simTime);
                 }
             });
         }
@@ -57,10 +60,11 @@ export class EntityRenderer {
 
         // --- BATCH 2: ENTITIES ---
         // Render order: Turrets -> Enemies -> Allies -> Player (Painter's algorithm)
-        this.renderGroup(ctx, turrets, time, camera);
-        this.renderGroup(ctx, enemies, time, camera, state.settings.performanceMode);
-        this.renderGroup(ctx, allies, time, camera);
-        this.renderGroup(ctx, player, time, camera);
+        // Note: Passing simTime instead of real-time to sync animations with game logic states
+        this.renderGroup(ctx, turrets, simTime, camera);
+        this.renderGroup(ctx, enemies, simTime, camera, state.settings.performanceMode);
+        this.renderGroup(ctx, allies, simTime, camera);
+        this.renderGroup(ctx, player, simTime, camera);
 
         // --- BATCH 3: UI OVERLAYS (Bars, Aim Lines) ---
         if (state.player.isAiming && !dropActive) {

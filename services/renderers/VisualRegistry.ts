@@ -1,3 +1,4 @@
+
 import { Enemy, EnemyType, BossType, IVisualDefinition, Player, Ally, Turret, TurretType, Entity } from '../../types';
 import { 
     drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, 
@@ -67,8 +68,10 @@ class VisualRegistry {
         };
         
         // Register all turret types
+        // Changed to DYNAMIC because turrets have internal parts (barrel vs base) that rotate differently,
+        // and muzzle flashes depend on exact game time which cannot be cached statically.
         Object.values(TurretType).forEach(type => {
-            this.register(type, turretRender, 'STATIC');
+            this.register(type, turretRender, 'DYNAMIC');
         });
     }
 

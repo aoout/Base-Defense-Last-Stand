@@ -98,7 +98,7 @@ export const MissionFailedScreen: React.FC = () => {
                      </div>
                  </div>
                  <div className="flex-1 flex justify-center gap-6">
-                     <button onClick={() => engine.reset()} className="px-8 py-4 bg-red-900 hover:bg-red-800 text-white font-bold tracking-widest uppercase border border-red-600 transition-all hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]">{t('RE_DEPLOY')}</button>
+                     <button onClick={() => engine.sessionManager.reset()} className="px-8 py-4 bg-red-900 hover:bg-red-800 text-white font-bold tracking-widest uppercase border border-red-600 transition-all hover:scale-105 shadow-[0_0_15px_rgba(220,38,38,0.5)]">{t('RE_DEPLOY')}</button>
                      <button onClick={handleDownloadReport} className="px-8 py-4 bg-black hover:bg-gray-900 text-red-500 font-bold tracking-widest uppercase border border-red-900 transition-all hover:text-red-400 flex items-center gap-2"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>{t('SAVE_INTEL')}</button>
                  </div>
              </div>

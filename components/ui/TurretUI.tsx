@@ -36,6 +36,9 @@ const TurretPreview: React.FC<{ type: TurretType, color: string }> = ({ type, co
         ctx.lineWidth = 2;
         ctx.stroke();
         
+        // Manual Rotation required because drawTurret now expects context to be rotated
+        ctx.rotate(t.angle);
+
         // Draw Turret
         drawTurret(ctx, t, time, false);
         

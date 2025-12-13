@@ -10,8 +10,11 @@ export const drawDropPod = (ctx: CanvasRenderingContext2D, x: number, y: number)
 };
 
 export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: number, showShadows: boolean) => {
+    // Note: Context is already translated to (t.x, t.y) and rotated by t.angle by the caller (EntityRenderer)
+    
+    // --- 1. STATIC BASE (Un-rotate to keep it fixed) ---
     ctx.save();
-    ctx.translate(t.x, t.y);
+    ctx.rotate(-t.angle); 
 
     if (showShadows) {
         drawEllipse(ctx, 0, 8, 15, 10, PALETTE.UI.SHADOW);
@@ -19,16 +22,28 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
 
     const hpPct = Math.max(0, t.hp / t.maxHp);
     const barH = 20; const barW = 4; const barX = -22; const barY = -10;
+    
+    // Health Bar (Left side)
     ctx.fillStyle = '#1f2937'; ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = hpPct > 0.6 ? PALETTE.UI.HP_GOOD : hpPct > 0.3 ? PALETTE.UI.HP_MED : PALETTE.UI.HP_LOW;
     ctx.fillRect(barX, barY + (barH * (1 - hpPct)), barW, barH * hpPct);
     ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 1; ctx.strokeRect(barX, barY, barW, barH);
 
+    // Tripod Feet
     ctx.fillStyle = '#064E3B'; 
-    for(let i=0; i<3; i++) { ctx.save(); ctx.rotate(i * (Math.PI * 2 / 3)); ctx.fillRect(5, -2, 12, 4); ctx.restore(); }
+    for(let i=0; i<3; i++) { 
+        ctx.save(); 
+        ctx.rotate(i * (Math.PI * 2 / 3)); 
+        ctx.fillRect(5, -2, 12, 4); 
+        ctx.restore(); 
+    }
     drawCircle(ctx, 0, 0, 10, '#064E3B');
 
-    ctx.rotate(t.angle);
+    ctx.restore(); // End Static Base
+
+    // --- 2. ROTATING BARREL ---
+    // Context is already rotated by t.angle, so we draw facing forward (Angle 0 relative to context)
+    
     const isFiring = time - t.lastFireTime < 60;
     const recoil = isFiring ? -3 : 0;
     const flash = isFiring;
@@ -55,8 +70,6 @@ export const drawTurret = (ctx: CanvasRenderingContext2D, t: Turret, time: numbe
         ctx.fillRect(-8, -12, 4, 8); ctx.fillRect(4, -12, 4, 8);
         ctx.fillRect(-8, 4, 4, 8); ctx.fillRect(4, 4, 4, 8);
     }
-    
-    ctx.restore();
 };
 
 const drawCloneCenter = (ctx: CanvasRenderingContext2D, x: number, y: number, time: number) => {

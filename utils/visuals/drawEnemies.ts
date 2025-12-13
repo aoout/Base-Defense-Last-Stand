@@ -7,30 +7,33 @@ import { PALETTE } from '../../theme/colors';
  * Draws floating health/armor bars.
  */
 export const drawEnemyBars = (ctx: CanvasRenderingContext2D, e: Enemy, lodLevel: number) => {
+    // Only hide bars in extreme performance mode (LOD 2)
     if (lodLevel >= 2) return; 
 
-    const isDamaged = e.hp < e.maxHp;
-    const hasArmor = e.type === 'TANK' && e.shellValue && e.shellValue > 0;
-    
-    if (!e.isBoss && !hasArmor && !isDamaged) return;
+    // REMOVED: Logic that hid bars for full HP enemies.
+    // const isDamaged = e.hp < e.maxHp;
+    // const hasArmor = e.type === 'TANK' && e.shellValue && e.shellValue > 0;
+    // if (!e.isBoss && !hasArmor && !isDamaged) return;
 
     const hpPct = Math.max(0, e.hp / e.maxHp);
     const radius = e.radius;
     const yOff = radius + 12;
     
     let barW = 24;
-    let barH = 2;
+    let barH = 3; // Made slightly thicker for better visibility
     
     if (e.isBoss) {
         barW = 60;
-        barH = 4;
+        barH = 5;
     } else if (e.type === 'TANK') {
         barW = 32;
     }
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'; 
+    // Background
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; 
     ctx.fillRect(-barW/2, yOff, barW, barH);
 
+    // Foreground
     if (e.isBoss) {
         const grad = ctx.createLinearGradient(-barW/2, 0, barW/2, 0);
         grad.addColorStop(0, '#a855f7'); 
@@ -41,24 +44,28 @@ export const drawEnemyBars = (ctx: CanvasRenderingContext2D, e: Enemy, lodLevel:
         else if (hpPct > 0.25) ctx.fillStyle = '#facc15';
         else ctx.fillStyle = '#ef4444';
     }
+    
+    // Draw Health
     ctx.fillRect(-barW/2, yOff, barW * hpPct, barH);
 
+    // Border for Bosses
     if (e.isBoss) {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-barW/2 - 2, yOff - 2); ctx.lineTo(-barW/2 - 4, yOff - 2); ctx.lineTo(-barW/2 - 4, yOff + barH + 2); ctx.lineTo(-barW/2 - 2, yOff + barH + 2);
-        ctx.moveTo(barW/2 + 2, yOff - 2); ctx.lineTo(barW/2 + 4, yOff - 2); ctx.lineTo(barW/2 + 4, yOff + barH + 2); ctx.lineTo(barW/2 + 2, yOff + barH + 2);
-        ctx.stroke();
+        ctx.strokeRect(-barW/2, yOff, barW, barH);
     }
 
-    if (hasArmor) {
-        const maxShell = e.maxShell || 100;
-        const shellPct = (e.shellValue || 0) / maxShell;
-        const shellY = yOff - 4;
-        const shellH = 2;
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.6)'; ctx.fillRect(-barW/2, shellY, barW, shellH);
-        ctx.fillStyle = '#06b6d4'; ctx.fillRect(-barW/2, shellY, barW * shellPct, shellH);
+    // Reactive Armor (Shell) Bar
+    if (e.type === 'TANK' && e.shellValue !== undefined && e.maxShell) {
+        const shellPct = e.shellValue / e.maxShell;
+        if (shellPct > 0) {
+            const shellY = yOff - 5;
+            const shellH = 3;
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; 
+            ctx.fillRect(-barW/2, shellY, barW, shellH);
+            ctx.fillStyle = '#22d3ee'; // Cyan for armor
+            ctx.fillRect(-barW/2, shellY, barW * shellPct, shellH);
+        }
     }
 }
 
