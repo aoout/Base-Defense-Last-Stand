@@ -8,9 +8,27 @@ export interface ChangelogEntry {
     changesCN?: string[];
 }
 
-export const CURRENT_VERSION = "1.1.2";
+export const CURRENT_VERSION = "1.1.3";
 
 export const CHANGELOG: ChangelogEntry[] = [
+    {
+        version: "1.1.3",
+        date: "2248.08.25",
+        title: "SYSTEM FINALIZATION",
+        titleCN: "系统定型",
+        changes: [
+            "UI: Refined visual effects across various interfaces.",
+            "LOC: Optimized Chinese localization for better clarity.",
+            "FIX: Resolved multiple minor bugs and stability issues.",
+            "META: UI and Core Gameplay design is now FEATURE COMPLETE. Development shifts to maintenance mode (balancing & bugfixes only)."
+        ],
+        changesCN: [
+            "界面：优化了部分UI视觉效果。",
+            "本地化：优化了部分UI汉化。",
+            "修复：修复了若干Bug。",
+            "里程碑：游戏UI设计以及玩法设计已经全部完成，进入收工阶段。此后不会再进行UI上的任何更新，以及任何玩法上的大的更新。可能还会继续有一些极小的玩法更新，平衡调整，以及Bug修复。"
+        ]
+    },
     {
         version: "1.1.2",
         date: "2248.08.20",
