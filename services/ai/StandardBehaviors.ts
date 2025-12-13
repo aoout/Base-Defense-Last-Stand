@@ -207,6 +207,7 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
     
     private readonly MAX_HOP_DISTANCE = 500; // Increased from 250 for better mobility
     private readonly UNDERGROUND_TIME = 800; // Time spent moving invisibly
+    private readonly SURFACE_DURATION = 2000; // Forced time to stay surfaced before diving again
 
     public initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void {
         super.initialize(enemy, context, options);
@@ -233,37 +234,64 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         // If passive, we just wander and ignore combat until timer expires or damaged
         if (this.processPassiveState(enemy, context)) return;
 
-        // 2. Try to find Grunts to eat (Cannibalism) - Only when idle
+        // 2. Handle Eating Animation (Blocks all other actions)
+        if (enemy.eatingTimer && enemy.eatingTimer > 0) {
+            enemy.eatingTimer -= dt * timeScale;
+            // Pulse effect to simulate swallowing
+            const progress = enemy.eatingTimer / 1000; // Normalized 0-1
+            enemy.visualScaleY = 1 + Math.sin(progress * Math.PI) * 0.4; // Bulge up to 1.4x
+
+            if (enemy.eatingTimer <= 0) {
+                enemy.visualScaleY = 1; // Reset to normal size
+                enemy.eatingTimer = 0;
+            }
+            return; // Block movement/diving/attacking while eating
+        }
+
+        // 3. Try to find Grunts to eat (Cannibalism) - Only when idle
         if (enemy.burrowState === 'IDLE') {
             this.handleCannibalismSearch(enemy, context);
         }
 
-        // 3. Resolve Movement & Target
+        // 4. Resolve Movement & Target
         const { target, isHunting } = this.determineMovementTarget(enemy, context);
         
-        // 4. State Machine
+        // 5. State Machine
         switch (enemy.burrowState) {
             case 'IDLE':
+                // Decrement the "Stay Surfaced" timer
+                enemy.burrowTimer = (enemy.burrowTimer || 0) - (dt * timeScale);
+
                 const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
-                const attackRange = 30;
                 
-                // If far, start dive
-                if (distSq > attackRange * attackRange) {
-                    enemy.burrowState = 'DIVING';
-                    enemy.burrowTimer = 0;
-                    // Calculate hop destination
-                    const angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
-                    const dist = Math.min(Math.sqrt(distSq), this.MAX_HOP_DISTANCE);
-                    
-                    enemy.burrowTarget = {
-                        x: Math.max(0, Math.min(context.state.worldWidth, enemy.x + Math.cos(angle) * dist)),
-                        y: Math.max(0, Math.min(context.state.worldHeight, enemy.y + Math.sin(angle) * dist))
-                    };
-                } else {
-                    // Attack if surfaced and near
-                    if (isHunting) {
-                        this.consumePrey(enemy, target as Enemy, context);
-                    } else {
+                // Ranges logic:
+                // Eating Range: 80px (Forgiving range for cannibalism animation)
+                // Dive Range: 40px (If target is further than this, consider diving)
+                const eatRange = 80;
+                const diveRange = 40;
+                
+                if (isHunting && distSq <= eatRange * eatRange) {
+                    // Priority 1: Eat if hunting and in generous range
+                    this.consumePrey(enemy, target as Enemy, context);
+                } 
+                else if (distSq > diveRange * diveRange) {
+                    // Priority 2: Dive if target is far AND allowed to dive
+                    if ((enemy.burrowTimer || 0) <= 0) {
+                        enemy.burrowState = 'DIVING';
+                        enemy.burrowTimer = 0;
+                        // Calculate hop destination
+                        const angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+                        const dist = Math.min(Math.sqrt(distSq), this.MAX_HOP_DISTANCE);
+                        
+                        enemy.burrowTarget = {
+                            x: Math.max(0, Math.min(context.state.worldWidth, enemy.x + Math.cos(angle) * dist)),
+                            y: Math.max(0, Math.min(context.state.worldHeight, enemy.y + Math.sin(angle) * dist))
+                        };
+                    }
+                } 
+                else {
+                    // Priority 3: Standard Melee (Player/Base/Non-food or too close to dive)
+                    if (!isHunting) {
                         this.performMeleeAttack(enemy, target, context);
                     }
                 }
@@ -302,8 +330,8 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
                 enemy.visualScaleY = Math.min(1, (enemy.visualScaleY || 0) + 0.1 * timeScale);
                 if ((enemy.visualScaleY || 0) >= 1) {
                     enemy.burrowState = 'IDLE';
-                    // Delay next dive slightly
-                    enemy.burrowTimer = 0;
+                    // Force it to stay surfaced for a while to give player a chance
+                    enemy.burrowTimer = this.SURFACE_DURATION;
                 }
                 break;
         }
@@ -360,7 +388,11 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
     private consumePrey(predator: Enemy, prey: Enemy, context: AIContext) {
         prey.hp = 0; // Instakill
         
-        context.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, { x: prey.x, y: prey.y, color: prey.color, maxHp: prey.maxHp });
+        // Visual polish: Spawn blood halfway between predator and prey to simulate suction/dragging
+        const midX = (predator.x + prey.x) / 2;
+        const midY = (predator.y + prey.y) / 2;
+
+        context.events.emit<SpawnBloodStainEvent>(GameEventType.SPAWN_BLOOD_STAIN, { x: midX, y: midY, color: prey.color, maxHp: prey.maxHp });
         context.events.emit<PlaySoundEvent>(GameEventType.PLAY_SOUND, { type: 'MELEE_HIT', x: predator.x, y: predator.y });
         context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { text: context.t('CONSUMED'), x: predator.x, y: predator.y - 20, color: '#ef4444', type: FloatingTextType.SYSTEM });
 
@@ -369,9 +401,9 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         predator.hp += 200;
         predator.radius += 5;
         predator.radius = Math.min(predator.radius, 60);
-        predator.visualScaleY = 1.3; // Bulge effect
         
         predator.huntingTargetId = undefined;
-        predator.eatingTimer = 500;
+        // Set eating timer to block movement and trigger swallow animation
+        predator.eatingTimer = 1000;
     }
 }
