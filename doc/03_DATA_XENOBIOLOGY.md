@@ -32,7 +32,7 @@
 Defeating the Matriarch yields a massive resource injection.
 *   **Base Reward**: 5,000 Scraps.
 *   **Dominance Bonus**: Calculated based on the difficulty of the kill.
-    *   Formula: `20 * (GeneStrength ^ 2) * (RemainingArmor ^ 1.6)`
+    *   Formula: `8 * (GeneStrength ^ 2) * (RemainingArmor ^ 1.5)`
     *   *Logic*: Killing the boss *through* its armor (without waiting for the shedding phase) is exponentially more difficult, and thus rewards exponentially more Scraps.
 
 ## 3. Environmental Scaling Algorithms

@@ -182,7 +182,9 @@ export class HiveMotherBehavior extends BaseEnemyBehavior {
     public onDeath(enemy: Enemy, context: AIContext): void {
         const gene = context.state.currentPlanet?.geneStrength || 1;
         const armor = enemy.armorValue || 0;
-        const bonus = Math.floor(20 * Math.pow(gene, 2) * Math.pow(armor, 1.6));
+        
+        // Updated Formula: 8 * (Gene^2) * (Armor^1.5)
+        const bonus = Math.floor(8 * Math.pow(gene, 2) * Math.pow(armor, 1.5));
         
         context.state.player.score += bonus;
 
