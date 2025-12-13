@@ -65,12 +65,41 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
     public abstract update(enemy: Enemy, context: AIContext): void;
 
     public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
+        // Break passive state if damaged
+        if (enemy.passiveTimer && enemy.passiveTimer > 0) {
+            enemy.passiveTimer = 0;
+            enemy.isWandering = false;
+            // Optionally emit alert?
+        }
         return amount;
     }
 
     public onDeath(enemy: Enemy, context: AIContext): void {}
 
     // --- SHARED UTILITIES ---
+
+    /**
+     * Handles the "Passive / Wandering" state common in Campaign mode.
+     * Returns true if the enemy is passive and handled (should skip combat logic).
+     */
+    protected processPassiveState(enemy: Enemy, context: AIContext): boolean {
+        if (!enemy.passiveTimer || enemy.passiveTimer <= 0) return false;
+
+        enemy.passiveTimer -= context.dt;
+        
+        // If timer just expired, stop wandering and become aggressive
+        if (enemy.passiveTimer <= 0) {
+            enemy.passiveTimer = 0;
+            enemy.isWandering = false;
+            enemy.wanderPoint = undefined;
+            return false;
+        }
+
+        // While passive, just wander around
+        this.handleWandering(enemy, context, true); // Force true to ignore internal timer
+        
+        return true;
+    }
 
     protected acquireTarget(enemy: Enemy, context: AIContext): Entity {
         // Delegate to the specialized static logic
@@ -85,16 +114,20 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
         enemy.y += Math.sin(angle) * speed * timeScale;
     }
 
-    protected handleWandering(enemy: Enemy, context: AIContext): boolean {
-        if (!enemy.isWandering) return false;
+    protected handleWandering(enemy: Enemy, context: AIContext, force: boolean = false): boolean {
+        if (!enemy.isWandering && !force) return false;
 
-        enemy.wanderTimer = (enemy.wanderTimer || 0) + context.dt;
-        if (enemy.wanderTimer >= (enemy.wanderDuration || 0)) {
-            enemy.isWandering = false;
-            return false;
+        if (!force) {
+            enemy.wanderTimer = (enemy.wanderTimer || 0) + context.dt;
+            if (enemy.wanderTimer >= (enemy.wanderDuration || 0)) {
+                enemy.isWandering = false;
+                return false;
+            }
         }
 
         if (!enemy.wanderPoint) {
+            // Pick random point somewhat near current position but within bounds
+            // Or just random point in world for better spread
             enemy.wanderPoint = { 
                 x: 100 + Math.random() * (context.state.worldWidth - 200),
                 y: 100 + Math.random() * (context.state.worldHeight - 200)
@@ -112,7 +145,7 @@ export abstract class BaseEnemyBehavior implements AIBehavior {
 
         // Move to wander point (slower speed)
         const targetEntity = { x: enemy.wanderPoint.x, y: enemy.wanderPoint.y, radius: 0, id: 'wander', angle: 0, color: '' };
-        this.moveTowards(enemy, targetEntity, enemy.speed * 0.7, context.timeScale);
+        this.moveTowards(enemy, targetEntity, enemy.speed * 0.6, context.timeScale);
 
         return true; // Consumed update
     }

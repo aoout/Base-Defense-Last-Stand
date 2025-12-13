@@ -1,6 +1,6 @@
 
 import { BaseEnemyBehavior, AIContext } from './AIBehavior';
-import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnBloodStainEvent, PlaySoundEvent, WeaponType, ProjectileID, EnemySpawnOptions } from '../../types';
+import { Enemy, GameEventType, DamageSource, EnemySummonEvent, EnemyType, SpawnParticleEvent, ShowFloatingTextEvent, FloatingTextType, SpawnBloodStainEvent, PlaySoundEvent, WeaponType, ProjectileID, EnemySpawnOptions, GameMode } from '../../types';
 import { GAS_INFO } from '../../data/world';
 import { TargetingLogic } from './TargetingLogic';
 
@@ -176,6 +176,10 @@ export class PustuleBehavior extends BaseEnemyBehavior {
     }
 
     public update(enemy: Enemy, context: AIContext): void {
+        // Pustules are stationary nodes. 
+        // We override to PREVENT moveTowards() which rotates the entity.
+        // It simply exists, checks melee collision (thorns), and summons units.
+        
         const target = this.acquireTarget(enemy, context);
         this.performMeleeAttack(enemy, target, context, 500);
 
@@ -200,32 +204,120 @@ export class PustuleBehavior extends BaseEnemyBehavior {
 
 // Refactored: Pure Tube Worm logic. Boss logic moved to BossBehaviors.ts
 export class TubeWormBehavior extends BaseEnemyBehavior {
+    
+    private readonly MAX_HOP_DISTANCE = 500; // Increased from 250 for better mobility
+    private readonly UNDERGROUND_TIME = 800; // Time spent moving invisibly
+
     public initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void {
         super.initialize(enemy, context, options);
         enemy.visualScaleY = 1;
         enemy.cannibalTimer = 0;
-        if (options && options.burrowState) {
-            enemy.burrowState = options.burrowState;
+        enemy.burrowState = 'IDLE'; // Start surfaced
+        enemy.burrowTimer = 0;
+
+        // CAMPAIGN LOGIC: Passive chance
+        if (context.state.gameMode === GameMode.CAMPAIGN) {
+            // 90% chance to wait 65-115s
+            if (Math.random() < 0.9) {
+                enemy.passiveTimer = 65000 + Math.random() * 50000;
+                enemy.isWandering = true;
+                // No wanderDuration needed as processPassiveState handles it
+            }
         }
     }
 
     public update(enemy: Enemy, context: AIContext): void {
-        // 1. Try to find Grunts to eat (Cannibalism)
-        this.handleCannibalismSearch(enemy, context);
+        const { dt, timeScale, events } = context;
 
-        // 2. Resolve Movement & Target
+        // 1. Check for Passive/Wandering state (Campaign Mode)
+        // If passive, we just wander and ignore combat until timer expires or damaged
+        if (this.processPassiveState(enemy, context)) return;
+
+        // 2. Try to find Grunts to eat (Cannibalism) - Only when idle
+        if (enemy.burrowState === 'IDLE') {
+            this.handleCannibalismSearch(enemy, context);
+        }
+
+        // 3. Resolve Movement & Target
         const { target, isHunting } = this.determineMovementTarget(enemy, context);
         
-        // 3. Move or Attack based on distance
-        const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
-        const attackRange = 30; 
-        const isMoving = distSq > attackRange * attackRange;
+        // 4. State Machine
+        switch (enemy.burrowState) {
+            case 'IDLE':
+                const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
+                const attackRange = 30;
+                
+                // If far, start dive
+                if (distSq > attackRange * attackRange) {
+                    enemy.burrowState = 'DIVING';
+                    enemy.burrowTimer = 0;
+                    // Calculate hop destination
+                    const angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
+                    const dist = Math.min(Math.sqrt(distSq), this.MAX_HOP_DISTANCE);
+                    
+                    enemy.burrowTarget = {
+                        x: Math.max(0, Math.min(context.state.worldWidth, enemy.x + Math.cos(angle) * dist)),
+                        y: Math.max(0, Math.min(context.state.worldHeight, enemy.y + Math.sin(angle) * dist))
+                    };
+                } else {
+                    // Attack if surfaced and near
+                    if (isHunting) {
+                        this.consumePrey(enemy, target as Enemy, context);
+                    } else {
+                        this.performMeleeAttack(enemy, target, context);
+                    }
+                }
+                break;
 
-        if (isMoving) {
-            this.performBurrowMovement(enemy, target, isHunting, context);
-        } else {
-            this.performSurfaceAction(enemy, target, isHunting, context);
+            case 'DIVING':
+                // Shrink
+                enemy.visualScaleY = Math.max(0, (enemy.visualScaleY || 1) - 0.1 * timeScale);
+                if ((enemy.visualScaleY || 0) <= 0) {
+                    enemy.burrowState = 'UNDERGROUND';
+                    enemy.burrowTimer = this.UNDERGROUND_TIME;
+                    
+                    // FX
+                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: enemy.x, y: enemy.y, color: '#a16207', count: 3, speed: 2 });
+                }
+                break;
+
+            case 'UNDERGROUND':
+                // Wait while invisible
+                enemy.burrowTimer = (enemy.burrowTimer || 0) - (dt * timeScale);
+                if ((enemy.burrowTimer || 0) <= 0 && enemy.burrowTarget) {
+                    // Teleport
+                    enemy.x = enemy.burrowTarget.x;
+                    enemy.y = enemy.burrowTarget.y;
+                    enemy.burrowState = 'SURFACING';
+                    enemy.burrowTimer = 0;
+                    enemy.angle = Math.atan2(target.y - enemy.y, target.x - enemy.x); // Face target on exit
+                    
+                    // FX
+                    events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: enemy.x, y: enemy.y, color: '#a16207', count: 5, speed: 4 });
+                }
+                break;
+
+            case 'SURFACING':
+                // Grow
+                enemy.visualScaleY = Math.min(1, (enemy.visualScaleY || 0) + 0.1 * timeScale);
+                if ((enemy.visualScaleY || 0) >= 1) {
+                    enemy.burrowState = 'IDLE';
+                    // Delay next dive slightly
+                    enemy.burrowTimer = 0;
+                }
+                break;
         }
+    }
+
+    public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
+        // Base logic breaks passive state
+        super.onTakeDamage(enemy, amount, weaponType, context);
+
+        // Invulnerable while underground or fully dived
+        if (enemy.burrowState === 'UNDERGROUND' || (enemy.visualScaleY || 1) < 0.3) {
+            return 0;
+        }
+        return amount;
     }
 
     private handleCannibalismSearch(enemy: Enemy, context: AIContext) {
@@ -263,40 +355,6 @@ export class TubeWormBehavior extends BaseEnemyBehavior {
         }
 
         return { target, isHunting };
-    }
-
-    private performBurrowMovement(enemy: Enemy, target: any, isHunting: boolean, context: AIContext) {
-        const { events, timeScale } = context;
-        
-        // Dive visual
-        if (enemy.visualScaleY! > 0.2) enemy.visualScaleY! -= 0.05 * timeScale;
-        
-        // Speed boost when hunting
-        const currentSpeed = isHunting ? enemy.speed * 2.5 : enemy.speed;
-        
-        this.moveTowards(enemy, target, currentSpeed, timeScale);
-        
-        // Dust Particles
-        if (Math.random() < 0.3) {
-            events.emit<SpawnParticleEvent>(GameEventType.SPAWN_PARTICLE, { x: enemy.x, y: enemy.y, color: '#a16207', count: 1, speed: 1 });
-        }
-    }
-
-    private performSurfaceAction(enemy: Enemy, target: any, isHunting: boolean, context: AIContext) {
-        const { timeScale } = context;
-
-        // Surface visual
-        if (enemy.visualScaleY! < 1) enemy.visualScaleY! += 0.1 * timeScale;
-        enemy.visualScaleY = Math.min(1, enemy.visualScaleY!);
-
-        // Only attack when fully surfaced
-        if (enemy.visualScaleY! > 0.8) {
-            if (isHunting) {
-                this.consumePrey(enemy, target as Enemy, context);
-            } else {
-                this.performMeleeAttack(enemy, target, context);
-            }
-        }
     }
 
     private consumePrey(predator: Enemy, prey: Enemy, context: AIContext) {

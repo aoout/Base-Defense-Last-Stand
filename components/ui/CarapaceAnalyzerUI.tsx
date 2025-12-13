@@ -33,7 +33,7 @@ const EnemyPreview: React.FC<{ type: EnemyType }> = ({ type }) => {
         if (type === EnemyType.GRUNT) scale = 4.0;
         if (type === EnemyType.VIPER) scale = 3.0;
         if (type === EnemyType.KAMIKAZE) scale = 3.5;
-        if (type === EnemyType.TUBE_WORM) scale = 3.0;
+        if (type === EnemyType.TUBE_WORM) scale = 2.1; // Reduced from 3.0 by ~30%
         
         ctx.scale(scale, scale);
 

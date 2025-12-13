@@ -21,11 +21,25 @@ export const ENEMIES_EN = {
     ENEMY_PUSTULE_DESC: "Stationary spawner. Dangerous to touch. Keep distance.",
     ENEMY_TUBE_WORM_NAME: "Tube Worm",
     ENEMY_TUBE_WORM_CLASS: "Ambush Predator",
-    ENEMY_TUBE_WORM_DESC: "Burrowing menace found in high-oxygen zones. Aggressively hunts nearby Grunts (50% chance every 2s) to consume them for massive regeneration and growth. Kill before it feeds.",
+    ENEMY_TUBE_WORM_DESC: "Burrowing menace found in high-oxygen zones. Moves by diving underground and surfacing at new locations. Untargetable while submerged. Aggressively hunts nearby Grunts to heal.",
+    
+    // BOSSES
     ENEMY_RED_SUMMONER_NAME: "The Hive Lord",
+    ENEMY_RED_SUMMONER_DESC: "Massive biological anchor. Possesses a gestation sac capable of rapidly birthing Grunt drones. Must be destroyed to halt the swarm expansion.",
+    
     ENEMY_BLUE_BURST_NAME: "Cobalt Reaper",
+    ENEMY_BLUE_BURST_DESC: "Highly evolved ranged specialist. Fires bursts of high-velocity plasma spines. Plated in dense blue chitin. Prioritize cover during its burst cycle.",
+    
     ENEMY_PURPLE_ACID_NAME: "Plague Bringer",
+    ENEMY_PURPLE_ACID_DESC: "Walking bio-hazard. Lobs organic mortars that create persistent zones of denial. The purple acid melts durasteel in seconds. Avoid area of effect.",
+    
     ENEMY_HIVE_MOTHER_NAME: "Matriarch",
+    ENEMY_HIVE_MOTHER_DESC: "The central nervous system of the planetary infestation. This massive, stationary bio-structure coordinates all local swarm activities. It is heavily armored and protected by a rapidly regenerating chitinous shell. Destroying it will sever the connection to the hive mind in this sector.",
+    
+    ENEMY_DEVOURER_NAME: "The Devourer",
+    ENEMY_DEVOURER_CLASS: "Planetary Behemoth",
+    ENEMY_DEVOURER_DESC: "A colossal subterranean organism found only in prolonged campaign operations. Covered in obsidian-like armor plating. It tunnels beneath defenses and surfaces to cause catastrophic seismic damage. Highly resilient to standard ballistics.",
+
     BESTIARY_LOCKED: "DATA ENCRYPTED",
     BESTIARY_HINT: "ENCOUNTER SPECIMEN TO DECRYPT",
     CLASSIFICATION: "CLASS",
@@ -54,11 +68,26 @@ export const ENEMIES_CN = {
     ENEMY_PUSTULE_DESC: "战场上隆起的病态生物组织。它是一个活体兵营，每隔15秒就会从顶部喷吐出新的异种单位。脓包本身不会移动，但其表皮布满剧毒刺针，接触会受到重创。其体内蕴含高浓度的生物质，击杀回报极高。",
     ENEMY_TUBE_WORM_NAME: "管虫",
     ENEMY_TUBE_WORM_CLASS: "伏击捕食者",
-    ENEMY_TUBE_WORM_DESC: "一种只存在于高氧环境下的特殊变异体。通体呈醒目的黄色，拥有巨大的四瓣口器。依靠将头部扎入地下进行快速潜行移动。这种生物表现出极度的同类相食倾向，每2秒就有50%的概率捕食附近的蠕铗（Grunt）以获取生物质，吞噬后立即恢复生命值并增大体型。必须在它成长为巨兽前消灭它。",
+    ENEMY_TUBE_WORM_DESC: "一种只存在于高氧环境下的特殊变异体。移动方式极为特殊：它会完全钻入地下（不可选中），随后在目标位置破土而出。若距离过远，它会进行多次‘潜行-钻出’的跳跃式移动。具有同类相食习性，会捕食蠕铗以恢复生命。",
+    
+    // BOSSES
     ENEMY_RED_SUMMONER_NAME: "虫巢领主",
+    ENEMY_RED_SUMMONER_DESC: "巨大的生物锚点。拥有一个能够快速孵化蠕铗无人机的孕育囊。必须将其摧毁以阻止虫群的扩张。",
+    
     ENEMY_BLUE_BURST_NAME: "钴蓝收割者",
+    ENEMY_BLUE_BURST_DESC: "高度进化的远程专家。能发射数波高速等离子刺。覆盖着致密的蓝色几丁质甲壳。在其爆发周期内请优先寻找掩体。",
+    
     ENEMY_PURPLE_ACID_NAME: "瘟疫使者",
+    ENEMY_PURPLE_ACID_DESC: "行走的生化灾害。投掷有机迫击炮弹，制造持久的拒止区域。紫色的酸液能在几秒钟内融化硬钢。请避开其作用范围。",
+    
     ENEMY_HIVE_MOTHER_NAME: "母体",
+    ENEMY_HIVE_MOTHER_DESC: "行星感染的中央神经系统。这个巨大的固定生物结构协调着所有当地的虫群活动。它装备重甲，并受快速再生的几丁质外壳保护。摧毁它将切断该扇区与巢群思维的连接。",
+    
+    // Campaign Boss - Separate Entry
+    ENEMY_DEVOURER_NAME: "掘进者", // The Burrower
+    ENEMY_DEVOURER_CLASS: "行星级巨兽",
+    ENEMY_DEVOURER_DESC: "战役模式中出现的巨型异星甲虫。体型庞大，全身覆盖着黑曜石般的厚重甲壳，即使是重武器也难以穿透。它通常在地面爬行，用巨大的颚部粉碎目标。只有在极度受损或战术撤退时才会钻入地底。其出现通常伴随着强烈的地震波。",
+    
     BESTIARY_LOCKED: "数据加密",
     BESTIARY_HINT: "遭遇样本以解密",
     CLASSIFICATION: "分类",

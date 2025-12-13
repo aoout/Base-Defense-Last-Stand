@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { GameState, EnemyType, BossType, GameMode, DamageSource } from '../../types';
+import { GameState, EnemyType, BossType, GameMode, DamageSource, MissionType } from '../../types';
 import { BESTIARY_DB, ENEMY_STATS, BOSS_STATS } from '../../data/registry';
-import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm } from '../../utils/renderers';
+import { GAS_INFO } from '../../data/world';
+import { drawGrunt, drawRusher, drawTank, drawKamikaze, drawViper, drawPustule, drawBossRed, drawBossBlue, drawBossPurple, drawHiveMother, drawTubeWorm, drawDevourer } from '../../utils/renderers';
 import { PlanetInfoPanel } from './PlanetInfoPanel';
 import { useLocale, Translator } from '../contexts/LocaleContext';
 import { useGame, useGameLoop } from '../contexts/GameContext';
@@ -174,44 +175,110 @@ const AudioDeck: React.FC<{ engine: any, t: Translator, onBack: () => void }> = 
 // --- SUB-VIEWS ---
 
 const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => void }> = ({ state, t, onBack }) => {
-    const [selectedId, setSelectedId] = useState<string | null>(null);
-    const discoveredList = state.stats.encounteredEnemies;
-    const allEntities = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.VIPER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.TUBE_WORM, BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID, BossType.HIVE_MOTHER];
+    
+    // LOGIC: Determine available enemies based on Game Mode and Planet Environment
+    const getAvailableEntities = () => {
+        // Base Enemies
+        const list: (EnemyType | BossType | string)[] = [
+            EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, 
+            EnemyType.KAMIKAZE, EnemyType.VIPER, 
+            BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID
+        ];
 
-    useEffect(() => {
-        if (!selectedId && discoveredList.length > 0) {
-            const first = allEntities.find(id => discoveredList.includes(id));
-            if (first) setSelectedId(first);
+        // Campaign Exclusives
+        if (state.gameMode === GameMode.CAMPAIGN) {
+            list.push(EnemyType.PUSTULE);
+            list.push(EnemyType.TUBE_WORM);
+            list.push('DEVOURER'); // String key for the Campaign Boss
         }
-    }, [discoveredList]);
+
+        // Exploration Logic
+        if (state.gameMode === GameMode.EXPLORATION && state.currentPlanet) {
+            const p = state.currentPlanet;
+            const o2 = p.atmosphere.find(g => g.id === GAS_INFO.OXYGEN.id)?.percentage || 0;
+            
+            // Tube Worms only in High Oxygen
+            if (o2 > 0.18) {
+                list.push(EnemyType.TUBE_WORM);
+            }
+
+            // Hive Mother only in Offense
+            if (p.missionType === MissionType.OFFENSE) {
+                list.push(BossType.HIVE_MOTHER);
+            }
+        } else if (state.gameMode === GameMode.CAMPAIGN) {
+            // Campaign likely has Hive Mother too? Assuming general pool for now, 
+            // but prompt said specific things. Let's stick to Exploration logic for Hive Mother
+            // unless Campaign script spawns it (which it doesn't currently, purely Devourer).
+        }
+
+        return list;
+    };
+
+    const allEntities = getAvailableEntities();
+    const [selectedId, setSelectedId] = useState<string | null>(null);
+
+    // Auto-select first
+    useEffect(() => {
+        if (!selectedId && allEntities.length > 0) {
+            setSelectedId(allEntities[0]);
+        }
+    }, []);
 
     const handleDraw = useCallback((ctx: CanvasRenderingContext2D, time: number, w: number, h: number) => {
         if (!selectedId) return;
         ctx.clearRect(0, 0, w, h);
+        
         let radius = 20; let color = '#fff';
         if (ENEMY_STATS[selectedId as EnemyType]) { radius = ENEMY_STATS[selectedId as EnemyType].radius; color = ENEMY_STATS[selectedId as EnemyType].color; } 
         else if (BOSS_STATS[selectedId as BossType]) { radius = BOSS_STATS[selectedId as BossType].radius; color = BOSS_STATS[selectedId as BossType].color; }
-        const isBoss = selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') || selectedId.includes('HIVE');
-        const mockEntity: any = { x: 0, y: 0, radius: radius * 2, angle: 0, hp: 100, maxHp: 100, color: color, type: selectedId, bossType: selectedId, isBoss: isBoss, armorValue: 90, visualScaleY: 1 };
+        else if (selectedId === 'DEVOURER') { radius = 60; color = '#FACC15'; }
+
+        const isBoss = selectedId.includes('BOSS') || selectedId.includes('SUMMONER') || selectedId.includes('BURST') || selectedId.includes('ACID') || selectedId.includes('HIVE') || selectedId === 'DEVOURER';
+        
+        const mockEntity: any = { 
+            x: 0, y: 0, radius: radius * 2, angle: 0, 
+            hp: 100, maxHp: 100, color: color, 
+            type: selectedId, bossType: selectedId, 
+            isBoss: isBoss, armorValue: 90, visualScaleY: 1 
+        };
+        
         ctx.save(); ctx.translate(w/2, h/2); 
-        let scale = isBoss ? 1.5 : 3.0; if (selectedId === BossType.HIVE_MOTHER) scale = 0.8;
+        
+        // Base scale for standard units (default 3.0)
+        let scale = isBoss ? 1.5 : 3.0; 
+        
+        // Adjustments per type
+        if (selectedId === EnemyType.PUSTULE) scale = 1.5; // Shrink Pustule by 50% (3.0 -> 1.5)
+        if (selectedId === BossType.HIVE_MOTHER) scale = 0.8;
+        if (selectedId === EnemyType.TUBE_WORM) scale = 1.4; // Reduced from 2.0 to 1.4 (~30% reduction)
+        if (selectedId === 'DEVOURER') {
+            scale = 1.2; // Increase Devourer by 20% (1.0 -> 1.2)
+            mockEntity.type = EnemyType.TUBE_WORM; // Re-use logic key for renderer switch if needed
+        }
+
         ctx.scale(scale, scale); ctx.rotate(-Math.PI / 2 + Math.sin(time * 0.0005) * 0.2); 
+        
         switch(selectedId) {
             case EnemyType.GRUNT: drawGrunt(ctx, mockEntity, time); break;
             case EnemyType.RUSHER: drawRusher(ctx, mockEntity, time); break;
             case EnemyType.TANK: drawTank(ctx, mockEntity, time); break;
             case EnemyType.KAMIKAZE: drawKamikaze(ctx, mockEntity, time); break;
             case EnemyType.VIPER: drawViper(ctx, mockEntity, time); break;
+            case EnemyType.PUSTULE: drawPustule(ctx, mockEntity, time); break;
             case EnemyType.TUBE_WORM: drawTubeWorm(ctx, mockEntity, time); break;
             case BossType.RED_SUMMONER: drawBossRed(ctx, mockEntity, time); break;
             case BossType.BLUE_BURST: drawBossBlue(ctx, mockEntity, time); break;
             case BossType.PURPLE_ACID: drawBossPurple(ctx, mockEntity, time); break;
             case BossType.HIVE_MOTHER: drawHiveMother(ctx, mockEntity, time); break;
+            case 'DEVOURER': drawDevourer(ctx, mockEntity, time); break;
         }
         ctx.restore();
     }, [selectedId]);
 
     const info = selectedId && BESTIARY_DB[selectedId];
+    const nameKey = selectedId === 'DEVOURER' ? 'ENEMY_DEVOURER_NAME' : `ENEMY_${selectedId}_NAME`;
+    const descKey = selectedId === 'DEVOURER' ? 'ENEMY_DEVOURER_DESC' : `ENEMY_${selectedId}_DESC`;
 
     return (
         <div className="flex h-full w-full bg-slate-950 rounded-xl overflow-hidden border border-slate-700 shadow-2xl animate-fadeIn">
@@ -221,10 +288,10 @@ const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => vo
                 </button>
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-800 p-2 space-y-1">
                     {allEntities.map(id => {
-                        const discovered = discoveredList.includes(id);
+                        const labelKey = id === 'DEVOURER' ? 'ENEMY_DEVOURER_NAME' : `ENEMY_${id}_NAME`;
                         return (
-                            <button key={id} onClick={() => discovered && setSelectedId(id)} disabled={!discovered} className={`w-full px-4 py-3 text-left font-mono text-xs tracking-widest transition-all rounded ${selectedId === id ? 'bg-cyan-900/30 text-cyan-300 border border-cyan-500/30' : discovered ? 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent' : 'text-slate-800 cursor-not-allowed border border-transparent'}`}>
-                                {discovered ? t(`ENEMY_${id}_NAME`).toUpperCase() : '/// ENCRYPTED'}
+                            <button key={id} onClick={() => setSelectedId(id)} className={`w-full px-4 py-3 text-left font-mono text-xs tracking-widest transition-all rounded ${selectedId === id ? 'bg-cyan-900/30 text-cyan-300 border border-cyan-500/30' : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'}`}>
+                                {t(labelKey).toUpperCase()}
                             </button>
                         )
                     })}
@@ -239,14 +306,14 @@ const BestiaryView: React.FC<{ state: GameState, t: Translator, onBack: () => vo
                         <div className="w-1/2 p-8 overflow-y-auto border-l border-slate-800">
                              <div className="mb-8">
                                  <div className="text-xs text-slate-500 font-bold mb-1 tracking-widest">SUBJECT IDENTIFIER</div>
-                                 <div className={`${DS.text.header} text-3xl text-white mb-2`}>{t(`ENEMY_${selectedId}_NAME`)}</div>
+                                 <div className={`${DS.text.header} text-3xl text-white mb-2`}>{t(nameKey)}</div>
                                  <div className="inline-block px-2 py-1 bg-slate-800 rounded text-[10px] text-cyan-400 font-mono tracking-wider border border-slate-700">{info.classification}</div>
                              </div>
                              <div className="mb-8">
                                  <div className="text-xs text-slate-500 font-bold mb-2 tracking-widest">{t('DANGER_LEVEL')}</div>
                                  <div className="flex gap-1">{Array.from({length: 10}).map((_, i) => <div key={i} className={`h-1.5 flex-1 rounded-sm ${i < info.danger ? 'bg-red-500' : 'bg-slate-800'}`}></div>)}</div>
                              </div>
-                             <div><div className="text-xs text-slate-500 font-bold mb-2 tracking-widest">MORPHOLOGY</div><p className={`${DS.text.body} text-justify`}>{t(`ENEMY_${selectedId}_DESC`)}</p></div>
+                             <div><div className="text-xs text-slate-500 font-bold mb-2 tracking-widest">MORPHOLOGY</div><p className={`${DS.text.body} text-justify`}>{t(descKey)}</p></div>
                         </div>
                     </div>
                 ) : (

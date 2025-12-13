@@ -50,14 +50,16 @@ const drawGL = (ctx: CanvasRenderingContext2D) => {
 };
 
 const drawMuzzleFlash = (ctx: CanvasRenderingContext2D, type: WeaponType) => {
-    let xOffset = 26;
-    if (type === WeaponType.SR) xOffset = 42;
-    if (type === WeaponType.PISTOL) xOffset = 15;
-    
-    drawCircle(ctx, xOffset + 5, 0, 15, type === WeaponType.PULSE_RIFLE ? 'rgba(6, 182, 212, 0.4)' : 'rgba(245, 158, 11, 0.4)');
+    const config = WEAPONS[type].visuals;
+    const xOffset = config?.muzzleOffset || 20;
+    const color = config?.flashColor || '#FEF08A';
+    const size = config?.flashSize || 8;
 
-    ctx.fillStyle = type === WeaponType.PULSE_RIFLE ? '#67E8F9' : '#FEF08A'; 
-    const size = type === WeaponType.SG ? 12 : 8;
+    if (size <= 0) return; // Flamethrower handles its own FX
+
+    drawCircle(ctx, xOffset + 5, 0, size * 2, color.replace(')', ', 0.4)').replace('rgb', 'rgba').replace('#', 'rgba(')); // Rough glow approximation or explicit usage
+
+    ctx.fillStyle = color; 
     ctx.beginPath(); ctx.moveTo(xOffset, 0); ctx.lineTo(xOffset + size, -size/2); ctx.lineTo(xOffset + size*0.8, 0); ctx.lineTo(xOffset + size, size/2);
     ctx.closePath(); ctx.fill(); 
 };
@@ -138,7 +140,7 @@ export const drawPlayerSprite = (ctx: CanvasRenderingContext2D, p: Player, time:
     if (currentWeaponType === WeaponType.PISTOL) { drawCircle(ctx, 0, 0, 4, '#1F2937'); } 
     else { drawCircle(ctx, 0, 5, 4, '#1F2937'); drawCircle(ctx, 15, -2, 4, '#1F2937'); }
 
-    if (isFiring && currentWeaponType !== WeaponType.FLAMETHROWER) { drawMuzzleFlash(ctx, currentWeaponType); }
+    if (isFiring) { drawMuzzleFlash(ctx, currentWeaponType); }
     ctx.restore();
 
     ctx.rotate(-p.angle);

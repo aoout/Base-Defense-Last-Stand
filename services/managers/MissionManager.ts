@@ -10,7 +10,7 @@ export class MissionManager implements IGameSystem {
 
     // Configuration Constants
     private readonly CAMPAIGN_AMBIENT_INTERVAL = 30000;
-    private readonly CAMPAIGN_BOSS_CHECK_INTERVAL = 60000;
+    private readonly CAMPAIGN_DEVOURER_CHECK_INTERVAL = 60000;
     private readonly LURE_AVAILABLE_THRESHOLD = 10000;
 
     constructor(engine: GameEngine) {
@@ -41,11 +41,13 @@ export class MissionManager implements IGameSystem {
         // Update Timers
         state.wave.spawnTimer += dt;
         state.campaign.pustuleTimer += dt;
-        state.campaign.bossTimer += dt;
+        state.campaign.devourerTimer += dt;
+        state.campaign.roamingBossTimer += dt;
 
         this.handleAmbientSpawns(state);
         this.handlePustuleSpawns(state);
-        this.handleCampaignBossSpawns(state);
+        this.handleDevourerSpawns(state);
+        this.handleRoamingBossSpawns(state);
     }
 
     private handleAmbientSpawns(state: any) {
@@ -58,6 +60,7 @@ export class MissionManager implements IGameSystem {
                 const types = [EnemyType.GRUNT, EnemyType.RUSHER, EnemyType.TANK, EnemyType.KAMIKAZE, EnemyType.VIPER, EnemyType.TUBE_WORM];
                 const type = types[Math.floor(Math.random() * types.length)];
                 
+                // Note: Tube Worm passive behavior is handled inside its Behavior class using GameMode check
                 this.engine.enemyManager.spawn(type, x, y);
             }
             
@@ -80,37 +83,64 @@ export class MissionManager implements IGameSystem {
         }
     }
 
-    private handleCampaignBossSpawns(state: any) {
-        // "The Devourer" Check
-        if (state.campaign.bossTimer >= this.CAMPAIGN_BOSS_CHECK_INTERVAL) {
-            state.campaign.bossTimer = 0;
+    private handleDevourerSpawns(state: any) {
+        // If HP is -1, it means the boss is permanently dead.
+        if (state.campaign.bossHp === -1) return;
+
+        if (state.campaign.devourerTimer >= this.CAMPAIGN_DEVOURER_CHECK_INTERVAL) {
+            state.campaign.devourerTimer = 0;
 
             // 60% chance to spawn if not already present
-            if (Math.random() < 0.6) {
-                const existing = state.enemies.find((e: any) => e.type === EnemyType.TUBE_WORM && e.isBoss);
-                if (!existing) {
-                    const corners = [
-                        { x: 100, y: 100 },
-                        { x: state.worldWidth - 100, y: 100 },
-                        { x: 100, y: state.worldHeight - 100 },
-                        { x: state.worldWidth - 100, y: state.worldHeight - 100 }
-                    ];
-                    const corner = corners[Math.floor(Math.random() * corners.length)];
+            const existing = state.enemies.find((e: any) => e.type === EnemyType.TUBE_WORM && e.isBoss);
+            if (!existing) {
+                if (Math.random() < 0.6) {
+                    const pos = this.findSafeSpawnPosition(state, 1000); // >1000 from base
+                    if (pos) {
+                        // Resolve HP: Use stored HP, or default 4M. 
+                        const currentHp = (state.campaign.bossHp && state.campaign.bossHp > 0) ? state.campaign.bossHp : 4000000;
 
-                    this.engine.enemyManager.spawn(EnemyType.TUBE_WORM, corner.x, corner.y, {
-                        isBoss: true,
-                        flatHp: state.campaign.bossHp || 4000000,
-                        angleOverride: Math.PI/2,
-                        scoreOverride: 50000,
-                        isWandering: true,
-                        wanderDuration: 60000,
-                        burrowState: 'SURFACING',
-                        scaleY: 0
-                    });
+                        this.engine.enemyManager.spawn(EnemyType.TUBE_WORM, pos.x, pos.y, {
+                            isBoss: true,
+                            flatHp: currentHp,
+                            angleOverride: Math.PI/2,
+                            scoreOverride: 50000,
+                            // Logic handled in DevourerBossBehavior: Surfaces, Wanders for 60s, then Burrows.
+                            // Aggro only on damage.
+                        });
 
-                    this.engine.addMessage(this.engine.t('DEVOURER_SURFACES'), state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
-                    this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'ORBITAL_STRIKE' });
+                        this.engine.addMessage(this.engine.t('DEVOURER_SURFACES'), state.worldWidth/2, state.worldHeight/2, '#FACC15', FloatingTextType.SYSTEM);
+                        this.engine.eventBus.emit(GameEventType.PLAY_SOUND, { type: 'ORBITAL_STRIKE' });
+                    }
                 }
+            }
+        }
+    }
+
+    private handleRoamingBossSpawns(state: any) {
+        // Initialize next spawn time if missing (migration safety or first run)
+        if (!state.campaign.nextRoamingBossTime) {
+            state.campaign.nextRoamingBossTime = 95000 + Math.random() * 100000; // 95-195s
+            state.campaign.roamingBossTimer = 0;
+        }
+
+        if (state.campaign.roamingBossTimer >= state.campaign.nextRoamingBossTime) {
+            state.campaign.roamingBossTimer = 0;
+            state.campaign.nextRoamingBossTime = 95000 + Math.random() * 100000;
+
+            const bossTypes = [BossType.RED_SUMMONER, BossType.BLUE_BURST, BossType.PURPLE_ACID];
+            const type = bossTypes[Math.floor(Math.random() * bossTypes.length)];
+
+            const pos = this.findSafeSpawnPosition(state, 800);
+            if (pos) {
+                // Spawn with logic: 10% Aggro / 90% Passive (45-75s)
+                // This logic is handled inside the specific Boss Behavior's initialize method 
+                // by checking GameMode.CAMPAIGN.
+                this.engine.enemyManager.spawn(EnemyType.TANK, pos.x, pos.y, {
+                    isBoss: true,
+                    bossType: type
+                });
+                
+                this.engine.addMessage(this.engine.t('BOSS_DETECTED'), pos.x, pos.y, '#A855F7', FloatingTextType.SYSTEM);
             }
         }
     }

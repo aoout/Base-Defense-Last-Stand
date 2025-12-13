@@ -71,18 +71,22 @@ export interface Enemy extends Entity {
   // Tube Worm Mechanics
   burrowState?: 'IDLE' | 'DIVING' | 'UNDERGROUND' | 'SURFACING';
   burrowTimer?: number;
+  burrowTarget?: { x: number, y: number }; // Destination for the hop
   cannibalTimer?: number;
   visualScaleY?: number; // For dive animation
   storedScore?: number; // Biomass from eaten enemies
   huntingTargetId?: string; // ID of the Grunt being chased
   eatingTimer?: number; // Visual timer for swallowing animation
 
-  // Campaign Wandering Logic
+  // Campaign Wandering / Passive Logic
   isWandering?: boolean;
-  wanderTimer?: number;     // How long they have been wandering or how long left
-  wanderDuration?: number;  // Total duration to wander
+  wanderTimer?: number;     // How long to wander in current direction
+  wanderDuration?: number;  // Total duration of the wandering phase
   wanderPoint?: { x: number, y: number }; // Current random destination
-  activeTime?: number; // Total active surface time for campaign boss
+  
+  // New: Passive State (Campaign specific)
+  passiveTimer?: number; // If > 0, enemy does not attack unless damaged
+  activeTime?: number;   // How long it has been active (for Devourer despawn)
 }
 
 export interface Ally extends Entity {

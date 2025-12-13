@@ -48,8 +48,14 @@ export interface WaveState {
 export interface CampaignState {
     pustuleTimer: number;
     nextPustuleSpawnTime: number;
-    bossTimer: number;          // formerly 'campaignBossTimer'
-    bossHp: number;             // formerly 'campaignBossHp'
+    
+    // The Devourer (Burrower)
+    devourerTimer: number;      
+    bossHp: number;             // Persisted HP for Devourer
+
+    // Roaming Bosses (Red/Blue/Purple)
+    roamingBossTimer: number;
+    nextRoamingBossTime: number;
 }
 
 export interface GameState {

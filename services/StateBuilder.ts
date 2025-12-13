@@ -322,8 +322,10 @@ export class StateBuilder {
         return {
             pustuleTimer: 0,
             nextPustuleSpawnTime: 65000 + Math.random() * 130000,
-            bossTimer: 0,
-            bossHp: 4000000
+            devourerTimer: 0,
+            bossHp: 4000000,
+            roamingBossTimer: 0,
+            nextRoamingBossTime: 95000 + Math.random() * 100000
         };
     }
 

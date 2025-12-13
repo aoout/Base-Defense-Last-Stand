@@ -8,10 +8,16 @@ export class RedSummonerBehavior extends BaseEnemyBehavior {
         super.initialize(enemy, context, options);
         enemy.bossBurstCount = 0;
         enemy.bossNextShotTime = 0;
+        
+        // Campaign Passive Logic
+        if (context.state.gameMode === GameMode.CAMPAIGN && Math.random() < 0.9) {
+            enemy.passiveTimer = 45000 + Math.random() * 30000; // 45-75s
+            enemy.isWandering = true;
+        }
     }
 
     public update(enemy: Enemy, context: AIContext): void {
-        if (this.handleWandering(enemy, context)) return;
+        if (this.processPassiveState(enemy, context)) return;
 
         const target = this.acquireTarget(enemy, context);
         this.moveTowards(enemy, target, enemy.speed, context.timeScale);
@@ -39,10 +45,16 @@ export class BlueBurstBehavior extends BaseEnemyBehavior {
         super.initialize(enemy, context, options);
         enemy.bossBurstCount = 0;
         enemy.bossNextShotTime = 0;
+        
+        // Campaign Passive Logic
+        if (context.state.gameMode === GameMode.CAMPAIGN && Math.random() < 0.9) {
+            enemy.passiveTimer = 45000 + Math.random() * 30000; // 45-75s
+            enemy.isWandering = true;
+        }
     }
 
     public update(enemy: Enemy, context: AIContext): void {
-        if (this.handleWandering(enemy, context)) return;
+        if (this.processPassiveState(enemy, context)) return;
 
         const target = this.acquireTarget(enemy, context);
         
@@ -78,8 +90,17 @@ export class BlueBurstBehavior extends BaseEnemyBehavior {
 }
 
 export class PurpleAcidBehavior extends BaseEnemyBehavior {
+    public initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void {
+        super.initialize(enemy, context, options);
+        // Campaign Passive Logic
+        if (context.state.gameMode === GameMode.CAMPAIGN && Math.random() < 0.9) {
+            enemy.passiveTimer = 45000 + Math.random() * 30000; // 45-75s
+            enemy.isWandering = true;
+        }
+    }
+
     public update(enemy: Enemy, context: AIContext): void {
-        if (this.handleWandering(enemy, context)) return;
+        if (this.processPassiveState(enemy, context)) return;
 
         const target = this.acquireTarget(enemy, context);
         
@@ -178,27 +199,25 @@ export class HiveMotherBehavior extends BaseEnemyBehavior {
 }
 
 /**
- * The Devourer: Campaign Boss logic extracted from Tube Worm.
- * Features: Surfacing, Diving, Wandering, Enrage on Hit.
+ * The Burrower (The Devourer): Campaign Boss.
+ * Logic: Spawns (Surfaces), Wanders for 60s, then Burrows (Retreats).
+ * Attacks only if damaged.
  */
 export class DevourerBossBehavior extends BaseEnemyBehavior {
     public initialize(enemy: Enemy, context: AIContext, options?: EnemySpawnOptions): void {
         super.initialize(enemy, context, options);
-        enemy.burrowState = 'SURFACING';
+        enemy.burrowState = 'SURFACING'; // Starts by surfacing into the world
         enemy.burrowTimer = 0;
-        enemy.visualScaleY = 0;
-        enemy.activeTime = 0;
+        enemy.visualScaleY = 0; // Starts invisible
+        enemy.activeTime = 0; // Tracks total time on surface
+        
+        // Passive wandering by default
         enemy.isWandering = true;
+        enemy.passiveTimer = 60000; 
     }
 
     public update(enemy: Enemy, context: AIContext): void {
         const { dt } = context;
-
-        // Global Timer to force retreat
-        enemy.activeTime = (enemy.activeTime || 0) + dt;
-        if (enemy.activeTime >= 60000 && enemy.burrowState !== 'DIVING' && enemy.burrowState !== 'UNDERGROUND') {
-            this.triggerRetreat(enemy, context);
-        }
 
         // State Machine
         switch (enemy.burrowState) {
@@ -208,7 +227,7 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
             case 'DIVING':
                 this.updateDiving(enemy, context);
                 break;
-            case 'IDLE': // Active on surface
+            case 'IDLE': // Active Surface Mode
                 this.updateActive(enemy, context);
                 break;
         }
@@ -217,7 +236,10 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
     private triggerRetreat(enemy: Enemy, context: AIContext) {
         enemy.burrowState = 'DIVING';
         enemy.burrowTimer = 0;
+        
+        // Force wandering behavior during retreat just to make it move
         enemy.isWandering = true; 
+        
         context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
             text: context.t('DEVOURER_RETREATING'), 
             x: enemy.x, y: enemy.y - 100, 
@@ -227,18 +249,15 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
 
     private updateSurfacing(enemy: Enemy, context: AIContext) {
         enemy.burrowTimer = (enemy.burrowTimer || 0) + context.dt;
-        const progress = Math.min(1, enemy.burrowTimer / 1000); 
+        const progress = Math.min(1, enemy.burrowTimer / 2000); // Slower surfacing for dramatic effect
         enemy.visualScaleY = progress;
         
-        if (enemy.burrowTimer > 1000) {
+        if (enemy.burrowTimer > 2000) {
             enemy.burrowState = 'IDLE';
             enemy.burrowTimer = 0;
-            // Pick a new spot if needed
-            if (!enemy.wanderPoint && enemy.isWandering) {
-                enemy.wanderPoint = { 
-                    x: 100 + Math.random() * (context.state.worldWidth - 200), 
-                    y: 100 + Math.random() * (context.state.worldHeight - 200) 
-                };
+            // Immediately ensure a wander point exists so it starts moving
+            if (!enemy.wanderPoint) {
+                this.pickWanderPoint(enemy, context);
             }
         }
     }
@@ -258,27 +277,51 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
     }
 
     private updateActive(enemy: Enemy, context: AIContext) {
-        if (enemy.isWandering) {
-            this.handleWandering(enemy, context);
-        } else {
-            const target = this.acquireTarget(enemy, context);
-            const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
-            const attackRange = 550;
-            
-            // Move into range if needed
-            if (distSq > attackRange * attackRange) {
-                this.moveTowards(enemy, target, enemy.speed, context.timeScale);
-            } else {
-                enemy.angle = Math.atan2(target.y - enemy.y, target.x - enemy.x);
-            }
+        // GLOBAL TIMER CHECK: After 60s total surfaced time, it leaves regardless of combat state
+        enemy.activeTime = (enemy.activeTime || 0) + context.dt;
+        if (enemy.activeTime >= 60000) {
+            this.triggerRetreat(enemy, context);
+            return;
+        }
 
+        // Behavior Logic: Passive (Wander) vs Aggressive (Fight)
+        if (enemy.passiveTimer !== undefined && enemy.passiveTimer > 0) {
+            // Decrement passive timer
+            // Note: Attacking reduces this to 0 immediately in onTakeDamage
+            enemy.passiveTimer -= context.dt;
+            
+            // While passive, WANDER aimlessly
+            this.handleWandering(enemy, context, true);
+        } else {
+            // Aggressive Mode (Triggered by damage)
+            const target = this.acquireTarget(enemy, context);
+            this.moveTowards(enemy, target, enemy.speed, context.timeScale);
             this.performMeleeAttack(enemy, target, context, 1000);
-            this.attemptRangedAttack(enemy, target, distSq, attackRange, context);
+            
+            // Ranged attack only if valid target
+            const distSq = (enemy.x - target.x)**2 + (enemy.y - target.y)**2;
+            this.attemptRangedAttack(enemy, target, distSq, 600 * 600, context);
         }
     }
 
+    private pickWanderPoint(enemy: Enemy, context: AIContext) {
+        // Bias the wander point to be somewhat near the player (within 1200 units) to ensure interaction
+        const p = context.state.player;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = 400 + Math.random() * 800;
+        
+        let wx = p.x + Math.cos(angle) * dist;
+        let wy = p.y + Math.sin(angle) * dist;
+        
+        // Clamp to world bounds
+        wx = Math.max(100, Math.min(context.state.worldWidth - 100, wx));
+        wy = Math.max(100, Math.min(context.state.worldHeight - 100, wy));
+
+        enemy.wanderPoint = { x: wx, y: wy };
+    }
+
     private attemptRangedAttack(enemy: Enemy, target: any, distSq: number, rangeSq: number, context: AIContext) {
-        const shotCooldown = 3300;
+        const shotCooldown = 3000;
         if (context.time - enemy.lastAttackTime > shotCooldown) {
             if (distSq <= rangeSq) {
                 context.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
@@ -294,10 +337,11 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
     }
 
     public onTakeDamage(enemy: Enemy, amount: number, weaponType: WeaponType | undefined, context: AIContext): number {
-        // Enrage logic: If wandering boss takes damage, it targets the player immediately
-        if (enemy.isWandering) {
+        // If wandering boss takes damage, it targets the player immediately (Enrage)
+        // But NOT if it's already retreating (Diving)
+        if (enemy.burrowState === 'IDLE' && enemy.passiveTimer && enemy.passiveTimer > 0) {
+            enemy.passiveTimer = 0; // Break passive -> Enrage. Does NOT reset activeTime.
             enemy.isWandering = false;
-            enemy.wanderTimer = 0;
             enemy.wanderPoint = undefined;
             
             context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, {
@@ -310,7 +354,9 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
             // Visual feedback
             context.events.emit(GameEventType.PLAY_SOUND, { type: 'BOSS_DEATH', x: enemy.x, y: enemy.y }); 
         }
-        return amount;
+        
+        // Armor Logic (High resistance)
+        return amount * 0.8; // 20% innate reduction for boss
     }
 
     public onDeath(enemy: Enemy, context: AIContext): void {
@@ -318,7 +364,8 @@ export class DevourerBossBehavior extends BaseEnemyBehavior {
             context.events.emit<ShowFloatingTextEvent>(GameEventType.SHOW_FLOATING_TEXT, { 
                 text: context.t('DEVOURER_ELIMINATED'), x: enemy.x, y: enemy.y, color: '#FACC15', type: FloatingTextType.SYSTEM 
             });
-            context.state.campaign.bossHp = 0; 
+            // Mark boss as permanently dead (-1 flag)
+            context.state.campaign.bossHp = -1; 
             context.events.emit(GameEventType.MISSION_COMPLETE, {}); 
         }
     }

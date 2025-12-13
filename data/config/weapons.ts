@@ -1,7 +1,7 @@
 
-import { WeaponType, WeaponStats, ModuleType } from "../../types";
+import { WeaponType, WeaponStats, ModuleType, ProjectileID, WeaponDef } from "../../types";
 
-export const WEAPONS: Record<WeaponType, WeaponStats> = {
+export const WEAPONS: Record<WeaponType, WeaponDef> = {
   [WeaponType.AR]: {
     name: 'Assault Rifle',
     damage: 45,
@@ -11,6 +11,12 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     reloadTime: 1500,
     range: 600,
     projectileSpeed: 20,
+    projectilePresetId: ProjectileID.P_AR,
+    visuals: {
+        muzzleOffset: 26,
+        flashColor: '#FEF08A',
+        flashSize: 8
+    }
   },
   [WeaponType.SG]: {
     name: 'Shotgun',
@@ -22,37 +28,61 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     reloadTime: 2000,
     range: 300,
     projectileSpeed: 18,
+    projectilePresetId: ProjectileID.P_SG,
+    visuals: {
+        muzzleOffset: 26,
+        flashColor: '#FEF08A',
+        flashSize: 12
+    }
   },
   [WeaponType.SR]: {
     name: 'Sniper Rifle',
     damage: 480, 
-    fireRate: 1100, // BUFF: 1500 -> 1100
+    fireRate: 1100, 
     spread: 0.01,
     magSize: 5,
     reloadTime: 2500,
     range: 1200,
     projectileSpeed: 40,
+    projectilePresetId: ProjectileID.P_SR,
+    visuals: {
+        muzzleOffset: 42, // Long barrel
+        flashColor: '#FEF08A',
+        flashSize: 10
+    }
   },
   [WeaponType.PISTOL]: {
     name: 'Pistol',
-    damage: 70, // BUFF: 60 -> 70
+    damage: 70, 
     fireRate: 300,
     spread: 0.05,
     magSize: 12,
     reloadTime: 1000,
     range: 500,
     projectileSpeed: 18,
+    projectilePresetId: ProjectileID.P_PISTOL,
+    visuals: {
+        muzzleOffset: 15, // Short barrel
+        flashColor: '#FEF08A',
+        flashSize: 6
+    }
   },
   [WeaponType.FLAMETHROWER]: {
     name: 'Flamethrower',
-    damage: 18, // BUFF: 15 -> 18
+    damage: 18, 
     fireRate: 40,
     spread: 0.15,
     magSize: 100,
-    reloadTime: 2000, // BUFF: 2200 -> 2000
+    reloadTime: 2000,
     range: 350,
     projectileSpeed: 12,
-    isPiercing: true
+    isPiercing: true,
+    projectilePresetId: ProjectileID.P_FLAME,
+    visuals: {
+        muzzleOffset: 24,
+        flashColor: '#F97316', // Orange
+        flashSize: 0 // Handled by particles
+    }
   },
   [WeaponType.PULSE_RIFLE]: {
     name: 'Pulse Rifle',
@@ -60,21 +90,33 @@ export const WEAPONS: Record<WeaponType, WeaponStats> = {
     fireRate: 80,
     spread: 0.02,
     magSize: 45,
-    reloadTime: 1800, // NERF: 1300 -> 1800
+    reloadTime: 1800,
     range: 700,
     projectileSpeed: 30,
-    isPiercing: true
+    isPiercing: true,
+    projectilePresetId: ProjectileID.P_PULSE,
+    visuals: {
+        muzzleOffset: 20,
+        flashColor: '#67E8F9', // Cyan
+        flashSize: 8
+    }
   },
   [WeaponType.GRENADE_LAUNCHER]: {
     name: 'Grenade Launcher',
-    damage: 360, // BUFF: 300 -> 360
+    damage: 360, 
     fireRate: 1200,
     spread: 0.1,
     magSize: 6,
-    reloadTime: 3200, // BUFF: 3500 -> 3200
+    reloadTime: 3200,
     range: 600,
     projectileSpeed: 15,
-    isExplosive: true
+    isExplosive: true,
+    projectilePresetId: ProjectileID.P_GRENADE,
+    visuals: {
+        muzzleOffset: 24,
+        flashColor: '#FEF08A',
+        flashSize: 14
+    }
   }
 };
 

@@ -1,5 +1,5 @@
 
-import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent, Player, WeaponState, DamagePlayerEvent, IGameSystem, ProjectileID, WeaponStats } from '../../types';
+import { GameState, GameEventType, StatId, DefenseUpgradeType, DamageSource, WeaponType, SpawnProjectileEvent, PlaySoundEvent, ShowFloatingTextEvent, FloatingTextType, ModuleType, SpawnParticleEvent, DamageAreaEvent, Player, WeaponState, DamagePlayerEvent, IGameSystem, ProjectileID, WeaponDef } from '../../types';
 import { EventBus } from '../EventBus';
 import { InputManager } from '../InputManager';
 import { StatManager } from './StatManager';
@@ -153,9 +153,9 @@ export class PlayerManager implements IGameSystem {
 
     /**
      * Calculates final damage based on stats and modules.
-     * Pure function (mostly) for easier testing/maintenance.
+     * REFACTOR: Now reads ProjectileID directly from WeaponDef data instead of Switch.
      */
-    private calculateBallistics(weaponStats: WeaponStats, weaponState: WeaponState) {
+    private calculateBallistics(weaponStats: WeaponDef, weaponState: WeaponState) {
         // 1. Base Damage
         let damage = this.stats.get(StatId.PLAYER_DAMAGE, weaponStats.damage); 
         
@@ -166,16 +166,8 @@ export class PlayerManager implements IGameSystem {
             if (m.type === ModuleType.TENSION_SPRING) damage *= 1.2;
         });
 
-        // 3. Resolve Projectile ID
-        let projectileId = ProjectileID.P_AR;
-        switch(weaponState.type) {
-            case WeaponType.PISTOL: projectileId = ProjectileID.P_PISTOL; break;
-            case WeaponType.SG: projectileId = ProjectileID.P_SG; break;
-            case WeaponType.SR: projectileId = ProjectileID.P_SR; break;
-            case WeaponType.FLAMETHROWER: projectileId = ProjectileID.P_FLAME; break;
-            case WeaponType.PULSE_RIFLE: projectileId = ProjectileID.P_PULSE; break;
-            case WeaponType.GRENADE_LAUNCHER: projectileId = ProjectileID.P_GRENADE; break;
-        }
+        // 3. Resolve Projectile ID from Data
+        const projectileId = weaponStats.projectilePresetId;
 
         return { damage, projectileId };
     }
@@ -203,15 +195,23 @@ export class PlayerManager implements IGameSystem {
         // DECOUPLED CALCULATION
         const { damage, projectileId } = this.calculateBallistics(wStats, wState);
 
+        // Get barrel offset from config (default to 20 if missing)
+        const barrelLen = wStats.visuals?.muzzleOffset || 20;
+
         const spawnProjectile = (angleOffset: number = 0) => {
             const finalAngle = p.angle + (Math.random() - 0.5) * spread + angleOffset;
-            const targetX = p.x + Math.cos(finalAngle) * 1000;
-            const targetY = p.y + Math.sin(finalAngle) * 1000;
+            
+            // Calculate spawn point at end of barrel
+            const spawnX = p.x + Math.cos(p.angle) * barrelLen;
+            const spawnY = p.y + Math.sin(p.angle) * barrelLen;
+
+            const targetX = spawnX + Math.cos(finalAngle) * 1000;
+            const targetY = spawnY + Math.sin(finalAngle) * 1000;
             
             this.events.emit<SpawnProjectileEvent>(GameEventType.SPAWN_PROJECTILE, {
                 presetId: projectileId,
-                x: p.x,
-                y: p.y,
+                x: spawnX,
+                y: spawnY,
                 targetX,
                 targetY,
                 damage,

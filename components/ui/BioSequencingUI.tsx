@@ -30,7 +30,7 @@ const EnemyPreview: React.FC<{ type: EnemyType, size?: number }> = ({ type, size
         // Scale based on size prop to keep it fitting
         let scale = size / 40; 
         if (type === EnemyType.TANK) scale *= 0.8;
-        if (type === EnemyType.TUBE_WORM) scale *= 0.9;
+        if (type === EnemyType.TUBE_WORM) scale *= 0.6; // Reduced from 0.9 by ~30%
         
         ctx.scale(scale, scale);
 

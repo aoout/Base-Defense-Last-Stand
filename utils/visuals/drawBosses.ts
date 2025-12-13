@@ -1,6 +1,6 @@
 
 import { Enemy } from '../../types';
-import { drawCircle } from '../drawHelpers';
+import { drawCircle, drawBioLeg, drawCarapaceBody } from '../drawHelpers';
 import { PALETTE } from '../../theme/colors';
 
 export const drawBossRed = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
@@ -250,119 +250,239 @@ export const drawHiveMother = (ctx: CanvasRenderingContext2D, e: Enemy, time: nu
     ctx.shadowBlur = 0;
 }
 
-// THE DEVOURER (Boss Variant of Tube Worm)
+// THE BURROWER (Campaign Boss)
+// Redesigned: More menacing, detailed obsidian carapace, magma veins, sharper mandibles.
 export const drawDevourer = (ctx: CanvasRenderingContext2D, e: Enemy, time: number) => {
     const scaleY = e.visualScaleY !== undefined ? e.visualScaleY : 1;
-    const isWandering = e.isWandering;
     
-    if (scaleY <= 0.05) {
-        // Molten Mound
-        const glow = Math.sin(time * 0.005) * 5;
-        ctx.fillStyle = '#1c1917'; // Obsidian
-        ctx.beginPath();
-        ctx.ellipse(0, 0, e.radius, e.radius * 0.4, 0, 0, Math.PI*2);
-        ctx.fill();
-        
-        ctx.shadowBlur = 20 + glow;
-        ctx.shadowColor = '#ef4444';
-        ctx.fillStyle = '#b91c1c'; // Magma cracks
-        ctx.beginPath();
-        ctx.arc(0, 0, e.radius * 0.3, 0, Math.PI*2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        return;
-    }
-
     ctx.save();
+    ctx.scale(scaleY, scaleY); // Surface emergence scale
+
+    const breathe = Math.sin(time * 0.002);
+    const walk = Math.sin(time * 0.008) * 10;
+
+    // --- LEGS (Draw first so they are under body) ---
+    const legColor = '#18181b'; // Zinc-950
+    const jointColor = '#7f1d1d'; // Deep Red
     
-    const segmentCount = 10;
-    const maxLen = e.radius * 4.0; 
-    const currentLen = maxLen * scaleY;
-    const segSpacing = currentLen / segmentCount;
-    let baseWidth = e.radius * 1.8; 
+    // 3 Pairs of heavy, armored legs
+    const legPairs = [
+        { x: 30, y: -25, len: 65, w: 12, angleOffset: -0.4 }, // Front
+        { x: 5, y: -45, len: 80, w: 14, angleOffset: 0 },     // Mid (Longest)
+        { x: -30, y: -50, len: 70, w: 16, angleOffset: 0.6 }, // Back (Thickest)
+    ];
 
-    // Pulse effect
-    const rage = Math.sin(time * 0.01) * 2;
+    legPairs.forEach((leg, i) => {
+        const sideMult = [1, -1];
+        sideMult.forEach(side => {
+            const move = Math.sin(time * 0.008 + (i * 2.5) + (side * Math.PI)) * 10;
+            const startX = leg.x;
+            const startY = leg.y * side;
+            
+            // Calculate leg endpoint
+            const endX = startX + leg.len * Math.cos(leg.angleOffset + (side * 0.15));
+            const endY = startY + (leg.len * side) + move;
 
-    for(let i = segmentCount; i >= 0; i--) {
-        const progress = i / segmentCount; 
-        const wiggle = Math.sin(progress * Math.PI * 1.5 + time * 0.003) * (10 * scaleY);
-        const segX = (segmentCount - i) * (segSpacing * 0.8) - (e.radius * 0.6); 
-        const segY = wiggle;
-        const width = (baseWidth - Math.abs(progress - 0.5) * 15) * scaleY;
-        const isHead = i === 0;
+            // Knee calculation (Midpoint popped out)
+            const kneeX = (startX + endX) / 2 + (30 * Math.cos(leg.angleOffset));
+            const kneeY = (startY + endY) / 2 + (30 * side * Math.sin(leg.angleOffset + 1.5)); 
 
-        // Obsidian Shell
-        ctx.fillStyle = '#0c0a09'; 
-        if (i % 2 === 0) ctx.fillStyle = '#1c1917';
+            // Draw Leg Segments
+            ctx.lineWidth = leg.w;
+            ctx.strokeStyle = legColor;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Thigh
+            ctx.beginPath();
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(kneeX, kneeY);
+            ctx.stroke();
+
+            // Shin
+            ctx.lineWidth = leg.w * 0.8;
+            ctx.beginPath();
+            ctx.moveTo(kneeX, kneeY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // Armor Plate on Knee
+            ctx.fillStyle = '#27272a'; // Dark Grey
+            ctx.beginPath();
+            ctx.arc(kneeX, kneeY, leg.w * 0.8, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Spike on Knee
+            ctx.fillStyle = jointColor;
+            ctx.beginPath();
+            ctx.moveTo(kneeX, kneeY);
+            ctx.lineTo(kneeX + 8, kneeY - (12 * side));
+            ctx.lineTo(kneeX - 8, kneeY - (8 * side));
+            ctx.fill();
+            
+            // Claw tip
+            ctx.fillStyle = '#b91c1c';
+            ctx.beginPath();
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX + 5, endY + (5 * side));
+            ctx.lineTo(endX - 2, endY + (8 * side));
+            ctx.fill();
+        });
+    });
+
+    // --- BODY SEGMENTS ---
+    // Overlapping plates from tail to head
+    const segments = 6;
+    const bodyWidthBase = 70;
+    
+    for(let i=0; i<segments; i++) {
+        // Calculate taper
+        const progress = i / segments; 
+        const w = (bodyWidthBase * 0.5) + (bodyWidthBase * 0.5 * Math.sin(progress * Math.PI * 0.8)); 
+        const h = w * 0.8;
         
+        const xOffset = -60 + (i * 22);
+        const yWiggle = Math.sin(time * 0.005 + i) * 2;
+        
+        ctx.save();
+        ctx.translate(xOffset, yWiggle);
+
+        // Armor Plate Shape (Shield-like)
         ctx.beginPath();
-        ctx.ellipse(segX, segY, segSpacing * 0.9, width / 2, 0, 0, Math.PI * 2);
+        ctx.moveTo(12, 0);
+        ctx.lineTo(0, -h/2);
+        ctx.lineTo(-15, -h/2 * 0.8);
+        ctx.lineTo(-20, 0);
+        ctx.lineTo(-15, h/2 * 0.8);
+        ctx.lineTo(0, h/2);
+        ctx.closePath();
+        
+        // Base Fill
+        ctx.fillStyle = '#09090b'; // Obsidian
         ctx.fill();
-        
-        // Magma Veins
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = '#ef4444'; // Red Magma
-        if (isWandering) ctx.strokeStyle = '#f59e0b'; // Amber when calm
-        
-        ctx.shadowBlur = 10;
-        ctx.shadowColor = ctx.strokeStyle;
+
+        // Magma Underglow (Internal heat showing at edges)
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#c2410c'; // Orange-700
+        ctx.strokeStyle = `rgba(249, 115, 22, ${0.1 + breathe * 0.1})`;
+        ctx.lineWidth = 2;
         ctx.stroke();
         ctx.shadowBlur = 0;
 
-        // Spikes
-        if (i % 2 !== 0 && !isHead) {
-            ctx.fillStyle = '#7f1d1d';
+        // Metallic Shine
+        const grad = ctx.createLinearGradient(0, -h/2, 0, h/2);
+        grad.addColorStop(0, '#27272a');
+        grad.addColorStop(0.4, '#09090b');
+        grad.addColorStop(0.6, '#09090b');
+        grad.addColorStop(1, '#27272a');
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Central Spine Ridge
+        ctx.fillStyle = '#450a0a'; 
+        ctx.beginPath();
+        ctx.moveTo(-18, 0);
+        ctx.lineTo(8, -4);
+        ctx.lineTo(8, 4);
+        ctx.fill();
+
+        // Cracks / Veins
+        if (i > 1) {
+            ctx.strokeStyle = '#f97316';
+            ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(segX, segY - width/2);
-            ctx.lineTo(segX - 5, segY - width/2 - 15);
-            ctx.lineTo(segX + 5, segY - width/2);
-            ctx.fill();
-            
-            ctx.beginPath();
-            ctx.moveTo(segX, segY + width/2);
-            ctx.lineTo(segX - 5, segY + width/2 + 15);
-            ctx.lineTo(segX + 5, segY + width/2);
-            ctx.fill();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(5, (i%2 === 0 ? 1 : -1) * 8);
+            ctx.stroke();
         }
+
+        ctx.restore();
+    }
+
+    // --- HEAD UNIT ---
+    ctx.save();
+    ctx.translate(65, 0); // Head position
+
+    // Neck Connector
+    ctx.fillStyle = '#450a0a';
+    ctx.fillRect(-15, -15, 15, 30);
+
+    // Mandibles (Lower - Under head)
+    const bite = Math.sin(time * 0.01) * 0.2;
+    
+    const drawMandible = (side: number, size: number, color: string) => {
+        ctx.save();
+        ctx.scale(1, side);
+        ctx.rotate(bite);
         
-        if (isHead) {
-            const headX = segX + 5;
-            const headY = segY;
-            const mawSize = width * 0.4;
-            
-            // Glowing Maw
-            const mawGrad = ctx.createRadialGradient(headX, headY, 0, headX, headY, mawSize);
-            mawGrad.addColorStop(0, '#fef2f2');
-            mawGrad.addColorStop(0.4, '#ef4444');
-            mawGrad.addColorStop(1, '#450a0a');
-            
-            ctx.fillStyle = mawGrad;
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#ef4444';
-            ctx.beginPath();
-            ctx.arc(headX, headY, mawSize, 0, Math.PI*2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            // Mandibles
-            ctx.fillStyle = '#000';
-            const openAmount = Math.abs(Math.sin(time * 0.005)) * 10;
-            
-            // Top
-            ctx.beginPath();
-            ctx.moveTo(headX, headY - mawSize - 5 - openAmount);
-            ctx.lineTo(headX + 30, headY - 10 - openAmount);
-            ctx.lineTo(headX, headY - 5 - openAmount);
-            ctx.fill();
-            
-            // Bottom
-            ctx.beginPath();
-            ctx.moveTo(headX, headY + mawSize + 5 + openAmount);
-            ctx.lineTo(headX + 30, headY + 10 + openAmount);
-            ctx.lineTo(headX, headY + 5 + openAmount);
-            ctx.fill();
-        }
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, 5);
+        ctx.quadraticCurveTo(size * 0.5, size, size, 0); // Hook tip
+        ctx.quadraticCurveTo(size * 0.6, 5, 0, 5); // Inner edge
+        ctx.fill();
+        
+        ctx.restore();
+    };
+
+    // Inner small jaws
+    drawMandible(1, 30, '#7f1d1d');
+    drawMandible(-1, 30, '#7f1d1d');
+
+    // Head Armor Plate (Cowl)
+    ctx.fillStyle = '#09090b';
+    ctx.beginPath();
+    ctx.moveTo(-10, -20);
+    ctx.lineTo(15, -12);
+    ctx.lineTo(30, 0); // Snout
+    ctx.lineTo(15, 12);
+    ctx.lineTo(-10, 20);
+    ctx.lineTo(-5, 0); // Indent
+    ctx.closePath();
+    ctx.fill();
+    
+    // Highlight
+    ctx.strokeStyle = '#3f3f46';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Outer Massive Mandibles
+    drawMandible(1, 55, '#1c1917');
+    drawMandible(-1, 55, '#1c1917');
+
+    // Glowing Eyes (Cluster)
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#fbbf24'; // Amber
+    ctx.fillStyle = '#fbbf24';
+    
+    // 4 Eyes arrangement
+    drawCircle(ctx, 15, -8, 3.5, '#fbbf24');
+    drawCircle(ctx, 15, 8, 3.5, '#fbbf24');
+    drawCircle(ctx, 8, -12, 2.5, '#f59e0b');
+    drawCircle(ctx, 8, 12, 2.5, '#f59e0b');
+    
+    ctx.shadowBlur = 0;
+    
+    // Pupil highlights
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(16, -9, 1, 1);
+    ctx.fillRect(16, 7, 1, 1);
+    
+    ctx.restore(); // End Head
+
+    // --- REAR SPIKES ---
+    ctx.save();
+    ctx.translate(-70, 0);
+    ctx.fillStyle = '#450a0a';
+    for(let i=0; i<3; i++) {
+        const yOff = (i-1) * 12;
+        ctx.beginPath();
+        ctx.moveTo(0, yOff);
+        ctx.lineTo(-25, yOff * 1.8);
+        ctx.lineTo(-5, yOff + (i===1 ? 0 : i===0 ? -6 : 6));
+        ctx.fill();
     }
     ctx.restore();
-}
+
+    ctx.restore(); // End Scale
+};

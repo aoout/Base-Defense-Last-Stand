@@ -3,7 +3,7 @@ import { Enemy, Projectile, WeaponType, ModuleType, DamageSource, GameEventType,
 import { StatManager } from '../managers/StatManager';
 import { EventBus } from '../EventBus';
 import { TOXIC_ZONE_STATS } from '../../data/registry';
-import { circlesIntersect } from '../../utils/collision';
+import { circlesIntersect, circleIntersectsAABB } from '../../utils/collision';
 import { SpatialHashGrid } from '../../utils/spatialHash';
 
 /**
@@ -123,6 +123,7 @@ export class CombatSystem implements IGameSystem {
         if (state.base) {
             state.base.hp -= p.damage;
             this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: p.damage });
+            this.checkBaseIntegrity(state);
         }
         p.rangeRemaining = -1;
     }
@@ -152,21 +153,39 @@ export class CombatSystem implements IGameSystem {
     }
 
     private handleAreaDamage(e: DamageAreaEvent) {
+        // 1. Damage Enemies
         this.areaTargetsCache.length = 0;
         this.spatialGrid.query(e.x, e.y, e.radius, this.areaTargetsCache);
 
         for (const enemy of this.areaTargetsCache) {
             if (circlesIntersect(e.x, e.y, e.radius, enemy.x, enemy.y, enemy.radius)) {
-                // Apply falloff? For now simple flat damage
                 const dmg = e.damage;
-                
                 this.events.emit<DamageEnemyEvent>(GameEventType.DAMAGE_ENEMY, {
                     targetId: enemy.id,
                     amount: dmg,
                     source: e.source,
-                    weaponType: WeaponType.GRENADE_LAUNCHER // Implied or passed in payload? Assuming generic for now
+                    weaponType: WeaponType.GRENADE_LAUNCHER 
                 });
             }
+        }
+
+        // 2. Damage Base (If source is enemy or friendly fire logic exists, though typically AOE doesn't FF base unless specified)
+        // Assuming Kamikaze/Enemy explosions hurt base
+        if (e.source === DamageSource.ENEMY) {
+            const state = this.getState();
+            const b = state.base;
+            if (circleIntersectsAABB(e.x, e.y, e.radius, b.x - b.width/2, b.y - b.height/2, b.width, b.height)) {
+                b.hp -= e.damage;
+                this.events.emit<DamageBaseEvent>(GameEventType.DAMAGE_BASE, { amount: e.damage });
+                this.checkBaseIntegrity(state);
+            }
+        }
+    }
+
+    private checkBaseIntegrity(state: GameState) {
+        if (state.base.hp <= 0 && !state.isGameOver) {
+             state.base.hp = 0;
+             this.events.emit(GameEventType.GAME_OVER, {});
         }
     }
 
@@ -176,10 +195,6 @@ export class CombatSystem implements IGameSystem {
         const tickRate = 500; // ms
 
         // We check overlap here because we need the timer logic.
-        // Doing this in PhysicsSystem would require Physics to know about 'ticks'.
-        // Doing this here requires simple collision check.
-        // Given we have circlesIntersect utility, this is cheap.
-        
         for (const z of state.toxicZones) {
             // Calculate if a tick happened in this frame
             const prevTick = Math.ceil((z.life + dt) / tickRate);

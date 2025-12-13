@@ -28,7 +28,7 @@ export const ENEMY_STATS: Record<EnemyType, EnemyStatsConfig> = {
       detectionRange: 0 // Passive until touch
   },
   [EnemyType.TUBE_WORM]: { 
-      hp: 250, speed: 0.8, damage: 15, scoreReward: 40, radius: 20, color: '#FACC15',
+      hp: 250, speed: 0.8, damage: 15, scoreReward: 40, radius: 16, color: '#FACC15',
       detectionRange: 600 // Normal range
   },
 };
@@ -93,10 +93,10 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
         description: "A stationary organic growth that acts as a forward spawning point for the swarm. Heavily armored and dangerous to touch. Destroy immediately to prevent reinforcement floods."
     },
     [EnemyType.TUBE_WORM]: {
-        codeName: "DEVOURER",
-        classification: "PLANETARY APEX",
-        danger: 10,
-        description: "A colossal subterranean organism detected in Campaign Sectors. It surfaces periodically to feed. Extremely durable (4M HP) and highly aggressive when provoked. Can attack from range with acid bile or crush targets in melee. Victory is achieved by slaying this beast."
+        codeName: "TUBE WORM",
+        classification: "AMBUSH PREDATOR",
+        danger: 2,
+        description: "Burrowing menace found in high-oxygen zones. Moves by diving underground and surfacing at new locations. Untargetable while submerged. Aggressively hunts nearby Grunts to heal."
     },
     [BossType.RED_SUMMONER]: {
         codeName: "THE HIVE LORD",
@@ -121,5 +121,11 @@ export const BESTIARY_DB: Record<string, { codeName: string, classification: str
         classification: "HIVE CORE",
         danger: 10,
         description: "The central nervous system of the planetary infestation. This massive, stationary bio-structure coordinates all local swarm activities. It is heavily armored and protected by a rapidly regenerating chitinous shell. Destroying it will sever the connection to the hive mind in this sector."
+    },
+    'DEVOURER': {
+        codeName: "THE DEVOURER",
+        classification: "PLANETARY BEHEMOTH",
+        danger: 10,
+        description: "A colossal subterranean organism found only in prolonged campaign operations. Covered in obsidian-like armor plating. It tunnels beneath defenses and surfaces to cause catastrophic seismic damage. Highly resilient to standard ballistics."
     }
 };

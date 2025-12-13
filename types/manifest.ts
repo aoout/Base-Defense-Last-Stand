@@ -1,5 +1,5 @@
 
-import { EnemyType, BossType, WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType } from './enums';
+import { EnemyType, BossType, WeaponType, DefenseUpgradeType, ModuleType, SpaceshipModuleType, ProjectileID } from './enums';
 
 export interface UnitStatsDef {
     hp: number;
@@ -34,9 +34,20 @@ export interface WeaponDef {
     reloadTime: number; // ms
     range: number;
     projectileSpeed: number;
+    
+    // Logic Configuration
+    projectilePresetId: ProjectileID; // The ID of the projectile entity to spawn
     pellets?: number;
     isExplosive?: boolean;
     isPiercing?: boolean;
+
+    // Visual Configuration
+    visuals: {
+        muzzleOffset: number; // Distance from player center to barrel tip
+        barrelHeight?: number; // Y offset (optional, default 0)
+        flashColor?: string; // Hex or rgba
+        flashSize?: number; 
+    }
 }
 
 export interface GameManifest {
