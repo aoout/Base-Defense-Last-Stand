@@ -22,6 +22,7 @@ import { PhysicsSystem } from './PhysicsSystem';
 import { CombatSystem } from './systems/CombatEvaluator';
 import { CameraSystem } from './systems/CameraSystem';
 import { DropSequenceSystem } from './systems/DropSequenceSystem';
+import { WeaponSystem } from './systems/WeaponSystem'; // Import WeaponSystem
 import { InputRouter } from './input/InputRouter';
 import { TRANSLATIONS } from '../data/locales';
 
@@ -52,6 +53,7 @@ export class GameEngine {
     public combatSystem: CombatSystem;
     public cameraSystem: CameraSystem;
     public dropSequenceSystem: DropSequenceSystem;
+    public weaponSystem: WeaponSystem; // Add WeaponSystem
     
     // Input Router
     public inputRouter: InputRouter;
@@ -70,9 +72,12 @@ export class GameEngine {
         // 1. Initialize State Container
         const getState = () => this.state;
 
-        // 2. Initialize Managers
+        // 2. Initialize Core Systems (Dependency Injection)
+        this.weaponSystem = new WeaponSystem(this.eventBus, this.dataManager, this.statManager);
+
+        // 3. Initialize Managers (Injecting WeaponSystem into PlayerManager)
         this.fxManager = new FXManager(getState, this.eventBus);
-        this.playerManager = new PlayerManager(getState, this.eventBus, this.inputManager, this.statManager, this.dataManager);
+        this.playerManager = new PlayerManager(getState, this.eventBus, this.inputManager, this.statManager, this.dataManager, this.weaponSystem);
         this.projectileManager = new ProjectileManager(getState, this.eventBus, this.dataManager);
         this.spaceshipManager = new SpaceshipManager(getState, this.eventBus, this.statManager);
         
@@ -91,10 +96,10 @@ export class GameEngine {
         this.cameraSystem = new CameraSystem(getState, this.audio);
         this.dropSequenceSystem = new DropSequenceSystem(getState, this.eventBus, this.fxManager);
 
-        // 3. Register Systems
+        // 4. Register Systems for Update Loop
         this.initializeSystems();
 
-        // 4. Build Initial State
+        // 5. Build Initial State
         this.state = StateBuilder.build({
             mode: GameMode.SURVIVAL,
             fullReset: true,
@@ -117,18 +122,18 @@ export class GameEngine {
             }
         });
 
-        // 5. Post-Init Setup
+        // 6. Post-Init Setup
         this.state.appMode = AppMode.START_MENU;
         this.physicsSystem.resize(this.state.worldWidth, this.state.worldHeight);
         this.spaceshipManager.registerModifiers();
         
-        // 6. Input Routing
+        // 7. Input Routing
         this.inputRouter = new InputRouter(this);
         if (typeof window !== 'undefined') {
             this.inputManager.attach(window, (action) => this.inputRouter.route(action));
         }
 
-        // 7. Event Listeners
+        // 8. Event Listeners
         this.eventBus.on(GameEventType.GAME_OVER, () => this.sessionManager.handleGameOver());
     }
 
@@ -144,6 +149,9 @@ export class GameEngine {
             this.missionManager,
             this.spaceshipManager,
             this.dropSequenceSystem
+            // WeaponSystem is updated explicitly by PlayerManager, 
+            // but could be added here if we wanted it to handle auto-reload logic independently.
+            // For now, PlayerManager drives it to keep input synchronous.
         ];
     }
 
@@ -163,8 +171,6 @@ export class GameEngine {
         }
 
         // 3. Update Systems with correct Time Context
-        // Use gameTime for simulation logic (physics, cooldowns)
-        // Use realTime for UI animations (handled by React/CSS mostly, but some canvas UI might need it)
         const simTime = this.time.gameTime;
 
         if (shouldUpdateLogic) {
@@ -175,13 +181,10 @@ export class GameEngine {
             this.state.time = simTime;
         }
         
-        // Camera updates even when paused (for smoothing/shake decay if we had it), 
-        // but generally follows player.
+        // Camera updates even when paused (for smoothing)
         this.cameraSystem.update(dt);
         
-        // Loop listeners (e.g. React Hooks) might want RealTime for UI animations
-        // or GameTime for gameplay sync. We pass both ideally, but existing signature is (dt, time).
-        // We pass realTime here because UI animations usually want to keep playing (like glowing buttons) even if paused.
+        // Loop listeners (UI animations, etc.)
         this.loopListeners.forEach(l => l(dt, realTime));
     }
 
